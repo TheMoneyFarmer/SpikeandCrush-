@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Monetisation — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-charts.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="mon-overview"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="admin-tabs">
+          <button class="admin-tab" data-tab="overview">Revenue Overview</button>
+          <button class="admin-tab" data-tab="transactions">Coin Transactions</button>
+          <button class="admin-tab" data-tab="battlepass">Battle Pass</button>
+          <button class="admin-tab" data-tab="shop">Cosmetic Shop</button>
+          <button class="admin-tab" data-tab="withdrawals">Withdrawals</button>
+          <button class="admin-tab" data-tab="brokers">Broker Partners</button>
+          <button class="admin-tab" data-tab="coaching">Coaching Sessions</button>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-overview">
+          <div class="kpi-grid" id="revenueKpis"></div>
+          <div class="chart-card"><h3>Revenue by Stream (last 12 months)</h3><canvas id="chartRevenue12mo"></canvas></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-transactions">
+          <div class="panel" style="margin-bottom:16px;">
+            <div class="config-grid" id="circulationStats"></div>
+          </div>
+          <div class="admin-table-toolbar">
+            <input type="search" id="txSearch" placeholder="Search username…" />
+            <select id="txType"><option value="">All types</option></select>
+            <button class="btn btn-sm" id="txExport">Export CSV</button>
+          </div>
+          <div id="txTableWrap"></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-battlepass">
+          <div class="kpi-grid" id="bpKpis"></div>
+          <div class="chart-card"><h3>Tier Distribution</h3><canvas id="chartTierDist"></canvas></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-shop">
+          <div id="shopTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-withdrawals">
+          <div class="panel" id="withdrawalsPanel"></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-brokers">
+          <div id="brokersTableWrap2"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-coaching">
+          <div id="coachingTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/admin-tables.js"></script>
+  <script src="js/admin-charts.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Monetisation');
+
+    const loaded = {};
+    function activateTab(name) {
+      document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
+      if (!loaded[name]) { loaders[name](); loaded[name] = true; }
+    }
+    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
+
+    const loaders = {
+      overview: async () => {
+        const d = await Admin.api('/monetisation/overview');
+        document.getElementById('revenueKpis').innerHTML = `
+          <div class="kpi-card"><div class="kpi-label">Total Revenue (12mo)</div><div class="kpi-value">${Admin.formatMoney(d.totalRevenueUsd12mo)}</div></div>
+          <div class="kpi-card"><div class="kpi-label">MoM Growth</div><div class="kpi-value">${d.monthOverMonthGrowthPct != null ? d.monthOverMonthGrowthPct + '%' : '—'}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Avg Revenue / User</div><div class="kpi-value">${Admin.formatMoney(d.averageRevenuePerUser)}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Coaching (AED, all-time)</div><div class="kpi-value">${d.byStream.coachingAed.toLocaleString()}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Broker Fees / mo (AED)</div><div class="kpi-value">${d.byStream.brokerPartnerFeesAedMonthly.toLocaleString()}</div></div>
+        `;
+        Admin.Charts.barChart(document.getElementById('chartRevenue12mo'), {
+          labels: d.revenueChart.map((r) => r.month), stacked: true,
+          datasets: [
+            { label: 'Coins', data: d.revenueChart.map((r) => r.coins), backgroundColor: Admin.Charts.PALETTE.teal },
+            { label: 'Battle Pass', data: d.revenueChart.map((r) => r.battlePass), backgroundColor: Admin.Charts.PALETTE.gold },
+          ],
+        });
+      },
+      transactions: async () => {
+        const rows = await Admin.api('/monetisation/transactions');
+        const circ = await Admin.api('/monetisation/coins-in-circulation');
+        document.getElementById('circulationStats').innerHTML = `
+          <div><div class="text-secondary" style="font-size:11px;">IN WALLETS</div><div class="mono">${Admin.formatCoins(circ.totalInWallets)}</div></div>
+          <div><div class="text-secondary" style="font-size:11px;">EARNED IN MATCHES</div><div class="mono">${Admin.formatCoins(circ.totalEarnedInMatches)}</div></div>
+          <div><div class="text-secondary" style="font-size:11px;">SPENT</div><div class="mono">${Admin.formatCoins(circ.totalSpent)}</div></div>
+          <div><div class="text-secondary" style="font-size:11px;">PURCHASED</div><div class="mono">${Admin.formatCoins(circ.totalPurchased)}</div></div>
+        `;
+        const types = [...new Set(rows.map((r) => r.type))];
+        document.getElementById('txType').innerHTML = '<option value="">All types</option>' + types.map((t) => `<option>${t}</option>`).join('');
+        const table = Admin.createTable({
+          container: document.getElementById('txTableWrap'), rows, rowKey: 'id', searchFields: ['username'],
+          columns: [
+            { key: 'created_at', label: 'Date', render: (r) => Admin.formatDate(r.created_at) },
+            { key: 'username', label: 'Player' },
+            { key: 'type', label: 'Type' },
+            { key: 'amount', label: 'Amount', render: (r) => `<span class="${r.amount >= 0 ? 'text-success' : 'text-danger'}">${r.amount >= 0 ? '+' : ''}${r.amount}</span>` },
+            { key: 'balance_after', label: 'Balance After' },
+            { key: 'match_id', label: 'Match', render: (r) => r.match_id ? r.match_id.slice(0, 8) : '—' },
+          ],
+        });
+        document.getElementById('txSearch').addEventListener('input', (e) => table.setSearch(e.target.value));
+        document.getElementById('txType').addEventListener('change', (e) => table.setFilter('type', e.target.value));
+        document.getElementById('txExport').addEventListener('click', () => Admin.downloadCsv('coin-transactions.csv', table.getFiltered()));
+      },
+      battlepass: async () => {
+        const d = await Admin.api('/monetisation/battle-pass');
+        document.getElementById('bpKpis').innerHTML = `
+          <div class="kpi-card"><div class="kpi-label">Active Subscribers</div><div class="kpi-value">${d.activeSubscribers}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Premium Subscribers</div><div class="kpi-value">${d.premiumSubscribers}</div></div>
+          <div class="kpi-card"><div class="kpi-label">MRR</div><div class="kpi-value">${Admin.formatMoney(d.monthlyRecurringRevenueUsd)}</div></div>
+        `;
+        Admin.Charts.barChart(document.getElementById('chartTierDist'), {
+          labels: Object.keys(d.tierDistribution).sort((a, b) => a - b), datasets: [{ label: 'Players', data: Object.values(d.tierDistribution), backgroundColor: Admin.Charts.PALETTE.purple, borderRadius: 3 }],
+        });
+      },
+      shop: async () => {
+        const rows = await Admin.api('/monetisation/shop');
+        document.getElementById('shopTableWrap').innerHTML = rows.length ? `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Item</th><th>Category</th><th>Units Sold</th><th>Coins Revenue</th></tr></thead>
+            <tbody>${rows.map((r) => `<tr><td>${Admin.escapeHtml(r.itemId)}</td><td>${r.category}</td><td>${r.unitsSold}</td><td>${Admin.formatCoins(r.coinsRevenue)}</td></tr>`).join('')}</tbody>
+          </table></div>
+        ` : '<div class="empty-state">No shop purchases yet.</div>';
+      },
+      withdrawals: async () => {
+        const d = await Admin.api('/monetisation/withdrawals');
+        document.getElementById('withdrawalsPanel').innerHTML = `<div class="empty-state"><div class="icon">💸</div>${Admin.escapeHtml(d.message)}</div>`;
+      },
+      brokers: async () => {
+        const rows = await Admin.api('/monetisation/brokers');
+        document.getElementById('brokersTableWrap2').innerHTML = rows.length ? `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Broker</th><th>Tier</th><th>Monthly Fee (AED)</th><th>Active</th></tr></thead>
+            <tbody>${rows.map((b) => `<tr><td>${Admin.escapeHtml(b.broker_name)}</td><td>${b.tier}</td><td>${b.monthly_fee_aed}</td><td>${b.active ? '✅' : '❌'}</td></tr>`).join('')}</tbody>
+          </table></div>
+        ` : '<div class="empty-state">No brokers yet. Add one under Tournaments > Sponsors / Prizes.</div>';
+      },
+      coaching: async () => {
+        const rows = await Admin.api('/monetisation/coaching');
+        document.getElementById('coachingTableWrap').innerHTML = rows.length ? `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Coach</th><th>Student</th><th>Type</th><th>Price (AED)</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>${rows.map((c) => `<tr><td>${Admin.escapeHtml(c.coach?.username || '—')}</td><td>${Admin.escapeHtml(c.student?.username || '—')}</td><td>${c.session_type}</td><td>${c.price_aed}</td><td>${c.status}</td><td>${Admin.formatDate(c.created_at)}</td></tr>`).join('')}</tbody>
+          </table></div>
+        ` : '<div class="empty-state">No coaching sessions yet.</div>';
+      },
+    };
+
+    activateTab(new URLSearchParams(location.search).get('tab') || 'overview');
+  </script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+/* ---- activity feed ------------------------------------------------------- */
+
+.activity-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.activity-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  border-left: 2px solid var(--border);
+}
+.activity-item .icon { flex-shrink: 0; }
+.activity-item .time { color: var(--text-secondary); margin-left: auto; flex-shrink: 0; font-family: var(--mono); font-size: 11px; }
+.activity-item.type-registration { border-left-color: var(--info); }
+.activity-item.type-match_start { border-left-color: var(--accent); }
+.activity-item.type-match_end { border-left-color: var(--accent); }
+.activity-item.type-payment { border-left-color: var(--success); }
+.activity-item.type-ban { border-left-color: var(--danger); }
+.activity-item.type-error { border-left-color: var(--warning); }
+
+/* ---- live match cards ----------------------------------------------------- */
+
+.match-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.match-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  animation: matchCardIn 0.3s ease;
+}
+@keyframes matchCardIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+.match-card.new-flash { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.match-card.ending { opacity: 0.4; }
+.match-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.match-card-timer {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 15px;
+}
+.match-card-players { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; font-size: 12px; }
+.match-card-player { display: flex; align-items: center; gap: 6px; }
+.match-card-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+/* ---- gauge for CPU/mem etc -------------------------------------------------- */
+
+.mini-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.mini-progress .fill { height: 100%; background: var(--accent); }
+.mini-progress .fill.warn { background: var(--warning); }
+.mini-progress .fill.danger { background: var(--danger); }
+
+/* ---- world map ------------------------------------------------------------- */
+
+.world-map-wrap { position: relative; }
+.world-map-wrap svg { width: 100%; height: auto; }
+.world-map-wrap .geo-dot { fill: var(--accent); opacity: 0.85; cursor: pointer; }
+.world-map-wrap .geo-dot:hover { opacity: 1; }
+.geo-tooltip {
+  position: absolute;
+  background: #12121f;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+/* ---- config table rows ------------------------------------------------------ */
+
+.config-section { margin-bottom: 28px; }
+.config-section h4 { margin: 0 0 12px 0; font-size: 13px; }
+.config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+
+/* ---- empty state -------------------------------------------------------------- */
+
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+.empty-state .icon { font-size: 32px; margin-bottom: 10px; }
+
+/* ---- login page --------------------------------------------------------------- */
+
+.admin-login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.admin-login-box {
+  width: 100%;
+  max-width: 360px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+}
+.admin-login-title {
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 4px;
+}
+.admin-login-sub {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 24px;
+}
+.admin-login-error {
+  color: var(--danger);
+  font-size: 13px;
+  min-height: 18px;
+  margin-bottom: 8px;
+  text-align: center;
+}

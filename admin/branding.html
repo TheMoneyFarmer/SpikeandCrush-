@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Branding — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="brand-logo"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="admin-tabs">
+          <button class="admin-tab" data-tab="logo">Logo and Assets</button>
+          <button class="admin-tab" data-tab="colour">Colour Theme</button>
+          <button class="admin-tab" data-tab="copy">UI Text and Copy</button>
+          <button class="admin-tab" data-tab="email">Email Templates</button>
+          <button class="admin-tab" data-tab="social">Social Media Assets</button>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-logo">
+          <div class="panel" style="max-width:640px;">
+            <h3>Spike &amp; Crush Staircase Logo</h3>
+            <div style="background:#080810;border-radius:8px;padding:30px;text-align:center;margin-bottom:16px;" id="logoPreviewFull"></div>
+            <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;">
+              <div style="text-align:center;"><div style="background:#080810;border-radius:6px;padding:8px 14px;" id="logoPreviewNav"></div><div class="text-secondary" style="font-size:11px;margin-top:6px;">Navigation</div></div>
+              <div style="text-align:center;"><div style="background:#080810;border-radius:6px;padding:10px 16px;" id="logoPreviewLobby"></div><div class="text-secondary" style="font-size:11px;margin-top:6px;">Medium (lobby)</div></div>
+            </div>
+            <div class="text-secondary" style="font-size:12px;margin-top:16px;">Favicon: 📈 emoji, set via a data: URI &lt;link rel="icon"&gt; on every page - see client/*.html. No separate SVG/PNG asset files exist to "download" since the logo is pure CSS/HTML, not an image.</div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-colour">
+          <div style="display:grid;grid-template-columns:320px 1fr;gap:20px;">
+            <div class="panel">
+              <h3>Colour Theme</h3>
+              <div class="field"><label>Background Base</label><input type="color" id="cBg" /></div>
+              <div class="field"><label>Surface 1</label><input type="color" id="cSurface" /></div>
+              <div class="field"><label>Accent Teal</label><input type="color" id="cTeal" /></div>
+              <div class="field"><label>Accent Red</label><input type="color" id="cRed" /></div>
+              <div class="field"><label>Accent Gold</label><input type="color" id="cGold" /></div>
+              <button class="btn btn-primary" id="saveThemeBtn" style="width:100%;">Save Palette (preview/export only)</button>
+              <button class="btn" id="downloadThemeBtn" style="width:100%;margin-top:8px;">Download theme.css</button>
+              <div class="text-secondary" style="font-size:11px;margin-top:10px;">This does not rewrite client/css/main.css. Preview live below, then export and hand the CSS to whoever edits the game's styles.</div>
+            </div>
+            <div class="panel">
+              <h3>Live Preview</h3>
+              <div id="themePreview" style="border-radius:8px;padding:30px;transition:background 0.2s;">
+                <div style="font-size:32px;font-weight:800;font-style:italic;margin-bottom:8px;"><span id="pvSpike">Spike</span> <span id="pvAmp" style="color:#fff;">&amp;</span> <span id="pvCrush">Crush</span></div>
+                <div id="pvSurface" style="border-radius:8px;padding:16px;">Surface card example</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-copy">
+          <div class="panel" style="max-width:640px;">
+            <h3>UI Text and Copy</h3>
+            <div class="field"><label>Match Countdown Text</label><input id="txtCountdown" value="MATCH STARTING" /></div>
+            <div class="field"><label>Loading Message</label><input id="txtLoading" value="Spike & Crush loading..." /></div>
+            <div class="field"><label>Empty State (no matches)</label><input id="txtEmpty" value="No matches match." /></div>
+            <div class="field"><label>Primary Tagline</label><input id="txtTagline" value="Up. Then not." /></div>
+            <button class="btn btn-primary" id="saveCopyBtn">Save (not yet live)</button>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-email">
+          <div style="display:grid;grid-template-columns:200px 1fr;gap:20px;">
+            <div class="panel">
+              <h3 style="font-size:12px;">Templates</h3>
+              <div id="templateList"></div>
+            </div>
+            <div class="panel">
+              <h3>Edit Template</h3>
+              <div class="field"><label>Name</label><input id="tplName" /></div>
+              <div class="field"><label>Subject</label><input id="tplSubject" /></div>
+              <div class="field"><label>Body HTML (use {{username}}, {{prize}}, {{date}})</label><textarea id="tplBody" style="min-height:200px;"></textarea></div>
+              <button class="btn btn-primary" id="saveTplBtn">Save Template</button>
+              <button class="btn" id="testSendBtn">Send Test</button>
+              <div id="tplNote" class="text-secondary" style="font-size:12px;margin-top:8px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-social">
+          <div class="panel" style="max-width:640px;">
+            <h3>Generate Social Media Graphic</h3>
+            <div class="field"><label>Type</label><select id="socType"><option value="tournament">Tournament Announcement</option><option value="winner">Winner Announcement</option><option value="stats">Platform Stats</option></select></div>
+            <div class="field"><label>Headline</label><input id="socHeadline" value="Grand War Tournament" /></div>
+            <div class="field"><label>Subtext</label><input id="socSubtext" value="1000 coin prize pool - Saturday 8PM" /></div>
+            <button class="btn btn-primary" id="genSocialBtn">Generate</button>
+            <canvas id="socialCanvas" width="800" height="450" style="width:100%;margin-top:16px;border-radius:8px;"></canvas>
+            <button class="btn" id="downloadSocialBtn" style="margin-top:10px;" disabled>Download PNG</button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Branding');
+
+    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => {
+      document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t === tab));
+      document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${tab.dataset.tab}`));
+    }));
+    document.querySelector(`[data-tab="${new URLSearchParams(location.search).get('tab') || 'logo'}"]`)?.click();
+
+    // ---- logo preview (mirrors client/css/main.css .sc-* classes inline) ----
+    const SC = [
+      ['S','#008F6A',28],['P','#00A87C',34],['I','#00C896',40],['K','#00E0AA',46],['E','#00FF88',52],
+      ['&','#FFFFFF',56],['C','#FF4444',52],['R','#EE3333',46],['U','#DD2222',40],['S','#CC1111',34],['H','#BB0000',28],
+    ];
+    function logoHtml(scale = 1) {
+      return `<div style="display:inline-flex;align-items:flex-end;">${SC.map(([ch, color, size]) => `<span style="font-weight:900;font-style:italic;letter-spacing:-0.02em;color:${color};font-size:${size * scale}px;text-shadow:0 0 ${20 * scale}px ${color}66;">${ch}</span>`).join('')}</div>`;
+    }
+    document.getElementById('logoPreviewFull').innerHTML = logoHtml(1);
+    document.getElementById('logoPreviewNav').innerHTML = logoHtml(0.45);
+    document.getElementById('logoPreviewLobby').innerHTML = logoHtml(0.6);
+
+    // ---- colour theme ----
+    async function loadTheme() {
+      const d = await Admin.api('/branding/colour-theme');
+      const t = d.saved || d.current;
+      document.getElementById('cBg').value = t.backgroundBase;
+      document.getElementById('cSurface').value = t.surfaceOne;
+      document.getElementById('cTeal').value = t.accentTeal;
+      document.getElementById('cRed').value = t.accentRed;
+      document.getElementById('cGold').value = t.accentGold;
+      updatePreview();
+    }
+    function updatePreview() {
+      const bg = document.getElementById('cBg').value, surface = document.getElementById('cSurface').value;
+      const teal = document.getElementById('cTeal').value, red = document.getElementById('cRed').value;
+      document.getElementById('themePreview').style.background = bg;
+      document.getElementById('pvSurface').style.background = surface;
+      document.getElementById('pvSpike').style.color = teal;
+      document.getElementById('pvCrush').style.color = red;
+    }
+    ['cBg', 'cSurface', 'cTeal', 'cRed', 'cGold'].forEach((id) => document.getElementById(id).addEventListener('input', updatePreview));
+    document.getElementById('saveThemeBtn').addEventListener('click', async () => {
+      const body = { backgroundBase: cBg.value, surfaceOne: cSurface.value, accentTeal: cTeal.value, accentRed: cRed.value, accentGold: cGold.value };
+      const res = await Admin.api('/branding/colour-theme', { method: 'PUT', body });
+      Admin.toast(res.note, 'info');
+    });
+    document.getElementById('downloadThemeBtn').addEventListener('click', () => {
+      const css = `:root {\n  --bg: ${cBg.value};\n  --surface-1: ${cSurface.value};\n  --accent-teal: ${cTeal.value};\n  --accent-red: ${cRed.value};\n  --accent-gold: ${cGold.value};\n}\n`;
+      const blob = new Blob([css], { type: 'text/css' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'theme.css'; a.click(); URL.revokeObjectURL(url);
+    });
+    loadTheme().catch((e) => Admin.toast(e.message, 'danger'));
+
+    // ---- UI text ----
+    async function loadUiText() {
+      const d = await Admin.api('/branding/ui-text');
+      if (d.countdown) document.getElementById('txtCountdown').value = d.countdown;
+      if (d.loading) document.getElementById('txtLoading').value = d.loading;
+      if (d.empty) document.getElementById('txtEmpty').value = d.empty;
+      if (d.tagline) document.getElementById('txtTagline').value = d.tagline;
+    }
+    document.getElementById('saveCopyBtn').addEventListener('click', async () => {
+      const res = await Admin.api('/branding/ui-text', { method: 'PUT', body: {
+        countdown: txtCountdown.value, loading: txtLoading.value, empty: txtEmpty.value, tagline: txtTagline.value,
+      }});
+      Admin.toast(res.note, 'info');
+    });
+    loadUiText().catch(() => {});
+
+    // ---- email templates ----
+    const DEFAULT_TEMPLATES = [
+      { id: 'welcome', name: 'Welcome Email' }, { id: 'password_reset', name: 'Password Reset' },
+      { id: 'tournament_announce', name: 'Tournament Announcement' }, { id: 'prize_winner', name: 'Prize Winner' }, { id: 'weekly_summary', name: 'Weekly Summary' },
+    ];
+    let activeTplId = null;
+    async function loadTemplates() {
+      const saved = await Admin.api('/branding/email-templates');
+      const savedById = Object.fromEntries(saved.map((t) => [t.id, t]));
+      document.getElementById('templateList').innerHTML = DEFAULT_TEMPLATES.map((t) => `<button class="btn btn-sm" style="width:100%;margin-bottom:6px;text-align:left;" data-tpl="${t.id}">${t.name}</button>`).join('');
+      document.querySelectorAll('[data-tpl]').forEach((btn) => btn.addEventListener('click', () => {
+        activeTplId = btn.dataset.tpl;
+        const t = savedById[activeTplId];
+        document.getElementById('tplName').value = t?.name || DEFAULT_TEMPLATES.find((d) => d.id === activeTplId).name;
+        document.getElementById('tplSubject').value = t?.subject || '';
+        document.getElementById('tplBody').value = t?.body_html || `<p>Hi {{username}},</p>`;
+        document.getElementById('tplNote').textContent = '';
+      }));
+      document.querySelector('[data-tpl]')?.click();
+    }
+    document.getElementById('saveTplBtn').addEventListener('click', async () => {
+      if (!activeTplId) return;
+      await Admin.api(`/branding/email-templates/${activeTplId}`, { method: 'PUT', body: { name: tplName.value, subject: tplSubject.value, bodyHtml: tplBody.value } });
+      Admin.toast('Template saved', 'success');
+    });
+    document.getElementById('testSendBtn').addEventListener('click', async () => {
+      try {
+        await Admin.api(`/branding/email-templates/${activeTplId}/test-send`, { method: 'POST' });
+      } catch (e) {
+        document.getElementById('tplNote').textContent = e.message;
+      }
+    });
+    loadTemplates().catch((e) => Admin.toast(e.message, 'danger'));
+
+    // ---- social graphic generator (pure client-side canvas) ----
+    document.getElementById('genSocialBtn').addEventListener('click', () => {
+      const canvas = document.getElementById('socialCanvas');
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 800, 450);
+      grad.addColorStop(0, '#080810'); grad.addColorStop(1, '#0f1018');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, 800, 450);
+      ctx.font = 'italic 900 48px sans-serif';
+      ctx.fillStyle = '#00c896'; ctx.fillText('SPIKE', 60, 150);
+      ctx.fillStyle = '#fff'; ctx.fillText('&', 260, 150);
+      ctx.fillStyle = '#ff4444'; ctx.fillText('CRUSH', 300, 150);
+      ctx.font = 'bold 36px sans-serif'; ctx.fillStyle = '#fff';
+      ctx.fillText(document.getElementById('socHeadline').value, 60, 260);
+      ctx.font = '20px sans-serif'; ctx.fillStyle = '#9ca3af';
+      ctx.fillText(document.getElementById('socSubtext').value, 60, 300);
+      document.getElementById('downloadSocialBtn').disabled = false;
+    });
+    document.getElementById('downloadSocialBtn').addEventListener('click', () => {
+      const canvas = document.getElementById('socialCanvas');
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'social-graphic.png';
+      a.click();
+    });
+  </script>
+</body>
+</html>

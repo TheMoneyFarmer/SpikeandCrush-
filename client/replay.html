@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Replay</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  .rp-topbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .rp-topbar h1 { font-size: 20px; margin: 0; }
+  .rp-topbar .sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  .rp-shell { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
+  @media (max-width: 1000px) { .rp-shell { grid-template-columns: 1fr; } }
+
+  .rp-panel { background: rgba(15,16,24,0.95); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; }
+  .rp-panel + .rp-panel { margin-top: 16px; }
+
+  .rp-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .rp-controls select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-family: var(--font); }
+  .rp-time-label { font-family: var(--mono); font-size: 13px; min-width: 90px; font-variant-numeric: tabular-nums; }
+
+  .rp-chart-wrap { position: relative; background: #080810; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  #candleChart { width: 100%; height: 380px; }
+  #equityChart { width: 100%; height: 120px; border-top: 1px solid var(--border); position: relative; }
+  .rp-equity-legend { position: absolute; top: 6px; right: 8px; display: flex; flex-direction: column; gap: 3px; font-size: 10px; font-family: var(--mono); z-index: 3; pointer-events: none; }
+  .rp-equity-legend .row { display: flex; align-items: center; gap: 5px; background: rgba(8,8,16,0.7); padding: 1px 6px; border-radius: 4px; }
+  .rp-equity-legend .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .rp-zero-line { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.1); pointer-events: none; z-index: 2; }
+
+  .rp-minimap { position: relative; height: 20px; background: var(--surface-2); border-radius: 4px; margin-top: 10px; overflow: hidden; cursor: pointer; }
+  .rp-minimap .dot { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; border-radius: 50%; cursor: pointer; }
+  .rp-scrubber-wrap { position: relative; margin: 8px 0 4px; }
+  .rp-scrubber { width: 100%; accent-color: var(--accent); cursor: pointer; }
+  .rp-scrub-tooltip { position: absolute; bottom: 20px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 11px; font-family: var(--mono); white-space: nowrap; pointer-events: none; display: none; z-index: 5; }
+
+  .rp-feed { max-height: 320px; overflow-y: auto; font-size: 12px; scroll-behavior: smooth; }
+  .rp-feed-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 8px; border-radius: 6px; border-bottom: 1px solid var(--border); color: var(--text-secondary); opacity: 0.3; cursor: pointer; transition: opacity 0.2s, background 0.2s; }
+  .rp-feed-item:hover { background: rgba(255,255,255,0.04); }
+  .rp-feed-item.past { opacity: 1; }
+  .rp-feed-item.current { opacity: 1; background: rgba(0,200,150,0.12); border-left: 3px solid var(--accent); padding-left: 5px; }
+  .rp-feed-item .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .rp-feed-item .body { flex: 1; min-width: 0; }
+  .rp-feed-item .t { font-family: var(--mono); color: var(--text-secondary); font-size: 11px; margin-right: 4px; }
+  .rp-feed-item .sub { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+
+  .rp-player-row { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; border: 1px solid var(--border); border-left: 3px solid transparent; background: var(--surface-2); margin-bottom: 8px; transition: border-color 0.2s; }
+  .rp-player-row.leader { border-left-color: var(--gold); box-shadow: inset 0 0 20px rgba(255,215,0,0.04); }
+  .rp-player-row.perspective { border-color: var(--accent); }
+  .rp-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: #06251d; flex-shrink: 0; }
+  .rp-player-meta { flex: 1; min-width: 0; }
+  .rp-player-meta .name { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .rp-player-meta .activity { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+  .rp-player-stats { text-align: right; flex-shrink: 0; }
+  .rp-player-stats .pnl { font-family: var(--mono); font-weight: 700; font-size: 13px; }
+  .rp-player-stats .trades { font-size: 10px; color: var(--text-secondary); }
+
+  .rp-clip-timeline { position: relative; height: 28px; background: var(--surface-2); border-radius: 6px; margin: 8px 0; overflow: hidden; cursor: pointer; }
+  .rp-clip-range { position: absolute; top: 0; bottom: 0; background: rgba(0,200,150,0.3); border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+  .rp-clip-panel .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .rp-clip-panel label { font-size: 11px; color: var(--text-secondary); }
+  .rp-clip-panel input { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-family: var(--font); }
+  .rp-clip-summary { font-size: 11px; color: var(--text-secondary); margin: 6px 0; }
+  .rp-share-preview { font-size: 11px; color: var(--text-secondary); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin: 6px 0; font-style: italic; }
+
+  .rp-kbd { font-family: var(--mono); font-size: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+</style>
+</head>
+<body data-page="replay">
+  <div id="twNav" data-active=""></div>
+
+  <div class="tw-container">
+    <div class="rp-topbar">
+      <div>
+        <h1 id="rpTitle">🎬 Match Replay</h1>
+        <div class="sub" id="metaLine">Spike & Crush loading...</div>
+      </div>
+      <button class="btn btn-outline" id="shareReplayBtn">🔗 Share Replay</button>
+    </div>
+
+    <div class="rp-shell">
+      <div>
+        <div class="rp-panel">
+          <div class="rp-controls">
+            <button class="btn btn-primary" id="playPauseBtn" style="padding:6px 16px;">▶️ Play</button>
+            <select id="speedSelect">
+              <option value="0.25">0.25x</option>
+              <option value="0.5">0.5x</option>
+              <option value="1" selected>1x</option>
+              <option value="2">2x</option>
+              <option value="5">5x</option>
+              <option value="10">10x</option>
+              <option value="25">25x</option>
+            </select>
+            <select id="timeframeSelect">
+              <option value="5">5s</option>
+              <option value="10" selected>10s</option>
+              <option value="30">30s</option>
+              <option value="60">1m</option>
+            </select>
+            <select id="instrumentSelect"></select>
+            <span class="rp-time-label" id="timeLabel">0:00 / 0:00</span>
+          </div>
+
+          <div class="rp-chart-wrap">
+            <div id="candleChart"></div>
+            <div id="equityChart">
+              <div class="rp-zero-line" id="equityZeroLine"></div>
+              <div class="rp-equity-legend" id="equityLegend"></div>
+            </div>
+          </div>
+
+          <div class="rp-scrubber-wrap">
+            <div class="rp-scrub-tooltip" id="scrubTooltip"></div>
+            <input type="range" class="rp-scrubber" id="scrubber" min="0" max="600" value="0" />
+          </div>
+          <div class="rp-minimap" id="minimap" title="Key events - click to jump"></div>
+          <div class="text-secondary" style="font-size:10px;margin-top:6px;">
+            <span class="rp-kbd">Space</span> play/pause &nbsp; <span class="rp-kbd">←</span>/<span class="rp-kbd">→</span> ±10s &nbsp; <span class="rp-kbd">↑</span>/<span class="rp-kbd">↓</span> speed
+          </div>
+        </div>
+
+        <div class="rp-panel">
+          <h3 style="font-size:14px;margin-top:0;">Event Feed</h3>
+          <div class="rp-feed" id="feedList"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="rp-panel">
+          <h3 style="font-size:14px;margin-top:0;">Players</h3>
+          <div id="playerPanel"></div>
+        </div>
+
+        <div class="rp-panel">
+          <h3 style="font-size:14px;margin-top:0;">👁️ Perspective</h3>
+          <select id="perspectiveSelect" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);"></select>
+        </div>
+
+        <div class="rp-panel rp-clip-panel">
+          <h3 style="font-size:14px;margin-top:0;">✂️ Create Clip</h3>
+          <div class="rp-clip-timeline" id="clipTimeline"><div class="rp-clip-range" id="clipRange"></div></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline" id="previewClipBtn" style="flex:1;padding:6px 8px;font-size:11px;">▶️ Preview Clip</button>
+            <button class="btn btn-outline" id="findBestBtn" style="flex:1;padding:6px 8px;font-size:11px;">✨ Find Best Moment</button>
+          </div>
+          <div class="field" style="margin-top:8px;">
+            <label>Start (s)</label><input type="number" id="clipStart" min="0" />
+          </div>
+          <div class="field"><label>End (s)</label><input type="number" id="clipEnd" min="0" /></div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <button class="btn btn-outline" id="setStartBtn" style="flex:1;padding:6px 8px;font-size:11px;">Start = playhead</button>
+            <button class="btn btn-outline" id="setEndBtn" style="flex:1;padding:6px 8px;font-size:11px;">End = playhead</button>
+          </div>
+          <div class="rp-clip-summary" id="clipSummary"></div>
+          <div class="field"><label>Caption</label><input type="text" id="clipCaption" maxlength="200" placeholder="What happened here?" /></div>
+          <div class="rp-share-preview" id="sharePreview"></div>
+          <button class="btn btn-primary" id="createClipBtn" style="width:100%;">Create Clip</button>
+          <div id="clipResult" style="margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/lottie.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script>
+    TW.requireAuth();
+    const matchId = new URLSearchParams(location.search).get('match');
+
+    // ---- state -----------------------------------------------------------------
+    let replayData = null;
+    let activeSymbol = null;
+    let timeframe = 10;
+    let duration = 600;
+    let currentTime = 0;
+    let playing = false;
+    let playTimer = null;
+    let speed = 1;
+    let perspectiveId = null;
+    let matchStartUnix = 0;
+    let clipStart = 0, clipEnd = 30;
+    let previewing = false;
+
+    const PLAYER_COLORS = ['#00C896', '#4FC3F7', '#FFB74D', '#BA68C8', '#FF8A65', '#81C784', '#F06292', '#9575CD'];
+    const EVENT_ICONS = {
+      trade_open: '🟢', trade_close: (e) => (e.pnl >= 0 ? '✅' : '❌'), sl_hit: '🛑', tp_hit: '🎯',
+      sabotage_played: '⚡', draw: '🤝', margin_warning: '⚠️',
+    };
+
+    // ---- charts ------------------------------------------------------------------
+    let candleChart, candleSeries, equityChart;
+    const equitySeries = {}; // playerId -> LineSeries
+    let syncingCharts = false;
+
+    function playerColor(playerId) {
+      const idx = (replayData?.players || []).findIndex((p) => p.id === playerId);
+      return PLAYER_COLORS[idx >= 0 ? idx % PLAYER_COLORS.length : 0];
+    }
+
+    function initCharts() {
+      const dark = {
+        layout: { background: { color: '#080810' }, textColor: '#888888' },
+        grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+        crosshair: { mode: 1 },
+        rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
+        timeScale: { borderColor: 'rgba(255,255,255,0.1)' },
+      };
+      candleChart = LightweightCharts.createChart(document.getElementById('candleChart'), {
+        ...dark,
+        width: document.getElementById('candleChart').clientWidth,
+        height: 380,
+      });
+      candleSeries = candleChart.addCandlestickSeries({
+        upColor: '#00C896', downColor: '#FF4444',
+        borderUpColor: '#00C896', borderDownColor: '#FF4444',
+        wickUpColor: '#00C896', wickDownColor: '#FF4444',
+      });
+
+      equityChart = LightweightCharts.createChart(document.getElementById('equityChart'), {
+        ...dark,
+        timeScale: { ...dark.timeScale, visible: false },
+        rightPriceScale: { ...dark.rightPriceScale, visible: true },
+        width: document.getElementById('equityChart').clientWidth,
+        height: 120,
+      });
+
+      // Shared time axis: dragging/zooming either chart moves the other.
+      candleChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+        if (syncingCharts || !range) return;
+        syncingCharts = true;
+        equityChart.timeScale().setVisibleLogicalRange(range);
+        syncingCharts = false;
+      });
+      equityChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+        if (syncingCharts || !range) return;
+        syncingCharts = true;
+        candleChart.timeScale().setVisibleLogicalRange(range);
+        syncingCharts = false;
+      });
+
+      window.addEventListener('resize', () => {
+        candleChart.applyOptions({ width: document.getElementById('candleChart').clientWidth });
+        equityChart.applyOptions({ width: document.getElementById('equityChart').clientWidth });
+      });
+    }
+
+    function ensureEquitySeries() {
+      (replayData.players || []).forEach((p, i) => {
+        if (equitySeries[p.id]) return;
+        equitySeries[p.id] = equityChart.addLineSeries({
+          color: PLAYER_COLORS[i % PLAYER_COLORS.length],
+          lineWidth: p.isAI ? 1.5 : 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+        });
+      });
+    }
+
+    // ---- candle aggregation -------------------------------------------------------
+    // priceData[symbol] ticks are one mid price per elapsed second (no native
+    // OHLC per tick) - grouping N consecutive ticks per the selected timeframe
+    // still produces real, meaningful candles: open=first tick, close=last
+    // tick, high/low = the range the price actually moved through in that
+    // window, exactly like aggregating any 1s bar feed into a coarser one.
+    function buildCandles(ticks, tfSeconds, uptoSecond) {
+      const candles = [];
+      let bucket = null;
+      let bucketStart = null;
+      for (const tick of ticks) {
+        if (tick.t > uptoSecond) break;
+        if (tick.t < 0) continue;
+        const windowStart = Math.floor(tick.t / tfSeconds) * tfSeconds;
+        if (bucketStart !== windowStart) {
+          if (bucket) candles.push(bucket);
+          bucketStart = windowStart;
+          bucket = { time: matchStartUnix + windowStart, open: tick.mid, high: tick.mid, low: tick.mid, close: tick.mid };
+        } else {
+          bucket.high = Math.max(bucket.high, tick.mid);
+          bucket.low = Math.min(bucket.low, tick.mid);
+          bucket.close = tick.mid;
+        }
+      }
+      if (bucket) candles.push(bucket);
+      return candles;
+    }
+
+    function candleTimeFor(second) {
+      return matchStartUnix + Math.floor(second / timeframe) * timeframe;
+    }
+
+    // ---- markers ------------------------------------------------------------------
+    const MARKER_SPEC = {
+      trade_open: (e) => ({
+        position: e.direction === 'buy' ? 'belowBar' : 'aboveBar',
+        color: e.direction === 'buy' ? '#00C896' : '#FF4444',
+        shape: e.direction === 'buy' ? 'arrowUp' : 'arrowDown',
+        text: `${e.direction === 'buy' ? 'B' : 'S'} ${e.lots} ${e.symbol}`,
+        size: 2,
+      }),
+      trade_close: (e) => ({
+        position: e.pnl >= 0 ? 'aboveBar' : 'belowBar',
+        color: e.pnl >= 0 ? '#00FF88' : '#FF4444',
+        shape: 'circle',
+        text: `${e.pnl >= 0 ? '+' : '-'}$${Math.abs(e.pnl).toFixed(0)}`,
+        size: 1,
+      }),
+      sl_hit: () => ({ position: 'belowBar', color: '#FF8C00', shape: 'square', text: 'SL', size: 1 }),
+      tp_hit: () => ({ position: 'aboveBar', color: '#00C896', shape: 'square', text: 'TP', size: 1 }),
+      sabotage_played: (e) => ({ position: 'aboveBar', color: '#FFD700', shape: 'square', text: `⚡ ${(e.cardType || '').replace(/_/g, ' ')}`, size: 1 }),
+    };
+
+    function eventsForSymbol(symbol) {
+      return (replayData.eventLog || []).filter((e) => e.symbol === symbol && e.type && MARKER_SPEC[e.type]);
+    }
+
+    function updateMarkers() {
+      const events = eventsForSymbol(activeSymbol).filter((e) => e.timestamp <= currentTime);
+      const markers = events
+        .map((e) => {
+          const build = MARKER_SPEC[e.type];
+          if (!build) return null;
+          const base = build(e);
+          const dimmed = perspectiveId && e.playerId !== perspectiveId;
+          return { time: candleTimeFor(e.timestamp), ...base, color: dimmed ? 'rgba(255,255,255,0.25)' : base.color };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.time - b.time);
+      candleSeries.setMarkers(markers);
+    }
+
+    // ---- per-frame render -----------------------------------------------------------
+    function updateCandles() {
+      const ticks = replayData.priceData[activeSymbol] || [];
+      const candles = buildCandles(ticks, timeframe, currentTime);
+      candleSeries.setData(candles);
+      candleChart.timeScale().scrollToPosition(0, false);
+      updateMarkers();
+    }
+
+    function pnlAt(playerId, second) {
+      const snaps = (replayData.pnlSnapshots || {})[playerId];
+      if (!snaps || !snaps.length) return 0;
+      // snapshots are one per second in order - binary search would be
+      // overkill for a ~1200-entry match, a linear scan from the end is fine.
+      let val = 0;
+      for (const s of snaps) {
+        if (s.second > second) break;
+        val = s.pnl;
+      }
+      return val;
+    }
+
+    function updateEquityCurves() {
+      ensureEquitySeries();
+      const legend = document.getElementById('equityLegend');
+      legend.innerHTML = '';
+      (replayData.players || []).forEach((p) => {
+        const snaps = (replayData.pnlSnapshots || {})[p.id] || [];
+        const points = snaps.filter((s) => s.second <= currentTime).map((s) => ({ time: matchStartUnix + s.second, value: s.pnl }));
+        if (points.length === 0) points.push({ time: matchStartUnix, value: 0 });
+        const series = equitySeries[p.id];
+        series.setData(points);
+        const highlight = perspectiveId === p.id;
+        series.applyOptions({ lineWidth: highlight ? 3 : p.isAI ? 1.5 : 2, color: perspectiveId && !highlight ? 'rgba(255,255,255,0.15)' : playerColor(p.id) });
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = `<span class="dot" style="background:${playerColor(p.id)};"></span>${TW.escapeHtml(p.username)}: ${TW.formatMoney(pnlAt(p.id, currentTime))}`;
+        legend.appendChild(row);
+      });
+      equityChart.timeScale().scrollToPosition(0, false);
+    }
+
+    // ---- player panel --------------------------------------------------------------
+    function activityFor(playerId, second) {
+      const events = (replayData.eventLog || []).filter((e) => e.playerId === playerId && e.timestamp <= second).sort((a, b) => b.timestamp - a.timestamp);
+      const last = events[0];
+      if (!last) return 'No positions';
+      if (last.type === 'trade_open') return `Just opened ${last.direction === 'buy' ? 'BUY' : 'SELL'} ${last.lots}`;
+      if (last.type === 'trade_close') return `Just closed ${last.pnl >= 0 ? '+' : '-'}$${Math.abs(last.pnl).toFixed(0)}`;
+      if (last.type === 'sl_hit') return 'Just hit stop loss';
+      if (last.type === 'tp_hit') return 'Just hit take profit';
+      // Positions currently open = trade_open events for this player not yet matched by a later trade_close/sl/tp for the same ticket.
+      const opens = (replayData.eventLog || []).filter((e) => e.playerId === playerId && e.type === 'trade_open' && e.timestamp <= second);
+      const closedTickets = new Set(
+        (replayData.eventLog || []).filter((e) => e.playerId === playerId && ['trade_close', 'sl_hit', 'tp_hit'].includes(e.type) && e.timestamp <= second).map((e) => e.ticket)
+      );
+      const openCount = opens.filter((o) => !closedTickets.has(o.ticket)).length;
+      return openCount > 0 ? `Holding ${openCount} position${openCount > 1 ? 's' : ''}` : 'No positions';
+    }
+
+    function renderPlayerPanel() {
+      const panel = document.getElementById('playerPanel');
+      const rows = (replayData.players || []).map((p) => ({ ...p, pnlNow: pnlAt(p.id, currentTime) }));
+      const leaderId = rows.length ? rows.reduce((a, b) => (b.pnlNow > a.pnlNow ? b : a)).id : null;
+      const tradesUpTo = (id) => (replayData.eventLog || []).filter((e) => e.playerId === id && e.type === 'trade_open' && e.timestamp <= currentTime).length;
+
+      panel.innerHTML = rows
+        .map((p) => {
+          const pnlColor = p.pnlNow > 0 ? 'var(--buy)' : p.pnlNow < 0 ? 'var(--sell)' : '#888888';
+          return `
+            <div class="rp-player-row ${p.id === leaderId ? 'leader' : ''} ${p.id === perspectiveId ? 'perspective' : ''}" data-player="${p.id}">
+              <div class="rp-avatar" style="background:${playerColor(p.id)};">${TW.escapeHtml((p.username || '?')[0].toUpperCase())}</div>
+              <div class="rp-player-meta">
+                <div class="name">${TW.escapeHtml(p.username)}${p.isAI ? ' <span class="pill" style="font-size:9px;">AI</span>' : ''}</div>
+                <div class="activity">${activityFor(p.id, currentTime)}</div>
+              </div>
+              <div class="rp-player-stats">
+                <div class="pnl" style="color:${pnlColor};">${TW.formatMoney(p.pnlNow)}</div>
+                <div class="trades">${tradesUpTo(p.id)} trades</div>
+              </div>
+            </div>`;
+        })
+        .join('');
+    }
+
+    // ---- event feed -----------------------------------------------------------------
+    function feedIcon(e) {
+      const spec = EVENT_ICONS[e.type];
+      if (!spec) return '📌';
+      return typeof spec === 'function' ? spec(e) : spec;
+    }
+
+    function feedSubtext(e) {
+      if (e.type === 'trade_close' || e.type === 'sl_hit' || e.type === 'tp_hit') {
+        const pips = e.pnl != null ? ` (${e.pnl >= 0 ? '+' : ''}${TW.formatMoney(e.pnl)})` : '';
+        return e.type === 'sl_hit' ? `SL HIT ${e.symbol || ''} ${pips}` : e.type === 'tp_hit' ? `TP HIT ${e.symbol || ''} ${pips}` : `CLOSED ${e.symbol || ''} ${pips}`;
+      }
+      return '';
+    }
+
+    function renderFeed() {
+      const list = document.getElementById('feedList');
+      const events = (replayData.eventLog || []).slice().sort((a, b) => (a.timestamp ?? -999) - (b.timestamp ?? -999));
+      let currentIdx = -1;
+      events.forEach((e, i) => {
+        if (e.timestamp != null && e.timestamp <= currentTime) currentIdx = i;
+      });
+      list.innerHTML = events
+        .map((e, i) => {
+          const t = e.timestamp != null ? e.timestamp : (new Date(e.ts).getTime() - matchStartUnix * 1000) / 1000;
+          const isPast = i <= currentIdx;
+          const isCurrent = i === currentIdx;
+          const dotColor = e.playerId ? playerColor(e.playerId) : 'var(--text-secondary)';
+          return `<div class="rp-feed-item ${isPast ? 'past' : ''} ${isCurrent ? 'current' : ''}" data-t="${t}">
+            <div class="dot" style="background:${dotColor};"></div>
+            <div class="body">
+              <div><span class="t">${feedIcon(e)} [${fmtTime(Math.max(0, t))}]</span>${TW.escapeHtml(e.text || '')}</div>
+              ${feedSubtext(e) ? `<div class="sub">${TW.escapeHtml(feedSubtext(e))}</div>` : ''}
+            </div>
+          </div>`;
+        })
+        .join('');
+      if (currentIdx >= 0) {
+        const activeEl = list.children[currentIdx];
+        if (activeEl) activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+
+    document.getElementById('feedList').addEventListener('click', (e) => {
+      const item = e.target.closest('.rp-feed-item');
+      if (item) seekTo(Number(item.dataset.t));
+    });
+
+    // ---- minimap --------------------------------------------------------------------
+    function renderMinimap() {
+      const map = document.getElementById('minimap');
+      map.innerHTML = '';
+      (replayData.eventLog || []).forEach((e) => {
+        if (e.timestamp == null) return;
+        let color = null;
+        if (e.type === 'trade_close' || e.type === 'sl_hit' || e.type === 'tp_hit') color = e.pnl >= 0 ? '#00C896' : '#FF4444';
+        else if (e.type === 'sabotage_played') color = '#FFD700';
+        else if (e.type === 'draw') color = '#FFD700';
+        if (!color) return;
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        dot.style.background = color;
+        dot.style.left = `${(e.timestamp / duration) * 100}%`;
+        dot.title = `${fmtTime(e.timestamp)} — ${e.text || e.type}`;
+        dot.addEventListener('click', (ev) => { ev.stopPropagation(); seekTo(e.timestamp); });
+        map.appendChild(dot);
+      });
+    }
+    document.getElementById('minimap').addEventListener('click', (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      seekTo(Math.round(((e.clientX - rect.left) / rect.width) * duration));
+    });
+
+    // ---- playback ---------------------------------------------------------------------
+    function fmtTime(s) {
+      const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+      return `${m}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function updatePlayhead() {
+      document.getElementById('scrubber').value = currentTime;
+      document.getElementById('timeLabel').textContent = `${fmtTime(currentTime)} / ${fmtTime(duration)}`;
+      updateCandles();
+      updateEquityCurves();
+      renderPlayerPanel();
+      renderFeed();
+    }
+
+    function seekTo(t) {
+      currentTime = Math.max(0, Math.min(duration, Math.round(t)));
+      updatePlayhead();
+    }
+
+    function togglePlay() {
+      playing = !playing;
+      document.getElementById('playPauseBtn').textContent = playing ? '⏸️ Pause' : '▶️ Play';
+      if (playing) {
+        clearInterval(playTimer);
+        playTimer = setInterval(() => {
+          const end = previewing ? clipEnd : duration;
+          currentTime = Math.min(end, currentTime + speed);
+          updatePlayhead();
+          if (currentTime >= end) { togglePlay(); previewing = false; }
+        }, 1000);
+      } else {
+        clearInterval(playTimer);
+      }
+    }
+
+    // ---- clip creator ---------------------------------------------------------------
+    function renderClipTimeline() {
+      const range = document.getElementById('clipRange');
+      range.style.left = `${(clipStart / duration) * 100}%`;
+      range.style.width = `${Math.max(0.5, ((clipEnd - clipStart) / duration) * 100)}%`;
+    }
+
+    function renderClipSummary() {
+      const inRange = (replayData.eventLog || []).filter((e) => e.timestamp != null && e.timestamp >= clipStart && e.timestamp <= clipEnd);
+      const trades = inRange.filter((e) => ['trade_open', 'trade_close', 'sl_hit', 'tp_hit'].includes(e.type)).length;
+      const sabotage = inRange.filter((e) => e.type === 'sabotage_played').length;
+      const parts = [];
+      if (trades) parts.push(`${trades} trade${trades > 1 ? 's' : ''}`);
+      if (sabotage) parts.push(`${sabotage} sabotage event${sabotage > 1 ? 's' : ''}`);
+      document.getElementById('clipSummary').textContent = parts.length
+        ? `This clip contains ${parts.join(' and ')}.`
+        : 'This clip contains no notable events.';
+
+      const caption = document.getElementById('clipCaption').value || 'Epic trade';
+      document.getElementById('sharePreview').textContent = `Check out this Spike & Crush moment: "${caption}" 🔥`;
+    }
+
+    document.getElementById('clipStart').addEventListener('input', (e) => { clipStart = Number(e.target.value) || 0; renderClipTimeline(); renderClipSummary(); });
+    document.getElementById('clipEnd').addEventListener('input', (e) => { clipEnd = Number(e.target.value) || 0; renderClipTimeline(); renderClipSummary(); });
+    document.getElementById('clipCaption').addEventListener('input', renderClipSummary);
+    document.getElementById('clipTimeline').addEventListener('click', (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const t = Math.round(((e.clientX - rect.left) / rect.width) * duration);
+      clipStart = Math.max(0, t - 15);
+      clipEnd = Math.min(duration, t + 15);
+      document.getElementById('clipStart').value = clipStart;
+      document.getElementById('clipEnd').value = clipEnd;
+      renderClipTimeline();
+      renderClipSummary();
+    });
+
+    document.getElementById('previewClipBtn').addEventListener('click', () => {
+      seekTo(clipStart);
+      previewing = true;
+      if (!playing) togglePlay();
+    });
+
+    document.getElementById('findBestBtn').addEventListener('click', () => {
+      const WINDOW = 30;
+      let best = { start: 0, score: -Infinity };
+      for (let start = 0; start <= Math.max(0, duration - WINDOW); start += 5) {
+        const end = start + WINDOW;
+        let swing = 0;
+        (replayData.players || []).forEach((p) => {
+          const snaps = (replayData.pnlSnapshots || {})[p.id] || [];
+          const inWindow = snaps.filter((s) => s.second >= start && s.second <= end).map((s) => s.pnl);
+          if (inWindow.length) swing = Math.max(swing, Math.max(...inWindow) - Math.min(...inWindow));
+        });
+        const eventCount = (replayData.eventLog || []).filter((e) => e.timestamp >= start && e.timestamp <= end).length;
+        const score = swing + eventCount * 50;
+        if (score > best.score) best = { start, score };
+      }
+      clipStart = best.start;
+      clipEnd = Math.min(duration, best.start + WINDOW);
+      document.getElementById('clipStart').value = clipStart;
+      document.getElementById('clipEnd').value = clipEnd;
+      renderClipTimeline();
+      renderClipSummary();
+      seekTo(clipStart);
+      TW.toast('Best moment found and set as your clip range!', 'info');
+    });
+
+    // ---- controls wiring --------------------------------------------------------------
+    document.getElementById('playPauseBtn').addEventListener('click', () => { previewing = false; togglePlay(); });
+    document.getElementById('speedSelect').addEventListener('change', (e) => { speed = Number(e.target.value); });
+    document.getElementById('timeframeSelect').addEventListener('change', (e) => { timeframe = Number(e.target.value); updateCandles(); });
+
+    const scrubber = document.getElementById('scrubber');
+    scrubber.addEventListener('input', (e) => { previewing = false; seekTo(Number(e.target.value)); });
+    scrubber.addEventListener('mousemove', (e) => {
+      const rect = scrubber.getBoundingClientRect();
+      const t = Math.round(((e.clientX - rect.left) / rect.width) * duration);
+      const tip = document.getElementById('scrubTooltip');
+      const leaderPnl = (replayData.players || []).reduce((max, p) => Math.max(max, pnlAt(p.id, t)), -Infinity);
+      tip.style.left = `${((e.clientX - rect.left) / rect.width) * 100}%`;
+      tip.style.display = 'block';
+      tip.textContent = `${fmtTime(t)} · leading P&L ${TW.formatMoney(leaderPnl === -Infinity ? 0 : leaderPnl)}`;
+    });
+    scrubber.addEventListener('mouseleave', () => { document.getElementById('scrubTooltip').style.display = 'none'; });
+
+    document.getElementById('setStartBtn').addEventListener('click', () => { clipStart = Math.round(currentTime); document.getElementById('clipStart').value = clipStart; renderClipTimeline(); renderClipSummary(); });
+    document.getElementById('setEndBtn').addEventListener('click', () => { clipEnd = Math.round(currentTime); document.getElementById('clipEnd').value = clipEnd; renderClipTimeline(); renderClipSummary(); });
+
+    document.getElementById('perspectiveSelect').addEventListener('change', (e) => {
+      perspectiveId = e.target.value || null;
+      updateMarkers();
+      updateEquityCurves();
+      renderPlayerPanel();
+    });
+
+    document.getElementById('shareReplayBtn').addEventListener('click', () => {
+      const url = `${location.origin}/replay?match=${matchId}`;
+      navigator.clipboard?.writeText(url).then(() => TW.toast('Replay link copied!', 'info')).catch(() => TW.toast(url, 'info'));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+      if (e.code === 'Space') { e.preventDefault(); previewing = false; togglePlay(); }
+      else if (e.code === 'ArrowLeft') seekTo(currentTime - 10);
+      else if (e.code === 'ArrowRight') seekTo(currentTime + 10);
+      else if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        const opts = [0.25, 0.5, 1, 2, 5, 10, 25];
+        const next = opts.find((o) => o > speed) || speed;
+        speed = next;
+        document.getElementById('speedSelect').value = String(speed);
+      } else if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        const opts = [0.25, 0.5, 1, 2, 5, 10, 25];
+        const prev = [...opts].reverse().find((o) => o < speed) || speed;
+        speed = prev;
+        document.getElementById('speedSelect').value = String(speed);
+      }
+    });
+
+    document.getElementById('createClipBtn').addEventListener('click', async () => {
+      const startSecond = Number(document.getElementById('clipStart').value);
+      const endSecond = Number(document.getElementById('clipEnd').value);
+      const caption = document.getElementById('clipCaption').value;
+      try {
+        const result = await TW.api('/api/clip', { method: 'POST', body: { matchId, startSecond, endSecond, caption } });
+        const url = `${location.origin}/clip?id=${result.clip.id}`;
+        document.getElementById('clipResult').innerHTML = `<div class="text-secondary" style="font-size:12px;">Clip created! <a href="${url}">${url}</a></div>`;
+        TW.toast('Clip created!', 'info');
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    });
+
+    // ---- load -----------------------------------------------------------------------
+    async function load() {
+      try {
+        replayData = await TW.api(`/api/replay/${matchId}`);
+      } catch (e) {
+        document.getElementById('metaLine').textContent = e.message;
+        return;
+      }
+      duration = replayData.duration || (replayData.endTime && replayData.startTime
+        ? Math.round((new Date(replayData.endTime) - new Date(replayData.startTime)) / 1000)
+        : 600);
+      matchStartUnix = replayData.startTime ? Math.floor(new Date(replayData.startTime).getTime() / 1000) : Math.floor(Date.now() / 1000);
+      replayData.players = replayData.players && replayData.players.length ? replayData.players : [];
+      replayData.pnlSnapshots = replayData.pnlSnapshots || {};
+
+      document.getElementById('scrubber').max = duration;
+      document.getElementById('rpTitle').textContent = `🎬 ${replayData.mode ? replayData.mode[0].toUpperCase() + replayData.mode.slice(1) : 'Match'} Replay`;
+      const dateLabel = replayData.startTime ? new Date(replayData.startTime).toLocaleDateString() : '';
+      document.getElementById('metaLine').textContent = `${(replayData.instruments || []).join(' / ')} · ${dateLabel} · ${fmtTime(duration)}`;
+
+      const instrSelect = document.getElementById('instrumentSelect');
+      instrSelect.innerHTML = (replayData.instruments || []).map((s) => `<option value="${s}">${s}</option>`).join('');
+      activeSymbol = (replayData.instruments || [])[0];
+      instrSelect.addEventListener('change', () => { activeSymbol = instrSelect.value; updateCandles(); });
+
+      const perspSelect = document.getElementById('perspectiveSelect');
+      const me = TW.getPlayer();
+      perspectiveId = replayData.players.find((p) => p.id === me?.id)?.id || null;
+      perspSelect.innerHTML =
+        '<option value="">All players (no highlight)</option>' +
+        replayData.players.map((p) => `<option value="${p.id}" ${p.id === perspectiveId ? 'selected' : ''}>${TW.escapeHtml(p.username)}${p.isAI ? ' (AI)' : ''}</option>`).join('');
+
+      clipEnd = Math.min(duration, 30);
+      document.getElementById('clipStart').value = 0;
+      document.getElementById('clipEnd').value = clipEnd;
+
+      initCharts();
+      renderClipTimeline();
+      renderClipSummary();
+      renderMinimap();
+      updatePlayhead();
+    }
+
+    load();
+  </script>
+</body>
+</html>

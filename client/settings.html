@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Settings</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .settings-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+  .settings-tabs button { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); padding: 8px 16px; min-height: 40px; border-radius: 999px; cursor: pointer; font-weight: 600; font-size: 13px; }
+  .settings-tabs button.active { color: #06251d; background: var(--gradient-primary); border-color: transparent; }
+  .settings-panel { display: none; }
+  .settings-panel.active { display: block; }
+  .avatar-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .avatar-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: var(--surface-2); border: 2px solid var(--accent); }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+  .toggle-row .meta { flex: 1; }
+  .toggle-row .note { font-size: 11px; color: var(--text-secondary); }
+  .switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider-toggle { position: absolute; cursor: pointer; inset: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; transition: 0.2s; }
+  .slider-toggle::before { content: ''; position: absolute; height: 18px; width: 18px; left: 2px; top: 2px; background: white; border-radius: 50%; transition: 0.2s; }
+  input:checked + .slider-toggle { background: var(--accent); }
+  input:checked + .slider-toggle::before { transform: translateX(20px); }
+  .range-row { margin: 14px 0; }
+  .range-row label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .range-row input[type="range"] { width: 100%; }
+  .session-row, .login-row, .block-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 10px; }
+  .danger-zone { border: 1px solid var(--sell); border-radius: var(--radius); padding: 16px; margin-top: 20px; }
+</style>
+</head>
+<body data-page="settings">
+  <div id="twNav" data-active="settings"></div>
+
+  <div class="tw-container">
+    <div class="panel">
+      <h2>⚙️ Account Settings</h2>
+      <div class="settings-tabs">
+        <button data-tab="profile" class="active">Profile</button>
+        <button data-tab="game">Game Preferences</button>
+        <button data-tab="privacy">Privacy</button>
+        <button data-tab="security">Security</button>
+        <button data-tab="notifications">Notifications</button>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="settings-panel active" id="tab-profile">
+        <div class="avatar-row">
+          <img id="avatarPreview" class="avatar-preview" src="" alt="Avatar" />
+          <div>
+            <input type="file" id="avatarInput" accept="image/*" />
+            <div class="text-secondary" style="font-size:12px; margin-top:4px;">Max 2MB, cropped to a circle.</div>
+          </div>
+        </div>
+        <form id="profileForm">
+          <div class="field">
+            <label>Username</label>
+            <input type="text" id="pUsername" minlength="3" maxlength="20" />
+            <div id="usernameAvailability" class="text-secondary" style="font-size:12px;"></div>
+          </div>
+          <div class="field"><label>Email</label><input type="email" id="pEmail" /></div>
+          <div class="field"><label>New Password (leave blank to keep current)</label><input type="password" id="pNewPassword" autocomplete="new-password" /></div>
+          <div class="field"><label>Current Password (required to save)</label><input type="password" id="pCurrentPassword" autocomplete="current-password" /></div>
+          <div class="field">
+            <label>Country</label>
+            <select id="pCountry">
+              <option value="">Select country...</option>
+              <option>United States</option><option>United Kingdom</option><option>South Africa</option>
+              <option>Nigeria</option><option>India</option><option>Canada</option><option>Australia</option>
+              <option>Germany</option><option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Trading Experience</label>
+            <select id="pExperience">
+              <option>Beginner</option><option>Intermediate</option><option>Professional</option><option>Expert</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Preferred Instruments</label><br />
+            <label style="display:inline-flex;align-items:center;gap:6px;margin-right:16px;"><input type="checkbox" id="instrEurusd" value="EURUSD" /> EURUSD</label>
+            <label style="display:inline-flex;align-items:center;gap:6px;"><input type="checkbox" id="instrXauusd" value="XAUUSD" /> XAUUSD</label>
+          </div>
+          <div id="profileError" class="form-error"></div>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+      </div>
+
+      <!-- GAME PREFERENCES -->
+      <div class="settings-panel" id="tab-game">
+        <div class="field">
+          <label>Default Lot Size</label>
+          <select id="gDefaultLot"><option>0.1</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>5.0</option></select>
+        </div>
+        <div class="field">
+          <label>Preferred Chart Timeframe</label>
+          <select id="gTimeframe"><option value="5">5s</option><option value="10">10s</option><option value="30">30s</option><option value="60">1m</option></select>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Auto-close positions at match end</div><div class="note">Positions always auto-close at match end for fairness - this just controls whether you see a heads-up warning.</div></div>
+          <label class="switch"><input type="checkbox" id="gAutoClose" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <div class="range-row">
+          <label><span>Sound Effects Volume</span><span id="effectsVolLabel">100%</span></label>
+          <input type="range" id="effectsVolume" min="0" max="100" />
+        </div>
+        <div class="range-row">
+          <label><span>Music Volume</span><span id="musicVolLabel">50%</span></label>
+          <input type="range" id="musicVolume" min="0" max="100" />
+          <div class="note">Controls the ambient background track that plays on the Trading Floor home screen.</div>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Notify: match starting</div><div class="note">Shown via the 🔔 bell in the nav bar when your lobby fills and a match is about to begin.</div></div>
+          <label class="switch"><input type="checkbox" id="gNotifyMatchStart" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Notify: someone joined your lobby</div></div>
+          <label class="switch"><input type="checkbox" id="gNotifyLobbyJoin" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <div class="field" style="margin-top:14px;">
+          <label>Language</label>
+          <select id="gLanguage"><option>English</option><option disabled>Spanish (coming soon)</option><option disabled>French (coming soon)</option></select>
+        </div>
+        <div class="field">
+          <label>Chart Theme</label>
+          <select id="gChartTheme"><option value="dark">Dark (default)</option><option value="light">Light</option></select>
+        </div>
+        <button class="btn btn-primary" id="saveGameBtn">Save Preferences</button>
+      </div>
+
+      <!-- PRIVACY -->
+      <div class="settings-panel" id="tab-privacy">
+        <div class="toggle-row">
+          <div class="meta"><div>Show my profile to other players</div><div class="note">When off, your public profile page returns "private".</div></div>
+          <label class="switch"><input type="checkbox" id="prShowProfile" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Show my online status</div><div class="note">Saved preference - there's no live presence indicator yet to hide.</div></div>
+          <label class="switch"><input type="checkbox" id="prShowOnline" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Allow friend requests</div><div class="note">Saved preference - friend requests aren't implemented yet.</div></div>
+          <label class="switch"><input type="checkbox" id="prAllowFriends" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <button class="btn btn-primary" id="savePrivacyBtn" style="margin-top:14px;">Save Privacy Settings</button>
+
+        <h3 style="margin-top:24px;">Block List</h3>
+        <div class="join-row" style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="blockUsernameInput" placeholder="Username to block" style="flex:1;min-height:44px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:8px 12px;" />
+          <button class="btn" id="blockBtn">Block</button>
+        </div>
+        <div id="blockList"></div>
+      </div>
+
+      <!-- SECURITY -->
+      <div class="settings-panel" id="tab-security">
+        <h3>Two-Factor Authentication</h3>
+        <div id="twofaStatus" class="text-secondary">Spike & Crush loading...</div>
+        <div id="twofaSetupArea"></div>
+
+        <h3 style="margin-top:24px;">Login History</h3>
+        <div id="loginHistoryList"></div>
+
+        <h3 style="margin-top:24px;">Active Sessions</h3>
+        <div id="sessionsList"></div>
+
+        <div class="danger-zone">
+          <h3 style="color:var(--sell);margin-top:0;">Delete Account</h3>
+          <p>This permanently deletes your account and all match history. This cannot be undone.</p>
+          <input type="password" id="deletePasswordInput" placeholder="Enter your password" style="min-height:44px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:8px 12px;width:100%;max-width:300px;margin-bottom:10px;" />
+          <br />
+          <button class="btn btn-sell" id="deleteAccountBtn">Delete My Account</button>
+        </div>
+      </div>
+
+      <!-- NOTIFICATIONS -->
+      <div class="settings-panel" id="tab-notifications">
+        <p class="text-secondary">These preferences are saved to your account. Actual email/push delivery isn't wired up in this build.</p>
+        <div class="toggle-row"><div class="meta">Email: match results</div><label class="switch"><input type="checkbox" id="nEmailResults" checked /><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row"><div class="meta">Email: tournament announcements</div><label class="switch"><input type="checkbox" id="nEmailTournament" /><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row"><div class="meta">Email: prize winnings</div><label class="switch"><input type="checkbox" id="nEmailPrize" checked /><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row"><div class="meta">Email: weekly summary</div><label class="switch"><input type="checkbox" id="nEmailWeekly" /><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row"><div class="meta">Push: match events</div><label class="switch"><input type="checkbox" id="nPushMatch" checked /><span class="slider-toggle"></span></label></div>
+        <button class="btn btn-primary" id="saveNotifBtn" style="margin-top:14px;">Save Notification Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+<script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script src="js/lottie.js"></script>
+  <script>
+    TW.requireAuth();
+    let currentSettings = {};
+
+    document.querySelectorAll('.settings-tabs button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.settings-tabs button').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.settings-panel').forEach((p) => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+      });
+    });
+
+    function avatarSrc(url) {
+      return url || 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="#1a1a1a"/></svg>`);
+    }
+
+    async function loadProfileTab() {
+      const player = TW.getPlayer();
+      document.getElementById('pUsername').value = player.username;
+      document.getElementById('pEmail').value = player.email || '';
+      try {
+        const data = await TW.api('/api/player/settings');
+        document.getElementById('avatarPreview').src = avatarSrc(data.avatarUrl);
+        document.getElementById('pCountry').value = data.country || '';
+        document.getElementById('pExperience').value = data.experienceLevel || 'Beginner';
+        document.getElementById('instrEurusd').checked = data.preferredInstruments.includes('EURUSD');
+        document.getElementById('instrXauusd').checked = data.preferredInstruments.includes('XAUUSD');
+        currentSettings = data.settings || {};
+
+        document.getElementById('gAutoClose').checked = currentSettings.autoClose !== false;
+        document.getElementById('gNotifyMatchStart').checked = currentSettings.notifyMatchStart !== false;
+        document.getElementById('gNotifyLobbyJoin').checked = currentSettings.notifyLobbyJoin !== false;
+        document.getElementById('gChartTheme').value = currentSettings.chartTheme || 'dark';
+        document.getElementById('gTimeframe').value = currentSettings.timeframe || '5';
+        document.getElementById('gDefaultLot').value = currentSettings.defaultLot || '1.0';
+
+        document.getElementById('prShowProfile').checked = currentSettings.showProfile !== false;
+        document.getElementById('prShowOnline').checked = currentSettings.showOnline !== false;
+        document.getElementById('prAllowFriends').checked = currentSettings.allowFriends !== false;
+
+        document.getElementById('nEmailResults').checked = currentSettings.emailResults !== false;
+        document.getElementById('nEmailTournament').checked = Boolean(currentSettings.emailTournament);
+        document.getElementById('nEmailPrize').checked = currentSettings.emailPrize !== false;
+        document.getElementById('nEmailWeekly').checked = Boolean(currentSettings.emailWeekly);
+        document.getElementById('nPushMatch').checked = currentSettings.pushMatch !== false;
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    }
+
+    document.getElementById('pUsername').addEventListener('input', async (e) => {
+      const val = e.target.value.trim();
+      const el = document.getElementById('usernameAvailability');
+      const me = TW.getPlayer();
+      if (val === me.username || val.length < 3) { el.textContent = ''; return; }
+      el.textContent = 'Checking...';
+      try {
+        const res = await fetch(`/api/player/by-username/${encodeURIComponent(val)}`);
+        el.textContent = res.ok ? '✗ Username taken' : '✓ Username available';
+        el.style.color = res.ok ? 'var(--sell)' : 'var(--buy)';
+      } catch (err) {
+        el.textContent = '';
+      }
+    });
+
+    document.getElementById('avatarInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) { TW.toast('Image must be under 2MB', 'warning'); return; }
+
+      // Center-crop to a square client-side before upload, then display circular via CSS.
+      const img = await new Promise((resolve) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.src = URL.createObjectURL(file);
+      });
+      const size = Math.min(img.width, img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, (img.width - size) / 2, (img.height - size) / 2, size, size, 0, 0, 256, 256);
+
+      canvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('avatar', blob, 'avatar.png');
+        try {
+          const res = await fetch('/api/player/avatar', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${TW.getToken()}` },
+            body: formData,
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          document.getElementById('avatarPreview').src = data.avatarUrl;
+          TW.toast('Avatar updated', 'info');
+        } catch (err) {
+          TW.toast(err.message, 'danger');
+        }
+      }, 'image/png');
+    });
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById('profileError');
+      errEl.textContent = '';
+      try {
+        const body = {
+          currentPassword: document.getElementById('pCurrentPassword').value,
+          username: document.getElementById('pUsername').value.trim(),
+          email: document.getElementById('pEmail').value.trim(),
+        };
+        const newPassword = document.getElementById('pNewPassword').value;
+        if (newPassword) body.newPassword = newPassword;
+        const data = await TW.api('/api/player/me', { method: 'PATCH', body });
+        TW.updatePlayerCache(data.player);
+
+        const instruments = [];
+        if (document.getElementById('instrEurusd').checked) instruments.push('EURUSD');
+        if (document.getElementById('instrXauusd').checked) instruments.push('XAUUSD');
+        await TW.api('/api/player/settings', {
+          method: 'PATCH',
+          body: {
+            country: document.getElementById('pCountry').value,
+            experienceLevel: document.getElementById('pExperience').value,
+            preferredInstruments: instruments,
+          },
+        });
+
+        document.getElementById('pCurrentPassword').value = '';
+        document.getElementById('pNewPassword').value = '';
+        TW.updateHeader();
+        TW.toast('Profile saved', 'info');
+      } catch (err) {
+        errEl.textContent = err.message;
+      }
+    });
+
+    // ---- game prefs / sound sliders (device-local via TW.Sound) -------------
+
+    function loadSoundSliders() {
+      const s = TW.Sound.getSettings();
+      document.getElementById('effectsVolume').value = s.effects;
+      document.getElementById('musicVolume').value = s.music;
+      document.getElementById('effectsVolLabel').textContent = `${s.effects}%`;
+      document.getElementById('musicVolLabel').textContent = `${s.music}%`;
+    }
+    document.getElementById('effectsVolume').addEventListener('input', (e) => {
+      TW.Sound.updateSettings({ effects: Number(e.target.value) });
+      document.getElementById('effectsVolLabel').textContent = `${e.target.value}%`;
+      TW.Sound.play('buttonClick');
+    });
+    document.getElementById('musicVolume').addEventListener('input', (e) => {
+      TW.Sound.updateSettings({ music: Number(e.target.value) });
+      document.getElementById('musicVolLabel').textContent = `${e.target.value}%`;
+    });
+    loadSoundSliders();
+
+    document.getElementById('saveGameBtn').addEventListener('click', async () => {
+      try {
+        await TW.api('/api/player/settings', {
+          method: 'PATCH',
+          body: {
+            settings: {
+              autoClose: document.getElementById('gAutoClose').checked,
+              notifyMatchStart: document.getElementById('gNotifyMatchStart').checked,
+              notifyLobbyJoin: document.getElementById('gNotifyLobbyJoin').checked,
+              chartTheme: document.getElementById('gChartTheme').value,
+              timeframe: document.getElementById('gTimeframe').value,
+              defaultLot: document.getElementById('gDefaultLot').value,
+            },
+          },
+        });
+        TW.toast('Game preferences saved', 'info');
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    });
+
+    document.getElementById('savePrivacyBtn').addEventListener('click', async () => {
+      try {
+        await TW.api('/api/player/settings', {
+          method: 'PATCH',
+          body: {
+            settings: {
+              showProfile: document.getElementById('prShowProfile').checked,
+              showOnline: document.getElementById('prShowOnline').checked,
+              allowFriends: document.getElementById('prAllowFriends').checked,
+            },
+          },
+        });
+        TW.toast('Privacy settings saved', 'info');
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    });
+
+    document.getElementById('saveNotifBtn').addEventListener('click', async () => {
+      try {
+        await TW.api('/api/player/settings', {
+          method: 'PATCH',
+          body: {
+            settings: {
+              emailResults: document.getElementById('nEmailResults').checked,
+              emailTournament: document.getElementById('nEmailTournament').checked,
+              emailPrize: document.getElementById('nEmailPrize').checked,
+              emailWeekly: document.getElementById('nEmailWeekly').checked,
+              pushMatch: document.getElementById('nPushMatch').checked,
+            },
+          },
+        });
+        TW.toast('Notification settings saved', 'info');
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    });
+
+    // ---- block list -----------------------------------------------------------
+
+    async function loadBlocks() {
+      const list = document.getElementById('blockList');
+      try {
+        const data = await TW.api('/api/player/blocks');
+        list.innerHTML = '';
+        if (data.blocks.length === 0) { list.innerHTML = '<div class="text-secondary">No blocked players.</div>'; return; }
+        data.blocks.forEach((b) => {
+          const row = document.createElement('div');
+          row.className = 'block-row';
+          row.innerHTML = `<span>${TW.escapeHtml(b.username)}</span><button class="btn" data-unblock="${b.id}">Unblock</button>`;
+          list.appendChild(row);
+        });
+        list.querySelectorAll('[data-unblock]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            await TW.api(`/api/player/blocks/${btn.dataset.unblock}`, { method: 'DELETE' });
+            loadBlocks();
+          });
+        });
+      } catch (err) {
+        list.innerHTML = `<div class="text-secondary">${TW.escapeHtml(err.message)}</div>`;
+      }
+    }
+    document.getElementById('blockBtn').addEventListener('click', async () => {
+      const username = document.getElementById('blockUsernameInput').value.trim();
+      if (!username) return;
+      try {
+        await TW.api('/api/player/blocks', { method: 'POST', body: { username } });
+        document.getElementById('blockUsernameInput').value = '';
+        TW.toast(`Blocked ${username}`, 'info');
+        loadBlocks();
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    });
+
+    // ---- security tab -----------------------------------------------------------
+
+    async function load2fa() {
+      const player = TW.getPlayer();
+      const statusEl = document.getElementById('twofaStatus');
+      const areaEl = document.getElementById('twofaSetupArea');
+      statusEl.textContent = player.totp_enabled ? '✅ Enabled' : '❌ Not enabled';
+      areaEl.innerHTML = '';
+
+      if (!player.totp_enabled) {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-primary';
+        btn.textContent = 'Set Up 2FA';
+        btn.addEventListener('click', async () => {
+          try {
+            const data = await TW.api('/api/2fa/setup', { method: 'POST' });
+            areaEl.innerHTML = `
+              <div style="margin-top:12px;">
+                <img src="${data.qrDataUrl}" alt="2FA QR code" style="background:#fff;padding:8px;border-radius:8px;" />
+                <div class="text-secondary mono" style="margin:8px 0;">${data.secret}</div>
+                <input type="text" id="twofaCodeInput" placeholder="Enter 6-digit code" style="min-height:44px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:8px 12px;" />
+                <button class="btn btn-primary" id="twofaConfirmBtn">Confirm & Enable</button>
+              </div>`;
+            document.getElementById('twofaConfirmBtn').addEventListener('click', async () => {
+              try {
+                await TW.api('/api/2fa/verify', { method: 'POST', body: { code: document.getElementById('twofaCodeInput').value } });
+                TW.toast('2FA enabled', 'info');
+                const cached = TW.getPlayer();
+                cached.totp_enabled = true;
+                TW.updatePlayerCache(cached);
+                load2fa();
+              } catch (err) {
+                TW.toast(err.message, 'danger');
+              }
+            });
+          } catch (err) {
+            TW.toast(err.message, 'danger');
+          }
+        });
+        areaEl.appendChild(btn);
+      } else {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sell';
+        btn.textContent = 'Disable 2FA';
+        btn.addEventListener('click', async () => {
+          const password = prompt('Enter your password to disable 2FA:');
+          const code = prompt('Enter your current 6-digit 2FA code:');
+          if (!password || !code) return;
+          try {
+            await TW.api('/api/2fa/disable', { method: 'POST', body: { password, code } });
+            const cached = TW.getPlayer();
+            cached.totp_enabled = false;
+            TW.updatePlayerCache(cached);
+            TW.toast('2FA disabled', 'info');
+            load2fa();
+          } catch (err) {
+            TW.toast(err.message, 'danger');
+          }
+        });
+        areaEl.appendChild(btn);
+      }
+    }
+
+    async function loadLoginHistory() {
+      const list = document.getElementById('loginHistoryList');
+      try {
+        const data = await TW.api('/api/player/login-history');
+        list.innerHTML = data.history
+          .map((h) => `<div class="login-row"><span>${new Date(h.created_at).toLocaleString()}</span><span class="text-secondary">${TW.escapeHtml(h.ip)} · ${TW.escapeHtml((h.user_agent || '').slice(0, 40))}</span></div>`)
+          .join('') || '<div class="text-secondary">No login history yet.</div>';
+      } catch (err) {
+        list.innerHTML = `<div class="text-secondary">${TW.escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function loadSessions() {
+      const list = document.getElementById('sessionsList');
+      try {
+        const data = await TW.api('/api/player/sessions');
+        list.innerHTML = '';
+        data.sessions.forEach((s) => {
+          const row = document.createElement('div');
+          row.className = 'session-row';
+          row.innerHTML = `
+            <span>${TW.escapeHtml((s.userAgent || 'Unknown device').slice(0, 40))} ${s.current ? '<strong>(this device)</strong>' : ''}<br/><span class="text-secondary" style="font-size:11px;">${TW.escapeHtml(s.ip)} · last seen ${new Date(s.lastSeenAt).toLocaleString()}</span></span>
+            ${s.current ? '' : `<button class="btn" data-revoke="${s.id}">Revoke</button>`}
+          `;
+          list.appendChild(row);
+        });
+        list.querySelectorAll('[data-revoke]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            await TW.api(`/api/player/sessions/${btn.dataset.revoke}/revoke`, { method: 'POST' });
+            loadSessions();
+          });
+        });
+      } catch (err) {
+        list.innerHTML = `<div class="text-secondary">${TW.escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
+      if (!confirm('This permanently deletes your account. Are you absolutely sure?')) return;
+      try {
+        await TW.api('/api/player/me', { method: 'DELETE', body: { password: document.getElementById('deletePasswordInput').value } });
+        TW.clearSession();
+        window.location.href = '/';
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    });
+
+    loadProfileTab();
+    load2fa();
+    loadLoginHistory();
+    loadSessions();
+    loadBlocks();
+  </script>
+</body>
+</html>

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Profile</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/premium.css" />
+<style>
+  .profile-avatar-img {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent);
+    flex-shrink: 0;
+  }
+  .profile-head {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .profile-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 20px;
+  }
+  @media (max-width: 700px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .stat-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-card .label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+  }
+  .stat-card .value {
+    font-size: 20px;
+    font-weight: 800;
+    margin-top: 4px;
+  }
+  table.hist {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  table.hist th {
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 11px;
+    text-transform: uppercase;
+    padding: 6px 8px;
+  }
+  table.hist td {
+    padding: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .coin-packages {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+  }
+  @media (max-width: 700px) {
+    .coin-packages { grid-template-columns: repeat(2, 1fr); }
+  }
+  .coin-package {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+  }
+  .coin-package:hover {
+    border-color: var(--gold);
+  }
+  .coin-package .amount {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--gold);
+  }
+  .coin-package .price {
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body data-page="profile">
+  <div id="twNav" data-active=""></div>
+
+  <div class="tw-container">
+    <div class="panel">
+      <div class="profile-head">
+        <img class="profile-avatar-img hidden" id="profileAvatarImg" alt="Avatar" />
+        <div class="profile-avatar" id="profileAvatar">?</div>
+        <div style="flex:1;">
+          <h2 id="profileUsername">-</h2>
+          <span class="pill" id="profileTier">-</span>
+          <span class="pill pill-gold mono" id="profileRating">-</span>
+          <div class="text-secondary" id="mutualFriendsLine" style="font-size:12px;margin-top:6px;display:none;"></div>
+        </div>
+        <div id="friendStatusArea" style="position:relative;"></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="label">Wins</div><div class="value text-buy" id="statWins">0</div></div>
+        <div class="stat-card"><div class="label">Draws</div><div class="value" style="color:var(--gold);" id="statDraws">0</div></div>
+        <div class="stat-card"><div class="label">Losses</div><div class="value text-sell" id="statLosses">0</div></div>
+        <div class="stat-card"><div class="label">Win Rate</div><div class="value" id="statWinRate">0%</div></div>
+        <div class="stat-card"><div class="label">Matches</div><div class="value" id="statMatches">0</div></div>
+        <div class="stat-card"><div class="label">Favourite Pair</div><div class="value" id="statFavourite">-</div></div>
+        <div class="stat-card"><div class="label">Best Match</div><div class="value" id="statBest">$0.00</div></div>
+        <div class="stat-card"><div class="label">Coin Balance</div><div class="value pill-gold" id="statCoins">0</div></div>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="editProfileSection" style="margin-top:20px;">
+      <h3>Edit Profile</h3>
+      <p class="text-secondary">Full profile editing (avatar, password, preferences) lives on the <a href="/settings">Settings</a> page now - this is quick access to the basics.</p>
+      <form id="editProfileForm">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="editUsername" minlength="3" maxlength="20" />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="editEmail" />
+        </div>
+        <div class="field">
+          <label>New Password (leave blank to keep current)</label>
+          <input type="password" id="editNewPassword" minlength="6" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label>Current Password (required to save any change)</label>
+          <input type="password" id="editCurrentPassword" required autocomplete="current-password" />
+        </div>
+        <div id="editProfileError" class="form-error"></div>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </form>
+    </div>
+
+    <div class="panel" style="margin-top:20px;">
+      <h3>Recent Matches</h3>
+      <div style="overflow-x: auto;">
+        <table class="hist">
+          <thead><tr><th>Date</th><th>Instruments</th><th>Rank</th><th>P&amp;L</th><th>Rating</th><th>Trades</th></tr></thead>
+          <tbody id="historyBody"><tr><td colspan="6" class="text-secondary">Spike & Crush loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="buyCoinsSection" style="margin-top:20px;">
+      <h3>🪙 Buy Coins</h3>
+      <p>Quick War entry costs 10 coins. Private Wars are always free.</p>
+      <div class="coin-packages">
+        <div class="coin-package" data-pkg="100"><div class="amount">100</div><div class="price">$0.99</div></div>
+        <div class="coin-package" data-pkg="500"><div class="amount">500</div><div class="price">$3.99</div></div>
+        <div class="coin-package" data-pkg="1500"><div class="amount">1500</div><div class="price">$9.99</div></div>
+        <div class="coin-package" data-pkg="5000"><div class="amount">5000</div><div class="price">$24.99</div></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/sound.js"></script>
+  <script src="/js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/js/auth.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+<script src="/js/socket.js"></script>
+  <script src="/js/friends-panel.js"></script>
+  <script src="/js/lottie.js"></script>
+  <script>
+    TW.requireAuth();
+    const player = TW.getPlayer();
+
+    // /profile/<username> views someone else's public profile; /profile (or
+    // profile.html) with no path segment is always the logged-in player's own.
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const routeUsername = pathParts[0] === 'profile' && pathParts[1] ? decodeURIComponent(pathParts[1]) : null;
+    const isOwnProfile = !routeUsername || routeUsername.toLowerCase() === player.username.toLowerCase();
+
+    async function loadProfile() {
+      try {
+        const data = isOwnProfile
+          ? await TW.api(`/api/player/${player.id}`)
+          : await TW.api(`/api/player/by-username/${encodeURIComponent(routeUsername)}`);
+        const p = data.player;
+        if (isOwnProfile) {
+          TW.updatePlayerCache(p);
+          TW.updateHeader();
+        }
+
+        document.getElementById('editProfileSection').classList.toggle('hidden', !isOwnProfile);
+        document.getElementById('buyCoinsSection').classList.toggle('hidden', !isOwnProfile);
+
+        const avatarImg = document.getElementById('profileAvatarImg');
+        const avatarInitial = document.getElementById('profileAvatar');
+        if (p.avatar_url) {
+          avatarImg.src = p.avatar_url;
+          avatarImg.classList.remove('hidden');
+          avatarInitial.classList.add('hidden');
+        } else {
+          avatarInitial.textContent = (p.username[0] || '?').toUpperCase();
+          avatarImg.classList.add('hidden');
+          avatarInitial.classList.remove('hidden');
+        }
+
+        document.getElementById('profileUsername').textContent = p.username;
+        document.getElementById('profileTier').textContent = p.tier;
+        document.getElementById('profileTier').className = `pill ${TW.tierClass(p.tier)}`;
+        document.getElementById('profileRating').textContent = `${p.war_rating} WR`;
+        document.getElementById('statWins').textContent = p.wins;
+        document.getElementById('statDraws').textContent = p.draws || 0;
+        document.getElementById('statLosses').textContent = p.losses;
+        document.getElementById('statWinRate').textContent = `${data.winRate}%`;
+        document.getElementById('statMatches').textContent = p.total_matches;
+        document.getElementById('statFavourite').textContent = data.favouriteInstrument || '-';
+        document.getElementById('statBest').textContent = TW.formatMoney(data.bestMatchPnl);
+        document.getElementById('statCoins').textContent = p.coins;
+
+        if (isOwnProfile) {
+          document.getElementById('editUsername').value = p.username;
+          document.getElementById('editEmail').value = p.email;
+        } else {
+          renderFriendStatus(p.id, data.friendStatus);
+          const mutualEl = document.getElementById('mutualFriendsLine');
+          if (data.mutualFriendCount > 0) {
+            mutualEl.textContent = `${data.mutualFriendCount} mutual friend${data.mutualFriendCount === 1 ? '' : 's'}`;
+            mutualEl.style.display = 'block';
+          } else {
+            mutualEl.style.display = 'none';
+          }
+        }
+
+        const body = document.getElementById('historyBody');
+        body.innerHTML = '';
+        if (!data.recentMatches || data.recentMatches.length === 0) {
+          body.innerHTML = '<tr><td colspan="6" class="text-secondary">No matches played yet.</td></tr>';
+        } else {
+          data.recentMatches.forEach((m) => {
+            const tr = document.createElement('tr');
+            const match = m.matches || {};
+            const dateLabel = match.end_time
+              ? new Date(match.end_time).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+              : '-';
+            const pnlPct = ((m.final_pnl / 10000) * 100).toFixed(1);
+            const ratingChange = m.rating_change ?? null;
+            const ratingLabel = ratingChange === null ? '-' : `${ratingChange >= 0 ? '+' : ''}${ratingChange}`;
+            const opponentsHtml = (m.opponents || [])
+              .filter((o) => o.username)
+              .map(
+                (o) => `
+                  <a href="/profile/${encodeURIComponent(o.username)}" style="margin-right:6px;">${TW.escapeHtml(o.username)}</a>
+                  <button class="btn btn-outline" data-rematch="${o.id}" data-rematch-name="${TW.escapeHtml(o.username)}" style="font-size:10px;padding:2px 8px;margin-right:6px;">Rematch</button>
+                `
+              )
+              .join('');
+            tr.innerHTML = `
+              <td>${dateLabel}</td>
+              <td>${TW.escapeHtml(match.instrument_1 || '')}/${TW.escapeHtml(match.instrument_2 || '')}${opponentsHtml ? `<div style="margin-top:4px;font-size:11px;">${opponentsHtml}</div>` : ''}</td>
+              <td>#${m.final_rank ?? '-'}</td>
+              <td class="${m.final_pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(m.final_pnl)} <span class="text-secondary" style="font-size:11px;">(${
+              m.final_pnl >= 0 ? '+' : ''
+            }${pnlPct}%)</span></td>
+              <td class="${ratingChange >= 0 ? 'text-buy' : 'text-sell'}">${ratingLabel}</td>
+              <td>${m.trades_made}</td>
+            `;
+            body.appendChild(tr);
+          });
+          body.querySelectorAll('[data-rematch]').forEach((btn) => {
+            btn.addEventListener('click', () => rematch(btn.dataset.rematch, btn.dataset.rematchName));
+          });
+        }
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    }
+
+    // ---- friend status button (Block 12, Part G) -------------------------------------
+
+    function renderFriendStatus(targetId, status) {
+      const area = document.getElementById('friendStatusArea');
+      if (status === 'friends') {
+        area.innerHTML = `<button class="btn btn-outline" id="friendsMenuBtn">Friends ✓</button>`;
+        area.querySelector('#friendsMenuBtn').addEventListener('click', () => {
+          if (!confirm('Remove this friend?')) return;
+          TW.api(`/api/friends/${targetId}`, { method: 'DELETE' })
+            .then(() => { TW.toast('Friend removed', 'info'); loadProfile(); })
+            .catch((e) => TW.toast(e.message, 'danger'));
+        });
+      } else if (status === 'request_sent') {
+        area.innerHTML = `<button class="btn" disabled>Request Sent</button>`;
+      } else if (status === 'request_received') {
+        area.innerHTML = `<button class="btn btn-primary" id="acceptReqBtn">Accept Request</button>`;
+        area.querySelector('#acceptReqBtn').addEventListener('click', async () => {
+          try {
+            const reqs = await TW.api('/api/friends/requests');
+            const incoming = reqs.incoming.find((r) => r.playerId === targetId);
+            if (!incoming) return;
+            await TW.api(`/api/friends/${incoming.requestId}/accept`, { method: 'POST' });
+            TW.toast('Friend added!', 'info');
+            loadProfile();
+          } catch (e) {
+            TW.toast(e.message, 'danger');
+          }
+        });
+      } else if (status === 'none') {
+        area.innerHTML = `<button class="btn btn-primary" id="addFriendBtn">Add Friend</button>`;
+        area.querySelector('#addFriendBtn').addEventListener('click', async () => {
+          try {
+            await TW.api('/api/friends/request', { method: 'POST', body: { targetId } });
+            TW.toast('Friend request sent!', 'info');
+            loadProfile();
+          } catch (e) {
+            TW.toast(e.message, 'danger');
+          }
+        });
+      } else {
+        area.innerHTML = '';
+      }
+    }
+
+    async function rematch(opponentId, opponentName) {
+      try {
+        const created = await TW.api('/api/match/create', { method: 'POST', body: { mode: 'private' } });
+        const socket = TW.connectSocket();
+        if (socket && !socket.connected) await new Promise((resolve) => socket.once('connect', resolve));
+        await TW.emitAck('player:join', { matchId: created.matchId });
+        const inviteResult = await TW.emitAck('lobby:invite', { targetIds: [opponentId], matchId: created.matchId });
+        if (inviteResult.success && inviteResult.sentTo && inviteResult.sentTo.length) {
+          TW.toast(`Rematch invite sent to ${opponentName}!`, 'info');
+          window.location.href = `/lobby.html?matchId=${created.matchId}`;
+        } else {
+          TW.toast(`${opponentName} is not online right now`, 'warning');
+        }
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    }
+
+    document.getElementById('editProfileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById('editProfileError');
+      errEl.textContent = '';
+
+      const body = {
+        currentPassword: document.getElementById('editCurrentPassword').value,
+        username: document.getElementById('editUsername').value.trim(),
+        email: document.getElementById('editEmail').value.trim(),
+      };
+      const newPassword = document.getElementById('editNewPassword').value;
+      if (newPassword) body.newPassword = newPassword;
+
+      try {
+        const data = await TW.api('/api/player/me', { method: 'PATCH', body });
+        TW.updatePlayerCache(data.player);
+        TW.updateHeader();
+        document.getElementById('editCurrentPassword').value = '';
+        document.getElementById('editNewPassword').value = '';
+        TW.toast('Profile updated', 'info');
+        loadProfile();
+      } catch (err) {
+        errEl.textContent = err.message;
+      }
+    });
+
+    document.querySelectorAll('.coin-package').forEach((el) => {
+      el.addEventListener('click', async () => {
+        try {
+          const data = await TW.api('/api/coins/purchase', { method: 'POST', body: { packageId: el.dataset.pkg } });
+          window.location.href = data.url;
+        } catch (err) {
+          TW.toast(err.message, 'danger');
+        }
+      });
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('purchase') === 'success') TW.toast('Payment received! Coins will credit shortly.', 'info');
+    else if (urlParams.get('purchase') === 'cancelled') TW.toast('Purchase cancelled.', 'warning');
+
+    loadProfile();
+  </script>
+</body>
+</html>

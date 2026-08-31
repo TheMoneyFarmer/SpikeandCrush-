@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Analytics — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-charts.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="an-players"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="admin-tabs">
+          <button class="admin-tab" data-tab="players">Player Analytics</button>
+          <button class="admin-tab" data-tab="matches">Match Analytics</button>
+          <button class="admin-tab" data-tab="revenue">Revenue Analytics</button>
+          <button class="admin-tab" data-tab="retention">Retention Analytics</button>
+          <button class="admin-tab" data-tab="geo">Geographic Analytics</button>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-players">
+          <div class="kpi-grid" id="playerKpis"></div>
+          <div class="charts-grid">
+            <div class="chart-card"><h3>DAU (90 days)</h3><canvas id="chartDau"></canvas></div>
+            <div class="chart-card"><h3>New vs Returning (active last 30d)</h3><canvas id="chartNewReturning"></canvas></div>
+            <div class="chart-card"><h3>Session Length Distribution</h3><canvas id="chartSessionLength"></canvas></div>
+          </div>
+          <div class="panel" style="margin-top:16px;">
+            <h3>Cohort Retention Heatmap (by signup month, weekly active %)</h3>
+            <div id="cohortHeatmap"></div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-matches">
+          <div class="charts-grid">
+            <div class="chart-card"><h3>Matches by Mode</h3><canvas id="chartByMode"></canvas></div>
+            <div class="chart-card"><h3>Matches by Instrument</h3><canvas id="chartByInstrument"></canvas></div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-revenue">
+          <div class="kpi-grid" id="revAnalyticsKpis"></div>
+          <div class="chart-card"><h3>Revenue by Day (90 days)</h3><canvas id="chartRevenueDaily"></canvas></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-retention">
+          <div class="kpi-grid" id="retentionKpis"></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-geo">
+          <div id="geoTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/admin-charts.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Analytics');
+
+    const loaded = {};
+    function activateTab(name) {
+      document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
+      if (!loaded[name]) { loaders[name](); loaded[name] = true; }
+    }
+    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
+
+    const loaders = {
+      players: async () => {
+        const d = await Admin.api('/analytics/players');
+        document.getElementById('playerKpis').innerHTML = `
+          <div class="kpi-card"><div class="kpi-label">WAU</div><div class="kpi-value">${d.wau}</div></div>
+          <div class="kpi-card"><div class="kpi-label">MAU</div><div class="kpi-value">${d.mau}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Day 1 Retention</div><div class="kpi-value">${d.retention.day1 ?? '—'}%</div></div>
+          <div class="kpi-card"><div class="kpi-label">Day 7 Retention</div><div class="kpi-value">${d.retention.day7 ?? '—'}%</div></div>
+          <div class="kpi-card"><div class="kpi-label">Day 30 Retention</div><div class="kpi-value">${d.retention.day30 ?? '—'}%</div></div>
+        `;
+        Admin.Charts.lineChart(document.getElementById('chartDau'), { labels: d.dauSeries.map((r) => r.day.slice(5)), datasets: [{ data: d.dauSeries.map((r) => r.count), borderColor: Admin.Charts.PALETTE.teal, fill: true, backgroundColor: 'rgba(0,200,150,0.08)' }] });
+        Admin.Charts.doughnutChart(document.getElementById('chartNewReturning'), { labels: ['New', 'Returning'], data: [d.newVsReturning.new, d.newVsReturning.returning] });
+        Admin.Charts.barChart(document.getElementById('chartSessionLength'), { labels: Object.keys(d.sessionLengthDistribution), datasets: [{ label: 'Sessions', data: Object.values(d.sessionLengthDistribution), backgroundColor: Admin.Charts.PALETTE.info, borderRadius: 3 }] });
+
+        document.getElementById('cohortHeatmap').innerHTML = `
+          <table class="admin-table"><thead><tr><th>Cohort</th><th>Size</th>${[0, 1, 2, 3, 4].map((w) => `<th>Week ${w}</th>`).join('')}</tr></thead>
+          <tbody>${d.cohortHeatmap.map((c) => `<tr><td>${c.cohort}</td><td>${c.size}</td>${c.weeks.map((w) => `<td style="background:rgba(0,200,150,${w / 100});">${w}%</td>`).join('')}</tr>`).join('')}</tbody></table>
+        `;
+      },
+      matches: async () => {
+        const d = await Admin.api('/analytics/matches');
+        Admin.Charts.doughnutChart(document.getElementById('chartByMode'), { labels: Object.keys(d.avgDurationSecondsByMode), data: Object.keys(d.avgDurationSecondsByMode).map(() => 1) });
+        Admin.Charts.horizontalBarChart(document.getElementById('chartByInstrument'), { labels: Object.keys(d.instrumentPopularity), data: Object.values(d.instrumentPopularity) });
+      },
+      revenue: async () => {
+        const d = await Admin.api('/analytics/revenue');
+        document.getElementById('revAnalyticsKpis').innerHTML = `
+          <div class="kpi-card"><div class="kpi-label">Avg Order Value</div><div class="kpi-value">${Admin.formatMoney(d.averageOrderValue)}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Conversion Rate</div><div class="kpi-value">${d.conversionRateFreeToPaid}%</div></div>
+          <div class="kpi-card"><div class="kpi-label">Projected Monthly</div><div class="kpi-value">${Admin.formatMoney(d.projectedMonthlyRevenue)}</div></div>
+        `;
+        const days = Object.keys(d.revenueByDay);
+        Admin.Charts.lineChart(document.getElementById('chartRevenueDaily'), { labels: days.map((d) => d.slice(5)), datasets: [{ data: Object.values(d.revenueByDay), borderColor: Admin.Charts.PALETTE.gold, fill: true, backgroundColor: 'rgba(255,215,0,0.08)' }] });
+      },
+      retention: async () => {
+        const d = await Admin.api('/analytics/retention');
+        document.getElementById('retentionKpis').innerHTML = `
+          <div class="kpi-card"><div class="kpi-label">Day 1</div><div class="kpi-value">${d.retention.day1 ?? '—'}%</div></div>
+          <div class="kpi-card"><div class="kpi-label">Day 7</div><div class="kpi-value">${d.retention.day7 ?? '—'}%</div></div>
+          <div class="kpi-card"><div class="kpi-label">Day 30</div><div class="kpi-value">${d.retention.day30 ?? '—'}%</div></div>
+        `;
+      },
+      geo: async () => {
+        const d = await Admin.api('/analytics/geographic');
+        const rows = Object.entries(d.playersByCountry).sort((a, b) => b[1] - a[1]);
+        document.getElementById('geoTableWrap').innerHTML = `
+          <div class="text-secondary" style="font-size:12px;margin-bottom:10px;">${Admin.escapeHtml(d.note)}</div>
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Country</th><th>Players</th><th>Revenue</th></tr></thead>
+            <tbody>${rows.map(([c, n]) => `<tr><td>${Admin.escapeHtml(c)}</td><td>${n}</td><td>${Admin.formatMoney(d.revenueByCountry[c] || 0)}</td></tr>`).join('')}</tbody>
+          </table></div>
+        `;
+      },
+    };
+
+    activateTab(new URLSearchParams(location.search).get('tab') || 'players');
+  </script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-charts.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="dashboard"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="kpi-grid" id="kpiGrid">
+          <div class="kpi-card"><div class="kpi-label">Loading…</div></div>
+        </div>
+
+        <div class="charts-grid" style="margin-bottom:24px;">
+          <div class="chart-card">
+            <h3>Players Online (last 24h)</h3>
+            <div class="chart-sub">Proxy from login activity - see note in payload</div>
+            <canvas id="chartPlayersOnline"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Revenue (last 30 days)</h3>
+            <div class="chart-sub">Coin purchases, completed only</div>
+            <canvas id="chartRevenue30d"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Matches Per Hour Today</h3>
+            <div class="chart-sub">Stacked by mode, UTC hours</div>
+            <canvas id="chartMatchesPerHour"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Registration Funnel</h3>
+            <div class="chart-sub">Registered → 1st match → made a purchase</div>
+            <canvas id="chartFunnel"></canvas>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Real-time Activity Feed</h3>
+          <div class="activity-feed" id="activityFeed"></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/admin-charts.js"></script>
+  <script src="js/admin-socket.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Dashboard Overview');
+
+    function kpiCard({ label, value, sub, delta }) {
+      const deltaHtml = delta != null ? `<div class="kpi-delta ${delta >= 0 ? 'up' : 'down'}">${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)}% vs yesterday</div>` : '';
+      return `<div class="kpi-card"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-sub">${sub}</div>${deltaHtml}</div>`;
+    }
+
+    async function loadOverview() {
+      try {
+        const d = await Admin.api('/dashboard/overview');
+        document.getElementById('kpiGrid').innerHTML = [
+          kpiCard({
+            label: 'Active Players Right Now', value: Admin.formatNumber(d.activePlayers.total),
+            sub: `${d.activePlayers.inLobby} in lobby · ${d.activePlayers.inMatch} in match · ${d.activePlayers.browsing} browsing`,
+          }),
+          kpiCard({
+            label: 'Matches Today', value: Admin.formatNumber(d.matchesToday.total),
+            sub: Object.entries(d.matchesToday.byMode).map(([m, c]) => `${c} ${m}`).join(' · ') || 'No matches yet',
+            delta: d.matchesToday.changePct,
+          }),
+          kpiCard({
+            label: 'Revenue Today', value: Admin.formatMoney(d.revenueToday.total),
+            sub: `${Admin.formatMoney(d.revenueToday.coins)} coins · ${Admin.formatMoney(d.revenueToday.battlePass)} battle pass`,
+            delta: d.revenueToday.changePct,
+          }),
+          kpiCard({
+            label: 'New Registrations Today', value: Admin.formatNumber(d.registrationsToday.total),
+            sub: `${d.registrationsToday.email} email · ${d.registrationsToday.oauth} OAuth`,
+            delta: d.registrationsToday.changePct,
+          }),
+          kpiCard({
+            label: 'Active Tournaments', value: Admin.formatNumber(d.tournaments.activeCount),
+            sub: d.tournaments.next ? `Next: ${Admin.escapeHtml(d.tournaments.next.name)} · ${d.tournaments.nextRegistrations} registered` : 'None scheduled',
+          }),
+          kpiCard({
+            label: 'System Health', value: d.systemHealth.gameServerReachable ? '🟢 OK' : '🔴 Down',
+            sub: d.systemHealth.gameServerReachable
+              ? `Uptime ${Math.floor(d.systemHealth.uptimeSeconds / 3600)}h · ${d.systemHealth.websocketConnections} WS connections`
+              : 'Game server unreachable',
+          }),
+        ].join('');
+      } catch (e) {
+        Admin.toast(e.message, 'danger');
+      }
+    }
+
+    let charts = {};
+    async function loadRealtimeCharts() {
+      try {
+        const d = await Admin.api('/dashboard/realtime');
+        if (charts.online) charts.online.destroy();
+        charts.online = Admin.Charts.lineChart(document.getElementById('chartPlayersOnline'), {
+          labels: d.playersOnline24h.labels, datasets: [{ data: d.playersOnline24h.values, borderColor: Admin.Charts.PALETTE.info, backgroundColor: 'rgba(79,195,247,0.1)', fill: true }],
+        });
+        if (charts.revenue) charts.revenue.destroy();
+        charts.revenue = Admin.Charts.barChart(document.getElementById('chartRevenue30d'), {
+          labels: d.revenue30d.labels.map((l) => l.slice(5)), datasets: [{ label: 'Revenue', data: d.revenue30d.values, backgroundColor: Admin.Charts.PALETTE.teal, borderRadius: 3 }],
+        });
+        if (charts.perHour) charts.perHour.destroy();
+        const modeColors = { quick: Admin.Charts.PALETTE.teal, blitz: Admin.Charts.PALETTE.gold, grand: Admin.Charts.PALETTE.purple, private: Admin.Charts.PALETTE.info, solo: Admin.Charts.PALETTE.warning, async: Admin.Charts.PALETTE.red, tournament: '#888' };
+        charts.perHour = Admin.Charts.barChart(document.getElementById('chartMatchesPerHour'), {
+          labels: d.matchesPerHourToday.labels, stacked: true,
+          datasets: Object.entries(d.matchesPerHourToday.byMode).map(([mode, values]) => ({ label: mode, data: values, backgroundColor: modeColors[mode] || '#666' })),
+        });
+        if (charts.funnel) charts.funnel.destroy();
+        charts.funnel = Admin.Charts.horizontalBarChart(document.getElementById('chartFunnel'), {
+          labels: d.registrationFunnel.map((f) => f.stage), data: d.registrationFunnel.map((f) => f.value),
+        });
+      } catch (e) {
+        Admin.toast(e.message, 'danger');
+      }
+    }
+
+    async function loadActivityFeed() {
+      try {
+        const feed = await Admin.api('/dashboard/activity-feed');
+        const iconByType = { registration: '👤', match_start: '⚔️', match_end: '🏁', payment: '💰', ban: '🚫', error: '⚠️' };
+        document.getElementById('activityFeed').innerHTML = feed.length
+          ? feed.map((e) => `<div class="activity-item type-${e.type}"><span class="icon">${iconByType[e.type] || '•'}</span><span>${Admin.escapeHtml(e.text)}</span><span class="time">${Admin.timeAgo(e.ts)}</span></div>`).join('')
+          : '<div class="empty-state">No recent activity</div>';
+      } catch (e) {
+        Admin.toast(e.message, 'danger');
+      }
+    }
+
+    function refreshAll() { loadOverview(); loadRealtimeCharts(); loadActivityFeed(); }
+    refreshAll();
+    setInterval(refreshAll, 30000);
+  </script>
+</body>
+</html>

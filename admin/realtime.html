@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Real-time Monitor — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-charts.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="realtime"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="panel" style="margin-bottom:20px;">
+          <h3>Players by Country <span class="text-secondary" style="font-weight:400;font-size:12px;">(no SVG geo map — see note)</span></h3>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:12px;">This build has no geographic map library or lat/long geocoding, so this renders as a ranked country breakdown instead of pin-dots on a map - the underlying data (players.country) is real, the visualization is simplified.</div>
+          <div id="countryBars"></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <h3>Live Match Grid <span class="text-secondary" style="font-weight:400;font-size:12px;">auto-refreshes every 5s</span></h3>
+          <div class="match-grid" id="liveMatchGrid"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <h3>Live Player Activity</h3>
+          <div id="livePlayersTable"></div>
+        </div>
+
+        <div class="panel">
+          <h3>System Metrics</h3>
+          <div class="gauge-row">
+            <div class="gauge-card"><canvas id="gaugeMem"></canvas><div class="gauge-value" id="gaugeMemVal">—</div><div class="gauge-label">Memory (game server)</div></div>
+            <div class="gauge-card"><canvas id="gaugeWs"></canvas><div class="gauge-value" id="gaugeWsVal">—</div><div class="gauge-label">WebSocket Connections</div></div>
+            <div class="gauge-card"><canvas id="gaugeUptime"></canvas><div class="gauge-value" id="gaugeUptimeVal">—</div><div class="gauge-label">Game Server Uptime</div></div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/admin-charts.js"></script>
+  <script src="js/admin-socket.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Real-time Monitor');
+
+    const knownMatchIds = new Set();
+
+    function renderMatchGrid(matches) {
+      const grid = document.getElementById('liveMatchGrid');
+      if (!matches.length) { grid.innerHTML = '<div class="empty-state">No live matches right now.</div>'; return; }
+      grid.innerHTML = matches.map((m) => {
+        const isNew = !knownMatchIds.has(m.id);
+        knownMatchIds.add(m.id);
+        const timer = m.remainingSeconds != null ? `${String(Math.floor(m.remainingSeconds / 60)).padStart(2, '0')}:${String(m.remainingSeconds % 60).padStart(2, '0')}` : m.status;
+        return `
+          <div class="match-card ${isNew ? 'new-flash' : ''}" data-id="${m.id}">
+            <div class="match-card-head">
+              <span class="badge badge-info">${Admin.escapeHtml(m.modeLabel)}</span>
+              <span class="match-card-timer">${timer}</span>
+            </div>
+            <div class="text-secondary" style="font-size:11px;">${(m.instruments || []).join(' / ')} · Entry: ${m.entryCoins} coins · Room ${m.roomCode}</div>
+            <div class="match-card-players">
+              ${m.players.map((p) => `<div class="match-card-player"><span class="avatar-circle">${Admin.escapeHtml((p.username || '?')[0].toUpperCase())}</span> ${Admin.escapeHtml(p.username)}${p.isAI ? ' <span class="text-secondary">(AI)</span>' : ''} <span class="${p.pnl >= 0 ? 'text-success' : 'text-danger'}" style="margin-left:auto;">${p.pnl >= 0 ? '+' : ''}$${p.pnl.toFixed(0)}</span></div>`).join('')}
+            </div>
+            <div class="match-card-actions">
+              <button class="btn btn-sm" onclick="window.open('http://localhost:${location.hostname === 'localhost' ? (window.GAME_PORT || 3002) : location.hostname}/spectate.html?matchId=${m.id}', '_blank')">View</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderLivePlayers(matches) {
+      const rows = [];
+      matches.forEach((m) => m.players.filter((p) => !p.isAI).forEach((p) => rows.push({ username: p.username, mode: m.modeLabel, status: m.status, pnl: p.pnl })));
+      const el = document.getElementById('livePlayersTable');
+      if (!rows.length) { el.innerHTML = '<div class="empty-state">No players currently in a live match.</div>'; return; }
+      el.innerHTML = `
+        <div class="admin-table-wrap"><table class="admin-table">
+          <thead><tr><th>Username</th><th>Mode</th><th>Status</th><th>Live P&amp;L</th></tr></thead>
+          <tbody>${rows.map((r) => `<tr><td>${Admin.escapeHtml(r.username)}</td><td>${Admin.escapeHtml(r.mode)}</td><td><span class="badge badge-in-match">${r.status}</span></td><td class="${r.pnl >= 0 ? 'text-success' : 'text-danger'} mono">${r.pnl >= 0 ? '+' : ''}$${r.pnl.toFixed(2)}</td></tr>`).join('')}</tbody>
+        </table></div>
+      `;
+    }
+
+    let gauges = {};
+    async function loadCountryBars() {
+      try {
+        const geo = await Admin.api('/analytics/geographic');
+        const entries = Object.entries(geo.playersByCountry).sort((a, b) => b[1] - a[1]).slice(0, 15);
+        const max = Math.max(...entries.map((e) => e[1]), 1);
+        document.getElementById('countryBars').innerHTML = entries.map(([country, count]) => `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;">
+            <div style="width:110px;flex-shrink:0;">${Admin.escapeHtml(country)}</div>
+            <div class="mini-progress" style="flex:1;"><div class="fill" style="width:${(count / max) * 100}%;"></div></div>
+            <div style="width:36px;text-align:right;">${count}</div>
+          </div>
+        `).join('') || '<div class="empty-state">No country data yet.</div>';
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    async function loadLive() {
+      try {
+        const overview = await Admin.api('/dashboard/overview');
+        const matchesRes = await fetch('/api/matches/live', { credentials: 'include' });
+        const matches = await matchesRes.json();
+        if (Array.isArray(matches)) {
+          renderMatchGrid(matches);
+          renderLivePlayers(matches);
+        }
+        const health = overview.systemHealth;
+        if (health.gameServerReachable) {
+          const memMb = 0; // populated below from /system/health for accuracy
+          document.getElementById('gaugeWsVal').textContent = health.websocketConnections;
+          if (gauges.ws) gauges.ws.destroy();
+          gauges.ws = Admin.Charts.gauge(document.getElementById('gaugeWs'), Math.min(health.websocketConnections, 50), 50, Admin.Charts.PALETTE.info);
+
+          const hours = Math.floor(health.uptimeSeconds / 3600);
+          document.getElementById('gaugeUptimeVal').textContent = `${hours}h`;
+          if (gauges.uptime) gauges.uptime.destroy();
+          gauges.uptime = Admin.Charts.gauge(document.getElementById('gaugeUptime'), Math.min(hours, 24), 24, Admin.Charts.PALETTE.teal);
+        }
+
+        const sysHealth = await Admin.api('/system/health');
+        const memPct = sysHealth.gameServer.reachable ? Math.round((sysHealth.gameServer.memory.rss / (sysHealth.host.totalMemMb * 1e6)) * 100) : 0;
+        document.getElementById('gaugeMemVal').textContent = sysHealth.gameServer.reachable ? `${Math.round(sysHealth.gameServer.memory.rss / 1e6)} MB` : '—';
+        if (gauges.mem) gauges.mem.destroy();
+        gauges.mem = Admin.Charts.gauge(document.getElementById('gaugeMem'), Math.min(memPct, 100), 100, Admin.Charts.PALETTE.warning);
+      } catch (e) {
+        Admin.toast(e.message, 'danger');
+      }
+    }
+
+    loadCountryBars();
+    loadLive();
+    setInterval(loadLive, 5000);
+
+    Admin.socket.on('admin:active_matches', (matches) => { renderMatchGrid(matches); renderLivePlayers(matches); });
+  </script>
+</body>
+</html>

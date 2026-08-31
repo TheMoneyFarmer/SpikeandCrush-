@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Shop</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .shop-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .shop-tabs button { padding: 8px 16px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); cursor: pointer; font-weight: 600; }
+  .shop-tabs button.active { background: var(--gradient-primary); color: #06251d; border-color: transparent; }
+  .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .shop-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; position: relative; }
+  .shop-item .icon { font-size: 34px; margin-bottom: 8px; }
+  .shop-item .name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .shop-item .price { color: var(--gold); font-weight: 700; margin: 8px 0; }
+  .shop-item .owned-badge { position: absolute; top: 8px; right: 8px; background: var(--accent); color: #06251d; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 999px; }
+  .shop-item button { width: 100%; }
+  .shop-item button.equipped { background: var(--surface); border: 1px solid var(--accent); color: var(--accent); }
+</style>
+</head>
+<body data-page="shop">
+  <div id="twNav" data-active="shop"></div>
+
+  <div class="tw-container">
+    <div class="panel">
+      <h2>🛒 Shop <span style="float:right;font-size:14px;font-weight:400;" id="coinBalanceLabel"></span></h2>
+      <div class="shop-tabs" id="shopTabs">
+        <button data-tab="cardVariants" class="active">Card Variants</button>
+        <button data-tab="avatarFrames">Avatar Frames</button>
+        <button data-tab="profileBackgrounds">Profile Backgrounds</button>
+        <button data-tab="nameplateEffects">Nameplate Effects</button>
+      </div>
+      <div class="shop-grid" id="shopGrid">Spike & Crush loading...</div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script src="js/lottie.js"></script>
+  <script>
+    TW.requireAuth();
+
+    let catalogData = null;
+    let activeTab = 'cardVariants';
+
+    function itemCard(item, ownedIds, equippedBySlot) {
+      const slotByType = { avatar_frame: 'avatar_frame', profile_background: 'background', nameplate: 'nameplate' };
+      const slot = slotByType[item.type];
+      const owned = item.price === 0 || ownedIds.includes(item.id);
+      const isEquipped = slot && equippedBySlot[slot] === item.id;
+      const equippable = !!slot;
+
+      let btnHtml;
+      if (!owned) {
+        btnHtml = `<button class="btn btn-primary" data-buy="${item.id}">Buy for ${item.price} 🪙</button>`;
+      } else if (equippable) {
+        btnHtml = isEquipped
+          ? `<button class="btn equipped" disabled>✓ Equipped</button>`
+          : `<button class="btn btn-outline" data-equip="${item.id}">Equip</button>`;
+      } else {
+        btnHtml = `<button class="btn" disabled>Owned</button>`;
+      }
+
+      return `
+        <div class="shop-item">
+          ${owned ? '<div class="owned-badge">OWNED</div>' : ''}
+          <div class="icon">${item.icon || '✨'}</div>
+          <div class="name">${TW.escapeHtml(item.name)}</div>
+          ${item.requiresTier ? `<div class="text-secondary" style="font-size:11px;">Requires ${TW.escapeHtml(item.requiresTier)} tier</div>` : ''}
+          <div class="price">${item.price > 0 ? `🪙 ${item.price}` : 'Free'}</div>
+          ${btnHtml}
+        </div>
+      `;
+    }
+
+    function render() {
+      if (!catalogData) return;
+      const grid = document.getElementById('shopGrid');
+      const items = catalogData.catalog[activeTab] || [];
+      if (items.length === 0) {
+        grid.innerHTML = '<div class="text-secondary">Nothing here yet.</div>';
+        return;
+      }
+      grid.innerHTML = items.map((item) => itemCard(item, catalogData.ownedItemIds, catalogData.equipped)).join('');
+
+      grid.querySelectorAll('[data-buy]').forEach((btn) => {
+        btn.addEventListener('click', () => purchase(btn.dataset.buy));
+      });
+      grid.querySelectorAll('[data-equip]').forEach((btn) => {
+        btn.addEventListener('click', () => equip(btn.dataset.equip));
+      });
+    }
+
+    async function loadCatalog() {
+      try {
+        catalogData = await TW.api('/api/shop/catalog');
+        document.getElementById('coinBalanceLabel').textContent = `🪙 ${catalogData.coins} coins`;
+        render();
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    }
+
+    async function purchase(itemId) {
+      const catalog = [...catalogData.catalog.cardVariants, ...catalogData.catalog.avatarFrames, ...catalogData.catalog.profileBackgrounds, ...catalogData.catalog.nameplateEffects];
+      const item = catalog.find((i) => i.id === itemId);
+      if (!item) return;
+      if (!confirm(`Purchase ${item.name} for ${item.price} coins? You have ${catalogData.coins} coins.`)) return;
+      try {
+        await TW.api('/api/shop/purchase', { method: 'POST', body: { itemId } });
+        TW.Sound.play('coin');
+        if (window.TW && TW.Lottie) TW.Lottie.play('coins');
+        TW.toast(`Purchased ${item.name}!`, 'info');
+        await loadCatalog();
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    }
+
+    async function equip(itemId) {
+      try {
+        await TW.api('/api/shop/equip', { method: 'POST', body: { itemId } });
+        TW.toast('Equipped!', 'info');
+        await loadCatalog();
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    }
+
+    document.getElementById('shopTabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-tab]');
+      if (!btn) return;
+      document.querySelectorAll('#shopTabs button').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeTab = btn.dataset.tab;
+      render();
+    });
+
+    loadCatalog();
+  </script>
+</body>
+</html>

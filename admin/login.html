@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Panel — Spike & Crush</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+</head>
+<body>
+  <div class="admin-login-wrap">
+    <div class="admin-login-box">
+      <div class="admin-login-title">Admin Panel</div>
+      <div class="admin-login-sub">Spike &amp; Crush</div>
+      <div id="loginError" class="admin-login-error"></div>
+      <form id="loginForm">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="username" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="password" autocomplete="current-password" required />
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="loginBtn">Log In</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const errorEl = document.getElementById('loginError');
+      errorEl.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Logging in…';
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Login failed');
+        localStorage.setItem('admin_me', JSON.stringify({ username: json.username, lastLogin: json.lastLogin }));
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        errorEl.textContent = err.message;
+        btn.disabled = false;
+        btn.textContent = 'Log In';
+      }
+    });
+  </script>
+</body>
+</html>

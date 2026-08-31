@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Communications — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="comm-announcements"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="admin-tabs">
+          <button class="admin-tab" data-tab="announcements">Announcements</button>
+          <button class="admin-tab" data-tab="push">Push / In-App Notifications</button>
+          <button class="admin-tab" data-tab="email">Email Campaigns</button>
+          <button class="admin-tab" data-tab="direct">In-Game Messages</button>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-announcements">
+          <div class="panel" style="max-width:560px;margin-bottom:20px;">
+            <h3>New Announcement</h3>
+            <div class="field"><label>Title</label><input id="aTitle" placeholder="New Grand War mode now available!" /></div>
+            <div class="field"><label>Message</label><textarea id="aMessage"></textarea></div>
+            <div class="field-row">
+              <div class="field"><label>Type</label><select id="aType"><option value="info">Info</option><option value="warning">Warning</option><option value="celebration">Celebration</option></select></div>
+              <div class="field"><label>Display Location</label><select id="aLocation"><option value="both">Home + In-Game</option><option value="home">Home Only</option><option value="in_game">In-Game Only</option></select></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label>Show From</label><input id="aFrom" type="datetime-local" /></div>
+              <div class="field"><label>Show Until (optional)</label><input id="aUntil" type="datetime-local" /></div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;"><input type="checkbox" id="aBroadcastNow" checked /> Also broadcast live to connected players right now</label>
+            <button class="btn btn-primary" id="createAnnouncementBtn">Create Announcement</button>
+          </div>
+          <div id="announcementsTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-push">
+          <div class="panel" style="max-width:560px;margin-bottom:20px;">
+            <h3>Send Notification</h3>
+            <div class="text-secondary" style="font-size:12px;margin-bottom:12px;">Delivers through the game's existing in-app notification bell - there's no OS push (APNs/FCM) integration in this build.</div>
+            <div class="field"><label>Title (max 50 chars)</label><input id="nTitle" maxlength="50" /></div>
+            <div class="field"><label>Body (max 150 chars)</label><textarea id="nBody" maxlength="150"></textarea></div>
+            <div class="field"><label>Target</label>
+              <select id="nSegment">
+                <option value="all">All players</option>
+                <option value="online_now">Players online right now</option>
+                <option value="dormant_7d">Haven't played in 7 days</option>
+                <option value="tier">Specific tier</option>
+                <option value="battle_pass_holders">Battle Pass holders</option>
+              </select>
+            </div>
+            <div class="field" id="tierFieldWrap" style="display:none;"><label>Tier</label><input id="nTier" placeholder="e.g. Sergeant" /></div>
+            <button class="btn btn-primary" id="sendNotificationBtn">Send Now</button>
+          </div>
+          <div id="notifHistoryWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-email">
+          <div class="panel" style="max-width:560px;margin-bottom:20px;">
+            <h3>Create Email Campaign</h3>
+            <div class="text-secondary" style="font-size:12px;margin-bottom:12px;">No outbound email provider is configured for this project - campaigns save as drafts but nothing actually sends yet.</div>
+            <div class="field"><label>Subject</label><input id="cSubject" /></div>
+            <div class="field"><label>From Name</label><input id="cFromName" value="Spike & Crush" /></div>
+            <div class="field"><label>Target</label><select id="cTarget"><option value="all">All players</option><option value="battle_pass_holders">Battle Pass holders</option></select></div>
+            <button class="btn btn-primary" id="createCampaignBtn">Save Draft</button>
+          </div>
+          <div id="campaignsTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-direct">
+          <div class="panel" style="max-width:480px;margin-bottom:20px;">
+            <h3>Send Direct Message</h3>
+            <div class="field"><label>Username</label><input id="dUsername" /></div>
+            <div class="field"><label>Message</label><textarea id="dMessage"></textarea></div>
+            <button class="btn btn-primary" id="sendDirectBtn">Send</button>
+          </div>
+          <div id="directHistoryWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Communications');
+
+    const loaded = {};
+    function activateTab(name) {
+      document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
+      if (!loaded[name]) { loaders[name](); loaded[name] = true; }
+    }
+    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
+
+    const loaders = {
+      announcements: async () => {
+        const rows = await Admin.api('/communications/announcements');
+        document.getElementById('announcementsTableWrap').innerHTML = rows.length ? `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Title</th><th>Type</th><th>Active</th><th>Views</th><th>From</th><th>Until</th></tr></thead>
+            <tbody>${rows.map((a) => `<tr><td>${Admin.escapeHtml(a.title)}</td><td>${a.type}</td><td>${a.active ? '✅' : '❌'}</td><td>${a.views}</td><td>${Admin.formatDate(a.show_from)}</td><td>${a.show_until ? Admin.formatDate(a.show_until) : 'No end'}</td></tr>`).join('')}</tbody>
+          </table></div>
+        ` : '<div class="empty-state">No announcements yet.</div>';
+      },
+      push: async () => {
+        const rows = await Admin.api('/communications/notifications/history');
+        document.getElementById('notifHistoryWrap').innerHTML = rows.length ? `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Title</th><th>Body</th><th>Segment</th><th>Recipients</th><th>Date</th></tr></thead>
+            <tbody>${rows.map((r) => `<tr><td>${Admin.escapeHtml(r.details?.title || '—')}</td><td>${Admin.escapeHtml(r.details?.body || '')}</td><td>${r.details?.segment}</td><td>${r.details?.recipientCount}</td><td>${Admin.formatDate(r.created_at)}</td></tr>`).join('')}</tbody>
+          </table></div>
+        ` : '<div class="empty-state">No notifications sent yet.</div>';
+      },
+      email: async () => {
+        const rows = await Admin.api('/communications/email/campaigns');
+        document.getElementById('campaignsTableWrap').innerHTML = rows.length ? `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Subject</th><th>Target</th><th>Status</th><th>Created</th></tr></thead>
+            <tbody>${rows.map((c) => `<tr><td>${Admin.escapeHtml(c.subject)}</td><td>${c.target}</td><td>${c.status}</td><td>${Admin.formatDate(c.createdAt)}</td></tr>`).join('')}</tbody>
+          </table></div>
+        ` : '<div class="empty-state">No campaigns yet.</div>';
+      },
+      direct: async () => {
+        const rows = await Admin.api('/communications/messages/history');
+        document.getElementById('directHistoryWrap').innerHTML = rows.length ? `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Message</th><th>Sent By</th><th>Date</th></tr></thead>
+            <tbody>${rows.map((r) => `<tr><td>${Admin.escapeHtml(r.details?.message || '—')}</td><td>${Admin.escapeHtml(r.admin_username)}</td><td>${Admin.formatDate(r.created_at)}</td></tr>`).join('')}</tbody>
+          </table></div>
+        ` : '<div class="empty-state">No direct messages yet.</div>';
+      },
+    };
+
+    document.getElementById('nSegment').addEventListener('change', (e) => {
+      document.getElementById('tierFieldWrap').style.display = e.target.value === 'tier' ? 'block' : 'none';
+    });
+
+    document.getElementById('createAnnouncementBtn').addEventListener('click', async () => {
+      try {
+        const res = await Admin.api('/communications/announcements', { method: 'POST', body: {
+          title: aTitle.value, message: aMessage.value, type: aType.value, displayLocation: aLocation.value,
+          showFrom: aFrom.value || null, showUntil: aUntil.value || null, broadcastNow: aBroadcastNow.checked,
+        }});
+        Admin.toast(`Announcement created${res.deliveredLiveTo ? `, delivered live to ${res.deliveredLiveTo} connections` : ''}`, 'success');
+        loaded.announcements = false; activateTab('announcements');
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
+
+    document.getElementById('sendNotificationBtn').addEventListener('click', async () => {
+      try {
+        const res = await Admin.api('/communications/notifications/send', { method: 'POST', body: {
+          title: nTitle.value, body: nBody.value, segment: nSegment.value, tier: nTier.value,
+        }});
+        Admin.toast(`Sent to ${res.recipientCount} players via ${res.deliveryMethod}`, 'success');
+        loaded.push = false; activateTab('push');
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
+
+    document.getElementById('createCampaignBtn').addEventListener('click', async () => {
+      try {
+        const res = await Admin.api('/communications/email/campaigns', { method: 'POST', body: { subject: cSubject.value, fromName: cFromName.value, target: cTarget.value } });
+        Admin.toast(res.note, 'info');
+        loaded.email = false; activateTab('email');
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
+
+    document.getElementById('sendDirectBtn').addEventListener('click', async () => {
+      try {
+        await Admin.api('/communications/messages/direct', { method: 'POST', body: { username: dUsername.value, message: dMessage.value } });
+        Admin.toast('Message sent', 'success');
+        loaded.direct = false; activateTab('direct');
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
+
+    activateTab(new URLSearchParams(location.search).get('tab') || 'announcements');
+  </script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Tournaments</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .t-list { display: flex; flex-direction: column; gap: 10px; }
+  .t-row { display: flex; justify-content: space-between; align-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; text-decoration: none; color: var(--text); }
+  .t-row:hover { border-color: var(--accent); }
+  .t-row .name { font-weight: 700; }
+  .t-row .meta { font-size: 12px; color: var(--text-secondary); }
+  .t-status-pill { font-size: 11px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); }
+  .t-status-pill.signup { color: var(--accent); border-color: var(--accent); }
+  .t-status-pill.active { color: var(--gold); border-color: var(--gold); }
+  .t-status-pill.completed { color: var(--text-secondary); }
+  .t-create-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 20px; }
+  .t-create-row .field { display: flex; flex-direction: column; gap: 4px; }
+  .t-create-row label { font-size: 11px; color: var(--text-secondary); }
+  .t-create-row select, .t-create-row input { padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
+</style>
+</head>
+<body data-page="tournaments">
+  <div id="twNav" data-active="tournaments"></div>
+
+  <div class="tw-container">
+    <div class="panel">
+      <h2>🏆 Tournaments</h2>
+      <div class="t-create-row">
+        <div class="field">
+          <label>Bracket Size</label>
+          <select id="createBracketSize">
+            <option value="8">8 players</option>
+            <option value="16">16 players</option>
+            <option value="32">32 players</option>
+            <option value="64">64 players</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Entry Coins</label>
+          <input type="number" id="createEntryCoins" value="20" min="0" style="width:100px;" />
+        </div>
+        <button class="btn btn-primary" id="createBtn">+ Create Tournament</button>
+      </div>
+      <div class="t-list" id="tournamentList">Spike & Crush loading...</div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/lottie.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script>
+    TW.requireAuth();
+
+    function timeLabel(t) {
+      if (t.status === 'signup') {
+        const msLeft = new Date(t.startsAt).getTime() - Date.now();
+        if (msLeft <= 0) return 'Closing soon...';
+        const hrs = Math.floor(msLeft / 3600000);
+        return `Signup closes in ${hrs}h`;
+      }
+      if (t.status === 'active') return 'In progress';
+      if (t.status === 'completed') return 'Completed';
+      return 'Cancelled';
+    }
+
+    function row(t) {
+      return `
+        <a class="t-row" href="/tournament/${t.id}">
+          <div>
+            <div class="name">${TW.escapeHtml(t.name)}</div>
+            <div class="meta">${t.registrationCount}/${t.bracketSize} players · ${t.entryCoins} coins entry · ${timeLabel(t)}</div>
+          </div>
+          <span class="t-status-pill ${t.status}">${t.status.toUpperCase()}</span>
+        </a>
+      `;
+    }
+
+    async function load() {
+      const list = document.getElementById('tournamentList');
+      try {
+        const data = await TW.api('/api/tournaments');
+        if (!data.tournaments.length) {
+          list.innerHTML = '<div class="text-secondary">No tournaments yet - create the first one!</div>';
+          return;
+        }
+        list.innerHTML = data.tournaments.map(row).join('');
+      } catch (e) {
+        list.innerHTML = `<div class="text-secondary">${TW.escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    document.getElementById('createBtn').addEventListener('click', async () => {
+      const bracketSize = Number(document.getElementById('createBracketSize').value);
+      const entryCoins = Number(document.getElementById('createEntryCoins').value) || 0;
+      try {
+        const result = await TW.api('/api/tournament/create', { method: 'POST', body: { bracketSize, entryCoins } });
+        window.location.href = `/tournament/${result.tournament.id}`;
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>

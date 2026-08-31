@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Analytics</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .an-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .an-grid { grid-template-columns: 1fr; } }
+  .an-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; }
+  .an-bar-row .label { width: 80px; flex-shrink: 0; font-weight: 700; }
+  .an-bar-track { flex: 1; background: var(--surface-2); border-radius: 6px; height: 18px; overflow: hidden; position: relative; }
+  .an-bar-fill { height: 100%; background: var(--gradient-primary); }
+  .an-bar-row .value { width: 90px; flex-shrink: 0; text-align: right; }
+  .an-heatmap { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; }
+  .an-heat-cell { aspect-ratio: 1; border-radius: 4px; position: relative; cursor: default; }
+  .an-heat-cell .hour-label { position: absolute; bottom: 1px; left: 3px; font-size: 8px; color: rgba(255,255,255,0.5); }
+  .an-locked { text-align: center; padding: 60px 20px; }
+  .an-locked .icon { font-size: 48px; margin-bottom: 12px; }
+  .an-trend-svg { width: 100%; height: 160px; }
+</style>
+</head>
+<body data-page="analytics">
+  <div id="twNav" data-active="analytics"></div>
+
+  <div class="tw-container">
+    <div id="analyticsRoot">Spike & Crush loading...</div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/lottie.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script>
+    TW.requireAuth();
+
+    function barChart(rows, labelKey, valueKey, formatValue, maxOverride) {
+      if (!rows.length) return '<div class="text-secondary">No data yet.</div>';
+      const max = maxOverride || Math.max(...rows.map((r) => Math.abs(r[valueKey])), 1);
+      return rows
+        .map((r) => {
+          const pct = Math.min(100, (Math.abs(r[valueKey]) / max) * 100);
+          return `
+            <div class="an-bar-row">
+              <div class="label">${TW.escapeHtml(String(r[labelKey]))}</div>
+              <div class="an-bar-track"><div class="an-bar-fill" style="width:${pct}%;"></div></div>
+              <div class="value">${formatValue(r)}</div>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function heatmapColor(pnl, maxAbs) {
+      if (maxAbs === 0) return 'rgba(255,255,255,0.06)';
+      const intensity = Math.min(1, Math.abs(pnl) / maxAbs);
+      return pnl >= 0 ? `rgba(0, 200, 150, ${0.15 + intensity * 0.7})` : `rgba(255, 68, 68, ${0.15 + intensity * 0.7})`;
+    }
+
+    function renderHeatmap(hours) {
+      const maxAbs = Math.max(...hours.map((h) => Math.abs(h.totalPnl)), 1);
+      return `
+        <div class="an-heatmap">
+          ${hours
+            .map(
+              (h) => `
+                <div class="an-heat-cell" style="background:${heatmapColor(h.totalPnl, maxAbs)};" title="${h.hour}:00 UTC - ${h.trades} trades, ${h.totalPnl >= 0 ? '+' : ''}${h.totalPnl.toFixed(2)}">
+                  <span class="hour-label">${h.hour}</span>
+                </div>
+              `
+            )
+            .join('')}
+        </div>
+        <div class="text-secondary" style="font-size:11px;margin-top:8px;">Hour of day (UTC) · green = profitable, red = losing, darker = more trades</div>
+      `;
+    }
+
+    function renderTrendSvg(trend) {
+      if (!trend.length) return '<div class="text-secondary">No matches in the last 30 days.</div>';
+      const W = 600, H = 150, pad = 10;
+      let cumulative = 0;
+      const points = trend.map((t) => { cumulative += t.pnl; return { day: t.day, cumulative }; });
+      const minV = Math.min(0, ...points.map((p) => p.cumulative));
+      const maxV = Math.max(0, ...points.map((p) => p.cumulative));
+      const range = maxV - minV || 1;
+      const x = (i) => pad + (i / Math.max(1, points.length - 1)) * (W - pad * 2);
+      const y = (v) => H - pad - ((v - minV) / range) * (H - pad * 2);
+      const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(p.cumulative)}`).join(' ');
+      const zeroY = y(0);
+      const finalPositive = points[points.length - 1].cumulative >= 0;
+      return `
+        <svg class="an-trend-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          <line x1="0" y1="${zeroY}" x2="${W}" y2="${zeroY}" stroke="rgba(255,255,255,0.15)" stroke-dasharray="4,4" />
+          <path d="${path}" fill="none" stroke="${finalPositive ? '#00c896' : '#ff4444'}" stroke-width="2" />
+        </svg>
+        <div class="text-secondary" style="font-size:11px;">30-day cumulative P&amp;L · currently ${finalPositive ? '+' : ''}${points[points.length - 1].cumulative.toFixed(2)}</div>
+      `;
+    }
+
+    function render(data) {
+      const root = document.getElementById('analyticsRoot');
+      root.innerHTML = `
+        <div class="panel">
+          <h2>📊 Analytics Dashboard <span class="pill pill-gold" style="font-size:11px;">PREMIUM</span></h2>
+        </div>
+        <div class="an-grid" style="margin-top:16px;">
+          <div class="panel">
+            <h3>🎯 Win Rate by Instrument</h3>
+            ${barChart(data.winRateByInstrument, 'symbol', 'winRate', (r) => `${r.winRate}% (${r.trades})`, 100)}
+          </div>
+          <div class="panel">
+            <h3>💰 P&amp;L by Mode</h3>
+            ${barChart(data.pnlByMode, 'mode', 'totalPnl', (r) => `${r.totalPnl >= 0 ? '+' : ''}${TW.formatMoney(r.totalPnl)}`)}
+          </div>
+          <div class="panel">
+            <h3>🕐 Time-of-Day Heatmap</h3>
+            ${renderHeatmap(data.timeOfDayHeatmap)}
+          </div>
+          <div class="panel">
+            <h3>🃏 Card Success Rates</h3>
+            ${barChart(data.cardSuccessRates, 'cardType', 'winRateWhenPlayed', (r) => `${r.winRateWhenPlayed}% win (${r.timesPlayed}x)`, 100)}
+          </div>
+        </div>
+        <div class="panel" style="margin-top:16px;">
+          <h3>📈 30-Day P&amp;L Trend</h3>
+          ${renderTrendSvg(data.pnlTrend)}
+        </div>
+      `;
+    }
+
+    function renderLocked() {
+      document.getElementById('analyticsRoot').innerHTML = `
+        <div class="panel an-locked">
+          <div class="icon">🔒</div>
+          <h2>Analytics is a Battle Pass Premium feature</h2>
+          <p class="text-secondary">Unlock win-rate breakdowns, P&amp;L trends, and card performance stats with Battle Pass Premium.</p>
+          <a href="/battle-pass" class="btn btn-primary" style="margin-top:12px;">👑 Unlock Premium</a>
+        </div>
+      `;
+    }
+
+    async function load() {
+      try {
+        const data = await TW.api('/api/analytics');
+        render(data);
+      } catch (e) {
+        if (e.requiresPremium) renderLocked();
+        else document.getElementById('analyticsRoot').innerHTML = `<div class="panel text-secondary">${TW.escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

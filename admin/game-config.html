@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Game Config — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="cfg-match"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="admin-tabs">
+          <button class="admin-tab" data-tab="match">Match Settings</button>
+          <button class="admin-tab" data-tab="instruments">Instrument Config</button>
+          <button class="admin-tab" data-tab="cards">Sabotage Cards</button>
+          <button class="admin-tab" data-tab="rating">War Rating Config</button>
+          <button class="admin-tab" data-tab="daily">Daily Challenges</button>
+          <button class="admin-tab" data-tab="async">Async Daily Setup</button>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-match">
+          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">🟢 Live: changes here are pushed straight into the running game server and apply to the next match created in that mode - no restart needed.</div>
+          <div id="matchSettingsForms"></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-instruments">
+          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">💾 Saved for real, but not yet read by the running instrument-selection logic (see banner after saving).</div>
+          <div id="instrumentsTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-cards">
+          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">💾 Saved for real, not yet read by sabotage.js.</div>
+          <div id="cardsTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-rating">
+          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">💾 Saved for real, not yet read by tierForRating/computeMatchResults.</div>
+          <div class="panel" style="max-width:500px;">
+            <h3>Tier Thresholds (reference — current live values)</h3>
+            <div id="tiersTable"></div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-daily">
+          <div class="panel" style="max-width:500px;margin-bottom:16px;">
+            <h3>Add Daily Challenge</h3>
+            <div class="field"><label>Title</label><input id="chTitle" /></div>
+            <div class="field"><label>Description</label><input id="chDesc" /></div>
+            <div class="field-row">
+              <div class="field"><label>Requirement Type</label><input id="chReqType" placeholder="e.g. trades_made" /></div>
+              <div class="field"><label>Requirement Value</label><input id="chReqValue" type="number" /></div>
+            </div>
+            <div class="field"><label>Reward Coins</label><input id="chReward" type="number" value="20" /></div>
+            <button class="btn btn-primary" id="addChallengeBtn">Add Challenge</button>
+          </div>
+          <div id="challengesTableWrap"></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-async">
+          <div class="panel" style="max-width:500px;">
+            <h3>Async Daily Setup</h3>
+            <div class="text-secondary" style="font-size:12px;margin-bottom:12px;">💾 Saved for real - not yet read by selectDailyInstruments() in server/instruments.js, which still auto-selects deterministically from the UTC calendar date.</div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;"><input type="checkbox" id="asyncAuto" checked /> Auto-select instruments</label>
+            <div class="field"><label>Reveal Time (Dubai time)</label><input id="asyncReveal" type="time" value="21:00" /></div>
+            <button class="btn btn-primary" id="saveAsyncBtn">Save</button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Game Configuration');
+
+    let configData = null;
+    async function loadConfig() {
+      configData = await Admin.api('/config');
+      renderMatchSettings();
+      renderInstruments();
+      renderCards();
+      renderTiers();
+      renderChallenges();
+    }
+
+    const EDITABLE_FIELDS = ['entryCoins', 'durationSeconds', 'maxPlayers', 'minPlayers', 'lobbyTimeoutMs', 'cardsPerPlayer', 'instrumentCount'];
+
+    function renderMatchSettings() {
+      const el = document.getElementById('matchSettingsForms');
+      el.innerHTML = Object.entries(configData.matchModes).map(([mode, cfg]) => `
+        <div class="panel config-section">
+          <h4>${Admin.escapeHtml(cfg.label)}</h4>
+          <div class="config-grid">
+            ${EDITABLE_FIELDS.map((f) => `
+              <div class="field"><label>${f}</label><input type="number" data-mode="${mode}" data-field="${f}" value="${cfg[f] ?? ''}" /></div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('') + `<button class="btn btn-primary" id="saveMatchSettingsBtn">Save &amp; Push Live</button>`;
+      document.getElementById('saveMatchSettingsBtn').addEventListener('click', saveMatchSettings);
+    }
+
+    async function saveMatchSettings() {
+      const confirmed = await Admin.confirmModal({ title: 'Push match settings live?', body: 'This will affect all future matches. Current matches are not affected.', confirmLabel: 'Confirm Change' });
+      if (!confirmed) return;
+      const overrides = {};
+      document.querySelectorAll('#matchSettingsForms input[data-mode]').forEach((input) => {
+        const mode = input.dataset.mode, field = input.dataset.field;
+        overrides[mode] = overrides[mode] || {};
+        overrides[mode][field] = Number(input.value);
+      });
+      try {
+        await Admin.api('/config/match-settings', { method: 'PUT', body: { overrides } });
+        Admin.toast('Match settings updated and pushed live', 'success');
+        loadConfig();
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    function renderInstruments() {
+      const rows = configData.instruments;
+      document.getElementById('instrumentsTableWrap').innerHTML = `
+        <div class="admin-table-wrap"><table class="admin-table">
+          <thead><tr><th>Symbol</th><th>Name</th><th>Category</th><th>Spread</th><th>Min Lot</th><th>Max Lot</th><th>Pip Value</th></tr></thead>
+          <tbody>${rows.map((i) => `<tr><td>${i.symbol}</td><td>${Admin.escapeHtml(i.name)}</td><td>${i.category}</td><td>${i.spread}</td><td>${i.minLot}</td><td>${i.maxLot}</td><td>${i.pipValue}</td></tr>`).join('')}</tbody>
+        </table></div>
+        <button class="btn btn-primary" id="saveInstrumentsBtn" style="margin-top:12px;">Save Overrides (read-only preview for now)</button>
+      `;
+      document.getElementById('saveInstrumentsBtn').addEventListener('click', async () => {
+        await Admin.api('/config/instruments', { method: 'PUT', body: { overrides: {} } });
+        Admin.toast('Saved (not yet live - see note above)', 'info');
+      });
+    }
+
+    function renderCards() {
+      const cards = Object.values(configData.sabotageCards);
+      document.getElementById('cardsTableWrap').innerHTML = `
+        <div class="admin-table-wrap"><table class="admin-table">
+          <thead><tr><th>Card</th><th>Category</th><th>Duration</th><th>Targeted</th><th>Description</th></tr></thead>
+          <tbody>${cards.map((c) => `<tr><td>${c.icon} ${Admin.escapeHtml(c.name)}</td><td>${c.category}</td><td>${c.duration}s</td><td>${c.targeted ? 'Yes' : 'No'}</td><td style="white-space:normal;max-width:320px;">${Admin.escapeHtml(c.description)}</td></tr>`).join('')}</tbody>
+        </table></div>
+      `;
+    }
+
+    function renderTiers() {
+      const tiers = configData.tiers;
+      document.getElementById('tiersTable').innerHTML = Array.isArray(tiers)
+        ? `<table class="admin-table"><thead><tr><th>Tier</th><th>Min Rating</th></tr></thead><tbody>${tiers.map((t) => `<tr><td>${t.name || t}</td><td>${t.min ?? '—'}</td></tr>`).join('')}</tbody></table>`
+        : `<pre style="font-size:11px;white-space:pre-wrap;">${Admin.escapeHtml(JSON.stringify(tiers, null, 2))}</pre>`;
+    }
+
+    async function renderChallenges() {
+      const list = configData.dailyChallenges || [];
+      document.getElementById('challengesTableWrap').innerHTML = list.length ? `
+        <div class="admin-table-wrap"><table class="admin-table">
+          <thead><tr><th>Title</th><th>Requirement</th><th>Reward</th></tr></thead>
+          <tbody>${list.map((c) => `<tr><td>${Admin.escapeHtml(c.title)}</td><td>${c.requirementType}: ${c.requirementValue}</td><td>${c.rewardCoins} coins</td></tr>`).join('')}</tbody>
+        </table></div>
+      ` : '<div class="empty-state">No custom daily challenges added yet.</div>';
+    }
+    document.getElementById('addChallengeBtn').addEventListener('click', async () => {
+      const title = document.getElementById('chTitle').value;
+      if (!title) return Admin.toast('Title is required', 'warning');
+      await Admin.api('/config/challenges', { method: 'POST', body: {
+        title, description: document.getElementById('chDesc').value,
+        requirementType: document.getElementById('chReqType').value, requirementValue: Number(document.getElementById('chReqValue').value),
+        rewardCoins: Number(document.getElementById('chReward').value),
+      }});
+      Admin.toast('Challenge added (not yet live - see note)', 'success');
+      loadConfig();
+    });
+
+    document.getElementById('saveAsyncBtn').addEventListener('click', async () => {
+      await Admin.api('/config/async-daily', { method: 'PUT', body: { autoSelect: document.getElementById('asyncAuto').checked, revealTime: document.getElementById('asyncReveal').value } });
+      Admin.toast('Saved (not yet live - see note)', 'success');
+    });
+
+    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => {
+      document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t === tab));
+      document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${tab.dataset.tab}`));
+    }));
+    const initialTab = new URLSearchParams(location.search).get('tab') || 'match';
+    document.querySelector(`[data-tab="${initialTab}"]`)?.click();
+
+    loadConfig().catch((e) => Admin.toast(e.message, 'danger'));
+  </script>
+</body>
+</html>

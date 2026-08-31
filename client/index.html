@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<meta name="description" content="The competitive trading game. Price spikes. Then it crushes you. Sabotage legal. Mercy not included." />
+<meta property="og:title" content="Spike & Crush" />
+<meta property="og:description" content="The competitive trading game. Price spikes. Then it crushes you. Sabotage legal. Mercy not included." />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Spike & Crush" />
+<meta name="twitter:description" content="The competitive trading game. Price spikes. Then it crushes you. Sabotage legal. Mercy not included." />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .hero {
+    text-align: center;
+    padding: 60px 20px 40px 20px;
+  }
+  .hero h1 {
+    font-size: 52px;
+    letter-spacing: 1px;
+  }
+  .hero h1 span {
+    color: var(--accent);
+  }
+  .hero .tagline {
+    font-size: 18px;
+    color: var(--text-secondary);
+  }
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 800px) {
+    .split {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tabs button {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-weight: 700;
+    min-height: 44px;
+  }
+  .tabs button.active {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .social-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .google-signin-btn,
+  .apple-signin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px;
+    border-radius: var(--radius);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .google-signin-btn {
+    background: #fff;
+    color: #1f1f1f;
+    border: 1px solid var(--border);
+  }
+  .google-signin-btn:hover {
+    background: #f5f5f5;
+  }
+  .apple-signin-btn {
+    background: #000;
+    color: #fff;
+    border: 1px solid #000;
+  }
+  .apple-signin-btn:hover {
+    background: #1a1a1a;
+  }
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  .auth-divider::before,
+  .auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border);
+  }
+  .auth-divider span {
+    padding: 0 10px;
+  }
+  .forgot-password {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .forgot-password a {
+    color: var(--text-secondary);
+    text-decoration: none;
+  }
+  .forgot-password a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .menu-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .join-row {
+    display: flex;
+    gap: 8px;
+  }
+  .join-row input {
+    flex: 1;
+    min-height: 44px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    letter-spacing: 3px;
+    font-family: var(--mono);
+    text-align: center;
+  }
+  table.lb {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  table.lb th {
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 11px;
+    text-transform: uppercase;
+    padding: 6px 8px;
+  }
+  table.lb td {
+    padding: 8px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body data-page="index">
+  <div id="twNav" data-active="home"></div>
+  <div id="twAnnouncementBanner"></div>
+
+  <div class="tw-ticker-wrap">
+    <div class="tw-ticker-track" id="twTickerTrack"></div>
+  </div>
+
+  <section class="tw-hero-section">
+    <div class="tw-hero-particles" id="twHeroParticles"></div>
+    <div class="tw-hero-content">
+      <div class="logo-hero-wrapper">
+        <svg class="logo-chart-line" viewBox="0 0 300 60" preserveAspectRatio="none">
+          <polyline
+            points="0,50 60,45 90,40 120,10 150,8 160,12 200,35 240,52 300,58"
+            fill="none"
+            stroke="url(#chartGradient)"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <defs>
+            <linearGradient id="chartGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#00C896"/>
+              <stop offset="50%" stop-color="#00C896"/>
+              <stop offset="51%" stop-color="#FF4444"/>
+              <stop offset="100%" stop-color="#FF4444"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="sc-logo hero-logo">
+          <span class="sc-s1">S</span>
+          <span class="sc-p">P</span>
+          <span class="sc-i">I</span>
+          <span class="sc-k">K</span>
+          <span class="sc-e">E</span>
+          <span class="sc-amp">&amp;</span>
+          <span class="sc-c">C</span>
+          <span class="sc-r">R</span>
+          <span class="sc-u">U</span>
+          <span class="sc-s2">S</span>
+          <span class="sc-h">H</span>
+        </div>
+      </div>
+      <p class="tw-hero-tagline tw-tagline-irony" id="twHeroTagline"></p>
+      <p class="tw-hero-tagline-secondary">The competitive trading game where sabotage is legal and nothing stays up.</p>
+      <div class="tw-stats-bar" id="twStatsBar"></div>
+      <div class="tw-featured-match hidden" id="twFeaturedMatch"></div>
+    </div>
+  </section>
+
+  <div class="tw-container">
+    <div class="split">
+      <div>
+        <section id="authSection" class="panel">
+          <div class="social-buttons">
+            <button type="button" id="googleSignInBtn" class="google-signin-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Continue with Google
+            </button>
+            <button type="button" id="appleSignInBtn" class="apple-signin-btn">
+              <svg width="16" height="20" viewBox="0 0 814 1000">
+                <path fill="white" d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105.7-57.2-155.5-127.4C46 790.7 0 663 0 541.8c0-207.8 135.4-317.9 268.8-317.9 71 0 130.2 46.8 174.7 46.8 42.7 0 109.3-49.5 189.5-49.5 30.4 0 108.2 2.6 168.6 71.9zm-174.7-186.7c31.6-37.9 54.4-90.7 54.4-143.5 0-7.1-.6-14.3-1.9-20.7-51.6 1.9-112.3 34.8-149.1 78.3-28.4 32.9-55.1 85.7-55.1 139.2 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 136.2-72.7z"/>
+              </svg>
+              Continue with Apple
+            </button>
+          </div>
+          <div class="auth-divider"><span>or</span></div>
+
+          <div class="tabs">
+            <button id="loginTab" class="active">Log In</button>
+            <button id="registerTab">Register</button>
+          </div>
+
+          <form id="loginForm">
+            <div class="field">
+              <label>Username</label>
+              <input type="text" id="loginUsername" required autocomplete="username" />
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <input type="password" id="loginPassword" required autocomplete="current-password" />
+            </div>
+            <div class="field">
+              <input type="text" id="loginTotpCode" class="hidden" placeholder="6-digit authenticator code" inputmode="numeric" maxlength="6" />
+            </div>
+            <div id="loginError" class="form-error"></div>
+            <button type="submit" class="btn btn-primary btn-block">Log In</button>
+            <p class="forgot-password"><a href="#" id="forgotPasswordLink">Forgot password?</a></p>
+          </form>
+
+          <form id="registerForm" class="hidden">
+            <div class="field">
+              <label>Username</label>
+              <input type="text" id="registerUsername" required minlength="3" maxlength="20" autocomplete="username" />
+            </div>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" id="registerEmail" required autocomplete="email" />
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <input type="password" id="registerPassword" required minlength="6" autocomplete="new-password" />
+            </div>
+            <div id="registerError" class="form-error"></div>
+            <button type="submit" class="btn btn-primary btn-block">Create Account (+500 coins)</button>
+          </form>
+        </section>
+
+        <section id="mainMenu" class="panel hidden" style="margin-top: 20px">
+          <h3>Enter the War</h3>
+          <div class="tw-mode-grid">
+            <div class="tw-mode-btn" id="modeQuickBtn"><div class="icon">⚡</div><div class="label">Quick War</div><div class="meta">10 coins · 10 min</div></div>
+            <div class="tw-mode-btn" id="modeBlitzBtn"><div class="icon">💥</div><div class="label">Blitz War</div><div class="meta">5 coins · 3 min</div></div>
+            <div class="tw-mode-btn" id="modeGrandBtn"><div class="icon">🏛️</div><div class="label">Grand War</div><div class="meta">25 coins · 20 min</div></div>
+            <div class="tw-mode-btn" id="modeSoloBtn"><div class="icon">🎯</div><div class="label">Solo Ranked</div><div class="meta">free · vs AI</div></div>
+            <div class="tw-mode-btn" id="modeAsyncBtn"><div class="icon">📅</div><div class="label">Daily Challenge</div><div class="meta">5 coins · async</div></div>
+            <div class="tw-mode-btn" id="modePrivateBtn"><div class="icon">🔒</div><div class="label">Private War</div><div class="meta">free · with friends</div></div>
+            <div class="tw-mode-btn" id="modeTournamentBtn"><div class="icon">🏆</div><div class="label">Tournament</div><div class="meta">bracket · 24h signup</div></div>
+          </div>
+          <div class="join-row">
+            <input type="text" id="joinRoomCodeInput" placeholder="6 DIGIT CODE" maxlength="6" />
+            <button id="joinPrivateBtn" class="btn">Join</button>
+          </div>
+        </section>
+
+        <section class="panel tw-daily-widget" id="dailyChallengeWidget" style="display:none;">
+          <div style="font-weight:700;">📅 Today's Async Challenge</div>
+          <div class="text-secondary" style="font-size:12px;margin:6px 0;" id="dailyChallengeMeta"></div>
+          <a href="/async" class="btn btn-primary" style="margin-top:6px;">Play Now</a>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h3>🏆 Global War Rating — Top 10</h3>
+        <div style="overflow-x: auto;">
+          <table class="lb">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Tier</th>
+                <th>Rating</th>
+                <th>Record</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardPreviewBody">
+              <tr><td colspan="5" class="text-secondary">Spike & Crush loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top: 12px; text-align: right;">
+          <a href="/leaderboard" class="text-secondary" style="font-size: 13px;">View Full Leaderboard →</a>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel" id="brokerPartnersPanel" style="display:none;margin-top:20px;">
+      <h3 style="text-align:center;">🤝 Our Trading Partners</h3>
+      <div id="brokerPartnersList"></div>
+    </section>
+
+    <div class="tw-widgets-grid">
+      <section class="panel">
+        <h3>📰 Recent Activity</h3>
+        <div id="activityFeed" class="text-secondary" style="font-size:12px;">Spike & Crush loading...</div>
+      </section>
+      <section class="panel">
+        <h3>🔥 Hot Streaks</h3>
+        <div id="hotStreaks" class="text-secondary" style="font-size:12px;">Spike & Crush loading...</div>
+      </section>
+      <section class="panel">
+        <h3>👑 War Lord Spotlight</h3>
+        <div id="warLordSpotlight" class="tw-warlord-spotlight text-secondary" style="font-size:12px;">Spike & Crush loading...</div>
+      </section>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+<script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script src="js/lottie.js"></script>
+  <script src="js/home.js"></script>
+</body>
+</html>

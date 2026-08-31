@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Player Detail — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="players"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content" id="content">
+        <div class="empty-state">Loading player…</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+    Admin.renderNav();
+    const playerId = new URLSearchParams(location.search).get('id');
+    if (!playerId) document.getElementById('content').innerHTML = '<div class="empty-state">No player id given.</div>';
+
+    function fmtSecs(s) {
+      if (!s) return '0m';
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+      return h ? `${h}h ${m}m` : `${m}m`;
+    }
+
+    async function reload() {
+      const d = await Admin.api(`/players/${playerId}`);
+      Admin.renderTopbar(`${d.profile.username}`);
+      render(d);
+    }
+
+    function render(d) {
+      const p = d.profile;
+      document.getElementById('content').innerHTML = `
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start;">
+          <div>
+            <div class="panel" style="margin-bottom:20px;">
+              <h3>Profile</h3>
+              <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px;">
+                <span class="avatar-circle" style="width:56px;height:56px;font-size:22px;">${Admin.escapeHtml((p.username || '?')[0].toUpperCase())}</span>
+                <div>
+                  <div style="font-size:18px;font-weight:700;">${Admin.escapeHtml(p.username)} <span class="badge badge-tier">${Admin.escapeHtml(p.tier)}</span> ${p.isBanned ? '<span class="badge badge-banned">BANNED</span>' : ''} ${p.flagged ? '<span class="badge badge-flagged">FLAGGED</span>' : ''}</div>
+                  <div class="text-secondary" style="font-size:12px;">${Admin.escapeHtml(p.email)} · ${p.registrationMethod} · joined ${Admin.formatDate(p.createdAt)}</div>
+                  <div class="text-secondary" style="font-size:12px;">Supabase ID: ${p.supabaseUserId || '—'} · Country: ${p.country || 'Unknown'}</div>
+                </div>
+              </div>
+              <div class="config-grid">
+                <div><div class="text-secondary" style="font-size:11px;">WAR RATING</div><div class="mono" style="font-size:18px;">${p.warRating}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">GRAND WAR RATING</div><div class="mono" style="font-size:18px;">${p.grandWarRating}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">SOLO RATING</div><div class="mono" style="font-size:18px;">${p.soloRating}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">COINS</div><div class="mono" style="font-size:18px;">${Admin.formatCoins(p.coins)}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">LIFETIME EARNED</div><div class="mono" style="font-size:18px;">${Admin.formatCoins(p.coinsEarnedTotal)}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">LIFETIME SPENT</div><div class="mono" style="font-size:18px;">${Admin.formatCoins(p.coinsSpentTotal)}</div></div>
+              </div>
+              ${p.isBanned ? `<div style="margin-top:12px;padding:10px;background:rgba(255,68,68,0.1);border-radius:6px;font-size:12px;">Ban reason: ${Admin.escapeHtml(p.banReason || '—')} ${p.bannedUntil ? `· until ${Admin.formatDate(p.bannedUntil)}` : '(permanent)'}</div>` : ''}
+            </div>
+
+            <div class="panel" style="margin-bottom:20px;">
+              <h3>Stats</h3>
+              <div class="config-grid">
+                <div><div class="text-secondary" style="font-size:11px;">MATCHES</div><div class="mono">${d.stats.totalMatches}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">W / L / D</div><div class="mono">${d.stats.wins} / ${d.stats.losses} / ${d.stats.draws}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">WIN RATE</div><div class="mono">${d.stats.winRate}%</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">AVG P&amp;L</div><div class="mono">${Admin.formatMoney(d.stats.avgPnl)}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">BEST MATCH</div><div class="mono text-success">${Admin.formatMoney(d.stats.bestMatch)}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">WORST MATCH</div><div class="mono text-danger">${Admin.formatMoney(d.stats.worstMatch)}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">FAVOURITE INSTRUMENT</div><div class="mono">${d.stats.favouriteInstrument || '—'}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">FAVOURITE MODE</div><div class="mono">${d.stats.favouriteMode || '—'}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">TIME PLAYED</div><div class="mono">${fmtSecs(d.stats.totalTimePlayedSeconds)}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">CURRENT STREAK</div><div class="mono">${d.stats.currentWinStreak}</div></div>
+                <div><div class="text-secondary" style="font-size:11px;">LONGEST STREAK</div><div class="mono">${d.stats.longestWinStreak}</div></div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-bottom:20px;">
+              <h3>Financial</h3>
+              <div style="margin-bottom:10px;">Total revenue generated: <strong>${Admin.formatMoney(d.financial.totalRevenue)}</strong></div>
+              <div class="admin-table-wrap" style="max-height:220px;overflow-y:auto;">
+                <table class="admin-table">
+                  <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Balance After</th></tr></thead>
+                  <tbody>${(d.financial.coinTransactions || []).slice(0, 30).map((t) => `<tr><td>${Admin.formatDate(t.created_at)}</td><td>${t.type}</td><td class="${t.amount >= 0 ? 'text-success' : 'text-danger'}">${t.amount >= 0 ? '+' : ''}${t.amount}</td><td>${t.balance_after}</td></tr>`).join('') || '<tr><td colspan="4">No transactions</td></tr>'}</tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-bottom:20px;">
+              <h3>Match History</h3>
+              <div class="admin-table-wrap" style="max-height:300px;overflow-y:auto;">
+                <table class="admin-table">
+                  <thead><tr><th>Date</th><th>Mode</th><th>Instruments</th><th>Rank</th><th>P&amp;L</th><th>Duration</th></tr></thead>
+                  <tbody>${d.matchHistory.map((m) => `<tr class="clickable" onclick="location.href='matches.html?open=${m.matchId}'"><td>${Admin.formatDate(m.startTime)}</td><td>${m.mode}</td><td>${(m.instruments || []).join('/')}</td><td>${m.rank ?? '—'}</td><td class="${m.pnl >= 0 ? 'text-success' : 'text-danger'}">${Admin.formatMoney(m.pnl)}</td><td>${m.durationSeconds ? fmtSecs(m.durationSeconds) : '—'}</td></tr>`).join('') || '<tr><td colspan="6">No matches yet</td></tr>'}</tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="panel">
+              <h3>Moderation History</h3>
+              <div class="admin-table-wrap" style="max-height:200px;overflow-y:auto;">
+                <table class="admin-table">
+                  <thead><tr><th>Date</th><th>Admin</th><th>Action</th><th>Reason</th></tr></thead>
+                  <tbody>${d.moderation.actions.map((a) => `<tr><td>${Admin.formatDate(a.created_at)}</td><td>${Admin.escapeHtml(a.admin_username)}</td><td>${a.action_type}</td><td>${Admin.escapeHtml(a.reason || '—')}</td></tr>`).join('') || '<tr><td colspan="4">No moderation history</td></tr>'}</tbody>
+                </table>
+              </div>
+              <h4 style="margin-top:16px;margin-bottom:8px;font-size:13px;">Reports received</h4>
+              ${(d.moderation.reportsReceived || []).map((r) => `<div style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);">${Admin.escapeHtml(r.reason)} · ${r.status} · ${Admin.formatDate(r.created_at)}</div>`).join('') || '<div class="text-secondary" style="font-size:12px;">None</div>'}
+            </div>
+          </div>
+
+          <div>
+            <div class="panel" style="margin-bottom:20px;">
+              <h3>Admin Actions</h3>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <button class="btn" id="actGiveCoins">Give Coins</button>
+                <button class="btn" id="actDeductCoins">Deduct Coins</button>
+                <button class="btn" id="actChangeTier">Change Tier</button>
+                <button class="btn" id="actMessage">Send Direct Message</button>
+                <button class="btn" id="actWarn">Issue Warning</button>
+                <button class="btn" id="actFlag">${p.flagged ? 'Unflag' : 'Flag'} Player</button>
+                ${p.isBanned
+                  ? `<button class="btn" id="actUnban">Unban</button>`
+                  : `<button class="btn btn-danger" id="actTempBan">Temporary Ban</button><button class="btn btn-danger" id="actPermBan">Permanent Ban</button>`
+                }
+                <button class="btn" id="actReset">Reset Password</button>
+                <button class="btn" id="actExport">Export Full Data (GDPR)</button>
+                <button class="btn btn-danger" id="actDelete">Delete Account</button>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Private Admin Notes</h3>
+              <textarea id="adminNotes" style="width:100%;min-height:100px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px;font-size:12px;">${Admin.escapeHtml(p.adminNotes || '')}</textarea>
+              <button class="btn btn-sm" id="saveNotesBtn" style="margin-top:8px;">Save Notes</button>
+            </div>
+          </div>
+        </div>
+      `;
+      wireActions();
+    }
+
+    function wireActions() {
+      const on = (id, fn) => document.getElementById(id)?.addEventListener('click', fn);
+      on('actGiveCoins', async () => {
+        const amount = Number(prompt('Coins to add:'));
+        if (!amount) return;
+        const reason = prompt('Reason:') || '';
+        await Admin.api(`/players/${playerId}/coins`, { method: 'POST', body: { amount, direction: 'add', reason } });
+        Admin.toast('Coins added', 'success'); reload();
+      });
+      on('actDeductCoins', async () => {
+        const amount = Number(prompt('Coins to deduct:'));
+        if (!amount) return;
+        const reason = prompt('Reason:') || '';
+        await Admin.api(`/players/${playerId}/coins`, { method: 'POST', body: { amount, direction: 'deduct', reason } });
+        Admin.toast('Coins deducted', 'success'); reload();
+      });
+      on('actChangeTier', async () => {
+        const tier = prompt('New tier (e.g. Recruit, Sergeant, Captain, General, War Lord):');
+        if (!tier) return;
+        await Admin.api(`/players/${playerId}/tier`, { method: 'POST', body: { tier } });
+        Admin.toast('Tier updated', 'success'); reload();
+      });
+      on('actMessage', async () => {
+        const message = prompt('Message to send:');
+        if (!message) return;
+        await Admin.api(`/players/${playerId}/message`, { method: 'POST', body: { message } });
+        Admin.toast('Message sent', 'success');
+      });
+      on('actWarn', async () => {
+        const reason = prompt('Warning reason:');
+        if (!reason) return;
+        await Admin.api(`/players/${playerId}/warn`, { method: 'POST', body: { reason } });
+        Admin.toast('Warning issued', 'success'); reload();
+      });
+      on('actFlag', async () => {
+        const flagged = !document.getElementById('actFlag').textContent.startsWith('Unflag');
+        await Admin.api(`/players/${playerId}/flag`, { method: 'POST', body: { flagged, reason: 'Manual admin flag toggle' } });
+        Admin.toast(flagged ? 'Player flagged' : 'Player unflagged', 'success'); reload();
+      });
+      on('actTempBan', async () => {
+        const hours = Number(prompt('Ban duration in hours:', '24'));
+        const reason = prompt('Ban reason:');
+        if (!reason) return;
+        await Admin.api(`/players/${playerId}/ban`, { method: 'POST', body: { type: 'temp', durationHours: hours, reason } });
+        Admin.toast('Player temp-banned', 'success'); reload();
+      });
+      on('actPermBan', async () => {
+        const reason = prompt('Permanent ban reason:');
+        if (!reason) return;
+        const confirmed = await Admin.confirmModal({ title: 'Permanently ban this player?', body: 'This cannot be undone automatically - unban manually if needed.', confirmLabel: 'Permanently Ban', danger: true });
+        if (!confirmed) return;
+        await Admin.api(`/players/${playerId}/ban`, { method: 'POST', body: { type: 'perm', reason } });
+        Admin.toast('Player permanently banned', 'success'); reload();
+      });
+      on('actUnban', async () => {
+        await Admin.api(`/players/${playerId}/unban`, { method: 'POST' });
+        Admin.toast('Player unbanned', 'success'); reload();
+      });
+      on('actReset', async () => {
+        const res = await Admin.api(`/players/${playerId}/reset-password`, { method: 'POST' });
+        Admin.toast(res.message, 'success');
+      });
+      on('actExport', async () => {
+        const data = await Admin.api(`/players/${playerId}/export`);
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `player-${playerId}-export.json`; a.click(); URL.revokeObjectURL(url);
+      });
+      on('actDelete', async () => {
+        const first = await Admin.confirmModal({ title: 'Delete this account?', body: 'This permanently deletes the player and their auth account.', confirmLabel: 'Continue', danger: true });
+        if (!first) return;
+        const second = await Admin.confirmModal({ title: 'Are you absolutely sure?', body: 'This cannot be undone. Type nothing, just confirm again.', confirmLabel: 'Delete Permanently', danger: true });
+        if (!second) return;
+        await Admin.api(`/players/${playerId}`, { method: 'DELETE' });
+        Admin.toast('Account deleted', 'success');
+        setTimeout(() => { window.location.href = 'players.html'; }, 1000);
+      });
+      document.getElementById('saveNotesBtn')?.addEventListener('click', async () => {
+        await Admin.api(`/players/${playerId}/notes`, { method: 'POST', body: { note: document.getElementById('adminNotes').value } });
+        Admin.toast('Notes saved', 'success');
+      });
+    }
+
+    reload().catch((e) => { document.getElementById('content').innerHTML = `<div class="empty-state">${e.message}</div>`; });
+  </script>
+</body>
+</html>

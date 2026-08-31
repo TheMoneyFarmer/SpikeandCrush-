@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Wallet</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .overview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 800px) { .overview-grid { grid-template-columns: repeat(2, 1fr); } }
+  .overview-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; }
+  .overview-card .value { font-size: 22px; font-weight: 800; }
+  .overview-card .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; margin-top: 4px; }
+  .coin-packages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+  @media (max-width: 800px) { .coin-packages { grid-template-columns: repeat(2, 1fr); } }
+  .coin-package { position: relative; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; cursor: pointer; }
+  .coin-package:hover { border-color: var(--gold); }
+  .coin-package .amount { font-size: 20px; font-weight: 800; color: var(--gold); }
+  .coin-package .price { color: var(--text-secondary); margin-top: 4px; }
+  .coin-package .per-coin { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+  .best-value-badge { position: absolute; top: -10px; right: 8px; background: var(--gradient-gold); color: #241300; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 999px; }
+  table.tx { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.tx th { text-align: left; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; padding: 8px; }
+  table.tx td { padding: 8px; border-top: 1px solid var(--border); }
+  .loss-bar-track { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 10px 0; }
+  .loss-bar-fill { height: 100%; background: var(--gradient-danger); transition: width 0.3s ease; }
+</style>
+</head>
+<body data-page="wallet">
+  <div id="twNav" data-active="wallet"></div>
+
+  <div class="tw-container">
+    <div class="panel">
+      <h2>🪙 Wallet</h2>
+      <div class="overview-grid" id="overviewGrid">
+        <div class="overview-card"><div class="value" id="ovCoins">-</div><div class="label">Coin Balance</div></div>
+        <div class="overview-card"><div class="value" id="ovEarned">-</div><div class="label">Coins Earned (All Time)</div><div class="sub-breakdown text-secondary" id="ovEarnedBreakdown" style="font-size:11px;margin-top:4px;"></div></div>
+        <div class="overview-card"><div class="value" id="ovSpent">-</div><div class="label">Coins Spent (All Time)</div></div>
+        <div class="overview-card"><div class="value" id="ovLifetime">-</div><div class="label">Lifetime Match P&amp;L</div></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 20px;">
+      <h3>Daily Loss Limit</h3>
+      <p>A practice-discipline tracker for your simulated trading P&amp;L across matches - not related to your coin balance.</p>
+      <div id="lossLimitLabel" class="text-secondary">Spike & Crush loading...</div>
+      <div class="loss-bar-track"><div class="loss-bar-fill" id="lossBarFill" style="width:0%"></div></div>
+      <div id="resetCountdown" class="text-secondary" style="font-size: 13px;"></div>
+      <div class="field" style="margin-top: 14px; max-width: 260px;">
+        <label>Set your personal limit (max $2000)</label>
+        <input type="number" id="limitInput" min="1" max="2000" />
+      </div>
+      <button class="btn btn-outline" id="saveLimitBtn">Save Limit</button>
+    </div>
+
+    <div class="panel" style="margin-top: 20px;">
+      <h3>Buy Coins</h3>
+      <p>Quick War entry costs 10 coins. Private Wars are always free.</p>
+      <div class="coin-packages">
+        <div class="coin-package" data-pkg="100"><div class="amount">100</div><div class="price">$0.99</div><div class="per-coin">$0.0099/coin</div></div>
+        <div class="coin-package" data-pkg="500"><div class="amount">500</div><div class="price">$3.99</div><div class="per-coin">$0.0080/coin</div></div>
+        <div class="coin-package" data-pkg="1500">
+          <div class="best-value-badge">BEST VALUE</div>
+          <div class="amount">1500</div><div class="price">$9.99</div><div class="per-coin">$0.0067/coin</div>
+        </div>
+        <div class="coin-package" data-pkg="5000"><div class="amount">5000</div><div class="price">$24.99</div><div class="per-coin">$0.0050/coin</div></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <h3 style="margin:0;">Transaction History</h3>
+        <button class="btn" id="exportCsvBtn">Export to CSV</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tx">
+          <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Balance After</th></tr></thead>
+          <tbody id="txBody"><tr><td colspan="4" class="text-secondary">Spike & Crush loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+<script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script src="js/lottie.js"></script>
+  <script>
+    TW.requireAuth();
+
+    const TYPE_LABELS = {
+      match_entry: 'Match Entry',
+      prize_won: 'Prize Won',
+      coin_purchase: 'Coin Purchase',
+      welcome_bonus: 'Welcome Bonus',
+    };
+
+    let lastTransactions = [];
+
+    async function loadWallet() {
+      try {
+        const data = await TW.api('/api/wallet');
+        document.getElementById('ovCoins').textContent = `🪙 ${data.coins}`;
+        document.getElementById('ovEarned').textContent = `🪙 ${data.coinsEarnedTotal}`;
+        document.getElementById('ovEarnedBreakdown').textContent =
+          `${data.coinsFromMatches} from matches · ${data.coinsFromPurchases} purchased`;
+        document.getElementById('ovSpent').textContent = `🪙 ${data.coinsSpentTotal}`;
+        const lifetimeEl = document.getElementById('ovLifetime');
+        lifetimeEl.textContent = TW.formatMoney(data.lifetimeMatchPnl);
+        lifetimeEl.className = 'value ' + (data.lifetimeMatchPnl >= 0 ? 'text-buy' : 'text-sell');
+
+        const pct = Math.min(100, Math.round((data.todayLossUsd / data.dailyLossLimitUsd) * 100));
+        document.getElementById('lossLimitLabel').textContent = `Current daily loss: ${TW.formatMoney(
+          data.todayLossUsd
+        )} of ${TW.formatMoney(data.dailyLossLimitUsd)} limit`;
+        document.getElementById('lossBarFill').style.width = `${pct}%`;
+        document.getElementById('limitInput').value = data.dailyLossLimitUsd;
+        startCountdown(data.resetsAtIso);
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    }
+
+    let countdownTimer = null;
+    function startCountdown(resetsAtIso) {
+      clearInterval(countdownTimer);
+      const resetsAt = new Date(resetsAtIso).getTime();
+      function tick() {
+        const remaining = Math.max(0, resetsAt - Date.now());
+        const h = Math.floor(remaining / 3600000);
+        const m = Math.floor((remaining % 3600000) / 60000);
+        const s = Math.floor((remaining % 60000) / 1000);
+        document.getElementById('resetCountdown').textContent = `Resets in ${h}h ${m}m ${s}s`;
+      }
+      tick();
+      countdownTimer = setInterval(tick, 1000);
+    }
+
+    document.getElementById('saveLimitBtn').addEventListener('click', async () => {
+      try {
+        const limitUsd = Number(document.getElementById('limitInput').value);
+        await TW.api('/api/wallet/daily-limit', { method: 'PATCH', body: { limitUsd } });
+        TW.toast('Daily loss limit updated', 'info');
+        loadWallet();
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    });
+
+    document.querySelectorAll('.coin-package').forEach((el) => {
+      el.addEventListener('click', async () => {
+        try {
+          const data = await TW.api('/api/coins/purchase', { method: 'POST', body: { packageId: el.dataset.pkg } });
+          window.location.href = data.url;
+        } catch (err) {
+          TW.toast(err.message, 'danger');
+        }
+      });
+    });
+
+    async function loadTransactions() {
+      const body = document.getElementById('txBody');
+      try {
+        const data = await TW.api('/api/wallet/transactions');
+        lastTransactions = data.transactions;
+        body.innerHTML = '';
+        if (data.transactions.length === 0) {
+          body.innerHTML = '<tr><td colspan="4" class="text-secondary">No transactions yet.</td></tr>';
+          return;
+        }
+        data.transactions.forEach((tx) => {
+          const tr = document.createElement('tr');
+          const amountClass = tx.amount >= 0 ? 'text-buy' : 'text-sell';
+          tr.innerHTML = `
+            <td>${new Date(tx.created_at).toLocaleString()}</td>
+            <td>${TYPE_LABELS[tx.type] || tx.type}</td>
+            <td class="${amountClass} mono">${tx.amount >= 0 ? '+' : ''}${tx.amount} 🪙</td>
+            <td class="mono">${tx.balance_after} 🪙</td>
+          `;
+          body.appendChild(tr);
+        });
+      } catch (err) {
+        body.innerHTML = `<tr><td colspan="4" class="text-secondary">${TW.escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      if (lastTransactions.length === 0) {
+        TW.toast('No transactions to export', 'warning');
+        return;
+      }
+      const header = 'Date,Type,Amount,BalanceAfter\n';
+      const rows = lastTransactions
+        .map((tx) => `${tx.created_at},${TYPE_LABELS[tx.type] || tx.type},${tx.amount},${tx.balance_after}`)
+        .join('\n');
+      const blob = new Blob([header + rows], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'spikecrush-transactions.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    loadWallet();
+    loadTransactions();
+  </script>
+</body>
+</html>

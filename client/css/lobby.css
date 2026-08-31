@@ -1,0 +1,192 @@
+.lobby-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .lobby-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.room-code-panel {
+  text-align: center;
+  padding: 32px 20px;
+}
+
+.room-code-value {
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  font-family: var(--mono);
+  color: var(--accent);
+  margin: 8px 0 16px 0;
+}
+
+.room-code-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.match-settings-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.match-settings-row .setting {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.match-settings-row .setting .label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.match-settings-row .setting .value {
+  font-weight: 700;
+}
+
+.lobby-fill-timer {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--warning);
+}
+
+.player-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.player-row.pending {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.player-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.player-row .meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-row .name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-row .rating {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.ready-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.ready-badge.ready {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ai-tag {
+  font-size: 10px;
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+}
+
+.countdown-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 200;
+}
+
+.countdown-number {
+  font-size: 120px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.chat-panel {
+  margin-top: 20px;
+}
+
+.chat-log {
+  height: 140px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chat-presets button {
+  font-size: 13px;
+  padding: 8px 12px;
+  min-height: 38px;
+}

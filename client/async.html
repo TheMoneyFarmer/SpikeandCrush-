@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Daily Challenge</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .challenge-hero { text-align: center; padding: 20px 0 10px; }
+  .challenge-hero .date { color: var(--text-secondary); font-size: 13px; }
+  .instrument-pills { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 16px 0; }
+  .instrument-pills .pill { background: var(--surface-2); border: 1px solid var(--border); padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 13px; }
+  .result-banner { text-align: center; padding: 20px; }
+  .result-banner .pnl { font-size: 36px; font-weight: 800; }
+  .result-banner .pnl.up { color: var(--buy, #00c896); }
+  .result-banner .pnl.down { color: var(--sell, #ff4444); }
+  table.lb { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.lb th { text-align: left; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; padding: 6px 8px; }
+  table.lb td { padding: 8px; border-top: 1px solid var(--border); }
+  table.lb tr.me { background: rgba(0, 200, 150, 0.08); }
+</style>
+</head>
+<body data-page="async">
+  <div id="twNav" data-active="async"></div>
+
+  <div class="tw-container">
+    <div class="panel">
+      <div class="challenge-hero">
+        <h2>📅 Async Daily Challenge</h2>
+        <div class="date" id="challengeDate"></div>
+        <div class="instrument-pills" id="instrumentPills"></div>
+        <div id="ctaArea"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>🏅 Today's Leaderboard</h3>
+      <div style="overflow-x:auto;">
+        <table class="lb">
+          <thead><tr><th>#</th><th>Player</th><th>P&amp;L</th><th>Trades</th></tr></thead>
+          <tbody id="lbBody"><tr><td colspan="4" class="text-secondary">Spike & Crush loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script>
+    TW.requireAuth();
+
+    async function play() {
+      try {
+        const data = await TW.api('/api/match/create', { method: 'POST', body: { mode: 'async' } });
+        window.location.href = `lobby.html?matchId=${data.matchId}`;
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    }
+
+    async function loadLeaderboard(myId) {
+      const body = document.getElementById('lbBody');
+      try {
+        const data = await TW.api('/api/async/leaderboard');
+        if (!data.leaderboard.length) {
+          body.innerHTML = '<tr><td colspan="4" class="text-secondary">No one has played today yet - be the first!</td></tr>';
+          return;
+        }
+        body.innerHTML = data.leaderboard
+          .map(
+            (row) => `
+              <tr class="${row.playerId === myId ? 'me' : ''}">
+                <td>${row.rank}</td>
+                <td>${TW.escapeHtml(row.username)}</td>
+                <td class="${row.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(row.pnl)}</td>
+                <td>${row.tradesMade}</td>
+              </tr>
+            `
+          )
+          .join('');
+      } catch (e) {
+        body.innerHTML = `<tr><td colspan="4" class="text-secondary">${TW.escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    async function load() {
+      let data;
+      try {
+        data = await TW.api('/api/async/today');
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+        return;
+      }
+
+      document.getElementById('challengeDate').textContent = `${data.date} · ${Math.floor(data.durationSeconds / 60)} min · ${data.entryCoins} coins to enter`;
+      document.getElementById('instrumentPills').innerHTML = data.instruments.map((s) => `<span class="pill">${s}</span>`).join('');
+
+      const cta = document.getElementById('ctaArea');
+      if (data.alreadyPlayed) {
+        const pnl = Number(data.myResult.pnl);
+        cta.innerHTML = `
+          <div class="result-banner">
+            <div class="text-secondary" style="font-size:13px;">You've completed today's challenge</div>
+            <div class="pnl ${pnl >= 0 ? 'up' : 'down'}">${TW.formatMoney(pnl)}</div>
+            <div class="text-secondary" style="font-size:12px;">Come back tomorrow for a new challenge</div>
+          </div>
+        `;
+      } else {
+        cta.innerHTML = `<button class="btn btn-primary" id="playBtn" style="margin-top:8px;">▶️ Play Today's Challenge (${data.entryCoins} 🪙)</button>`;
+        document.getElementById('playBtn').addEventListener('click', play);
+      }
+
+      const me = TW.getPlayer();
+      loadLeaderboard(me ? me.id : null);
+    }
+
+    load();
+  </script>
+</body>
+</html>

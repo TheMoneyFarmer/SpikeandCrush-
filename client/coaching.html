@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Coaching</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .coach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .coach-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .coach-card .top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .coach-card .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--gradient-primary); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #06251d; }
+  .coach-card .name { font-weight: 700; }
+  .coach-card .tier { font-size: 11px; color: var(--gold); }
+  .coach-card .bio { font-size: 12px; color: var(--text-secondary); margin: 8px 0; min-height: 32px; }
+  .coach-card .rating { font-size: 12px; color: var(--gold); }
+  .coach-card .rate { font-weight: 700; margin: 8px 0; }
+  .become-coach-panel { margin-bottom: 20px; }
+  .session-row { display: flex; justify-content: space-between; align-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 8px; }
+  .session-row .status-pill { font-size: 11px; padding: 3px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 300; }
+  .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; width: 340px; max-width: 90vw; }
+  .modal-box label { display: block; font-size: 12px; color: var(--text-secondary); margin: 10px 0 4px; }
+  .modal-box select, .modal-box input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tabs button { padding: 8px 16px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); cursor: pointer; font-weight: 600; }
+  .tabs button.active { background: var(--gradient-primary); color: #06251d; border-color: transparent; }
+</style>
+</head>
+<body data-page="coaching">
+  <div id="twNav" data-active="coaching"></div>
+
+  <div class="tw-container">
+    <div class="panel become-coach-panel" id="becomeCoachPanel" style="display:none;"></div>
+
+    <div class="panel">
+      <div class="tabs" id="coachTabs">
+        <button data-tab="browse" class="active">Find a Coach</button>
+        <button data-tab="mine">My Sessions</button>
+      </div>
+      <div id="tabContent">Spike & Crush loading...</div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script src="js/lottie.js"></script>
+  <script>
+    TW.requireAuth();
+
+    let me = null;
+    let coachesData = null;
+    let activeTab = 'browse';
+
+    function starString(n) {
+      if (!n) return 'No reviews yet';
+      return `${'★'.repeat(Math.round(n))}${'☆'.repeat(5 - Math.round(n))} (${n})`;
+    }
+
+    function coachCard(c) {
+      const initial = c.username[0].toUpperCase();
+      return `
+        <div class="coach-card">
+          <div class="top">
+            <div class="avatar">${initial}</div>
+            <div>
+              <div class="name">${TW.escapeHtml(c.username)}</div>
+              <div class="tier">${TW.escapeHtml(c.tier)} · ${c.warRating} rating</div>
+            </div>
+          </div>
+          <div class="bio">${c.bio ? TW.escapeHtml(c.bio) : 'No bio provided.'}</div>
+          <div class="rating">${starString(c.avgRating)} · ${c.count} session${c.count === 1 ? '' : 's'}</div>
+          <div class="rate">AED ${c.rateAed} / session</div>
+          <button class="btn btn-primary" data-book="${c.id}" style="width:100%;">Book Session</button>
+        </div>
+      `;
+    }
+
+    function openBookModal(coachId) {
+      const coach = coachesData.coaches.find((c) => c.id === coachId);
+      if (!coach) return;
+      const backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      const typeOptions = Object.entries(coachesData.sessionTypes)
+        .map(([key, t]) => `<option value="${key}">${TW.escapeHtml(t.label)}</option>`)
+        .join('');
+      backdrop.innerHTML = `
+        <div class="modal-box">
+          <h3>Book ${TW.escapeHtml(coach.username)}</h3>
+          <label>Session Type</label>
+          <select id="bookSessionType">${typeOptions}</select>
+          <label>Date &amp; Time</label>
+          <input type="datetime-local" id="bookScheduledAt" />
+          <div style="margin-top:16px;display:flex;gap:8px;">
+            <button class="btn btn-outline" id="bookCancel" style="flex:1;">Cancel</button>
+            <button class="btn btn-primary" id="bookConfirm" style="flex:1;">Pay AED ${coach.rateAed}</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(backdrop);
+      backdrop.querySelector('#bookCancel').addEventListener('click', () => backdrop.remove());
+      backdrop.querySelector('#bookConfirm').addEventListener('click', async () => {
+        const sessionType = backdrop.querySelector('#bookSessionType').value;
+        const scheduledAt = backdrop.querySelector('#bookScheduledAt').value;
+        if (!scheduledAt) { TW.toast('Pick a date and time', 'danger'); return; }
+        try {
+          const result = await TW.api('/api/coaching/book', {
+            method: 'POST',
+            body: { coachId, sessionType, scheduledAt: new Date(scheduledAt).toISOString() },
+          });
+          if (result.url) window.location.href = result.url;
+        } catch (e) {
+          TW.toast(e.message, 'danger');
+        }
+      });
+    }
+
+    async function renderBrowse() {
+      const content = document.getElementById('tabContent');
+      content.innerHTML = '<div class="text-secondary">Loading coaches...</div>';
+      try {
+        coachesData = await TW.api('/api/coaching/coaches');
+      } catch (e) {
+        content.innerHTML = `<div class="text-secondary">${TW.escapeHtml(e.message)}</div>`;
+        return;
+      }
+      if (!coachesData.coaches.length) {
+        content.innerHTML = '<div class="text-secondary">No War Lord coaches are accepting bookings yet.</div>';
+        return;
+      }
+      content.innerHTML = `<div class="coach-grid">${coachesData.coaches.map(coachCard).join('')}</div>`;
+      content.querySelectorAll('[data-book]').forEach((btn) => {
+        btn.addEventListener('click', () => openBookModal(btn.dataset.book));
+      });
+    }
+
+    function sessionStatusLabel(s) {
+      return { pending_payment: 'Awaiting payment', scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled' }[s] || s;
+    }
+
+    function sessionRow(s, myId) {
+      const isCoach = s.coach_id === myId;
+      const role = isCoach ? 'Coaching' : 'Booked with';
+      const canReview = !isCoach && s.status === 'scheduled';
+      return `
+        <div class="session-row">
+          <div>
+            <div style="font-weight:600;font-size:13px;">${role} · ${TW.escapeHtml(s.session_type)}</div>
+            <div class="text-secondary" style="font-size:11px;">${new Date(s.scheduled_at).toLocaleString()} · AED ${s.price_aed}</div>
+            ${s.rating ? `<div style="font-size:11px;color:var(--gold);">${'★'.repeat(s.rating)} ${s.review_text ? TW.escapeHtml(s.review_text) : ''}</div>` : ''}
+          </div>
+          <div style="text-align:right;">
+            <span class="status-pill">${sessionStatusLabel(s.status)}</span>
+            ${canReview ? `<div style="margin-top:6px;"><button class="btn btn-outline" data-review="${s.id}" style="font-size:11px;padding:4px 10px;">Mark complete &amp; review</button></div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function openReviewModal(sessionId) {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      backdrop.innerHTML = `
+        <div class="modal-box">
+          <h3>Rate your session</h3>
+          <label>Rating (1-5)</label>
+          <select id="reviewRating">${[5,4,3,2,1].map((n) => `<option value="${n}">${'★'.repeat(n)}</option>`).join('')}</select>
+          <label>Review (optional)</label>
+          <input type="text" id="reviewText" maxlength="200" />
+          <div style="margin-top:16px;display:flex;gap:8px;">
+            <button class="btn btn-outline" id="reviewCancel" style="flex:1;">Cancel</button>
+            <button class="btn btn-primary" id="reviewConfirm" style="flex:1;">Submit</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(backdrop);
+      backdrop.querySelector('#reviewCancel').addEventListener('click', () => backdrop.remove());
+      backdrop.querySelector('#reviewConfirm').addEventListener('click', async () => {
+        try {
+          await TW.api('/api/coaching/complete', {
+            method: 'POST',
+            body: {
+              sessionId,
+              rating: Number(backdrop.querySelector('#reviewRating').value),
+              reviewText: backdrop.querySelector('#reviewText').value,
+            },
+          });
+          backdrop.remove();
+          TW.toast('Review submitted!', 'info');
+          renderMine();
+        } catch (e) {
+          TW.toast(e.message, 'danger');
+        }
+      });
+    }
+
+    async function renderMine() {
+      const content = document.getElementById('tabContent');
+      content.innerHTML = '<div class="text-secondary">Loading your sessions...</div>';
+      try {
+        const data = await TW.api('/api/coaching/my-sessions');
+        if (!data.sessions.length) {
+          content.innerHTML = '<div class="text-secondary">No coaching sessions yet.</div>';
+          return;
+        }
+        content.innerHTML = data.sessions.map((s) => sessionRow(s, data.playerId)).join('');
+        content.querySelectorAll('[data-review]').forEach((btn) => {
+          btn.addEventListener('click', () => openReviewModal(btn.dataset.review));
+        });
+      } catch (e) {
+        content.innerHTML = `<div class="text-secondary">${TW.escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderTab() {
+      if (activeTab === 'browse') renderBrowse();
+      else renderMine();
+    }
+
+    function renderBecomeCoachPanel() {
+      const panel = document.getElementById('becomeCoachPanel');
+      if (!me || me.tier !== 'War Lord') { panel.style.display = 'none'; return; }
+      panel.style.display = 'block';
+      const enabled = !!me.coaching_enabled;
+      panel.innerHTML = `
+        <h3>🎓 Coach Settings <span class="text-secondary" style="font-size:12px;font-weight:400;">War Lord tier unlocks coaching</span></h3>
+        <label style="display:block;font-size:12px;color:var(--text-secondary);margin:10px 0 4px;">Rate per session (AED 50-500)</label>
+        <input type="number" id="coachRate" min="50" max="500" value="${me.coaching_rate_aed || 100}" style="width:160px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);" />
+        <label style="display:block;font-size:12px;color:var(--text-secondary);margin:10px 0 4px;">Bio</label>
+        <input type="text" id="coachBio" maxlength="200" value="${me.coaching_bio ? TW.escapeHtml(me.coaching_bio) : ''}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);" />
+        <div style="margin-top:12px;">
+          <button class="btn ${enabled ? 'btn-outline' : 'btn-primary'}" id="toggleCoachBtn">${enabled ? 'Stop Coaching' : 'Start Coaching'}</button>
+        </div>
+      `;
+      panel.querySelector('#toggleCoachBtn').addEventListener('click', async () => {
+        try {
+          const rateAed = Number(panel.querySelector('#coachRate').value);
+          const bio = panel.querySelector('#coachBio').value;
+          const result = await TW.api('/api/coaching/profile', { method: 'POST', body: { enabled: !enabled, rateAed, bio } });
+          me = result.player;
+          TW.toast(enabled ? 'Coaching disabled' : 'You are now listed as a coach!', 'info');
+          renderBecomeCoachPanel();
+          if (activeTab === 'browse') renderBrowse();
+        } catch (e) {
+          TW.toast(e.message, 'danger');
+        }
+      });
+    }
+
+    document.getElementById('coachTabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-tab]');
+      if (!btn) return;
+      document.querySelectorAll('#coachTabs button').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeTab = btn.dataset.tab;
+      renderTab();
+    });
+
+    (async () => {
+      try {
+        const cached = TW.getPlayer();
+        const data = await TW.api(`/api/player/${cached.id}`);
+        me = data.player;
+      } catch (e) {
+        me = null;
+      }
+      renderBecomeCoachPanel();
+      renderTab();
+    })();
+  </script>
+</body>
+</html>

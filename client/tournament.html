@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Tournament</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/premium.css" />
+<style>
+  .t-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .t-cta-banner { background: linear-gradient(135deg, rgba(0,200,150,0.15), rgba(0,150,200,0.1)); border: 1px solid var(--accent); border-radius: var(--radius); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .t-bracket { display: flex; gap: 24px; overflow-x: auto; padding-bottom: 12px; }
+  .t-round-col { display: flex; flex-direction: column; justify-content: space-around; min-width: 200px; gap: 12px; }
+  .t-round-title { font-size: 11px; text-transform: uppercase; color: var(--text-secondary); text-align: center; margin-bottom: 4px; }
+  .t-matchup { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .t-matchup .slot { padding: 8px 10px; font-size: 13px; display: flex; justify-content: space-between; }
+  .t-matchup .slot.winner { background: rgba(0,200,150,0.15); font-weight: 700; color: var(--accent); }
+  .t-matchup .slot.loser { opacity: 0.5; text-decoration: line-through; }
+  .t-matchup .slot + .slot { border-top: 1px solid var(--border); }
+  .t-reg-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .t-reg-chip { background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: 12px; }
+  .t-reg-chip.eliminated { opacity: 0.4; text-decoration: line-through; }
+</style>
+</head>
+<body data-page="tournament">
+  <div id="twNav" data-active="tournaments"></div>
+
+  <div class="tw-container">
+    <div class="panel">
+      <div class="t-header">
+        <div>
+          <h2 id="tName">Spike & Crush loading...</h2>
+          <div class="text-secondary" id="tMeta" style="font-size:13px;"></div>
+        </div>
+        <span class="t-status-pill" id="tStatusPill"></span>
+      </div>
+      <div id="ctaArea"></div>
+      <div id="registrationsArea" style="margin-bottom:16px;"></div>
+      <div class="t-bracket" id="bracketArea"></div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/sound.js"></script>
+  <script src="/js/lottie.js"></script>
+  <script src="/js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/socket.js"></script>
+  <script src="/js/friends-panel.js"></script>
+  <script>
+    TW.requireAuth();
+    const tournamentId = location.pathname.split('/').pop();
+
+    function slotHtml(playerId, byId, winnerId, matchupStatus) {
+      if (!playerId) return `<div class="slot text-secondary">TBD</div>`;
+      const username = byId[playerId] || 'Unknown';
+      const cls = matchupStatus === 'completed' ? (playerId === winnerId ? 'winner' : 'loser') : '';
+      return `<div class="slot ${cls}">${TW.escapeHtml(username)}</div>`;
+    }
+
+    function renderBracket(bracketData, byId) {
+      if (!bracketData) return '<div class="text-secondary">Bracket has not been generated yet - waiting for signup to fill or close.</div>';
+      return bracketData.rounds
+        .map(
+          (round) => `
+            <div class="t-round-col">
+              <div class="t-round-title">Round ${round.round}${round.round === bracketData.rounds.length ? ' (Final)' : ''}</div>
+              ${round.matchups
+                .map(
+                  (m) => `
+                    <div class="t-matchup">
+                      ${slotHtml(m.playerAId, byId, m.winnerId, m.status)}
+                      ${slotHtml(m.playerBId, byId, m.winnerId, m.status)}
+                    </div>
+                  `
+                )
+                .join('')}
+            </div>
+          `
+        )
+        .join('');
+    }
+
+    async function register() {
+      try {
+        await TW.api(`/api/tournament/${tournamentId}/register`, { method: 'POST' });
+        TW.toast('Registered!', 'info');
+        await load();
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    }
+
+    async function playMyMatch() {
+      try {
+        const result = await TW.api(`/api/tournament/${tournamentId}/play`, { method: 'POST' });
+        window.location.href = `/lobby.html?matchId=${result.matchId}`;
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    }
+
+    function renderCta(data) {
+      const cta = document.getElementById('ctaArea');
+      if (data.status === 'signup' && !data.isRegistered) {
+        cta.innerHTML = `<div class="t-cta-banner"><span>Registration is open (${data.registrationCount}/${data.bracketSize})</span><button class="btn btn-primary" id="registerBtn">Register (${data.entryCoins} 🪙)</button></div>`;
+        document.getElementById('registerBtn').addEventListener('click', register);
+      } else if (data.status === 'signup' && data.isRegistered) {
+        cta.innerHTML = `<div class="t-cta-banner"><span>✓ You're registered - waiting for the bracket to fill or the 24h window to close.</span></div>`;
+      } else if (data.status === 'active' && data.myMatchup) {
+        const ready = data.myMatchup.status === 'ready';
+        cta.innerHTML = `<div class="t-cta-banner"><span>${ready ? 'Your match is ready!' : 'Waiting for your opponent to be determined...'}</span>${ready ? `<button class="btn btn-primary" id="playBtn">⚔️ Play My Match</button>` : ''}</div>`;
+        if (ready) document.getElementById('playBtn').addEventListener('click', playMyMatch);
+      } else if (data.status === 'completed') {
+        const champion = data.registrations.find((r) => r.finalRank === 1);
+        cta.innerHTML = `<div class="t-cta-banner"><span>🏆 Tournament complete! Champion: <strong>${champion ? TW.escapeHtml(champion.username) : 'Unknown'}</strong></span></div>`;
+      } else {
+        cta.innerHTML = '';
+      }
+    }
+
+    async function load() {
+      let data;
+      try {
+        data = await TW.api(`/api/tournament/${tournamentId}`);
+      } catch (e) {
+        document.getElementById('tName').textContent = 'Tournament not found';
+        return;
+      }
+
+      document.getElementById('tName').textContent = data.name;
+      document.getElementById('tMeta').textContent = `${data.bracketSize}-player bracket · ${data.entryCoins} coins entry · Prize pool: ${data.prizePoolCoins} coins`;
+      const pill = document.getElementById('tStatusPill');
+      pill.textContent = data.status.toUpperCase();
+      pill.className = `t-status-pill ${data.status}`;
+
+      renderCta(data);
+
+      const byId = {};
+      data.registrations.forEach((r) => { byId[r.playerId] = r.username; });
+      document.getElementById('registrationsArea').innerHTML = `
+        <div class="text-secondary" style="font-size:11px;margin-bottom:6px;">REGISTERED PLAYERS</div>
+        <div class="t-reg-list">
+          ${data.registrations.map((r) => `<span class="t-reg-chip ${r.eliminatedAt ? 'eliminated' : ''}">${TW.escapeHtml(r.username)}</span>`).join('') || '<span class="text-secondary">None yet</span>'}
+        </div>
+      `;
+
+      document.getElementById('bracketArea').innerHTML = renderBracket(data.bracketData, byId);
+    }
+
+    load();
+  </script>
+</body>
+</html>

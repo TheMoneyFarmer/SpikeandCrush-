@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Players — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="players"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-tab="all">All Players</button>
+          <button class="admin-tab" data-tab="reports">Reports</button>
+        </div>
+
+        <div class="admin-tab-panel active" id="tab-all">
+          <div class="admin-table-toolbar">
+            <input type="search" id="searchInput" placeholder="Search username or email…" />
+            <select id="tierFilter"><option value="">All tiers</option></select>
+            <select id="statusFilter">
+              <option value="">All statuses</option>
+              <option value="online">Online</option>
+              <option value="in_lobby">In Lobby</option>
+              <option value="in_match">In Match</option>
+              <option value="offline">Offline</option>
+              <option value="banned">Banned</option>
+              <option value="flagged">Flagged</option>
+            </select>
+            <select id="methodFilter">
+              <option value="">All registration methods</option>
+              <option value="email">Email</option>
+              <option value="oauth">OAuth</option>
+            </select>
+            <button class="btn btn-sm" id="exportBtn">Export CSV</button>
+          </div>
+          <div class="bulk-actions-bar hidden" id="bulkBar">
+            <span id="bulkCount">0 selected</span>
+            <button class="btn btn-sm" id="bulkMessageBtn">Send Message</button>
+            <button class="btn btn-sm" id="bulkCoinsBtn">Give Coins</button>
+            <button class="btn btn-sm btn-danger" id="bulkBanBtn">Ban</button>
+            <button class="btn btn-sm" id="bulkExportBtn">Export Selected</button>
+          </div>
+          <div id="playersTableWrap"></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-reports">
+          <div id="reportsTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/admin-tables.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Players');
+
+    document.querySelectorAll('.admin-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.admin-tab').forEach((t) => t.classList.remove('active'));
+        document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+      });
+    });
+    const params = new URLSearchParams(location.search);
+    if (params.get('tab') === 'reports') document.querySelector('[data-tab="reports"]').click();
+
+    let table = null;
+    let allPlayers = [];
+
+    function statusBadge(status) {
+      const map = { online: 'badge-online', in_lobby: 'badge-in-match', in_match: 'badge-in-match', offline: 'badge-offline', banned: 'badge-banned', flagged: 'badge-flagged' };
+      const label = { online: '🟢 Online', in_lobby: '🟡 In Lobby', in_match: '🟡 In Match', offline: '⚫ Offline', banned: '🔴 Banned', flagged: '⚠️ Flagged' };
+      return `<span class="badge ${map[status] || 'badge-offline'}">${label[status] || status}</span>`;
+    }
+
+    async function loadPlayers() {
+      try {
+        allPlayers = await Admin.api('/players');
+        const tiers = [...new Set(allPlayers.map((p) => p.tier))].sort();
+        document.getElementById('tierFilter').innerHTML = '<option value="">All tiers</option>' + tiers.map((t) => `<option value="${t}">${t}</option>`).join('');
+
+        const container = document.getElementById('playersTableWrap');
+        table = Admin.createTable({
+          container, rows: allPlayers, rowKey: 'id', selectable: true,
+          searchFields: ['username', 'email'],
+          onRowClick: (row) => { window.location.href = `player-detail.html?id=${row.id}`; },
+          columns: [
+            { key: 'username', label: 'Player', render: (r) => `<span class="avatar-circle">${Admin.escapeHtml((r.username || '?')[0].toUpperCase())}</span> ${Admin.escapeHtml(r.username)}` },
+            { key: 'email', label: 'Email' },
+            { key: 'tier', label: 'Tier', render: (r) => `<span class="badge badge-tier">${Admin.escapeHtml(r.tier)}</span>` },
+            { key: 'war_rating', label: 'Rating' },
+            { key: 'coins', label: 'Coins', render: (r) => Admin.formatCoins(r.coins) },
+            { key: 'total_matches', label: 'Matches' },
+            { key: 'winRate', label: 'Win Rate', render: (r) => `${r.winRate}%` },
+            { key: 'revenue', label: 'Revenue', render: (r) => Admin.formatMoney(r.revenue) },
+            { key: 'created_at', label: 'Joined', render: (r) => Admin.formatDate(r.created_at) },
+            { key: 'status', label: 'Status', render: (r) => statusBadge(r.status) },
+          ],
+        });
+        table.onSelectionChange = (selected) => {
+          document.getElementById('bulkBar').classList.toggle('hidden', selected.length === 0);
+          document.getElementById('bulkCount').textContent = `${selected.length} selected`;
+        };
+
+        document.getElementById('searchInput').addEventListener('input', (e) => table.setSearch(e.target.value));
+        document.getElementById('tierFilter').addEventListener('change', (e) => table.setFilter('tier', e.target.value));
+        document.getElementById('statusFilter').addEventListener('change', (e) => table.setFilter('status', e.target.value));
+        document.getElementById('methodFilter').addEventListener('change', (e) => table.setFilter('registrationMethod', e.target.value));
+      } catch (e) {
+        Admin.toast(e.message, 'danger');
+      }
+    }
+
+    document.getElementById('exportBtn').addEventListener('click', () => Admin.downloadCsv('players.csv', table.getFiltered()));
+    document.getElementById('bulkExportBtn').addEventListener('click', () => {
+      const ids = new Set(table.getSelected());
+      Admin.downloadCsv('selected-players.csv', allPlayers.filter((p) => ids.has(String(p.id))));
+    });
+
+    document.getElementById('bulkMessageBtn').addEventListener('click', async () => {
+      const message = prompt('Message to send to all selected players:');
+      if (!message) return;
+      for (const id of table.getSelected()) await Admin.api(`/players/${id}/message`, { method: 'POST', body: { message } }).catch(() => {});
+      Admin.toast(`Sent to ${table.getSelected().length} players`, 'success');
+    });
+    document.getElementById('bulkCoinsBtn').addEventListener('click', async () => {
+      const amount = Number(prompt('Coins to give each selected player:'));
+      if (!amount || amount <= 0) return;
+      for (const id of table.getSelected()) await Admin.api(`/players/${id}/coins`, { method: 'POST', body: { amount, direction: 'add', reason: 'Bulk admin grant' } }).catch(() => {});
+      Admin.toast('Coins granted', 'success');
+      loadPlayers();
+    });
+    document.getElementById('bulkBanBtn').addEventListener('click', async () => {
+      const reason = prompt('Ban reason (applies to all selected):');
+      if (!reason) return;
+      const confirmed = await Admin.confirmModal({ title: 'Ban selected players?', body: `This will permanently ban ${table.getSelected().length} players.`, confirmLabel: 'Ban All', danger: true });
+      if (!confirmed) return;
+      for (const id of table.getSelected()) await Admin.api(`/players/${id}/ban`, { method: 'POST', body: { type: 'perm', reason } }).catch(() => {});
+      Admin.toast('Players banned', 'success');
+      loadPlayers();
+    });
+
+    async function loadReports() {
+      try {
+        const reports = await Admin.api('/players/reports/open');
+        const wrap = document.getElementById('reportsTableWrap');
+        if (!reports.length) { wrap.innerHTML = '<div class="empty-state">No open reports.</div>'; return; }
+        wrap.innerHTML = `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Reported</th><th>Reporter</th><th>Reason</th><th>Date</th><th>Actions</th></tr></thead>
+            <tbody>${reports.map((r) => `
+              <tr>
+                <td><a href="player-detail.html?id=${r.reported_player_id}">${Admin.escapeHtml(r.reported?.username || 'unknown')}</a></td>
+                <td>${Admin.escapeHtml(r.reporter?.username || 'unknown')}</td>
+                <td>${Admin.escapeHtml(r.reason)}</td>
+                <td>${Admin.formatDate(r.created_at)}</td>
+                <td>
+                  <button class="btn btn-sm" data-resolve="${r.id}" data-status="reviewed">Mark Reviewed</button>
+                  <button class="btn btn-sm" data-resolve="${r.id}" data-status="dismissed">Dismiss</button>
+                </td>
+              </tr>
+            `).join('')}</tbody>
+          </table></div>
+        `;
+        wrap.querySelectorAll('[data-resolve]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            await Admin.api(`/players/reports/${btn.dataset.resolve}/resolve`, { method: 'POST', body: { status: btn.dataset.status } });
+            loadReports();
+          });
+        });
+      } catch (e) {
+        Admin.toast(e.message, 'danger');
+      }
+    }
+
+    loadPlayers();
+    loadReports();
+  </script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tournaments — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="tournaments-active"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="admin-tabs">
+          <button class="admin-tab" data-tab="active">Active Tournaments</button>
+          <button class="admin-tab" data-tab="create">Create Tournament</button>
+          <button class="admin-tab" data-tab="history">Tournament History</button>
+          <button class="admin-tab" data-tab="sponsors">Sponsors / Prizes</button>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-active">
+          <div class="match-grid" id="activeTournaments"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-create">
+          <div class="panel" style="max-width:560px;">
+            <h3>Create Tournament</h3>
+            <div class="field"><label>Tournament Name</label><input id="tName" /></div>
+            <div class="field-row">
+              <div class="field"><label>Mode</label><select id="tMode"><option value="quick">Quick War</option><option value="grand">Grand War</option><option value="blitz">Blitz War</option></select></div>
+              <div class="field"><label>Bracket Size</label><select id="tBracket"><option>8</option><option>16</option><option>32</option><option>64</option></select></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label>Entry Cost (coins, 0 = free)</label><input id="tEntry" type="number" value="0" /></div>
+              <div class="field"><label>Prize Pool (coins)</label><input id="tPrize" type="number" value="1000" /></div>
+            </div>
+            <div class="field"><label>Sponsor Name (optional)</label><input id="tSponsor" /></div>
+            <div class="field-row">
+              <div class="field"><label>Registration Opens</label><input id="tRegOpens" type="datetime-local" /></div>
+              <div class="field"><label>Start Date/Time</label><input id="tStarts" type="datetime-local" /></div>
+            </div>
+            <div class="field"><label>Instruments</label><select id="tInstruments"><option value="random">Random each match</option><option value="fixed">Fixed set (uses mode default)</option></select></div>
+            <div class="field"><label>Rules</label><textarea id="tRules"></textarea></div>
+            <button class="btn btn-primary" id="createTournamentBtn">Create Tournament</button>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-history">
+          <div id="historyTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-sponsors">
+          <div class="panel" style="margin-bottom:20px;max-width:560px;">
+            <h3>Add Broker Partner</h3>
+            <div class="field"><label>Broker Name</label><input id="bName" /></div>
+            <div class="field-row">
+              <div class="field"><label>Tier</label><select id="bTier"><option value="featured">Featured</option><option value="standard">Standard</option></select></div>
+              <div class="field"><label>Monthly Fee (AED)</label><input id="bFee" type="number" value="0" /></div>
+            </div>
+            <div class="field"><label>Referral URL</label><input id="bUrl" /></div>
+            <div class="field"><label>Logo URL (optional)</label><input id="bLogo" /></div>
+            <button class="btn btn-primary" id="addBrokerBtn">Add Broker</button>
+          </div>
+          <div id="brokersTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/admin-tables.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Tournaments');
+
+    function activateTab(name) {
+      document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
+      if (name === 'active') loadActive();
+      if (name === 'history') loadHistory();
+      if (name === 'sponsors') loadSponsors();
+    }
+    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
+    activateTab(new URLSearchParams(location.search).get('tab') || 'active');
+
+    let allTournaments = [];
+    async function fetchTournaments() {
+      allTournaments = await Admin.api('/tournaments');
+      return allTournaments;
+    }
+
+    async function loadActive() {
+      const all = await fetchTournaments().catch((e) => { Admin.toast(e.message, 'danger'); return []; });
+      const active = all.filter((t) => ['signup', 'active'].includes(t.status));
+      const el = document.getElementById('activeTournaments');
+      el.innerHTML = active.length ? active.map((t) => `
+        <div class="match-card">
+          <div class="match-card-head"><strong>${Admin.escapeHtml(t.name)}</strong><span class="badge badge-info">${t.status}</span></div>
+          <div class="text-secondary" style="font-size:12px;">Bracket ${t.bracket_size} · ${t.registeredCount} registered · Starts ${Admin.formatDate(t.starts_at)}</div>
+          <div class="text-secondary" style="font-size:12px;">Entry: ${t.entry_coins} coins · Prize pool: ${t.prize_pool_coins} coins ${t.bracket_data?.sponsorName ? `· Sponsor: ${Admin.escapeHtml(t.bracket_data.sponsorName)}` : ''}</div>
+          <div class="match-card-actions">
+            <button class="btn btn-sm" onclick="viewBracket('${t.id}')">View Bracket</button>
+            <button class="btn btn-sm btn-danger" onclick="cancelTournament('${t.id}')">Cancel</button>
+          </div>
+        </div>
+      `).join('') : '<div class="empty-state">No active tournaments.</div>';
+    }
+
+    async function viewBracket(id) {
+      const bracket = await Admin.api(`/tournaments/${id}/bracket`);
+      alert(JSON.stringify(bracket, null, 2).slice(0, 2000));
+    }
+    async function cancelTournament(id) {
+      const ok = await Admin.confirmModal({ title: 'Cancel tournament?', body: 'Every registrant\'s entry fee will be refunded.', confirmLabel: 'Cancel Tournament', danger: true });
+      if (!ok) return;
+      await Admin.api(`/tournaments/${id}`, { method: 'DELETE' });
+      Admin.toast('Tournament cancelled, entries refunded', 'success');
+      loadActive();
+    }
+
+    document.getElementById('createTournamentBtn').addEventListener('click', async () => {
+      try {
+        const body = {
+          name: document.getElementById('tName').value,
+          mode: document.getElementById('tMode').value,
+          bracketSize: Number(document.getElementById('tBracket').value),
+          entryCoins: Number(document.getElementById('tEntry').value),
+          prizePoolCoins: Number(document.getElementById('tPrize').value),
+          sponsorName: document.getElementById('tSponsor').value || null,
+          startsAt: document.getElementById('tStarts').value,
+          instruments: document.getElementById('tInstruments').value,
+          rules: document.getElementById('tRules').value,
+        };
+        if (!body.name || !body.startsAt) return Admin.toast('Name and start time are required', 'warning');
+        await Admin.api('/tournaments', { method: 'POST', body });
+        Admin.toast('Tournament created', 'success');
+        activateTab('active');
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
+
+    async function loadHistory() {
+      const all = await fetchTournaments().catch(() => []);
+      const past = all.filter((t) => ['completed', 'cancelled'].includes(t.status));
+      const wrap = document.getElementById('historyTableWrap');
+      wrap.innerHTML = `
+        <div class="admin-table-wrap"><table class="admin-table">
+          <thead><tr><th>Name</th><th>Date</th><th>Players</th><th>Status</th><th>Prize Pool</th><th>Sponsor</th></tr></thead>
+          <tbody>${past.map((t) => `<tr><td>${Admin.escapeHtml(t.name)}</td><td>${Admin.formatDate(t.starts_at)}</td><td>${t.registeredCount}</td><td>${t.status}</td><td>${t.prize_pool_coins} coins</td><td>${Admin.escapeHtml(t.bracket_data?.sponsorName || '—')}</td></tr>`).join('') || '<tr><td colspan="6">No past tournaments</td></tr>'}</tbody>
+        </table></div>
+      `;
+    }
+
+    async function loadSponsors() {
+      try {
+        const brokers = await Admin.api('/tournaments/sponsors/list');
+        const wrap = document.getElementById('brokersTableWrap');
+        wrap.innerHTML = `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Broker</th><th>Tier</th><th>Monthly Fee (AED)</th><th>Active</th><th>Joined</th></tr></thead>
+            <tbody>${brokers.map((b) => `<tr><td>${Admin.escapeHtml(b.broker_name)}</td><td>${b.tier}</td><td>${b.monthly_fee_aed}</td><td>${b.active ? '✅' : '❌'}</td><td>${Admin.formatDate(b.joined_date)}</td></tr>`).join('') || '<tr><td colspan="5">No brokers yet</td></tr>'}</tbody>
+          </table></div>
+        `;
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+    document.getElementById('addBrokerBtn').addEventListener('click', async () => {
+      try {
+        await Admin.api('/tournaments/sponsors', { method: 'POST', body: {
+          brokerName: document.getElementById('bName').value, referralUrl: document.getElementById('bUrl').value,
+          tier: document.getElementById('bTier').value, monthlyFeeAed: Number(document.getElementById('bFee').value), logoUrl: document.getElementById('bLogo').value || null,
+        }});
+        Admin.toast('Broker added', 'success');
+        loadSponsors();
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
+  </script>
+</body>
+</html>

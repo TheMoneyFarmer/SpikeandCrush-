@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Signing in… — Spike & Crush</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .callback-wrap {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .callback-box {
+    max-width: 360px;
+  }
+  .spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 20px auto;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: tw-spin 0.8s linear infinite;
+  }
+  @keyframes tw-spin {
+    to { transform: rotate(360deg); }
+  }
+  .callback-error {
+    color: var(--danger, #ff5c5c);
+    margin-top: 12px;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body data-page="auth-callback">
+  <div class="callback-wrap">
+    <div class="callback-box">
+      <div class="sc-logo-wrapper callback-logo" style="margin-bottom:28px;">
+        <div class="sc-logo">
+          <span class="sc-s1">S</span><span class="sc-p">P</span><span class="sc-i">I</span><span class="sc-k">K</span><span class="sc-e">E</span><span class="sc-amp">&amp;</span><span class="sc-c">C</span><span class="sc-r">R</span><span class="sc-u">U</span><span class="sc-s2">S</span><span class="sc-h">H</span>
+        </div>
+      </div>
+      <div class="spinner" id="callbackSpinner"></div>
+      <div id="callbackStatus">Signing you in…</div>
+      <div id="callbackError" class="callback-error"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (async function () {
+      const statusEl = document.getElementById('callbackStatus');
+      const errorEl = document.getElementById('callbackError');
+      const spinnerEl = document.getElementById('callbackSpinner');
+
+      function fail(message) {
+        spinnerEl.style.display = 'none';
+        statusEl.textContent = 'Sign in failed';
+        errorEl.textContent = message + ' Redirecting to home…';
+        setTimeout(() => { window.location.href = '/'; }, 2500);
+      }
+
+      try {
+        if (!window.supabaseClient) {
+          fail('Authentication service unavailable.');
+          return;
+        }
+
+        const { data, error } = await window.supabaseClient.auth.getSession();
+        if (error || !data || !data.session) {
+          fail('Could not complete sign in.');
+          return;
+        }
+
+        const session = data.session;
+        const res = await fetch('/api/auth/oauth-callback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ name: session.user?.user_metadata?.full_name || session.user?.user_metadata?.name }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          fail(json.error || 'Could not complete sign in.');
+          return;
+        }
+
+        await TW.establishSession(session.access_token, session.refresh_token, json.player);
+        statusEl.textContent = `Welcome, ${json.player.username}!`;
+        window.location.href = '/trading-floor';
+      } catch (e) {
+        fail('Something went wrong.');
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>System — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-charts.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="sys-health"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="admin-tabs">
+          <button class="admin-tab" data-tab="health">Server Health</button>
+          <button class="admin-tab" data-tab="api">API Usage</button>
+          <button class="admin-tab" data-tab="errors">Error Logs</button>
+          <button class="admin-tab" data-tab="db">Database Stats</button>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-health">
+          <div class="panel" style="margin-bottom:16px;">
+            <h3>Services Status</h3>
+            <div id="servicesStatus" class="config-grid"></div>
+          </div>
+          <div class="gauge-row">
+            <div class="gauge-card"><canvas id="gaugeMem"></canvas><div class="gauge-value" id="gaugeMemVal">—</div><div class="gauge-label">Game Server Memory</div></div>
+            <div class="gauge-card"><canvas id="gaugeWs"></canvas><div class="gauge-value" id="gaugeWsVal">—</div><div class="gauge-label">WebSocket Connections</div></div>
+            <div class="gauge-card"><canvas id="gaugeRtt"></canvas><div class="gauge-value" id="gaugeRttVal">—</div><div class="gauge-label">Internal Bridge RTT</div></div>
+          </div>
+          <div class="panel" style="margin-top:16px;">
+            <div id="uptimeInfo" class="text-secondary" style="font-size:12px;"></div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-api">
+          <div class="panel" style="margin-bottom:16px;">
+            <h3>Supabase</h3>
+            <div id="supabaseUsage" class="text-secondary" style="font-size:12px;"></div>
+          </div>
+          <div class="panel" style="margin-bottom:16px;">
+            <h3>Stripe</h3>
+            <div id="stripeUsage"></div>
+          </div>
+          <div class="panel">
+            <h3>LLM APIs (OpenAI / Anthropic / ElevenLabs)</h3>
+            <div id="llmNote" class="text-secondary" style="font-size:12px;"></div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-errors">
+          <div class="admin-table-toolbar">
+            <button class="btn btn-sm" id="refreshErrorsBtn">Refresh</button>
+          </div>
+          <div id="errorsTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-db">
+          <div class="panel" style="margin-bottom:16px;">
+            <h3>Row Counts</h3>
+            <div id="dbRowCounts"></div>
+          </div>
+          <div class="panel">
+            <h3>Backups</h3>
+            <div id="backupInfo" class="text-secondary" style="font-size:12px;"></div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/admin-charts.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('System');
+
+    const loaded = {};
+    function activateTab(name) {
+      document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
+      loaders[name]();
+    }
+    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
+
+    let gauges = {};
+    const loaders = {
+      health: async () => {
+        try {
+          const d = await Admin.api('/system/health');
+          document.getElementById('servicesStatus').innerHTML = `
+            <div>Game Server: ${d.gameServer.reachable ? '✅ Running' : '❌ Down'}</div>
+            <div>Admin Server: ✅ Running</div>
+            <div>Database: ${d.database.reachable ? '✅ Connected' : '❌ Error'}</div>
+            <div>Socket.io: ${d.gameServer.reachable ? `✅ ${d.gameServer.websocketConnections} clients` : '❌'}</div>
+            <div>Stripe: ${d.stripe.configured ? '✅ Configured' : '❌ Not configured'}</div>
+            <div>Supabase: ${d.database.configured ? '✅ Connected' : '❌ Not configured'}</div>
+          `;
+          if (d.gameServer.reachable) {
+            const memMb = Math.round(d.gameServer.memory.rss / 1e6);
+            document.getElementById('gaugeMemVal').textContent = `${memMb} MB`;
+            gauges.mem?.destroy();
+            gauges.mem = Admin.Charts.gauge(document.getElementById('gaugeMem'), Math.min(Math.round((d.gameServer.memory.rss / (d.host.totalMemMb * 1e6)) * 100), 100), 100, Admin.Charts.PALETTE.warning);
+
+            document.getElementById('gaugeWsVal').textContent = d.gameServer.websocketConnections;
+            gauges.ws?.destroy();
+            gauges.ws = Admin.Charts.gauge(document.getElementById('gaugeWs'), Math.min(d.gameServer.websocketConnections, 50), 50, Admin.Charts.PALETTE.info);
+
+            const hours = Math.floor(d.gameServer.uptimeSeconds / 3600), mins = Math.floor((d.gameServer.uptimeSeconds % 3600) / 60);
+            document.getElementById('uptimeInfo').textContent = `Game server started: ${Admin.formatDate(d.gameServer.startedAt)} · Uptime: ${hours}h ${mins}m`;
+          }
+          document.getElementById('gaugeRttVal').textContent = `${d.internalBridgeRoundTripMs}ms`;
+          gauges.rtt?.destroy();
+          gauges.rtt = Admin.Charts.gauge(document.getElementById('gaugeRtt'), Math.min(d.internalBridgeRoundTripMs, 500), 500, Admin.Charts.PALETTE.teal);
+        } catch (e) { Admin.toast(e.message, 'danger'); }
+      },
+      api: async () => {
+        try {
+          const d = await Admin.api('/system/api-usage');
+          document.getElementById('supabaseUsage').innerHTML = `Configured: ${d.supabase.configured ? 'Yes' : 'No'} · ${d.supabase.tableCount} tables tracked<br/><br/>` +
+            Object.entries(d.supabase.rowCounts).map(([t, c]) => `${t}: <strong>${c ?? '—'}</strong>`).join(' · ');
+          document.getElementById('stripeUsage').innerHTML = d.stripe.configured
+            ? `<div style="font-size:12px;">Available balance: ${(d.stripe.balance || []).map((b) => `${b.amount} ${b.currency.toUpperCase()}`).join(', ') || '—'}<br/>Recent charges: ${(d.stripe.recentCharges || []).length}</div>`
+            : '<div class="empty-state">Stripe not configured.</div>';
+          document.getElementById('llmNote').textContent = d.llmApis.note;
+        } catch (e) { Admin.toast(e.message, 'danger'); }
+      },
+      errors: async () => {
+        try {
+          const rows = await Admin.api('/system/errors');
+          document.getElementById('errorsTableWrap').innerHTML = rows.length ? `
+            <div class="admin-table-wrap"><table class="admin-table">
+              <thead><tr><th>Time</th><th>Message</th></tr></thead>
+              <tbody>${rows.map((r) => `<tr><td class="mono" style="white-space:nowrap;">${Admin.formatDate(r.timestamp)}</td><td style="white-space:normal;max-width:700px;font-family:var(--mono);font-size:11px;">${Admin.escapeHtml(r.message).slice(0, 500)}</td></tr>`).join('')}</tbody>
+            </table></div>
+          ` : '<div class="empty-state">No errors logged since the game server started. This is an in-memory ring buffer of console.error calls, not a persistent log - it resets on restart.</div>';
+        } catch (e) { Admin.toast(e.message, 'danger'); }
+      },
+      db: async () => {
+        try {
+          const d = await Admin.api('/system/database');
+          document.getElementById('dbRowCounts').innerHTML = `
+            <div class="admin-table-wrap"><table class="admin-table">
+              <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+              <tbody>${Object.entries(d.rowCounts).map(([t, c]) => `<tr><td>${t}</td><td>${c ?? '—'}</td></tr>`).join('')}</tbody>
+            </table></div>
+            <div class="text-secondary" style="font-size:11px;margin-top:8px;">${Admin.escapeHtml(d.note)}</div>
+          `;
+          document.getElementById('backupInfo').textContent = `Managed by: ${d.backups.managedBy}. ${d.backups.note}`;
+        } catch (e) { Admin.toast(e.message, 'danger'); }
+      },
+    };
+    document.getElementById('refreshErrorsBtn').addEventListener('click', () => loaders.errors());
+
+    activateTab(new URLSearchParams(location.search).get('tab') || 'health');
+  </script>
+</body>
+</html>

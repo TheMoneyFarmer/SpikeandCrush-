@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Matches — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-charts.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="matches-live"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="admin-tabs">
+          <button class="admin-tab" data-tab="live">Live Matches</button>
+          <button class="admin-tab" data-tab="history">Match History</button>
+          <button class="admin-tab" data-tab="analytics">Match Analytics</button>
+          <button class="admin-tab" data-tab="flagged">Flagged Matches</button>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-live">
+          <div class="match-grid" id="liveMatchGrid"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-history">
+          <div class="admin-table-toolbar">
+            <input type="search" id="historySearch" placeholder="Search room code…" />
+            <select id="modeFilter"><option value="">All modes</option><option>quick</option><option>blitz</option><option>grand</option><option>private</option><option>solo</option><option>async</option><option>tournament</option></select>
+            <select id="statusFilterM"><option value="">All statuses</option><option>waiting</option><option>active</option><option>finished</option><option>voided</option></select>
+          </div>
+          <div id="historyTableWrap"></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-analytics">
+          <div class="charts-grid">
+            <div class="chart-card"><h3>Avg Duration by Mode</h3><canvas id="chartDuration"></canvas></div>
+            <div class="chart-card"><h3>Instrument Popularity</h3><canvas id="chartInstruments"></canvas></div>
+            <div class="chart-card"><h3>Matches Created by Hour (UTC)</h3><canvas id="chartPeakHours"></canvas></div>
+            <div class="chart-card"><h3>P&amp;L Distribution</h3><canvas id="chartPnlDist"></canvas></div>
+          </div>
+          <div class="panel" style="margin-top:16px;">
+            <div class="kpi-grid" style="margin-bottom:0;">
+              <div class="kpi-card"><div class="kpi-label">Completion Rate</div><div class="kpi-value" id="completionRateVal">—</div></div>
+              <div class="kpi-card"><div class="kpi-label">Abandonment (Voided) Rate</div><div class="kpi-value" id="abandonRateVal">—</div></div>
+              <div class="kpi-card"><div class="kpi-label">Total Matches</div><div class="kpi-value" id="totalMatchesVal">—</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-flagged">
+          <div id="flaggedTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/admin-tables.js"></script>
+  <script src="js/admin-charts.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Matches');
+
+    function activateTab(name) {
+      document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
+      if (name === 'history' && !historyTable) loadHistory();
+      if (name === 'analytics') loadAnalytics();
+      if (name === 'flagged') loadFlagged();
+    }
+    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
+    activateTab(new URLSearchParams(location.search).get('tab') || 'live');
+
+    async function actOnMatch(id, action) {
+      try {
+        await Admin.api(`/matches/${id}/${action}`, { method: 'POST' });
+        Admin.toast(`Match ${action.replace('-', ' ')}`, 'success');
+        loadLive();
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    function renderLiveGrid(matches) {
+      const grid = document.getElementById('liveMatchGrid');
+      if (!matches.length) { grid.innerHTML = '<div class="empty-state">No live matches right now.</div>'; return; }
+      grid.innerHTML = matches.map((m) => `
+        <div class="match-card">
+          <div class="match-card-head"><span class="badge badge-info">${Admin.escapeHtml(m.modeLabel)}</span><span class="match-card-timer">${m.remainingSeconds != null ? `${String(Math.floor(m.remainingSeconds / 60)).padStart(2, '0')}:${String(m.remainingSeconds % 60).padStart(2, '0')}` : m.status}</span></div>
+          <div class="text-secondary" style="font-size:11px;">${(m.instruments || []).join(' / ')} · Room ${m.roomCode}</div>
+          <div class="match-card-players">${m.players.map((p) => `<div class="match-card-player">${Admin.escapeHtml(p.username)}${p.isAI ? ' (AI)' : ''} <span class="${p.pnl >= 0 ? 'text-success' : 'text-danger'}" style="margin-left:auto;">${p.pnl >= 0 ? '+' : ''}$${p.pnl.toFixed(0)}</span></div>`).join('')}</div>
+          <div class="match-card-actions">
+            <button class="btn btn-sm btn-danger" onclick="actOnMatch('${m.id}','force-end')">Force End</button>
+            <button class="btn btn-sm btn-danger" onclick="actOnMatch('${m.id}','void')">Void</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    async function loadLive() {
+      try { renderLiveGrid(await (await fetch('/api/matches/live', { credentials: 'include' })).json()); }
+      catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+    loadLive();
+    setInterval(() => { if (document.getElementById('tab-live').classList.contains('active')) loadLive(); }, 5000);
+
+    let historyTable = null;
+    async function loadHistory() {
+      try {
+        const rows = await Admin.api('/matches');
+        const container = document.getElementById('historyTableWrap');
+        historyTable = Admin.createTable({
+          container, rows, rowKey: 'id', searchFields: ['roomCode'],
+          onRowClick: (row) => openMatchDetail(row.id),
+          columns: [
+            { key: 'roomCode', label: 'Room' },
+            { key: 'mode', label: 'Mode' },
+            { key: 'status', label: 'Status', render: (r) => `<span class="badge ${r.status === 'finished' ? 'badge-online' : r.status === 'voided' ? 'badge-banned' : 'badge-in-match'}">${r.status}</span>` },
+            { key: 'playerCount', label: 'Players' },
+            { key: 'instruments', label: 'Instruments', render: (r) => (r.instruments || []).join('/') },
+            { key: 'winnerUsername', label: 'Winner', render: (r) => r.winnerUsername || '—' },
+            { key: 'durationSeconds', label: 'Duration', render: (r) => r.durationSeconds ? `${Math.floor(r.durationSeconds / 60)}m ${r.durationSeconds % 60}s` : '—' },
+            { key: 'createdAt', label: 'Created', render: (r) => Admin.formatDate(r.createdAt) },
+          ],
+        });
+        document.getElementById('historySearch').addEventListener('input', (e) => historyTable.setSearch(e.target.value));
+        document.getElementById('modeFilter').addEventListener('change', (e) => historyTable.setFilter('mode', e.target.value));
+        document.getElementById('statusFilterM').addEventListener('change', (e) => historyTable.setFilter('status', e.target.value));
+
+        const openId = new URLSearchParams(location.search).get('open');
+        if (openId) openMatchDetail(openId);
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    async function openMatchDetail(id) {
+      try {
+        const d = await Admin.api(`/matches/${id}`);
+        const backdrop = document.createElement('div');
+        backdrop.className = 'admin-modal-backdrop';
+        backdrop.innerHTML = `
+          <div class="admin-modal" style="max-width:640px;">
+            <h3>Match ${d.match.room_code} — ${d.match.mode}</h3>
+            <div class="text-secondary" style="font-size:12px;margin-bottom:12px;">${d.match.instruments.join(' / ')} · ${d.match.status} · ${Admin.formatDate(d.match.created_at)}</div>
+            <h4 style="font-size:13px;">Players</h4>
+            <table class="admin-table"><thead><tr><th>Player</th><th>Rank</th><th>P&amp;L</th><th>Trades</th><th>Cards</th></tr></thead>
+            <tbody>${d.players.map((p) => `<tr><td>${Admin.escapeHtml(p.player?.username || 'AI')}</td><td>${p.final_rank ?? '—'}</td><td class="${p.final_pnl >= 0 ? 'text-success' : 'text-danger'}">${Admin.formatMoney(p.final_pnl)}</td><td>${p.trades_made}</td><td>${p.cards_played}</td></tr>`).join('')}</tbody></table>
+            <h4 style="font-size:13px;margin-top:14px;">Sabotage Events (${d.sabotageEvents.length})</h4>
+            <div style="max-height:120px;overflow-y:auto;font-size:12px;">${d.sabotageEvents.map((s) => `<div>${Admin.escapeHtml(s.player?.username)} → ${s.card_type} → ${Admin.escapeHtml(s.target?.username || 'market')}</div>`).join('') || 'None'}</div>
+            <div class="admin-modal-actions">
+              ${d.match.status === 'active' ? `<button class="btn btn-danger" onclick="actOnMatch('${d.match.id}','force-end')">Force End</button><button class="btn btn-danger" onclick="actOnMatch('${d.match.id}','void')">Void</button>` : ''}
+              <button class="btn" id="closeMatchModal">Close</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(backdrop);
+        backdrop.querySelector('#closeMatchModal').addEventListener('click', () => backdrop.remove());
+        backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    let analyticsLoaded = false;
+    async function loadAnalytics() {
+      if (analyticsLoaded) return;
+      analyticsLoaded = true;
+      try {
+        const d = await Admin.api('/matches/analytics');
+        document.getElementById('completionRateVal').textContent = d.completionRate != null ? `${d.completionRate}%` : '—';
+        document.getElementById('abandonRateVal').textContent = d.abandonmentRate != null ? `${d.abandonmentRate}%` : '—';
+        document.getElementById('totalMatchesVal').textContent = d.totalMatches;
+        Admin.Charts.barChart(document.getElementById('chartDuration'), { labels: Object.keys(d.avgDurationSecondsByMode), datasets: [{ label: 'Seconds', data: Object.values(d.avgDurationSecondsByMode), backgroundColor: Admin.Charts.PALETTE.teal, borderRadius: 4 }] });
+        Admin.Charts.horizontalBarChart(document.getElementById('chartInstruments'), { labels: Object.keys(d.instrumentPopularity), data: Object.values(d.instrumentPopularity) });
+        Admin.Charts.barChart(document.getElementById('chartPeakHours'), { labels: d.peakHoursUtc.map((_, h) => `${h}:00`), datasets: [{ label: 'Matches', data: d.peakHoursUtc, backgroundColor: Admin.Charts.PALETTE.info, borderRadius: 3 }] });
+        Admin.Charts.doughnutChart(document.getElementById('chartPnlDist'), { labels: Object.keys(d.pnlDistribution), data: Object.values(d.pnlDistribution) });
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    async function loadFlagged() {
+      try {
+        const flags = await Admin.api('/matches/flagged');
+        const wrap = document.getElementById('flaggedTableWrap');
+        if (!flags.length) { wrap.innerHTML = '<div class="empty-state">No flagged matches.</div>'; return; }
+        wrap.innerHTML = `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Match</th><th>Reason</th><th>Detail</th><th>Confidence</th><th>Actions</th></tr></thead>
+            <tbody>${flags.map((f) => `
+              <tr>
+                <td>${f.matchId.slice(0, 8)}</td>
+                <td><span class="badge badge-flagged">${Admin.escapeHtml(f.reason)}</span></td>
+                <td style="white-space:normal;max-width:320px;">${Admin.escapeHtml(f.detail)}</td>
+                <td>${Math.round(f.confidence * 100)}%</td>
+                <td><button class="btn btn-sm" onclick="openMatchDetail('${f.matchId}')">Review</button></td>
+              </tr>
+            `).join('')}</tbody>
+          </table></div>
+        `;
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+  </script>
+</body>
+</html>

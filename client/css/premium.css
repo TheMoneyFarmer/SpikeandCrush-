@@ -1,0 +1,1083 @@
+/* Premium design layer - loaded after main.css/game.css/lobby.css on every
+   page. Adds gradients, glassmorphism, motion and the new nav/hero/loading
+   treatments without altering any existing selector's layout behavior. */
+
+:root {
+  --gradient-primary: linear-gradient(135deg, #00c896 0%, #0052cc 100%);
+  --gradient-dark: linear-gradient(135deg, #080810 0%, #0f1018 100%);
+  --gradient-gold: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
+  --gradient-danger: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+  --gradient-card: linear-gradient(135deg, #0f1018 0%, #161820 100%);
+}
+
+body {
+  font-variant-numeric: tabular-nums;
+  animation: tw-page-fade-in 0.2s ease;
+}
+
+h1, h2, h3 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.mono, .topbar-pnl-value, .position-row .pnl, table td.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes tw-page-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---- glassmorphism ---------------------------------------------------------- */
+
+.panel,
+.sabotage-panel,
+.leaderboard-panel,
+.trading-panel,
+.room-code-panel,
+.chat-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ---- buttons: gradient + glow + press state -------------------------------- */
+
+.btn {
+  transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: var(--gradient-primary);
+  border: none;
+}
+
+.btn-buy {
+  background: linear-gradient(135deg, #00c896 0%, #00a878 100%);
+  border: none;
+}
+
+.btn-buy:hover {
+  box-shadow: 0 0 20px rgba(0, 200, 150, 0.5);
+}
+
+.btn-sell {
+  background: var(--gradient-danger);
+  border: none;
+}
+
+.btn-sell:hover {
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+}
+
+/* ---- P&L flash on change (JS toggles these classes briefly) ---------------- */
+
+@keyframes tw-flash-up {
+  0% { background-color: rgba(0, 200, 150, 0.35); }
+  100% { background-color: transparent; }
+}
+
+@keyframes tw-flash-down {
+  0% { background-color: rgba(255, 68, 68, 0.35); }
+  100% { background-color: transparent; }
+}
+
+.tw-flash-up { animation: tw-flash-up 0.6s ease; }
+.tw-flash-down { animation: tw-flash-down 0.6s ease; }
+
+/* ---- micro animations: coin balance, pnl tick, rank change ----------------- */
+
+@keyframes tw-coin-flash {
+  0% { color: var(--text-secondary); }
+  50% { color: var(--accent-gold); text-shadow: 0 0 15px var(--glow-gold); }
+  100% { color: #ffffff; }
+}
+.coin-flash { animation: tw-coin-flash 0.6s ease; }
+
+@keyframes tw-pnl-update {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+.pnl-update { animation: tw-pnl-update 0.3s ease; }
+
+@keyframes tw-rank-slide-up {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes tw-rank-slide-down {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.rank-slide-up { animation: tw-rank-slide-up 0.25s ease; }
+.rank-slide-down { animation: tw-rank-slide-down 0.25s ease; }
+
+/* ---- War Lord username treatment (wherever a War Lord's name is shown) ----- */
+
+.tw-name-warlord {
+  color: var(--accent-gold);
+  text-shadow: 0 0 20px var(--glow-gold);
+}
+
+/* ---- leaderboard row motion + medal glow ----------------------------------- */
+
+.leaderboard-table tr {
+  transition: transform 0.3s ease;
+}
+
+@keyframes tw-row-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.leaderboard-table tbody tr {
+  animation: tw-row-in 0.25s ease;
+}
+
+.leaderboard-table tr.rank-1 {
+  box-shadow: inset 3px 0 0 var(--gold);
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.12), transparent 60%);
+}
+
+.leaderboard-table tr.rank-2 {
+  box-shadow: inset 3px 0 0 #c0c0c0;
+  background: linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent 60%);
+}
+
+.leaderboard-table tr.rank-3 {
+  box-shadow: inset 3px 0 0 #cd7f32;
+  background: linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent 60%);
+}
+
+/* ---- timer pulse under 60s -------------------------------------------------- */
+
+.topbar-timer.low {
+  animation: tw-timer-pulse 1s infinite;
+}
+
+@keyframes tw-timer-pulse {
+  0%, 100% { color: var(--sell); text-shadow: 0 0 12px rgba(255, 68, 68, 0.6); }
+  50% { color: #ff8080; text-shadow: 0 0 4px rgba(255, 68, 68, 0.3); }
+}
+
+/* ---- gradient P&L text ------------------------------------------------------ */
+
+.tw-pnl-gradient-up {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tw-pnl-gradient-down {
+  background: var(--gradient-danger);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ---- nav bar ----------------------------------------------------------------- */
+
+.tw-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  background: rgba(10, 10, 20, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-wrap: wrap;
+}
+
+.tw-navbar .tw-logo-link {
+  font-size: 20px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+}
+
+.tw-navbar .tw-logo-link .grad {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tw-nav-links {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tw-notif-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: var(--danger, #ff4d4f);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.tw-notif-panel {
+  position: absolute;
+  top: 54px;
+  right: 16px;
+  width: 300px;
+  max-height: 380px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+  z-index: 200;
+  padding: 8px;
+}
+
+.tw-notif-panel .notif-item {
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tw-notif-panel .notif-item:last-child { border-bottom: none; }
+.tw-notif-panel .notif-empty { padding: 16px; text-align: center; color: var(--text-secondary); font-size: 13px; }
+
+.tw-nav-links a {
+  position: relative;
+  padding: 8px 14px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.tw-nav-links a:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tw-nav-links a.active {
+  color: var(--text);
+}
+
+.tw-nav-links a.active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 2px;
+  height: 2px;
+  background: var(--gradient-primary);
+  border-radius: 2px;
+}
+
+.tw-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tw-nav-icon-btn {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--text);
+  position: relative;
+}
+
+.tw-nav-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.tw-hamburger {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .tw-nav-links { display: none; }
+  .tw-hamburger { display: flex; }
+}
+
+@media (max-width: 480px) {
+  /* Keep only what a trader needs at a glance on a phone-width nav bar - coin
+     balance, mute, and the hamburger (which already has Profile/Settings/logout-
+     adjacent links) - everything else is reachable from there instead. */
+  #headerUsername,
+  #headerTierBadge,
+  #twNotifBtn,
+  .tw-nav-right > a[title='Settings'] {
+    display: none !important;
+  }
+}
+
+.tw-nav-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.tw-nav-drawer .drawer-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 260px;
+  background: #141414;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tw-nav-drawer a {
+  padding: 12px 10px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.tw-nav-drawer a:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ---- hero / home page -------------------------------------------------------- */
+
+.tw-hero-section {
+  position: relative;
+  overflow: hidden;
+  padding: 70px 20px 50px 20px;
+  text-align: center;
+  background: var(--gradient-dark);
+}
+
+.tw-hero-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.tw-hero-candle {
+  position: absolute;
+  width: 6px;
+  border-radius: 1px;
+  opacity: 0.35;
+}
+
+.tw-hero-candle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  bottom: -8px;
+  width: 1px;
+  background: var(--candle-color);
+  transform: translateX(-50%);
+}
+
+.tw-hero-candle.tw-candle-up {
+  bottom: -40px;
+  animation: tw-float-up linear infinite;
+}
+
+.tw-hero-candle.tw-candle-down {
+  top: -40px;
+  animation: tw-float-down linear infinite;
+}
+
+@keyframes tw-float-up {
+  from { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.35; }
+  90% { opacity: 0.35; }
+  to { transform: translateY(-110vh) rotate(8deg); opacity: 0; }
+}
+
+@keyframes tw-float-down {
+  from { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.35; }
+  90% { opacity: 0.35; }
+  to { transform: translateY(110vh) rotate(-8deg); opacity: 0; }
+}
+
+.tw-hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.tw-hero-tagline {
+  font-size: 18px;
+  color: var(--text-secondary);
+  margin-top: 10px;
+  min-height: 24px;
+}
+
+.tw-hero-tagline .tw-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--accent);
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: tw-caret-blink 1s step-end infinite;
+}
+
+@keyframes tw-caret-blink {
+  50% { opacity: 0; }
+}
+
+.tw-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  max-width: 900px;
+  margin: 34px auto 0 auto;
+}
+
+@media (max-width: 700px) {
+  .tw-stats-bar { grid-template-columns: repeat(2, 1fr); }
+}
+
+.tw-stat-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.tw-stat-card .value {
+  font-size: 24px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.tw-stat-card .label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.tw-featured-match {
+  max-width: 480px;
+  margin: 24px auto 0 auto;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+/* ---- loading screen ----------------------------------------------------------- */
+
+.tw-loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: var(--gradient-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.tw-loading-logo {
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.tw-loading-logo .grad {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tw-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--accent);
+  animation: tw-spin 0.8s linear infinite;
+}
+
+@keyframes tw-spin {
+  to { transform: rotate(360deg); }
+}
+
+.tw-loading-tip {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+  max-width: 320px;
+  text-align: center;
+}
+
+/* ---- sabotage card glow when playable ----------------------------------------- */
+
+.sabotage-card {
+  background: var(--bg-surface-1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-subtle);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.sabotage-card:not(.used) {
+  border: 1px solid rgba(0, 200, 150, 0.3);
+  box-shadow: 0 0 10px rgba(0, 200, 150, 0.1);
+}
+
+.sabotage-card:not(.used):hover {
+  border: 1px solid rgba(0, 200, 150, 0.6);
+  box-shadow: 0 0 20px rgba(0, 200, 150, 0.2);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.sabotage-card.selected {
+  box-shadow: 0 0 0 2px var(--accent), 0 0 16px rgba(0, 200, 150, 0.4);
+}
+
+.sabotage-card.used {
+  opacity: 0.35;
+  filter: grayscale(80%);
+  pointer-events: none;
+}
+
+/* ---- responsive nav container helper ------------------------------------------- */
+
+.tw-page-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- trading floor: match screen background + chart glow + active tab --------- */
+
+.game-shell {
+  background: linear-gradient(135deg, #080810 0%, #0a0a18 25%, #080814 50%, #0a0810 75%, #080810 100%);
+  background-size: 400% 400%;
+  animation: tw-gradient-shift 15s ease infinite;
+}
+
+@keyframes tw-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.chart-section {
+  border: 1px solid rgba(0, 200, 150, 0.15);
+  box-shadow: 0 0 40px rgba(0, 200, 150, 0.04) inset;
+}
+
+.instrument-tab.active {
+  box-shadow: 0 0 15px rgba(0, 200, 150, 0.25);
+  border-bottom: 2px solid var(--accent-teal);
+}
+
+/* ---- trading floor: ticker tape ------------------------------------------------ */
+
+.tw-ticker-wrap {
+  overflow: hidden;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  padding: 8px 0;
+}
+
+.tw-ticker-track {
+  display: inline-flex;
+  animation: tw-ticker-scroll 45s linear infinite;
+}
+
+.tw-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 20px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.tw-ticker-item .sym { color: var(--text-secondary); }
+.tw-ticker-item .chg.up { color: var(--buy, #00c896); }
+.tw-ticker-item .chg.down { color: var(--sell, #ff4444); }
+
+@keyframes tw-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* ---- trading floor: mode action grid -------------------------------------------- */
+
+.tw-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.tw-mode-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 10px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.tw-mode-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+.tw-mode-btn .icon { font-size: 24px; margin-bottom: 4px; }
+.tw-mode-btn .label { font-weight: 700; font-size: 13px; }
+.tw-mode-btn .meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ---- trading floor: widgets grid ------------------------------------------------ */
+
+.tw-widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+  .tw-widgets-grid { grid-template-columns: 1fr; }
+}
+
+.tw-activity-row, .tw-streak-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.tw-activity-row:last-child, .tw-streak-row:last-child { border-bottom: none; }
+
+.tw-warlord-spotlight {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.tw-warlord-spotlight .crown { font-size: 32px; }
+.tw-warlord-spotlight .name { font-weight: 800; font-size: 16px; margin: 4px 0; }
+.tw-warlord-spotlight .meta { color: var(--text-secondary); font-size: 12px; }
+
+.tw-daily-widget {
+  background: linear-gradient(135deg, rgba(0, 200, 150, 0.12), rgba(0, 150, 200, 0.08));
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  margin-top: 16px;
+}
+
+/* ---- lottie celebratory overlays ------------------------------------------------ */
+
+.tw-lottie-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.tw-lottie-anim {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  max-width: 90vw;
+  max-height: 90vw;
+}
+
+.tw-lottie-icon {
+  font-size: 72px;
+  animation: tw-lottie-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+}
+
+.tw-lottie-label {
+  position: absolute;
+  bottom: 30%;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--gold, #ffd700);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  animation: tw-lottie-pop 0.5s 0.1s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes tw-lottie-pop {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ---- broker partners (tiered display) ------------------------------------------- */
+
+.tw-broker-tier { margin-bottom: 14px; text-align: center; }
+.tw-broker-tier:last-child { margin-bottom: 0; }
+.tw-broker-tier-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; }
+.tw-broker-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.tw-broker-chip { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 18px; font-weight: 700; text-decoration: none; color: var(--text); transition: border-color 0.15s; }
+.tw-broker-chip:hover { border-color: var(--accent); }
+.tw-broker-tier[data-tier="title"] .tw-broker-chip { font-size: 18px; padding: 16px 32px; border-color: var(--gold, #ffd700); }
+.tw-broker-tier[data-tier="official"] .tw-broker-chip { font-size: 15px; padding: 12px 24px; }
+.tw-broker-tier[data-tier="featured"] .tw-broker-chip { font-size: 12px; padding: 8px 16px; color: var(--text-secondary); }
+
+/* ---- friends panel (Block 12, COD style) ----------------------------------------- */
+
+.tw-friends-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 260px;
+  height: 100vh;
+  background: rgba(10, 10, 20, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(0);
+  transition: transform 0.2s ease;
+}
+
+.tw-friends-panel.collapsed { transform: translateX(260px); }
+
+/* The panel is a tray, not a layout column: closed by default, slides in
+   over the page on demand (same pattern as the hamburger drawer), and never
+   shifts or resizes page content. This backdrop only exists while open, so
+   clicking anywhere outside the tray closes it. */
+.tw-friends-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 290;
+  background: transparent;
+}
+
+.tw-friends-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tw-friends-panel-header h3 { margin: 0; font-size: 15px; }
+
+.tw-friends-panel-body { flex: 1; overflow-y: auto; padding: 12px; }
+
+.tw-friends-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin: 14px 0 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: default;
+}
+
+.tw-friends-section-label.collapsible { cursor: pointer; }
+
+.tw-friend-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.tw-friend-card-top { display: flex; align-items: center; gap: 8px; }
+
+.tw-friend-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+  color: #06251d;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.tw-friend-status-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid rgba(10, 10, 20, 0.95);
+}
+
+.tw-friend-status-dot.online { background: #00c896; }
+.tw-friend-status-dot.in_lobby { background: #ffd700; }
+.tw-friend-status-dot.in_match { background: #ff4444; }
+.tw-friend-status-dot.offline { background: #666; }
+
+.tw-friend-name { font-weight: 700; font-size: 13px; line-height: 1.2; }
+.tw-friend-meta { font-size: 11px; color: var(--text-secondary); line-height: 1.3; }
+.tw-friend-status-text { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+
+.tw-friend-actions { display: flex; gap: 6px; margin-top: 8px; }
+.tw-friend-actions button {
+  flex: 1;
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.tw-friend-actions button.primary { background: var(--gradient-primary); color: #06251d; border-color: transparent; font-weight: 700; }
+
+.tw-friends-empty { font-size: 12px; color: var(--text-secondary); padding: 8px 0; }
+
+.tw-friends-toggle-btn { position: relative; }
+.tw-friends-online-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  background: var(--accent);
+  color: #06251d;
+  font-size: 9px;
+  font-weight: 800;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+@media (max-width: 900px) {
+  .tw-friends-panel { width: 85vw; max-width: 320px; transform: translateX(100%); }
+  .tw-friends-panel:not(.collapsed) { transform: translateX(0); }
+}
+
+/* ---- add friend search modal ----------------------------------------------------- */
+
+.tw-search-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 400;
+}
+
+.tw-search-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 380px;
+  max-width: 92vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tw-search-modal input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.tw-search-results { overflow-y: auto; flex: 1; }
+
+.tw-search-result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tw-search-result-row:last-child { border-bottom: none; }
+
+/* ---- battle invite popups (COD style) --------------------------------------------- */
+
+.tw-invite-stack {
+  position: fixed;
+  bottom: 20px;
+  right: 280px;
+  z-index: 600;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .tw-invite-stack { right: 16px; }
+}
+
+.tw-invite-popup {
+  width: 320px;
+  max-width: 88vw;
+  background: rgba(10, 14, 12, 0.97);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  animation: tw-invite-slide-up 0.3s ease;
+}
+
+.tw-invite-popup.declining { animation: tw-invite-fade-out 0.3s ease forwards; }
+.tw-invite-popup.accepting { animation: tw-invite-flash-green 0.4s ease forwards; }
+
+@keyframes tw-invite-slide-up {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes tw-invite-fade-out {
+  to { transform: translateY(20px); opacity: 0; }
+}
+
+@keyframes tw-invite-flash-green {
+  0% { box-shadow: 0 0 0 0 rgba(0, 200, 150, 0.6); }
+  100% { box-shadow: 0 0 0 20px rgba(0, 200, 150, 0); opacity: 0; transform: scale(0.96); }
+}
+
+.tw-invite-title { font-weight: 800; font-size: 13px; letter-spacing: 0.5px; color: var(--accent); margin-bottom: 8px; }
+.tw-invite-body { display: flex; gap: 10px; margin-bottom: 10px; }
+.tw-invite-body .name { font-weight: 700; font-size: 14px; }
+.tw-invite-body .sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.tw-invite-progress-wrap { background: var(--surface-2); border-radius: 999px; height: 6px; overflow: hidden; margin-bottom: 4px; }
+.tw-invite-progress-bar { height: 100%; background: var(--gradient-primary); transition: width 1s linear; }
+.tw-invite-expiry-label { font-size: 10px; color: var(--text-secondary); margin-bottom: 10px; }
+.tw-invite-actions { display: flex; gap: 8px; }
+.tw-invite-actions button { flex: 1; padding: 8px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; }
+.tw-invite-actions .accept { background: var(--gradient-primary); color: #06251d; }
+.tw-invite-actions .decline { background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+
+/* ---- lobby loadout modal (Block 12, Part D) --------------------------------------- */
+
+.tw-loadout-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 400;
+  padding: 20px;
+}
+
+.tw-loadout-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 640px;
+  max-width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tw-loadout-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.tw-loadout-tabs button { padding: 8px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 13px; }
+.tw-loadout-tabs button.active { background: var(--gradient-primary); color: #06251d; border-color: transparent; }
+.tw-loadout-body { overflow-y: auto; flex: 1; }
+
+.tw-loadout-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.tw-loadout-card { background: var(--surface-2); border: 2px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center; position: relative; }
+.tw-loadout-card.dealt { border-color: var(--accent); }
+.tw-loadout-card.dimmed { opacity: 0.4; }
+.tw-loadout-card.selectable { cursor: pointer; }
+.tw-loadout-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.tw-loadout-card .icon { font-size: 26px; margin-bottom: 4px; }
+.tw-loadout-card .name { font-weight: 700; font-size: 12px; }
+.tw-loadout-card .type-badge { font-size: 9px; text-transform: uppercase; color: var(--text-secondary); margin: 3px 0; }
+.tw-loadout-card .desc { font-size: 10px; color: var(--text-secondary); }
+.tw-loadout-card .played-count { font-size: 10px; color: var(--gold); margin-top: 4px; }
+.tw-loadout-card .selected-check { position: absolute; top: 6px; right: 6px; color: var(--accent); font-weight: 800; }
+
+.tw-loadout-skins-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tw-loadout-skin-slot { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center; }
+.tw-loadout-skin-slot .slot-label { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 6px; }
+.tw-loadout-skin-slot .slot-value { font-weight: 700; margin-bottom: 8px; }
+
+.tw-loadout-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tw-loadout-stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; }
+.tw-loadout-stat-card .value { font-size: 20px; font-weight: 800; }
+.tw-loadout-stat-card .label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+.tw-opponent-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+.tw-opponent-card .opp-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.tw-opponent-card .opp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+
+.tw-invite-friends-list { max-height: 320px; overflow-y: auto; }
+.tw-invite-friend-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--border); }
+.tw-invite-friend-row:last-child { border-bottom: none; }

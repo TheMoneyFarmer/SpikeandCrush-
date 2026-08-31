@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Battle Pass</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .bp-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+  .bp-progress-wrap { background: var(--surface-2); border-radius: 999px; height: 14px; overflow: hidden; border: 1px solid var(--border); }
+  .bp-progress-bar { height: 100%; background: var(--gradient-primary); transition: width .3s ease; }
+  .bp-premium-badge { background: var(--gradient-gold, linear-gradient(135deg,#f6d365,#fda085)); color: #3a2400; font-weight: 800; padding: 4px 12px; border-radius: 999px; font-size: 12px; }
+  .bp-track { display: flex; overflow-x: auto; gap: 10px; padding: 8px 4px 16px; }
+  .bp-tier { flex: 0 0 110px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; text-align: center; position: relative; }
+  .bp-tier.claimed { border-color: var(--accent); }
+  .bp-tier .tier-num { font-size: 11px; color: var(--text-secondary); font-weight: 700; margin-bottom: 6px; }
+  .bp-tier .reward { font-size: 22px; margin-bottom: 4px; }
+  .bp-tier .reward-label { font-size: 10px; color: var(--text-secondary); min-height: 26px; }
+  .bp-tier .locked-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.55); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .bp-track-row { margin-bottom: 6px; }
+  .bp-track-row .row-label { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
+  .challenge-list { display: flex; flex-direction: column; gap: 8px; }
+  .challenge-row { display: flex; justify-content: space-between; align-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; }
+  .challenge-row.completed { opacity: 0.6; }
+  .challenge-row .label { font-size: 13px; }
+  .challenge-row .coins { color: var(--gold); font-weight: 700; font-size: 12px; margin-left: 8px; }
+  .bp-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .bp-panels { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body data-page="battle-pass">
+  <div id="twNav" data-active="battle-pass"></div>
+
+  <div class="tw-container">
+    <div class="panel">
+      <div class="bp-header">
+        <div>
+          <h2 style="margin-bottom:4px;">🎖️ Battle Pass <span id="seasonLabel" class="text-secondary" style="font-size:13px;font-weight:400;"></span></h2>
+          <div id="tierLabel" class="text-secondary" style="font-size:13px;">Tier 0 / 30</div>
+        </div>
+        <div id="premiumArea"></div>
+      </div>
+      <div class="bp-progress-wrap"><div class="bp-progress-bar" id="xpBar" style="width:0%;"></div></div>
+      <div id="xpLabel" class="text-secondary" style="font-size:12px;margin-top:4px;">0 / 500 XP to next tier</div>
+
+      <div class="bp-track-row" style="margin-top:20px;">
+        <div class="row-label">🎁 FREE TRACK</div>
+        <div class="bp-track" id="freeTrack"></div>
+      </div>
+      <div class="bp-track-row">
+        <div class="row-label">👑 PREMIUM TRACK</div>
+        <div class="bp-track" id="premiumTrack"></div>
+      </div>
+    </div>
+
+    <div class="bp-panels">
+      <div class="panel">
+        <h3>📅 Daily Challenges</h3>
+        <div class="challenge-list" id="dailyList">Spike & Crush loading...</div>
+      </div>
+      <div class="panel">
+        <h3>🗓️ Weekly Challenges</h3>
+        <div class="challenge-list" id="weeklyList">Spike & Crush loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script src="js/lottie.js"></script>
+  <script>
+    TW.requireAuth();
+
+    function rewardIcon(reward) {
+      if (!reward) return '';
+      if (reward.coins) return '🪙';
+      return '🎁';
+    }
+    function rewardLabel(reward) {
+      if (!reward) return '';
+      if (reward.coins && reward.unlock) return `${reward.coins} coins + ${reward.unlock}`;
+      if (reward.coins) return `${reward.coins} coins`;
+      return reward.unlock || '';
+    }
+
+    function tierCard(entry, isPremiumTrack) {
+      const reward = isPremiumTrack ? entry.premiumReward : entry.freeReward;
+      const locked = isPremiumTrack && entry.premiumLocked;
+      return `
+        <div class="bp-tier ${entry.claimed && reward ? 'claimed' : ''}">
+          ${locked ? '<div class="locked-overlay">🔒</div>' : ''}
+          <div class="tier-num">TIER ${entry.tier}</div>
+          <div class="reward">${reward ? rewardIcon(reward) : '—'}</div>
+          <div class="reward-label">${reward ? rewardLabel(reward) : ''}</div>
+        </div>
+      `;
+    }
+
+    function challengeRow(c) {
+      const btn = c.completed
+        ? `<span class="text-secondary" style="font-size:12px;">✓ Claimed</span>`
+        : c.earnable
+          ? `<button class="btn btn-primary" data-claim="${c.id}" style="padding:4px 12px;font-size:12px;">Claim</button>`
+          : `<span class="text-secondary" style="font-size:12px;">In progress</span>`;
+      return `
+        <div class="challenge-row ${c.completed ? 'completed' : ''}">
+          <div class="label">${TW.escapeHtml(c.label)}<span class="coins">+${c.coins} 🪙</span></div>
+          ${btn}
+        </div>
+      `;
+    }
+
+    async function claim(challengeId) {
+      try {
+        const result = await TW.api('/api/battlepass/challenge/claim', { method: 'POST', body: { challengeId } });
+        TW.Sound.play('coin');
+        if (window.TW && TW.Lottie) TW.Lottie.play('coins');
+        TW.toast(`+${result.coinsAwarded} coins!`, 'info');
+        await load();
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    }
+
+    async function subscribe() {
+      try {
+        const result = await TW.api('/api/battlepass/subscribe', { method: 'POST' });
+        if (result.url) window.location.href = result.url;
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+      }
+    }
+
+    async function load() {
+      let data;
+      try {
+        data = await TW.api('/api/battlepass/status');
+      } catch (e) {
+        TW.toast(e.message, 'danger');
+        return;
+      }
+
+      document.getElementById('seasonLabel').textContent = `Season ${data.season}`;
+      document.getElementById('tierLabel').textContent = `Tier ${data.tier} / 30`;
+      const pct = Math.min(100, Math.round((data.xpIntoTier / data.xpPerTier) * 100));
+      document.getElementById('xpBar').style.width = `${pct}%`;
+      document.getElementById('xpLabel').textContent = `${data.xpIntoTier} / ${data.xpPerTier} XP to next tier`;
+
+      const premiumArea = document.getElementById('premiumArea');
+      premiumArea.innerHTML = data.isPremium
+        ? `<span class="bp-premium-badge">👑 PREMIUM ACTIVE</span>`
+        : `<button class="btn btn-primary" id="subscribeBtn">👑 Unlock Premium — $4.99/mo</button>`;
+      const subBtn = document.getElementById('subscribeBtn');
+      if (subBtn) subBtn.addEventListener('click', subscribe);
+
+      document.getElementById('freeTrack').innerHTML = data.track.map((e) => tierCard(e, false)).join('');
+      document.getElementById('premiumTrack').innerHTML = data.track.map((e) => tierCard(e, true)).join('');
+
+      document.getElementById('dailyList').innerHTML = data.dailyChallenges.map(challengeRow).join('') || '<div class="text-secondary">No challenges today.</div>';
+      document.getElementById('weeklyList').innerHTML = data.weeklyChallenges.map(challengeRow).join('') || '<div class="text-secondary">No challenges this week.</div>';
+
+      document.querySelectorAll('[data-claim]').forEach((btn) => {
+        btn.addEventListener('click', () => claim(btn.dataset.claim));
+      });
+    }
+
+    load();
+  </script>
+</body>
+</html>

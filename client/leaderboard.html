@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Leaderboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<style>
+  .lb-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .lb-controls select,
+  .lb-controls input {
+    min-height: 44px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    font-family: var(--font);
+  }
+  .lb-controls input {
+    flex: 1;
+    min-width: 160px;
+  }
+  table.full-lb {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  table.full-lb th {
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 11px;
+    text-transform: uppercase;
+    padding: 8px;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+  }
+  table.full-lb td {
+    padding: 10px 8px;
+    border-top: 1px solid var(--border);
+  }
+  table.full-lb tr {
+    cursor: pointer;
+  }
+  table.full-lb tr:hover td {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .viewer-row {
+    box-shadow: inset 3px 0 0 var(--accent);
+    background: rgba(0, 200, 150, 0.08);
+  }
+  table.full-lb tr.rank-1 {
+    box-shadow: inset 3px 0 0 var(--gold);
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.12), transparent 60%);
+  }
+  table.full-lb tr.rank-2 {
+    box-shadow: inset 3px 0 0 #c0c0c0;
+    background: linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent 60%);
+  }
+  table.full-lb tr.rank-3 {
+    box-shadow: inset 3px 0 0 #cd7f32;
+    background: linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent 60%);
+  }
+</style>
+</head>
+<body data-page="leaderboard">
+  <div id="twNav" data-active="leaderboard"></div>
+
+  <div class="tw-container">
+    <div class="panel">
+      <h2>🏆 Global Leaderboard</h2>
+      <div class="lb-controls">
+        <select id="periodSelect">
+          <option value="all">All Time (War Rating)</option>
+          <option value="week">This Week (P&amp;L)</option>
+          <option value="month">This Month (P&amp;L)</option>
+        </select>
+        <select id="tierSelect">
+          <option value="All">All Tiers</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="Search username..." />
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="full-lb">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Player</th>
+              <th>Tier</th>
+              <th id="metricHeader">Rating</th>
+              <th>W/D/L</th>
+              <th>Win Rate</th>
+            </tr>
+          </thead>
+          <tbody id="lbBody">
+            <tr><td colspan="6" class="text-secondary">Spike & Crush loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+<script src="js/socket.js"></script>
+  <script src="js/friends-panel.js"></script>
+  <script src="js/lottie.js"></script>
+  <script>
+    const periodSelect = document.getElementById('periodSelect');
+    const tierSelect = document.getElementById('tierSelect');
+    const searchInput = document.getElementById('searchInput');
+    const lbBody = document.getElementById('lbBody');
+    const metricHeader = document.getElementById('metricHeader');
+
+    let searchDebounce = null;
+
+    async function loadLeaderboard() {
+      const params = new URLSearchParams({
+        period: periodSelect.value,
+        tier: tierSelect.value,
+        search: searchInput.value.trim(),
+        limit: '100',
+      });
+      const headers = {};
+      const token = TW.getToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      lbBody.innerHTML = '<tr><td colspan="6" class="text-secondary">Spike & Crush loading...</td></tr>';
+      try {
+        const res = await fetch(`/api/leaderboard?${params.toString()}`, { headers });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not load leaderboard');
+
+        if (tierSelect.dataset.built !== '1' && data.tiers) {
+          data.tiers.forEach((t) => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            tierSelect.appendChild(opt);
+          });
+          tierSelect.dataset.built = '1';
+        }
+
+        metricHeader.textContent = data.period === 'all' ? 'Rating' : 'Period P&L';
+
+        const me = TW.getPlayer();
+        lbBody.innerHTML = '';
+        const renderRow = (row, isViewer) => {
+          const tr = document.createElement('tr');
+          const rankClass = row.rank === 1 ? 'rank-1' : row.rank === 2 ? 'rank-2' : row.rank === 3 ? 'rank-3' : '';
+          tr.className = [isViewer ? 'viewer-row' : '', rankClass].filter(Boolean).join(' ');
+          const wl =
+            row.wins === null ? `${row.total_matches} matches` : `${row.wins}W / ${row.draws || 0}D / ${row.losses}L`;
+          const winRate =
+            row.wins === null || row.total_matches === 0
+              ? '-'
+              : `${Math.round(((row.wins + (row.draws || 0) * 0.5) / row.total_matches) * 100)}%`;
+          const metricDisplay = data.period === 'all' ? row.metric : TW.formatMoney(row.metric);
+          tr.innerHTML = `
+            <td>${row.rank}</td>
+            <td>${TW.escapeHtml(row.username)}</td>
+            <td class="${TW.tierClass(row.tier)}">${TW.escapeHtml(row.tier)}</td>
+            <td class="mono">${metricDisplay}</td>
+            <td>${wl}</td>
+            <td>${winRate}</td>
+          `;
+          tr.addEventListener('click', () => {
+            window.location.href = `/profile/${encodeURIComponent(row.username)}`;
+          });
+          lbBody.appendChild(tr);
+        };
+
+        data.leaderboard.forEach((row) => renderRow(row, me && row.id === me.id));
+
+        if (data.leaderboard.length === 0) {
+          lbBody.innerHTML = '<tr><td colspan="6" class="text-secondary">No players match these filters.</td></tr>';
+        }
+
+        if (data.viewerRank) {
+          const spacer = document.createElement('tr');
+          spacer.innerHTML = '<td colspan="6" class="text-secondary" style="text-align:center;">···</td>';
+          lbBody.appendChild(spacer);
+          renderRow(data.viewerRank, true);
+        }
+      } catch (err) {
+        lbBody.innerHTML = `<tr><td colspan="6" class="text-secondary">${TW.escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    periodSelect.addEventListener('change', loadLeaderboard);
+    tierSelect.addEventListener('change', loadLeaderboard);
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(loadLeaderboard, 300);
+    });
+
+    loadLeaderboard();
+  </script>
+</body>
+</html>

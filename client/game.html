@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Match</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/game.css" />
+<link rel="stylesheet" href="css/premium.css" />
+</head>
+<body data-page="game">
+  <div class="game-shell">
+    <div class="game-topbar">
+      <div class="topbar-timer" id="topbarTimer">10:00</div>
+      <div class="topbar-pnl-block">
+        <div class="topbar-pnl-label">Your P&amp;L</div>
+        <div class="topbar-pnl-value" id="topbarPnl">$0.00</div>
+        <div class="topbar-equity" id="topbarEquity">Equity: $10,000.00</div>
+      </div>
+      <div class="instrument-tabs" id="instrumentTabs"></div>
+      <a href="index.html" id="headerCoinWrap" class="tw-coin-balance hidden">🪙 <span id="headerCoinBalance">0</span></a>
+    </div>
+
+    <div class="game-main">
+      <div class="chart-section">
+        <div class="chart-quotes">
+          <div class="quote"><span class="label">Bid</span><span class="bid mono" id="quoteBid">-</span></div>
+          <div class="quote"><span class="label">Ask</span><span class="ask mono" id="quoteAsk">-</span></div>
+          <div class="quote"><span class="label">Spread</span><span class="mono" id="quoteSpread">-</span></div>
+          <div class="timeframe-selector" id="timeframeSelector"></div>
+          <div class="chart-toolbar-actions">
+            <div class="chart-dropdown" id="indicatorsDropdown">
+              <button class="chart-tool-btn" id="indicatorsBtn" type="button">Indicators ▾</button>
+              <div class="chart-dropdown-menu hidden" id="indicatorsMenu">
+                <label class="chart-menu-row"><input type="checkbox" id="indMaToggle" /> Moving Average
+                  <span class="chart-menu-sub">
+                    <label><input type="checkbox" class="ma-period" value="20" checked /> 20</label>
+                    <label><input type="checkbox" class="ma-period" value="50" /> 50</label>
+                    <label><input type="checkbox" class="ma-period" value="200" /> 200</label>
+                  </span>
+                </label>
+                <label class="chart-menu-row"><input type="checkbox" id="indBbToggle" /> Bollinger Bands (20, 2)</label>
+                <label class="chart-menu-row"><input type="checkbox" id="indRsiToggle" /> RSI (14)</label>
+                <label class="chart-menu-row"><input type="checkbox" id="indMacdToggle" /> MACD (12, 26, 9)</label>
+                <label class="chart-menu-row"><input type="checkbox" id="indVolumeToggle" /> Volume</label>
+              </div>
+            </div>
+            <div class="chart-dropdown" id="chartSettingsDropdown">
+              <button class="chart-tool-btn" id="chartSettingsBtn" type="button" title="Chart settings">⚙</button>
+              <div class="chart-dropdown-menu chart-settings-menu hidden" id="chartSettingsMenu">
+                <div class="chart-menu-row"><span>Bull color</span><input type="color" id="settingBullColor" value="#00c896" /></div>
+                <div class="chart-menu-row"><span>Bear color</span><input type="color" id="settingBearColor" value="#ff4444" /></div>
+                <div class="chart-menu-row"><span>Background</span>
+                  <select id="settingBackground"><option value="dark">Dark</option><option value="light">Light</option></select>
+                </div>
+                <div class="chart-menu-row"><label><input type="checkbox" id="settingShowGrid" checked /> Show grid</label></div>
+                <div class="chart-menu-row"><span>Crosshair</span>
+                  <select id="settingCrosshair"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="none">Hidden</option></select>
+                </div>
+                <div class="chart-menu-row"><span>Price scale</span>
+                  <select id="settingPriceScale"><option value="right">Right</option><option value="left">Left</option></select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-body">
+          <div class="chart-drawing-toolbar" id="drawingToolbar">
+            <button class="draw-tool-btn active" data-tool="cursor" title="Cursor">↖</button>
+            <button class="draw-tool-btn" data-tool="crosshair" title="Crosshair">✛</button>
+            <button class="draw-tool-btn" data-tool="horizontal" title="Horizontal Line">─</button>
+            <button class="draw-tool-btn" data-tool="trend" title="Trend Line">╱</button>
+            <button class="draw-tool-btn" data-tool="rectangle" title="Rectangle">▭</button>
+            <button class="draw-tool-btn" data-tool="fib" title="Fibonacci Retracement">Fib</button>
+            <button class="draw-tool-btn" data-tool="text" title="Text Annotation">T</button>
+            <button class="draw-tool-btn" data-tool="eraser" title="Eraser - select this, then click a drawing to remove it">⌫</button>
+            <button class="draw-tool-btn draw-tool-danger" id="clearDrawingsBtn" title="Clear all drawings on this chart">🗑️</button>
+            <button class="draw-tool-btn" id="magnetToggleBtn" title="Magnet snap to candle">🧲</button>
+          </div>
+          <div class="chart-canvas-wrap" id="chartCanvasWrap">
+            <div id="chartCanvas"></div>
+            <canvas id="drawingCanvas"></canvas>
+            <div class="chart-effect-overlay" id="chartEffectOverlay"></div>
+          </div>
+        </div>
+        <div class="chart-subpane hidden" id="rsiPane"></div>
+        <div class="chart-subpane hidden" id="macdPane"></div>
+        <div class="news-ticker hidden" id="newsTicker"></div>
+      </div>
+
+      <div class="trading-panel" id="tradingPanel">
+        <div class="trading-panel-handle" id="tradingPanelHandle">▲ Trade</div>
+
+        <div class="trade-buttons">
+          <button class="btn btn-buy" id="buyBtn">BUY</button>
+          <button class="btn btn-sell" id="sellBtn">SELL</button>
+        </div>
+
+        <div>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:6px;">LOT SIZE</div>
+          <div class="lot-selector" id="lotSelector">
+            <button class="lot-chip" data-lot="0.1">0.1</button>
+            <button class="lot-chip" data-lot="0.5">0.5</button>
+            <button class="lot-chip active" data-lot="1.0">1.0</button>
+            <button class="lot-chip" data-lot="2.0">2.0</button>
+            <button class="lot-chip" data-lot="5.0">5.0</button>
+            <div class="lot-chip custom-chip" id="customLotChip">
+              <span>Custom</span>
+              <input type="number" id="customLotInput" min="0.01" max="10" step="0.01" placeholder="0.0" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="sltp-header">
+            <span class="text-secondary" style="font-size:12px;">STOP LOSS / TAKE PROFIT</span>
+            <div class="lot-selector" id="sltpModeToggle">
+              <button class="lot-chip active" data-mode="pips">Pips</button>
+              <button class="lot-chip" data-mode="price">Price</button>
+            </div>
+          </div>
+          <div class="pretrade-sltp-row">
+            <label class="text-sell">SL</label>
+            <input type="number" id="preSlInput" step="0.00001" placeholder="off" />
+            <div class="lot-selector" id="slQuickPips">
+              <button class="lot-chip" data-pips="10">10p</button>
+              <button class="lot-chip" data-pips="20">20p</button>
+              <button class="lot-chip" data-pips="50">50p</button>
+            </div>
+          </div>
+          <div class="pretrade-sltp-row">
+            <label class="text-buy">TP</label>
+            <input type="number" id="preTpInput" step="0.00001" placeholder="off" />
+            <div class="lot-selector" id="tpQuickPips">
+              <button class="lot-chip" data-pips="20">20p</button>
+              <button class="lot-chip" data-pips="50">50p</button>
+              <button class="lot-chip" data-pips="100">100p</button>
+            </div>
+          </div>
+          <div class="risk-calc-row" id="riskCalcRow"></div>
+        </div>
+
+        <div>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:6px;">OPEN POSITIONS</div>
+          <div class="positions-list" id="positionsList"></div>
+        </div>
+
+        <div class="account-summary">
+          <div class="stat">
+            <div class="label">Balance</div>
+            <div class="value" id="summaryBalance">$10,000.00</div>
+          </div>
+          <div class="stat">
+            <div class="label">Equity</div>
+            <div class="value" id="summaryEquity">$10,000.00</div>
+          </div>
+          <div class="stat">
+            <div class="label">Margin Used</div>
+            <div class="value" id="summaryMargin">$0.00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="game-bottom">
+      <div class="sabotage-panel">
+        <div class="text-secondary" style="font-size:12px;margin-bottom:8px;">SABOTAGE CARDS</div>
+        <div class="card-slots" id="cardSlots"></div>
+        <div class="target-picker hidden" id="targetPicker"></div>
+      </div>
+      <div class="leaderboard-panel" id="leaderboardPanel">
+        <div class="text-secondary" style="font-size:12px;margin-bottom:8px;">LIVE LEADERBOARD</div>
+        <table class="leaderboard-table">
+          <thead>
+            <tr><th>#</th><th>Player</th><th>P&amp;L</th><th>Trades</th></tr>
+          </thead>
+          <tbody id="leaderboardBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="match-feed">
+      <div class="match-feed-track" id="feedTrack"></div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/socket.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/lottie.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/indicators.js"></script>
+  <script src="js/drawing.js"></script>
+  <script src="js/sabotage.js"></script>
+  <script src="js/leaderboard.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
