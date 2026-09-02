@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Settings</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/premium.css" />
 <style>
   .settings-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
@@ -31,6 +33,29 @@
   .range-row input[type="range"] { width: 100%; }
   .session-row, .login-row, .block-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 10px; }
   .danger-zone { border: 1px solid var(--sell); border-radius: var(--radius); padding: 16px; margin-top: 20px; }
+
+  .theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 8px; }
+  .theme-card { border: 2px solid var(--border); border-radius: var(--radius); padding: 10px; cursor: pointer; transition: border-color 0.15s; }
+  .theme-card:hover { border-color: var(--border-strong); }
+  .theme-card.active { border-color: var(--accent); }
+  .theme-preview { width: 100%; height: 80px; border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; }
+  .theme-preview .preview-nav { height: 16px; }
+  .theme-preview .preview-content { flex: 1; display: flex; gap: 6px; padding: 8px; }
+  .theme-preview .preview-card { flex: 1; border-radius: 4px; }
+  .theme-label { font-weight: 700; font-size: 13px; margin-top: 8px; }
+  .theme-desc { font-size: 11px; color: var(--text-secondary); }
+
+  .theme-dark-preview { background: #080810; }
+  .theme-dark-preview .preview-nav { background: #0f1018; }
+  .theme-dark-preview .preview-card { background: #161820; }
+
+  .theme-midnight-preview { background: #08060f; }
+  .theme-midnight-preview .preview-nav { background: #100d1a; }
+  .theme-midnight-preview .preview-card { background: #181424; }
+
+  .theme-light-preview { background: #f0f2f5; }
+  .theme-light-preview .preview-nav { background: #ffffff; }
+  .theme-light-preview .preview-card { background: #f8f9fa; border: 1px solid #dde1e6; }
 </style>
 </head>
 <body data-page="settings">
@@ -45,6 +70,7 @@
         <button data-tab="privacy">Privacy</button>
         <button data-tab="security">Security</button>
         <button data-tab="notifications">Notifications</button>
+        <button data-tab="help">Help</button>
       </div>
 
       <!-- PROFILE -->
@@ -56,6 +82,30 @@
             <div class="text-secondary" style="font-size:12px; margin-top:4px;">Max 2MB, cropped to a circle.</div>
           </div>
         </div>
+        <div style="margin-bottom:8px;">
+          <label>Country</label>
+          <select id="pCountry">
+            <option value="">Select country...</option>
+            <option>United States</option><option>United Kingdom</option><option>South Africa</option>
+            <option>Nigeria</option><option>India</option><option>Canada</option><option>Australia</option>
+            <option>Germany</option><option>Other</option>
+          </select>
+        </div>
+        <div style="margin-bottom:8px;">
+          <label>Trading Experience</label>
+          <select id="pExperience">
+            <option>Beginner</option><option>Intermediate</option><option>Professional</option><option>Expert</option>
+          </select>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label>Preferred Instruments</label><br />
+          <label style="display:inline-flex;align-items:center;gap:6px;margin-right:16px;"><input type="checkbox" id="instrEurusd" value="EURUSD" /> EURUSD</label>
+          <label style="display:inline-flex;align-items:center;gap:6px;"><input type="checkbox" id="instrXauusd" value="XAUUSD" /> XAUUSD</label>
+        </div>
+        <button type="button" class="btn btn-outline" id="saveTradingPrefsBtn">Save Trading Preferences</button>
+
+        <h3 style="margin-top:28px;">Account &amp; Security</h3>
+        <p class="text-secondary" style="font-size:12px;">Changing your username, email, or password requires your current password.</p>
         <form id="profileForm">
           <div class="field">
             <label>Username</label>
@@ -65,26 +115,6 @@
           <div class="field"><label>Email</label><input type="email" id="pEmail" /></div>
           <div class="field"><label>New Password (leave blank to keep current)</label><input type="password" id="pNewPassword" autocomplete="new-password" /></div>
           <div class="field"><label>Current Password (required to save)</label><input type="password" id="pCurrentPassword" autocomplete="current-password" /></div>
-          <div class="field">
-            <label>Country</label>
-            <select id="pCountry">
-              <option value="">Select country...</option>
-              <option>United States</option><option>United Kingdom</option><option>South Africa</option>
-              <option>Nigeria</option><option>India</option><option>Canada</option><option>Australia</option>
-              <option>Germany</option><option>Other</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Trading Experience</label>
-            <select id="pExperience">
-              <option>Beginner</option><option>Intermediate</option><option>Professional</option><option>Expert</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Preferred Instruments</label><br />
-            <label style="display:inline-flex;align-items:center;gap:6px;margin-right:16px;"><input type="checkbox" id="instrEurusd" value="EURUSD" /> EURUSD</label>
-            <label style="display:inline-flex;align-items:center;gap:6px;"><input type="checkbox" id="instrXauusd" value="XAUUSD" /> XAUUSD</label>
-          </div>
           <div id="profileError" class="form-error"></div>
           <button type="submit" class="btn btn-primary">Save Changes</button>
         </form>
@@ -125,9 +155,25 @@
           <label>Language</label>
           <select id="gLanguage"><option>English</option><option disabled>Spanish (coming soon)</option><option disabled>French (coming soon)</option></select>
         </div>
-        <div class="field">
-          <label>Chart Theme</label>
-          <select id="gChartTheme"><option value="dark">Dark (default)</option><option value="light">Light</option></select>
+        <div class="field" style="margin-top:14px;">
+          <label>Theme</label>
+          <div class="theme-grid" id="themeGrid">
+            <div class="theme-card" data-theme="dark">
+              <div class="theme-preview theme-dark-preview"><div class="preview-nav"></div><div class="preview-content"><div class="preview-card"></div><div class="preview-card"></div></div></div>
+              <div class="theme-label">Dark</div>
+              <div class="theme-desc">Default dark trading terminal</div>
+            </div>
+            <div class="theme-card" data-theme="midnight">
+              <div class="theme-preview theme-midnight-preview"><div class="preview-nav"></div><div class="preview-content"><div class="preview-card"></div><div class="preview-card"></div></div></div>
+              <div class="theme-label">Midnight</div>
+              <div class="theme-desc">Deep purple night mode</div>
+            </div>
+            <div class="theme-card" data-theme="light">
+              <div class="theme-preview theme-light-preview"><div class="preview-nav"></div><div class="preview-content"><div class="preview-card"></div><div class="preview-card"></div></div></div>
+              <div class="theme-label">Light</div>
+              <div class="theme-desc">Clean light mode</div>
+            </div>
+          </div>
         </div>
         <button class="btn btn-primary" id="saveGameBtn">Save Preferences</button>
       </div>
@@ -187,10 +233,36 @@
         <div class="toggle-row"><div class="meta">Push: match events</div><label class="switch"><input type="checkbox" id="nPushMatch" checked /><span class="slider-toggle"></span></label></div>
         <button class="btn btn-primary" id="saveNotifBtn" style="margin-top:14px;">Save Notification Settings</button>
       </div>
+
+      <!-- HELP -->
+      <div class="settings-panel" id="tab-help">
+        <h3 style="margin-top:0;">Tutorial Replay</h3>
+        <div class="toggle-row">
+          <div class="meta">Main onboarding tutorial<div class="note">The full walkthrough shown on your first visit to the Trading Floor.</div></div>
+          <button class="btn" id="replayMainTutorialBtn">Replay</button>
+        </div>
+        <div class="toggle-row">
+          <div class="meta">Game mode explainer cards<div class="note">Resets the "shown first 3 times" counter for every mode's info card.</div></div>
+          <button class="btn" id="resetModeTutorialsBtn">Reset</button>
+        </div>
+        <div class="toggle-row">
+          <div class="meta">Battle Pass tutorial<div class="note">The step-by-step popup shown on your first Battle Pass visit.</div></div>
+          <button class="btn" id="replayBpTutorialBtn">Replay</button>
+        </div>
+
+        <h3>Quick Links</h3>
+        <p><a href="/help">View full Help and Rules page →</a></p>
+        <p><a href="mailto:support@spikecrush.example">Contact Support →</a></p>
+        <p><a href="mailto:bugs@spikecrush.example">Report a Bug →</a></p>
+
+        <h3>Version Info</h3>
+        <p class="text-secondary" style="font-size:12px;">Spike &amp; Crush · Last updated <span id="helpLastUpdated"></span></p>
+      </div>
     </div>
   </div>
 
   <script src="js/nav.js"></script>
+  <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/main.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -199,6 +271,9 @@
 <script src="js/socket.js"></script>
   <script src="js/friends-panel.js"></script>
   <script src="js/lottie.js"></script>
+  <script src="js/tutorial.js"></script>
+  <script src="js/mode-cards.js"></script>
+  <script src="js/battlepass-tutorial.js"></script>
   <script>
     TW.requireAuth();
     let currentSettings = {};
@@ -232,7 +307,6 @@
         document.getElementById('gAutoClose').checked = currentSettings.autoClose !== false;
         document.getElementById('gNotifyMatchStart').checked = currentSettings.notifyMatchStart !== false;
         document.getElementById('gNotifyLobbyJoin').checked = currentSettings.notifyLobbyJoin !== false;
-        document.getElementById('gChartTheme').value = currentSettings.chartTheme || 'dark';
         document.getElementById('gTimeframe').value = currentSettings.timeframe || '5';
         document.getElementById('gDefaultLot').value = currentSettings.defaultLot || '1.0';
 
@@ -301,6 +375,25 @@
       }, 'image/png');
     });
 
+    document.getElementById('saveTradingPrefsBtn').addEventListener('click', async () => {
+      const instruments = [];
+      if (document.getElementById('instrEurusd').checked) instruments.push('EURUSD');
+      if (document.getElementById('instrXauusd').checked) instruments.push('XAUUSD');
+      try {
+        await TW.api('/api/player/settings', {
+          method: 'PATCH',
+          body: {
+            country: document.getElementById('pCountry').value,
+            experienceLevel: document.getElementById('pExperience').value,
+            preferredInstruments: instruments,
+          },
+        });
+        TW.toast('Saved ✓', 'info');
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    });
+
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const errEl = document.getElementById('profileError');
@@ -316,22 +409,10 @@
         const data = await TW.api('/api/player/me', { method: 'PATCH', body });
         TW.updatePlayerCache(data.player);
 
-        const instruments = [];
-        if (document.getElementById('instrEurusd').checked) instruments.push('EURUSD');
-        if (document.getElementById('instrXauusd').checked) instruments.push('XAUUSD');
-        await TW.api('/api/player/settings', {
-          method: 'PATCH',
-          body: {
-            country: document.getElementById('pCountry').value,
-            experienceLevel: document.getElementById('pExperience').value,
-            preferredInstruments: instruments,
-          },
-        });
-
         document.getElementById('pCurrentPassword').value = '';
         document.getElementById('pNewPassword').value = '';
         TW.updateHeader();
-        TW.toast('Profile saved', 'info');
+        TW.toast('Account details saved', 'info');
       } catch (err) {
         errEl.textContent = err.message;
       }
@@ -366,7 +447,6 @@
               autoClose: document.getElementById('gAutoClose').checked,
               notifyMatchStart: document.getElementById('gNotifyMatchStart').checked,
               notifyLobbyJoin: document.getElementById('gNotifyLobbyJoin').checked,
-              chartTheme: document.getElementById('gChartTheme').value,
               timeframe: document.getElementById('gTimeframe').value,
               defaultLot: document.getElementById('gDefaultLot').value,
             },
@@ -377,6 +457,18 @@
         TW.toast(err.message, 'danger');
       }
     });
+
+    function initThemeCards() {
+      const current = TW.getTheme();
+      document.querySelectorAll('.theme-card').forEach((card) => {
+        card.classList.toggle('active', card.dataset.theme === current);
+        card.addEventListener('click', () => {
+          TW.setTheme(card.dataset.theme);
+          document.querySelectorAll('.theme-card').forEach((c) => c.classList.toggle('active', c === card));
+        });
+      });
+    }
+    initThemeCards();
 
     document.getElementById('savePrivacyBtn').addEventListener('click', async () => {
       try {
@@ -569,6 +661,36 @@
     loadLoginHistory();
     loadSessions();
     loadBlocks();
+
+    // ---- Help tab ----
+    document.getElementById('replayMainTutorialBtn')?.addEventListener('click', () => {
+      // The tutorial spotlights elements that only exist on the Trading
+      // Floor (.tw-hero-section, #modeQuickBtn, etc.) - starting it here
+      // would just show every step centered with no spotlight, so redirect
+      // there first and let tutorial.js's own query-param check start it.
+      localStorage.removeItem('sc_tutorial_done');
+      window.location.href = '/?replay_tutorial=1';
+    });
+    document.getElementById('resetModeTutorialsBtn')?.addEventListener('click', () => {
+      TW.resetModeTutorials?.();
+      TW.toast('Game mode explainer cards will show again next time you enter each mode.', 'info');
+    });
+    document.getElementById('replayBpTutorialBtn')?.addEventListener('click', () => {
+      TW.replayBattlePassTutorial?.();
+      TW.toast('Battle Pass tutorial reset - it will show next time you visit Battle Pass.', 'info');
+    });
+    const lastUpdatedEl = document.getElementById('helpLastUpdated');
+    if (lastUpdatedEl) lastUpdatedEl.textContent = new Date().toISOString().slice(0, 10);
   </script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-links">
+        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
+      </p>
+    </div>
+  </footer>
 </body>
 </html>

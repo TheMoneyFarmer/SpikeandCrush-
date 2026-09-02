@@ -41,6 +41,7 @@ window.TW = window.TW || {};
   let riskLocked = false; // eliminated or 2-minute soft loss lock - independent of the position_freeze card timer
   let freezeLocked = false;
   let matchStartedAtMs = null; // real epoch ms from match:start, used to place feed events on the equity curve
+  let rulesOverlayShown = false; // FIX: match rules summary shown once, on the first match:state this page receives
 
   // Authoritative-ish mirror of the player's own balance/positions, kept in
   // sync incrementally by trade:executed/trade:closed/capital_drain events
@@ -50,6 +51,7 @@ window.TW = window.TW || {};
   let myAccount = { balance: 10000, positions: [] };
 
   TW.Chart.init('chartCanvas');
+  window.reinitializeCharts = () => TW.Chart.refreshTheme();
   TW.Chart.enablePositionLineDragging('chartCanvas', async (positionId, field, price) => {
     const body = { positionId };
     body[field] = price;
@@ -187,6 +189,73 @@ window.TW = window.TW || {};
     const m = Math.floor(totalSeconds / 60);
     const s = Math.floor(totalSeconds % 60);
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  // FIX: match rules summary shown once, right after the first match:state
+  // arrives (chart/positions render underneath while this is up). MAX_LOTS,
+  // MAX_POSITIONS and the margin-call threshold below mirror the real,
+  // match-mode-independent constants in server/gameEngine.js (MAX_LOTS = 10,
+  // MAX_POSITIONS = 10, HARD_LOSS_PCT = 0.5 of the $10,000 starting capital)
+  // - update both places together if those ever change.
+  function showMatchRules(state) {
+    const RULES_MAX_LOTS = 10.0;
+    const RULES_MAX_POSITIONS = 10;
+    const RULES_MARGIN_CALL_EQUITY = 5000;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'match-rules-overlay';
+    overlay.id = 'matchRulesOverlay';
+    overlay.innerHTML = `
+      <div class="match-rules-card">
+        <div class="rules-header">
+          <div class="rules-mode-badge">⚔️ ${TW.escapeHtml(state.modeLabel || state.mode)}</div>
+          <div class="rules-countdown" id="rulesCountdown">5</div>
+        </div>
+        <h2 class="rules-title">Match Rules</h2>
+        <div class="rules-grid">
+          <div class="rule-item"><div class="rule-label">Starting Capital</div><div class="rule-value">$10,000</div></div>
+          <div class="rule-item"><div class="rule-label">Duration</div><div class="rule-value">${formatClock(state.durationSeconds)} Minutes</div></div>
+          <div class="rule-item"><div class="rule-label">Max Lot Size</div><div class="rule-value">${RULES_MAX_LOTS.toFixed(1)} Lots</div></div>
+          <div class="rule-item"><div class="rule-label">Max Open Positions</div><div class="rule-value">${RULES_MAX_POSITIONS} Positions</div></div>
+          <div class="rule-item"><div class="rule-label">Margin Call</div><div class="rule-value">Below $${RULES_MARGIN_CALL_EQUITY.toLocaleString()} equity</div></div>
+          <div class="rule-item"><div class="rule-label">Sabotage Cards</div><div class="rule-value">${state.cardsPerPlayer} Cards — 1 use each</div></div>
+          <div class="rule-item" style="grid-column:1 / -1;"><div class="rule-label">Instruments</div><div class="rule-value" style="font-size:12px;">${(state.instruments || []).join(' · ')}</div></div>
+          <div class="rule-item"><div class="rule-label">Entry Cost</div><div class="rule-value">${state.entryCoins ?? 0} Coins</div></div>
+          <div class="rule-item"><div class="rule-label">Winner</div><div class="rule-value" style="font-size:12px;">Highest P&amp;L at zero</div></div>
+        </div>
+        <div class="rules-reminder">
+          <span class="reminder-icon">⚠️</span>
+          All positions close automatically when the timer ends. No exceptions.
+        </div>
+        <button class="btn-rules-ready" id="rulesReadyBtn">Ready — Let's Trade</button>
+        <p class="rules-disclaimer">Simulated trading environment. Historical market data. Not financial advice.</p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    let countdown = 5;
+    const countEl = overlay.querySelector('#rulesCountdown');
+    const timer = setInterval(() => {
+      countdown--;
+      if (countEl) countEl.textContent = countdown;
+      if (countdown <= 0) {
+        clearInterval(timer);
+        dismissMatchRules();
+      }
+    }, 1000);
+
+    overlay.querySelector('#rulesReadyBtn').addEventListener('click', () => {
+      clearInterval(timer);
+      dismissMatchRules();
+    });
+  }
+
+  function dismissMatchRules() {
+    const overlay = document.getElementById('matchRulesOverlay');
+    if (!overlay) return;
+    overlay.style.transition = 'opacity 0.3s';
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 300);
   }
 
   function computeEquity() {
@@ -638,6 +707,85 @@ window.TW = window.TW || {};
     }
   }
 
+  // ---- FIX: elimination / leave match ---------------------------------------
+  // Eliminated players used to just sit there staring at a disabled trade
+  // panel until the match ended for everyone else - this gives them a real
+  // choice instead.
+
+  function showEliminationModal(payload) {
+    if (document.getElementById('eliminationModal')) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'elimination-modal';
+    overlay.id = 'eliminationModal';
+    overlay.innerHTML = `
+      <div class="elimination-card">
+        <div class="elim-icon">💀</div>
+        <h3 class="elim-title">You have been eliminated</h3>
+        <p class="elim-body">Your account hit the margin call limit (equity $${payload.equity}). The match continues without you.</p>
+        <div class="elim-options">
+          <div class="elim-option watch">
+            <div class="elim-option-title">👁️ Watch Until End</div>
+            <div class="elim-option-desc">Stay and spectate. See final results and your ranking when the match ends. Your stats are saved.</div>
+            <button class="btn" id="elimWatchBtn">Watch</button>
+          </div>
+          <div class="elim-option leave">
+            <div class="elim-option-title">🚪 Leave Now</div>
+            <div class="elim-option-desc">Leave immediately and join a new match. You'll get a summary notification when this match ends.</div>
+            <div class="elim-warning">⚠️ You will forfeit any remaining coins and War Rating from this match. Your elimination is recorded as last place.</div>
+            <button class="btn btn-leave" id="elimLeaveBtn">Leave Match</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#elimWatchBtn').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#elimLeaveBtn').addEventListener('click', () => {
+      overlay.remove();
+      confirmLeaveMatch();
+    });
+  }
+
+  // Small local confirm dialog rather than pulling in the whole tutorial.js
+  // just for TW.confirmDialog - reuses .tutorial-confirm-* classes, which
+  // are already on this page via css/tutorial.css.
+  function confirmDialog({ title, body, confirmLabel }) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'tutorial-confirm-overlay';
+      overlay.innerHTML = `
+        <div class="tutorial-confirm-box">
+          <h3 style="margin:0 0 4px;font-size:16px;">${TW.escapeHtml(title)}</h3>
+          <p>${TW.escapeHtml(body)}</p>
+          <div class="tutorial-confirm-actions">
+            <button class="btn-tutorial-skip" id="leaveConfirmCancel">Cancel</button>
+            <button class="btn-tutorial-next" id="leaveConfirmOk">${TW.escapeHtml(confirmLabel)}</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      overlay.querySelector('#leaveConfirmCancel').addEventListener('click', () => { overlay.remove(); resolve(false); });
+      overlay.querySelector('#leaveConfirmOk').addEventListener('click', () => { overlay.remove(); resolve(true); });
+    });
+  }
+
+  async function confirmLeaveMatch() {
+    const confirmed = await confirmDialog({
+      title: 'Leave this match?',
+      body: 'You will forfeit remaining benefits from this match. Your final rank will be recorded as last place.',
+      confirmLabel: 'Confirm Leave',
+    });
+    if (!confirmed) return;
+
+    const result = await TW.emitAck('match:leave', { matchId });
+    if (!result.success) {
+      TW.toast(result.error || 'Could not leave the match', 'danger');
+      return;
+    }
+    matchEnded = true;
+    TW.toast('You left the match. Final rank recorded as last place.', 'warning');
+    setTimeout(() => { window.location.href = '/'; }, 1200);
+  }
+
   // ---- sabotage visual side-effects --------------------------------------------
 
   const effectTimers = {};
@@ -847,7 +995,6 @@ window.TW = window.TW || {};
           <div class="rr-name">
             <strong>${TW.escapeHtml(r.username)}</strong>
             <span class="pill ${TW.tierClass(r.newTier)}" style="font-size:10px;">${TW.escapeHtml(r.newTier)}</span>
-            ${r.isAI ? '<span class="pill">🤖 AI</span>' : ''}
             ${r.playerId === lastState?.you ? '<span class="pill pill-gold">YOU</span>' : ''}
           </div>
           <div class="rr-pnl ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(r.pnl)}<span class="pct">${
@@ -1057,6 +1204,10 @@ window.TW = window.TW || {};
     lastState = state;
     setupInstrumentTabs(state.instruments);
     TW.Sabotage.render(state);
+    if (!rulesOverlayShown) {
+      rulesOverlayShown = true;
+      showMatchRules(state);
+    }
 
     const me = state.players.find((p) => p.id === state.you);
     if (me) {
@@ -1147,14 +1298,25 @@ window.TW = window.TW || {};
       renderTopbar();
     }
   });
+  // FIX: market-wide cards (volatility_surge, spread_spike, liquidity_drain,
+  // smoke_screen) now exempt the player who cast them - server confirms it
+  // with this event right after the card resolves.
+  socket.on('sabotage:immune', () => TW.Sabotage.showImmune());
+  // Reversal Flash: private 1s heads-up before the shared price reversal
+  // actually starts - opponents only learn about it once it's already moving.
+  socket.on('sabotage:reversal_warning', () => TW.Sabotage.showReversalWarning());
 
   // match:feed already carries every sabotage:broadcast message (gameEngine
   // pushes the same feedText to both) - only listen once to avoid duplicate ticker lines.
   socket.on('match:feed', (entry) => pushFeed(entry.text));
   socket.on('margin:warning', (payload) => {
     showMarginBanner(payload);
-    if (payload.level === 'eliminated') TW.Sound.play('stopLossHit');
-    else TW.Sound.play('margin_alert');
+    if (payload.level === 'eliminated') {
+      TW.Sound.play('stopLossHit');
+      showEliminationModal(payload);
+    } else {
+      TW.Sound.play('margin_alert');
+    }
   });
 
   let lastViewerRank = null;
@@ -1193,6 +1355,8 @@ window.TW = window.TW || {};
     TW.toast(payload.reason || 'This match was cancelled by an admin.', 'warning');
     setTimeout(() => { window.location.href = '/'; }, 2500);
   });
+
+  document.getElementById('leaveMatchBtn')?.addEventListener('click', () => confirmLeaveMatch());
 
   setupLotSelector();
   setupTimeframeSelector();

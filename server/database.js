@@ -479,6 +479,9 @@ async function listOutgoingRequests(playerId) {
   return data;
 }
 
+// Persona accounts (server/personas.js) are excluded - they're per-match
+// slot-fillers with no real login, so a friend request to one would sit
+// pending forever. They still show up on the leaderboard, just never here.
 async function searchPlayers(query, excludePlayerId, limit = 10) {
   assertConfigured();
   const { data, error } = await supabase
@@ -486,6 +489,7 @@ async function searchPlayers(query, excludePlayerId, limit = 10) {
     .select('id, username, avatar_url, war_rating, tier')
     .ilike('username', `%${query}%`)
     .neq('id', excludePlayerId)
+    .eq('is_persona', false)
     .limit(limit);
   if (error) throw error;
   return data;
@@ -884,6 +888,21 @@ async function getEquippedCosmetics(playerId) {
   return data;
 }
 
+// Bulk variant for lists (friends panel, leaderboard) so rendering N players'
+// cosmetics doesn't cost N separate queries. Returns { [playerId]: { avatar_frame, background, nameplate } }.
+async function getEquippedCosmeticsForPlayers(playerIds) {
+  assertConfigured();
+  if (!playerIds || playerIds.length === 0) return {};
+  const { data, error } = await supabase.from('equipped_cosmetics').select('*').in('player_id', playerIds);
+  if (error) throw error;
+  const byPlayer = {};
+  for (const row of data) {
+    if (!byPlayer[row.player_id]) byPlayer[row.player_id] = {};
+    byPlayer[row.player_id][row.slot] = row.item_id;
+  }
+  return byPlayer;
+}
+
 async function equipCosmetic(playerId, slot, itemId) {
   assertConfigured();
   const { data, error } = await supabase
@@ -895,12 +914,27 @@ async function equipCosmetic(playerId, slot, itemId) {
   return data;
 }
 
+// Excludes obvious leftover QA/dev accounts from any public leaderboard -
+// real accounts are never named this way, so this is safe defense-in-depth
+// even after a one-time cleanup of existing rows (server/seedPersonas.js's
+// persona accounts don't match any of these patterns).
+function excludeTestAccounts(query) {
+  return query
+    .not('username', 'ilike', '%test%')
+    .not('username', 'ilike', '%debug%')
+    .not('username', 'ilike', '%iso%')
+    .not('username', 'ilike', 'monitor%')
+    .not('username', 'ilike', 'pclose%');
+}
+
 async function getLeaderboard(limit = 10, { search = null } = {}) {
   assertConfigured();
   let query = supabase
     .from('players')
     .select('id, username, war_rating, tier, wins, losses, draws, total_matches')
+    .gt('total_matches', 0)
     .order('war_rating', { ascending: false });
+  query = excludeTestAccounts(query);
   if (search) query = query.ilike('username', `%${search}%`);
   query = query.limit(limit);
   const { data, error } = await query;
@@ -917,8 +951,10 @@ async function getPeriodLeaderboard(sinceIso, limit = 500) {
     .limit(5000);
   if (error) throw error;
 
+  const TEST_ACCOUNT_PATTERN = /test|debug|iso/i;
   const byPlayer = new Map();
   for (const row of data) {
+    if (TEST_ACCOUNT_PATTERN.test(row.players.username) || /^(monitor|pclose)/i.test(row.players.username)) continue;
     const entry = byPlayer.get(row.player_id) || {
       id: row.player_id,
       username: row.players.username,
@@ -1364,6 +1400,7 @@ module.exports = {
   recordShopPurchase,
   listShopPurchases,
   getEquippedCosmetics,
+  getEquippedCosmeticsForPlayers,
   equipCosmetic,
   getBattlePassStatus,
   ensureBattlePassStatus,

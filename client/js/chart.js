@@ -8,9 +8,14 @@ TW.Chart = (function () {
   // history even though a 10-minute match itself never fills a complete H1/H4
   // bar live - same as real MT5 showing a partial forming candle.
   const TIMEFRAMES = [5, 10, 30, 60, 300, 900, 1800, 3600, 14400];
-  const TIMEFRAME_LABELS = { 5: '5s', 10: '10s', 30: '30s', 60: 'M1', 300: 'M5', 900: 'M15', 1800: 'M30', 3600: 'H1', 14400: 'H4' };
-  // How many candles to auto-fit into view right after switching to each timeframe.
-  const TIMEFRAME_AUTOFIT_BARS = { 5: 60, 10: 60, 30: 60, 60: 60, 300: 48, 900: 32, 1800: 24, 3600: 24, 14400: 30 };
+  const TIMEFRAME_LABELS = { 5: '5s', 10: '10s', 30: '30s', 60: '1m', 300: '5m', 900: '15m', 1800: '30m', 3600: '1h', 14400: '4h' };
+  // Always auto-fit the same number of candles into view regardless of
+  // timeframe (TradingView behaviour) - a fixed bar count here combined with
+  // the chart's own fixed barSpacing is what keeps candles the same visual
+  // width on every timeframe. A per-timeframe bar count would make higher
+  // timeframes render fewer, fatter candles - the exact "giant candlesticks
+  // on H1/H4" bug this constant used to cause.
+  const TARGET_VISIBLE_BARS = 70;
   const DEFAULT_TIMEFRAME = 5;
   const PRE_MATCH_SECONDS = 7200; // 2 hours - keep in sync with server/marketData.js
 
@@ -104,15 +109,28 @@ TW.Chart = (function () {
     return `${sign}${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   }
 
+  // Reads the current data-theme and returns matching lightweight-charts
+  // colors - keeps the chart canvas in sync with the dark/midnight/light
+  // page theme instead of staying hardcoded to the original dark palette.
+  function getChartTheme() {
+    const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+    return {
+      dark: { bg: '#0d0d0d', text: '#888888', grid: '#1f1f1f', border: '#2a2a2a' },
+      midnight: { bg: '#0c0a14', text: '#9988bb', grid: 'rgba(150,100,255,0.08)', border: 'rgba(150,100,255,0.2)' },
+      light: { bg: '#ffffff', text: '#555555', grid: '#e5e7eb', border: '#dde1e6' },
+    }[theme];
+  }
+
   function init(containerId) {
     const container = document.getElementById(containerId);
+    const ct = getChartTheme();
     chart = LightweightCharts.createChart(container, {
-      layout: { background: { color: '#0d0d0d' }, textColor: '#888888' },
-      grid: { vertLines: { color: '#1f1f1f' }, horzLines: { color: '#1f1f1f' } },
+      layout: { background: { color: ct.bg }, textColor: ct.text },
+      grid: { vertLines: { color: ct.grid }, horzLines: { color: ct.grid } },
       timeScale: {
         timeVisible: true,
         secondsVisible: true,
-        borderColor: '#2a2a2a',
+        borderColor: ct.border,
         tickMarkFormatter: (time) => formatElapsedClock(time),
         // A fixed pixel width per candle (rather than fitContent()'s "stretch whatever
         // few bars exist to fill the chart") is what avoids 1-2 candles at match start
@@ -120,11 +138,16 @@ TW.Chart = (function () {
         // bars as the match progresses, with shiftVisibleRangeOnNewBar (on by default)
         // auto-scrolling to keep the latest candle in view.
         barSpacing: 8,
+        minBarSpacing: 4,
+        rightOffset: 5,
+        lockVisibleTimeRangeOnResize: true,
+        fixLeftEdge: false,
+        fixRightEdge: false,
       },
       localization: {
         timeFormatter: (time) => formatElapsedClock(time),
       },
-      rightPriceScale: { borderColor: '#2a2a2a' },
+      rightPriceScale: { borderColor: ct.border },
       crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
       autoSize: true,
     });
@@ -178,7 +201,8 @@ TW.Chart = (function () {
   // as dimmed (~0.6 opacity) without needing per-bar alpha, which lightweight-
   // charts candlestick bars don't support directly - only solid color overrides.
   function blendTowardBackground(hex, alpha) {
-    const bg = { r: 0x0d, g: 0x0d, b: 0x0d };
+    const bgHex = getChartTheme().bg;
+    const bg = { r: parseInt(bgHex.slice(1, 3), 16), g: parseInt(bgHex.slice(3, 5), 16), b: parseInt(bgHex.slice(5, 7), 16) };
     const c = { r: parseInt(hex.slice(1, 3), 16), g: parseInt(hex.slice(3, 5), 16), b: parseInt(hex.slice(5, 7), 16) };
     const mix = (a, b) => Math.round(a * alpha + b * (1 - alpha));
     return `rgb(${mix(c.r, bg.r)}, ${mix(c.g, bg.g)}, ${mix(c.b, bg.b)})`;
@@ -247,11 +271,25 @@ TW.Chart = (function () {
     // range set once, right in response to this explicit user action, is safe -
     // unlike setVisibleRange, it isn't fought by the next tick's setData() call
     // because shiftVisibleRangeOnNewBar extends from wherever the view already is.
-    const barCount = TIMEFRAME_AUTOFIT_BARS[seconds] || 60;
     const total = lastCandles.length;
     if (total > 0 && chart) {
-      chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - barCount), to: total });
+      chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - TARGET_VISIBLE_BARS), to: total });
     }
+  }
+
+  // Re-applies the chart's own colors (background/grid/text/borders, plus the
+  // pre-match dim-blend target) when the page theme changes, without tearing
+  // down and recreating the chart (which would lose zoom/scroll state).
+  function refreshTheme() {
+    if (!chart) return;
+    const ct = getChartTheme();
+    chart.applyOptions({
+      layout: { background: { color: ct.bg }, textColor: ct.text },
+      grid: { vertLines: { color: ct.grid }, horzLines: { color: ct.grid } },
+      timeScale: { borderColor: ct.border },
+      rightPriceScale: { borderColor: ct.border },
+    });
+    refreshActiveSeries();
   }
 
   function setGhosted(active) {
@@ -701,6 +739,7 @@ TW.Chart = (function () {
     loadPreMatchHistory,
     setActiveSymbol,
     setTimeframe,
+    refreshTheme,
     setGhosted,
     setVolatile,
     reset,

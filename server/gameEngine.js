@@ -1,12 +1,12 @@
 'use strict';
 
 const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
 const instruments = require('./instruments');
 const sabotage = require('./sabotage');
 const db = require('./database');
 const battlepass = require('./battlepass');
 const tournamentLib = require('./tournament');
+const personas = require('./personas');
 
 const MAX_PLAYERS = 8; // raised from 6 so Grand War's 8-player lobbies fit the same player-cap check everywhere
 const MIN_PLAYERS = 2;
@@ -237,17 +237,7 @@ function computeMatchResults(players, mode, config) {
   return results;
 }
 
-const AI_PROFILES = [
-  { key: 'aggressive_al', username: 'Aggressive_Al', personality: 'aggressive' },
-  { key: 'patient_patricia', username: 'Patient_Patricia', personality: 'patient' },
-  { key: 'chaos_carlos', username: 'Chaos_Carlos', personality: 'chaos' },
-  { key: 'reckless_rita', username: 'Reckless_Rita', personality: 'aggressive' },
-  { key: 'steady_sam', username: 'Steady_Sam', personality: 'patient' },
-  { key: 'wildcard_wendy', username: 'Wildcard_Wendy', personality: 'chaos' },
-  { key: 'sniper_sadiq', username: 'Sniper_Sadiq', personality: 'patient' },
-  { key: 'yolo_yusuf', username: 'YOLO_Yusuf', personality: 'aggressive' },
-];
-const aiPlayerCache = {};
+const PERSONA_STYLES = ['aggressive', 'patient', 'chaos'];
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -262,27 +252,29 @@ function rand(min, max) {
   return min + Math.random() * (max - min);
 }
 
-async function ensureAIPlayer(profile) {
-  if (aiPlayerCache[profile.key]) return aiPlayerCache[profile.key];
+// Resolves a slot-filling player to one of the persistent persona accounts
+// (seeded via server/seedPersonas.js) - looked up fresh every time (not
+// cached) so a persona's war_rating/tier reflect whatever it's accumulated
+// from prior matches, same as a real player. Falls back to an ephemeral
+// in-memory record only if the DB is unreachable or the seed script hasn't
+// been run yet, so a match can still fill without crashing.
+async function ensurePersonaPlayer(matchId, style) {
+  const persona = personas.getPersona(style, matchId);
   let record = null;
   if (db.isConfigured) {
     try {
-      record = await db.getPlayerByUsername(profile.username);
-      if (!record) {
-        const passwordHash = await bcrypt.hash(crypto.randomUUID(), 4);
-        record = await db.createPlayer({
-          username: profile.username,
-          email: `${profile.key}@bots.spikecrush.local`,
-          passwordHash,
-        });
-      }
+      record = await db.getPlayerByUsername(persona.username);
     } catch (e) {
-      console.warn(`[gameEngine] could not persist AI player ${profile.username}:`, e.message);
+      console.warn(`[gameEngine] could not look up persona player ${persona.username}:`, e.message);
     }
   }
-  const resolved = record || { id: crypto.randomUUID(), username: profile.username, war_rating: 1000, tier: 'Recruit' };
-  aiPlayerCache[profile.key] = resolved;
-  return resolved;
+  const resolved = record || {
+    id: crypto.randomUUID(),
+    username: persona.username,
+    war_rating: persona.rating,
+    tier: tierForRating(persona.rating),
+  };
+  return { ...resolved, personality: persona.style };
 }
 
 function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) {
@@ -315,13 +307,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     io.to(roomName(match.id)).emit(event, payload);
   }
 
+  // Never include isAI/isPersona here - personas.js and this flag exist so
+  // slot-filling can look and behave exactly like a real player join to
+  // every client. Server-side logic reads p.isAI directly off the internal
+  // match.players record instead, never off this sanitized client payload.
   function publicPlayer(p, isSelf) {
     return {
       id: p.id,
       username: p.username,
       warRating: p.warRating,
       tier: p.tier,
-      isAI: p.isAI,
       ready: p.ready,
       balance: isSelf ? p.balance : undefined,
       positions: isSelf ? p.positions : undefined,
@@ -347,6 +342,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       maxPlayers: match.config.maxPlayers,
       lobbyTargetSize: match.config.idealPlayers,
       cardsPerPlayer: match.config.cardsPerPlayer,
+      entryCoins: match.config.entryCoins,
       cardCatalog: sabotage.getCardCatalog(),
       feed: match.feed.slice(-30),
       players: Object.values(match.players).map((p) => publicPlayer(p, p.id === viewerId)),
@@ -376,7 +372,17 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     return reversal.direction * pip * 10 * magnitude;
   }
 
-  function getEffectivePrice(match, symbol, elapsedSeconds, nowMs) {
+  // viewerId is whoever's account this price is being computed FOR (the
+  // trader opening/closing/holding a position, or a specific socket's
+  // price:update) - null means "no one is exempt", i.e. the fully-affected
+  // price, which is what the room-wide broadcast (spectators included)
+  // still gets unchanged. Passing the real viewer lets market-wide sabotage
+  // cards (volatility_surge, spread_spike) exempt the player who cast them,
+  // per FIX: sabotage cards must not affect the caster - reversal_flash is
+  // deliberately NOT exempted here since the spec calls for it to still
+  // move a shared price for everyone; the caster's edge is a private
+  // warning before it starts, handled in playSabotageCard/sabotage.js.
+  function getEffectivePrice(match, symbol, elapsedSeconds, nowMs, viewerId = null) {
     const raw = instruments.getCurrentPrice(match.id, symbol, elapsedSeconds);
     let mid = raw.mid;
 
@@ -387,22 +393,27 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       match.marketEffects[symbol] = { spreadMultiplier: 1, spreadUntil: 0, reversal: null };
     }
 
-    if (nowMs < match.marketEffects.volatilitySurgeUntil && match.marketEffects.volatilitySurgeBaseline) {
+    if (
+      nowMs < match.marketEffects.volatilitySurgeUntil &&
+      match.marketEffects.volatilitySurgeBaseline &&
+      viewerId !== match.marketEffects.volatilitySurgeCasterId
+    ) {
       const baseline = match.marketEffects.volatilitySurgeBaseline[symbol];
       mid = baseline + (mid - baseline) * 2;
     }
 
     const reversal = match.marketEffects[symbol].reversal;
     if (reversal) {
-      if (nowMs < reversal.until) {
+      if (nowMs >= reversal.startedAt && nowMs < reversal.until) {
         mid += reversalOffset(reversal, symbol, nowMs);
-      } else {
+      } else if (nowMs >= reversal.until) {
         match.marketEffects[symbol].reversal = null;
       }
     }
 
     const baseSpread = instruments.getSpread(symbol);
-    const spreadActive = nowMs < match.marketEffects[symbol].spreadUntil;
+    const spreadActive =
+      nowMs < match.marketEffects[symbol].spreadUntil && viewerId !== match.marketEffects[symbol].spreadCasterId;
     const spread = spreadActive ? baseSpread * match.marketEffects[symbol].spreadMultiplier : baseSpread;
 
     const decimals = instruments.getInstrument(symbol)?.decimals ?? (symbol === 'EURUSD' ? 5 : 2);
@@ -415,7 +426,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   function computeEquity(match, player, elapsedSeconds, nowMs) {
     let equity = player.balance;
     for (const pos of player.positions) {
-      const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs);
+      const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs, player.id);
       const exitPrice = pos.direction === 'BUY' ? price.bid : price.ask;
       equity += instruments.calculatePnL(pos.direction, pos.lots, pos.entryPrice, exitPrice, pos.symbol);
     }
@@ -583,16 +594,22 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     return { success: true, match };
   }
 
-  async function fillWithAI(match, count) {
-    const profiles = shuffle(AI_PROFILES).slice(0, count);
-    for (const profile of profiles) {
-      const info = await ensureAIPlayer(profile);
+  // Fills empty match slots with persona accounts, indistinguishable from a
+  // real player joining: same 'player:joined' event, same feed text, same
+  // lobby:chat mechanism for the occasional "GL HF" greeting. When `stagger`
+  // is on (regular matchmaking lobbies, where the lobby is meant to feel
+  // like it's filling with real people) each join lands 1-2s apart instead
+  // of all at once; Solo Ranked and host-triggered fills stay instant.
+  async function fillWithAI(match, count, { stagger = false } = {}) {
+    const styles = shuffle(shuffle(PERSONA_STYLES.concat(PERSONA_STYLES).concat(PERSONA_STYLES))).slice(0, count);
+    for (let i = 0; i < styles.length; i++) {
+      const info = await ensurePersonaPlayer(match.id, styles[i]);
       const ratingField = match.config.ratingKey || 'war_rating';
       const player = createPlayerState(
         { id: info.id, username: info.username, [ratingField]: info[ratingField] ?? info.war_rating ?? 1000 },
         null,
         true,
-        profile.personality,
+        info.personality,
         match.config,
         match.instruments
       );
@@ -601,8 +618,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       if (db.isConfigured && match.dbMatchId) {
         db.addMatchPlayer({ matchId: match.dbMatchId, playerId: player.id }).catch(() => {});
       }
-      pushFeed(match, `${player.username} (AI) filled an empty slot`);
-      emitToAll(match, 'ai:joined', { player: publicPlayer(player, false) });
+      pushFeed(match, `${player.username} joined the war`);
+      emitToAll(match, 'player:joined', { player: publicPlayer(player, false) });
+      emitMatchStateToAll(match);
+
+      const chatLine = personas.maybeJoinChatLine();
+      if (chatLine) sendChatMessage(match.id, player.id, chatLine);
+
+      if (stagger && i < styles.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000));
+      }
     }
   }
 
@@ -628,8 +653,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
         ? 1 + (match.config.aiOpponents || 3)
         : Math.max(match.config.minPlayers, Math.min(match.config.idealPlayers, match.config.maxPlayers));
     const needed = match.config.fillMethod === 'none' ? 0 : Math.max(0, targetSize - currentCount);
+    const stagger = match.config.fillMethod === 'ai';
 
-    fillWithAI(match, needed).then(() => {
+    fillWithAI(match, needed, { stagger }).then(() => {
       emitMatchStateToAll(match);
       beginCountdown(match.id);
     });
@@ -729,7 +755,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       return { success: false, error: 'Loss limit reached for this 2-minute window - trading resumes next window' };
     }
 
-    const liquidityDrained = nowMs < match.marketEffects.liquidityDrainUntil;
+    const liquidityDrained =
+      nowMs < match.marketEffects.liquidityDrainUntil && match.marketEffects.liquidityDrainCasterId !== playerId;
     const maxLot = liquidityDrained ? 0.1 : MAX_LOTS;
     const numLots = Number(lots);
     if (!Number.isFinite(numLots) || numLots <= 0 || numLots > maxLot) {
@@ -739,7 +766,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       return { success: false, error: 'Maximum open positions reached' };
     }
 
-    const price = getEffectivePrice(match, symbol, elapsedSeconds, nowMs);
+    const price = getEffectivePrice(match, symbol, elapsedSeconds, nowMs, playerId);
     const entryPrice = direction === 'BUY' ? price.ask : price.bid;
 
     // SL/TP may arrive as an absolute price or as a pip distance from entry
@@ -812,7 +839,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     const nowMs = Date.now();
     const elapsedSeconds = getElapsedSeconds(match, nowMs);
     const position = player.positions[idx];
-    const price = getEffectivePrice(match, position.symbol, elapsedSeconds, nowMs);
+    const price = getEffectivePrice(match, position.symbol, elapsedSeconds, nowMs, playerId);
     const exitPrice = position.direction === 'BUY' ? price.bid : price.ask;
     const pnl = instruments.calculatePnL(position.direction, position.lots, position.entryPrice, exitPrice, position.symbol);
 
@@ -856,7 +883,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
 
     const nowMs = Date.now();
     const elapsedSeconds = getElapsedSeconds(match, nowMs);
-    const price = getEffectivePrice(match, position.symbol, elapsedSeconds, nowMs);
+    const price = getEffectivePrice(match, position.symbol, elapsedSeconds, nowMs, playerId);
     const exitPrice = position.direction === 'BUY' ? price.bid : price.ask;
 
     const closedLots = Math.round(position.lots * (pct / 100) * 100) / 100;
@@ -932,7 +959,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     for (const player of Object.values(match.players)) {
       for (const pos of player.positions.slice()) {
         if (!pos.stopLoss && !pos.takeProfit) continue;
-        const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs);
+        const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs, player.id);
         const exitPrice = pos.direction === 'BUY' ? price.bid : price.ask;
 
         let hitReason = null;
@@ -979,7 +1006,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       let best = null;
       let bestPnl = -Infinity;
       for (const pos of target.positions) {
-        const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs);
+        const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs, target.id);
         const exitPrice = pos.direction === 'BUY' ? price.bid : price.ask;
         const pnl = instruments.calculatePnL(pos.direction, pos.lots, pos.entryPrice, exitPrice, pos.symbol);
         if (pnl > bestPnl) {
@@ -993,7 +1020,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     if (result.mirrorSource) {
       const target = match.players[result.targetId];
       const elapsedSeconds = getElapsedSeconds(match, nowMs);
-      const price = getEffectivePrice(match, result.mirrorSource.symbol, elapsedSeconds, nowMs);
+      const price = getEffectivePrice(match, result.mirrorSource.symbol, elapsedSeconds, nowMs, target.id);
       const entryPrice = result.mirrorSource.direction === 'BUY' ? price.ask : price.bid;
       const position = {
         id: crypto.randomUUID(),
@@ -1049,6 +1076,32 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       if (n.to === 'all') emitToAll(match, n.event, payload);
       else emitToPlayer(match, n.to, n.event, payload);
     }
+
+    // These 4 market-wide cards are now exempt for the caster (see FIX:
+    // sabotage cards must not affect the caster) - let the client show a
+    // brief "you're immune to your own card" confirmation. reversal_flash
+    // isn't included here since it gets its own private warning instead
+    // (the price move itself is shared, not something the caster is immune
+    // to) - handled via result.delayedNotify below.
+    if (['volatility_surge', 'spread_spike', 'liquidity_drain', 'smoke_screen'].includes(cardType)) {
+      emitToPlayer(match, playerId, 'sabotage:immune', {
+        cardType,
+        message: 'Your card does not affect you',
+      });
+    }
+
+    if (result.delayedNotify) {
+      const { delayMs, exceptPlayerId, event, payload } = result.delayedNotify;
+      setTimeout(() => {
+        const stillMatch = matches.get(matchId);
+        if (!stillMatch || stillMatch.status !== 'active') return;
+        for (const p of Object.values(stillMatch.players)) {
+          if (p.id === exceptPlayerId || p.isAI) continue;
+          emitToPlayer(stillMatch, p.id, event, { ...payload, cardName: sabotage.CARDS[cardType].name });
+        }
+      }, delayMs);
+    }
+
     emitMatchStateToAll(match);
 
     return { success: true };
@@ -1056,12 +1109,15 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
 
   // ---- AI ------------------------------------------------------------------
 
+  // Reaction speed per style - aggressive personas jump on moves fast,
+  // patient personas wait out a real setup, chaos is pure noise.
   function createAIState(personality, matchInstruments = ['EURUSD', 'XAUUSD']) {
     switch (personality) {
       case 'aggressive':
         return {
           entryTime: rand(3, 30),
           entered: false,
+          hesitated: false,
           cardTimes: [rand(5, 120), rand(5, 120), rand(5, 120)].sort((a, b) => a - b),
           cardsFired: [false, false, false],
           reopenIntervalSec: rand(20, 40),
@@ -1071,6 +1127,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
         return {
           entryTime: rand(120, 180),
           entered: false,
+          hesitated: false,
           instrument: matchInstruments[Math.floor(Math.random() * matchInstruments.length)],
           cardTimes: [rand(360, 595), rand(360, 595), rand(360, 595)].sort((a, b) => a - b),
           cardsFired: [false, false, false],
@@ -1083,6 +1140,36 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
           cardsFired: [false, false, false],
         };
     }
+  }
+
+  // Lot size a persona would actually type in - a spread of realistic sizes
+  // per style rather than one fixed number every single trade.
+  const LOT_POOL = {
+    aggressive: [0.5, 1.0, 1.5, 2.0, 2.0, 3.0],
+    patient: [0.1, 0.25, 0.5, 0.5, 0.5, 1.0],
+  };
+  function lotSizeForStyle(style) {
+    const pool = LOT_POOL[style];
+    if (pool) return pool[Math.floor(Math.random() * pool.length)];
+    return Math.round((0.1 + Math.random() * 2.9) * 10) / 10; // chaos: fully random
+  }
+
+  // Not every trade carries a stop loss / take profit - humans skip them
+  // plenty. Chance and pip-distance both vary by style; a small fraction of
+  // stop losses come out unrealistically tight (a human fat-fingering risk),
+  // which is what makes these personas actually beatable.
+  const SL_TP_PROFILE = {
+    aggressive: { slChance: 0.6, tpChance: 0.4, slPips: [15, 35], tpPips: [15, 45] },
+    patient: { slChance: 0.85, tpChance: 0.75, slPips: [20, 50], tpPips: [30, 80] },
+    chaos: { slChance: 0.3, tpChance: 0.2, slPips: [5, 100], tpPips: [5, 100] },
+  };
+  function slTpForStyle(style) {
+    const profile = SL_TP_PROFILE[style] || SL_TP_PROFILE.chaos;
+    const out = {};
+    if (Math.random() < profile.slChance) out.stopLossPips = Math.round(rand(profile.slPips[0], profile.slPips[1]));
+    if (Math.random() < profile.tpChance) out.takeProfitPips = Math.round(rand(profile.tpPips[0], profile.tpPips[1]));
+    if (out.stopLossPips && Math.random() < 0.05) out.stopLossPips = Math.max(2, Math.round(out.stopLossPips * 0.25));
+    return out;
   }
 
   function fireAICard(match, player, cardIndex) {
@@ -1102,21 +1189,37 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     switch (player.aiPersonality) {
       case 'aggressive': {
         if (!st.entered && elapsedSeconds >= st.entryTime) {
-          st.entered = true;
-          for (const symbol of match.instruments) {
-            openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: 2.0 });
+          // 20% of the time, hesitate once - like a human who almost pulled
+          // the trigger, then waited a few more seconds to be sure.
+          if (!st.hesitated && Math.random() < 0.2) {
+            st.hesitated = true;
+            st.entryTime = elapsedSeconds + rand(5, 15);
+          } else {
+            st.entered = true;
+            for (const symbol of match.instruments) {
+              openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('aggressive'), ...slTpForStyle('aggressive') });
+            }
+            st.lastActionAt = elapsedSeconds;
           }
-          st.lastActionAt = elapsedSeconds;
         }
         if (st.entered && elapsedSeconds - st.lastActionAt >= st.reopenIntervalSec && player.positions.length > 0) {
           const pos = player.positions[0];
           closeTrade(match.id, player.id, pos.id);
           if (player.positions.length < MAX_POSITIONS) {
             const symbol = match.instruments[Math.floor(Math.random() * match.instruments.length)];
-            openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: 2.0 });
+            openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('aggressive'), ...slTpForStyle('aggressive') });
           }
           st.lastActionAt = elapsedSeconds;
           st.reopenIntervalSec = rand(20, 40);
+        }
+        // Mistake: sometimes close a trade that's currently winning well
+        // before it needed to be - a human taking profit too early.
+        if (Math.random() < 0.05 && player.positions.length > 0) {
+          const pos = player.positions[Math.floor(Math.random() * player.positions.length)];
+          const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs, player.id);
+          const exitPrice = pos.direction === 'BUY' ? price.bid : price.ask;
+          const pnl = instruments.calculatePnL(pos.direction, pos.lots, pos.entryPrice, exitPrice, pos.symbol);
+          if (pnl > 0) closeTrade(match.id, player.id, pos.id);
         }
         st.cardTimes.forEach((t, i) => {
           if (!st.cardsFired[i] && elapsedSeconds >= t) {
@@ -1128,8 +1231,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       }
       case 'patient': {
         if (!st.entered && elapsedSeconds >= st.entryTime) {
-          st.entered = true;
-          openTrade(match.id, player.id, { symbol: st.instrument, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: 0.5 });
+          if (!st.hesitated && Math.random() < 0.2) {
+            st.hesitated = true;
+            st.entryTime = elapsedSeconds + rand(5, 15);
+          } else {
+            st.entered = true;
+            openTrade(match.id, player.id, { symbol: st.instrument, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('patient'), ...slTpForStyle('patient') });
+          }
         }
         st.cardTimes.forEach((t, i) => {
           if (!st.cardsFired[i] && elapsedSeconds >= t) {
@@ -1143,13 +1251,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       default: {
         if (elapsedSeconds >= st.nextEntryAt && player.positions.length < MAX_POSITIONS) {
           const symbol = match.instruments[Math.floor(Math.random() * match.instruments.length)];
-          const lots = Math.round((0.1 + Math.random() * 2.9) * 10) / 10;
-          openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots });
+          openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('chaos'), ...slTpForStyle('chaos') });
           st.nextEntryAt = elapsedSeconds + rand(10, 60);
         }
         if (Math.random() < 0.03 && player.positions.length > 0) {
           for (const pos of player.positions.slice()) {
-            const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs);
+            const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs, player.id);
             const exitPrice = pos.direction === 'BUY' ? price.bid : price.ask;
             const pnl = instruments.calculatePnL(pos.direction, pos.lots, pos.entryPrice, exitPrice, pos.symbol);
             if (pnl > 0 && Math.random() < 0.5) closeTrade(match.id, player.id, pos.id);
@@ -1245,6 +1352,36 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       prices,
     });
 
+    // Market-wide cards (volatility_surge, spread_spike) exempt whoever cast
+    // them - the room-wide broadcast above is the fully-affected price
+    // (spectators and everyone else keep seeing that), so an active caster
+    // gets an immediate corrective follow-up with what they should actually
+    // see instead. Only computed while one of these is actually active, not
+    // for the rest of the match once a card has merely been played once.
+    const activeExemptIds = new Set();
+    if (nowMs < match.marketEffects.volatilitySurgeUntil && match.marketEffects.volatilitySurgeCasterId) {
+      activeExemptIds.add(match.marketEffects.volatilitySurgeCasterId);
+    }
+    for (const symbol of match.instruments) {
+      const symbolEffects = match.marketEffects[symbol];
+      if (symbolEffects && nowMs < symbolEffects.spreadUntil && symbolEffects.spreadCasterId) {
+        activeExemptIds.add(symbolEffects.spreadCasterId);
+      }
+    }
+    if (activeExemptIds.size > 0) {
+      for (const p of Object.values(match.players)) {
+        if (p.isAI || !activeExemptIds.has(p.id)) continue;
+        const correctedPrices = {};
+        for (const symbol of match.instruments) correctedPrices[symbol] = getEffectivePrice(match, symbol, elapsedSeconds, nowMs, p.id);
+        emitToPlayer(match, p.id, 'price:update', {
+          matchId: match.id,
+          elapsedSeconds,
+          timeRemaining: match.config.durationSeconds - elapsedSeconds,
+          prices: correctedPrices,
+        });
+      }
+    }
+
     checkStopLossTakeProfit(match, elapsedSeconds, nowMs);
     for (const p of Object.values(match.players)) checkRiskLimits(match, p, elapsedSeconds, nowMs);
 
@@ -1274,7 +1411,6 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
         return {
           id: p.id,
           username: p.username,
-          isAI: p.isAI,
           pnl: Math.round((equity - STARTING_CAPITAL) * 100) / 100,
           tradesMade: p.tradesMade,
           eliminated: p.eliminated,
@@ -1284,7 +1420,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       .sort((a, b) => b.pnl - a.pnl)
       .map((row, i) => ({ ...row, rank: i + 1 }));
 
-    emitToAll(match, 'leaderboard:update', { rows, blurred: nowMs < match.marketEffects.smokeScreenUntil });
+    const blurred = nowMs < match.marketEffects.smokeScreenUntil;
+    emitToAll(match, 'leaderboard:update', { rows, blurred });
+    // Smoke Screen exempts whoever cast it - same rows, just not blurred for
+    // them (see FIX: sabotage cards must not affect the caster).
+    if (blurred && match.marketEffects.smokeScreenCasterId) {
+      const casterId = match.marketEffects.smokeScreenCasterId;
+      if (match.players[casterId] && !match.players[casterId].isAI) {
+        emitToPlayer(match, casterId, 'leaderboard:update', { rows, blurred: false });
+      }
+    }
     announceLiveTieIfNew(match, rows, elapsedSeconds);
   }
 
@@ -1534,12 +1679,45 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       emitToAll(match, 'match:draw_detected', { drawGroups });
     }
 
-    emitToAll(match, 'match:end', { matchId: match.id, results, feed: match.feed });
+    // isAI stays out of the client-facing payload (results itself keeps it -
+    // the loops right below and the replay-record write further down still
+    // need it) - see the publicPlayer() comment for why.
+    const clientResults = results.map(({ isAI, ...r }) => r);
+    emitToAll(match, 'match:end', { matchId: match.id, results: clientResults, feed: match.feed });
     for (const r of results) {
       if (!r.isAI) updatePresence?.(r.playerId, { status: 'online', matchId: null, lobbyId: null, mode: null });
     }
     for (const winner of results.filter((r) => r.rank === 1 && !r.isAI)) {
       notifyFriendsOfWin?.(winner.playerId, winner.username, match.config.label || match.mode, winner.pnl, match.id);
+    }
+
+    // FIX: anyone who used leaveMatch() earlier is long gone from
+    // match.players by now, but they still get told how the match they
+    // abandoned actually turned out - reuses the same global notification
+    // pipe as rank_up/battlepass_tier, so it reaches them even if they're
+    // already in a different match by the time this fires.
+    if (match.earlyLeavers?.length) {
+      const winnerResult = results.find((r) => r.rank === 1);
+      for (const leaver of match.earlyLeavers) {
+        notifyPlayer?.(
+          leaver.playerId,
+          'match_summary',
+          `Match summary: you finished #${leaver.finalRank} (left early) in ${match.config.label || match.mode}`,
+          {
+            data: {
+              matchId: match.id,
+              mode: match.config.label || match.mode,
+              yourRank: leaver.finalRank,
+              leftEarly: true,
+              yourPnl: leaver.finalPnl,
+              winner: winnerResult?.username || null,
+              winnerPnl: winnerResult?.pnl ?? null,
+              ratingChange: leaver.ratingChange,
+              newRating: leaver.newRating,
+            },
+          }
+        );
+      }
     }
 
     if (db.isConfigured && match.dbMatchId) {
@@ -1549,7 +1727,6 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
         const players = results.map((r) => ({
           id: r.playerId,
           username: r.username,
-          isAI: r.isAI,
           finalPnl: r.pnl,
           finalRank: r.rank,
         }));
@@ -1566,6 +1743,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     }
 
     instruments.releaseMatchWindows(match.id);
+    personas.resetMatchPersonas(match.id);
     setTimeout(() => {
       matches.delete(match.id);
       roomCodeIndex.delete(match.roomCode);
@@ -1751,6 +1929,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     }
 
     match.status = 'voided';
+    personas.resetMatchPersonas(match.id);
     emitToAll(match, 'match:voided', { reason: 'Cancelled by an admin. Entry coins refunded.' });
     if (db.isConfigured && match.dbMatchId) {
       try {
@@ -1760,6 +1939,74 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       }
     }
     return { success: true };
+  }
+
+  // FIX: eliminated/margin-called players (and anyone who just wants out)
+  // can leave immediately instead of being stuck spectating their own
+  // match. Always records dead-last and the "last place" rating penalty
+  // regardless of current standing - leaving is a real forfeit, not a free
+  // way to lock in a better-than-earned result. The match itself keeps
+  // running normally for whoever's left; earlyLeavers is consulted in
+  // endMatch() to notify the player once real final standings are known.
+  async function leaveMatch(matchId, playerId) {
+    const match = matches.get(matchId);
+    if (!match) return { success: false, error: 'Match not found' };
+    const player = match.players[playerId];
+    if (!player) return { success: false, error: 'Player not in this match' };
+    if (player.isAI) return { success: false, error: 'Cannot leave as AI' };
+    if (match.status !== 'active' && match.status !== 'countdown') {
+      return { success: false, error: `Cannot leave a match in status "${match.status}"` };
+    }
+
+    for (const pos of player.positions.slice()) closeTrade(matchId, playerId, pos.id, 'left_match');
+
+    const totalPlayers = match.playerOrder.length; // original full roster, doesn't shrink as players leave
+    const finalRank = totalPlayers;
+    const ratingField = match.config.ratingKey || 'war_rating';
+    const oldRating = player.warRating;
+    let ratingChange = 0;
+    let newRating = oldRating;
+    if (match.config.ranked) {
+      ratingChange = baseRatingForPosition(totalPlayers, totalPlayers); // the real "finished last" constant (-25)
+      newRating = Math.max(0, oldRating + ratingChange);
+    }
+    const finalPnl = Math.round((player.balance - STARTING_CAPITAL) * 100) / 100;
+
+    if (db.isConfigured) {
+      try {
+        const existing = await db.getPlayerById(playerId);
+        const updateFields = {
+          losses: (existing?.losses || 0) + 1,
+          total_matches: (existing?.total_matches || 0) + 1,
+        };
+        if (match.config.ranked) {
+          updateFields[ratingField] = newRating;
+          if (ratingField === 'war_rating') updateFields.tier = tierForRating(newRating);
+        }
+        await db.updatePlayer(playerId, updateFields);
+        if (match.dbMatchId) {
+          await db.updateMatchPlayer(match.dbMatchId, playerId, {
+            final_pnl: finalPnl,
+            final_rank: finalRank,
+            cards_played: player.cardsPlayed,
+            trades_made: player.tradesMade,
+            rating_change: ratingChange,
+          });
+        }
+      } catch (e) {
+        console.warn('[gameEngine] leaveMatch persistence failed:', e.message);
+      }
+    }
+
+    match.earlyLeavers = match.earlyLeavers || [];
+    match.earlyLeavers.push({ playerId, username: player.username, finalRank, finalPnl, ratingChange, newRating });
+
+    delete match.players[playerId];
+    match.playerOrder = match.playerOrder.filter((id) => id !== playerId);
+    pushFeed(match, `${player.username} left the match`, { type: 'system' });
+    emitMatchStateToAll(match);
+
+    return { success: true, finalRank, ratingChange, newRating, pnl: finalPnl };
   }
 
   async function kickPlayerFromMatch(matchId, playerId) {
@@ -1828,6 +2075,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     getFeaturedMatch,
     buildMatchStatePayloadFor,
     tierForRating,
+    leaveMatch,
     // ---- admin panel bridge ----
     listActiveMatches,
     forceEndMatch,

@@ -56,7 +56,9 @@ window.TW = window.TW || {};
         <div class="tw-nav-right">
           <a href="/profile" id="headerUsername" class="text-secondary" style="text-decoration:none;"></a>
           <span id="headerTierBadge" class="pill hidden"></span>
+          <button type="button" class="help-btn" data-help="war-rating" title="What is War Rating?">?</button>
           <a href="/wallet" id="headerCoinWrap" class="tw-coin-balance hidden">🪙 <span id="headerCoinBalance">0</span></a>
+          <button type="button" class="help-btn" data-help="coins" title="What are coins?">?</button>
           <button type="button" class="tw-nav-icon-btn" id="twMuteBtn" title="Mute sounds">🔊</button>
           <button type="button" class="tw-nav-icon-btn" id="twNotifBtn" title="Notifications" style="position:relative;">🔔<span id="twNotifBadge" class="tw-notif-badge hidden">0</span></button>
           <button type="button" class="tw-nav-icon-btn tw-friends-toggle-btn" id="twFriendsToggleBtn" title="Friends (0)">👥<span id="twFriendsOnlineBadge" class="tw-friends-online-badge hidden">0</span></button>
@@ -155,6 +157,42 @@ window.TW = window.TW || {};
     });
   }
 
+  // FIX: rich bottom-right summary toast for a player who left a match
+  // early - separate from the plain-text notification bell entry. Slides
+  // up, auto-dismisses in 15s (progress bar), or closes on click.
+  function showMatchSummaryToast(data) {
+    document.querySelectorAll('.match-summary-toast').forEach((el) => el.remove());
+
+    const toast = document.createElement('div');
+    toast.className = 'match-summary-toast';
+    const rankLabel = data.leftEarly ? `#${data.yourRank} (Left early)` : `#${data.yourRank}`;
+    const pnlClass = data.yourPnl >= 0 ? 'toast-good' : 'toast-bad';
+    const ratingClass = data.ratingChange >= 0 ? 'toast-good' : 'toast-bad';
+    toast.innerHTML = `
+      <div class="toast-header">
+        <span class="toast-icon">⚔️</span>
+        <span class="toast-title">Match Summary — ${TW.escapeHtml(data.mode || '')}</span>
+        <button class="toast-close">✕</button>
+      </div>
+      <div class="toast-content">
+        <div class="toast-row"><span>Your Rank</span><span class="${pnlClass}">${rankLabel}</span></div>
+        <div class="toast-row"><span>Your P&amp;L</span><span class="${pnlClass}">${data.yourPnl >= 0 ? '+' : ''}$${Number(data.yourPnl).toLocaleString()}</span></div>
+        ${data.winner ? `<div class="toast-row"><span>Winner</span><span class="toast-good">${TW.escapeHtml(data.winner)} ${data.winnerPnl >= 0 ? '+' : ''}$${Number(data.winnerPnl).toLocaleString()}</span></div>` : ''}
+        <div class="toast-row"><span>Rating Change</span><span class="${ratingClass}">${data.ratingChange >= 0 ? '+' : ''}${data.ratingChange} → ${data.newRating}</span></div>
+      </div>
+      ${data.matchId ? `<button class="toast-replay-btn">View Replay</button>` : ''}
+      <div class="toast-progress"><div class="toast-progress-fill"></div></div>
+    `;
+    document.body.appendChild(toast);
+
+    const dismiss = () => toast.remove();
+    toast.querySelector('.toast-close').addEventListener('click', dismiss);
+    toast.querySelector('.toast-replay-btn')?.addEventListener('click', () => {
+      window.location.href = `/replay?match=${data.matchId}`;
+    });
+    setTimeout(dismiss, 15000);
+  }
+
   function toggleNotifPanel() {
     const existing = document.getElementById('twNotifPanel');
     if (existing) {
@@ -208,7 +246,12 @@ window.TW = window.TW || {};
       if (notifications.length > 20) notifications.length = 20;
       unreadCount += 1;
       updateBadge();
-      TW.toast(payload.message, 'info');
+      // FIX: match summary gets its own rich bottom-right toast (rank/P&L/
+      // winner/rating) on top of the normal bell entry - reaches the player
+      // wherever they are, including a match they've already re-joined,
+      // since this is the same global notification pipe as every other type.
+      if (payload.type === 'match_summary' && payload.data) showMatchSummaryToast(payload.data);
+      else TW.toast(payload.message, 'info');
       if (window.TW && TW.Lottie) {
         if (payload.type === 'rank_up') TW.Lottie.play('rankup');
         else if (payload.type === 'battlepass_tier') TW.Lottie.play('battlepass');
@@ -236,6 +279,7 @@ window.TW = window.TW || {};
       <div class="drawer-panel">
         ${NAV_LINKS.map((l) => `<a href="${l.href}" class="${l.key === active ? 'active' : ''}">${l.label}</a>`).join('')}
         <a href="/profile">Profile</a>
+        <a href="/help">Help</a>
       </div>
     `;
     overlay.addEventListener('click', (e) => {

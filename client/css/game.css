@@ -835,6 +835,46 @@
   font-style: italic;
 }
 
+/* FIX: market-wide cards exempt their own caster - small bottom-right
+   confirmations rather than a full overlay, since these are reassurances
+   ("this is working as intended"), not warnings. */
+.sabotage-immune-toast,
+.sabotage-reversal-warning-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 310;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  animation: tw-toast-slide-up 0.25s ease;
+}
+
+.sabotage-immune-toast {
+  background: rgba(0, 200, 150, 0.12);
+  border: 1px solid var(--buy);
+  color: var(--buy);
+}
+
+.sabotage-reversal-warning-toast {
+  background: rgba(255, 140, 0, 0.12);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+}
+
+@keyframes tw-toast-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ---- position modify modal ------------------------------------------------------ */
 
 .modify-modal-overlay {
@@ -1359,4 +1399,257 @@
   .trading-panel-handle {
     display: flex;
   }
+}
+
+/* ---- FIX: match rules summary (shown once, right as a match starts) --------- */
+
+.match-rules-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 9990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: tw-fade-in 0.3s ease;
+}
+
+@keyframes tw-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.match-rules-card {
+  background: var(--surface);
+  border: 1px solid rgba(0, 200, 150, 0.3);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 0 60px rgba(0, 200, 150, 0.1);
+}
+
+.rules-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.rules-mode-badge {
+  background: rgba(0, 200, 150, 0.1);
+  border: 1px solid rgba(0, 200, 150, 0.3);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.rules-countdown {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 200, 150, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent);
+  font-family: var(--mono);
+}
+
+.rules-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 20px;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.rule-item {
+  background: var(--overlay-soft, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-subtle, var(--border));
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.rule-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.rule-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+.rules-reminder {
+  background: rgba(255, 140, 0, 0.08);
+  border: 1px solid rgba(255, 140, 0, 0.15);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.btn-rules-ready {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-teal-dark, var(--accent)));
+  border: none;
+  border-radius: 10px;
+  color: var(--btn-primary-text, #000);
+  font-weight: 800;
+  font-size: 16px;
+  padding: 14px;
+  cursor: pointer;
+  margin-bottom: 12px;
+  transition: all 0.15s;
+  font-family: var(--font);
+}
+
+.btn-rules-ready:hover {
+  box-shadow: 0 0 25px rgba(0, 200, 150, 0.4);
+  transform: translateY(-1px);
+}
+
+.rules-disclaimer {
+  font-size: 10px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.35));
+  text-align: center;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .rules-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- FIX: elimination / leave match ------------------------------------------ */
+
+.elimination-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.elimination-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 560px;
+  width: 100%;
+  text-align: center;
+}
+
+.elim-icon {
+  font-size: 44px;
+  margin-bottom: 8px;
+}
+
+.elim-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 10px;
+}
+
+.elim-body {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 22px;
+}
+
+.elim-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  text-align: left;
+}
+
+@media (max-width: 560px) {
+  .elim-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+.elim-option {
+  background: var(--overlay-soft, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-subtle, var(--border));
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.elim-option-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.elim-option-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  flex: 1;
+}
+
+.elim-warning {
+  font-size: 11px;
+  color: var(--warning);
+  background: rgba(255, 140, 0, 0.08);
+  border: 1px solid rgba(255, 140, 0, 0.15);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.elim-option .btn-leave {
+  background: var(--sell);
+  border: none;
+  color: #fff;
+  font-weight: 700;
+}
+
+.leave-match-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.leave-match-btn:hover {
+  color: var(--sell);
+  border-color: var(--sell);
 }

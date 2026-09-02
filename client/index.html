@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush</title>
@@ -14,6 +15,7 @@
 <meta name="twitter:title" content="Spike & Crush" />
 <meta name="twitter:description" content="The competitive trading game. Price spikes. Then it crushes you. Sabotage legal. Mercy not included." />
 <link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/premium.css" />
 <style>
   .hero {
@@ -221,6 +223,9 @@
     <div class="split">
       <div>
         <section id="authSection" class="panel">
+          <div id="loginRequiredBanner" class="hidden" style="background:rgba(255,140,0,0.12);border:1px solid rgba(255,140,0,0.35);color:#ff8c00;border-radius:var(--radius);padding:10px 14px;font-size:13px;margin-bottom:16px;">
+            Please log in to access this page.
+          </div>
           <div class="social-buttons">
             <button type="button" id="googleSignInBtn" class="google-signin-btn">
               <svg width="18" height="18" viewBox="0 0 24 24">
@@ -277,6 +282,12 @@
             </div>
             <div id="registerError" class="form-error"></div>
             <button type="submit" class="btn btn-primary btn-block">Create Account (+500 coins)</button>
+            <p class="register-legal">
+              By registering you confirm you are 18 or older and agree to our
+              <a href="/terms">Terms of Service</a>.
+              Spike &amp; Crush uses simulated historical market data for entertainment only.
+              Not financial advice.
+            </p>
           </form>
         </section>
 
@@ -350,8 +361,11 @@
   </div>
 
   <script src="js/nav.js"></script>
+  <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/main.js"></script>
+  <script src="js/tutorial.js"></script>
+  <script src="js/mode-cards.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/auth.js"></script>
     <script src="/socket.io/socket.io.js"></script>
@@ -359,5 +373,15 @@
   <script src="js/friends-panel.js"></script>
   <script src="js/lottie.js"></script>
   <script src="js/home.js"></script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-links">
+        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
+      </p>
+    </div>
+  </footer>
 </body>
 </html>

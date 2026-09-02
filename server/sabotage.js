@@ -233,8 +233,12 @@ function playCard(match, casterId, cardType, { targetId, symbol } = {}, now = Da
       break;
     }
     case 'smoke_screen': {
+      // *CasterId records who played it so gameEngine.js can exempt them from
+      // their own effect (FIX: market cards must not affect the caster) -
+      // checked alongside the *Until timestamp everywhere this is read.
       match.marketEffects.smokeScreenUntil = now + cardDef.duration * 1000;
-      result.feedText = `${caster.username} played Smoke Screen - leaderboard blurred for everyone`;
+      match.marketEffects.smokeScreenCasterId = caster.id;
+      result.feedText = `${caster.username} played Smoke Screen - leaderboard blurred for everyone else`;
       result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
     }
@@ -242,6 +246,7 @@ function playCard(match, casterId, cardType, { targetId, symbol } = {}, now = Da
       if (!match.marketEffects[effectSymbol]) match.marketEffects[effectSymbol] = { spreadMultiplier: 1, spreadUntil: 0, reversal: null };
       match.marketEffects[effectSymbol].spreadMultiplier = 3;
       match.marketEffects[effectSymbol].spreadUntil = now + cardDef.duration * 1000;
+      match.marketEffects[effectSymbol].spreadCasterId = caster.id;
       result.feedText = `${caster.username} played Spread Spike on ${effectSymbol}`;
       result.notify.push({
         to: 'all',
@@ -252,26 +257,43 @@ function playCard(match, casterId, cardType, { targetId, symbol } = {}, now = Da
     }
     case 'volatility_surge': {
       match.marketEffects.volatilitySurgeUntil = now + cardDef.duration * 1000;
+      match.marketEffects.volatilitySurgeCasterId = caster.id;
       result.feedText = `${caster.username} played Volatility Surge`;
       result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
     }
     case 'liquidity_drain': {
       match.marketEffects.liquidityDrainUntil = now + cardDef.duration * 1000;
-      result.feedText = `${caster.username} played Liquidity Drain - max lot size capped at 0.1 for everyone`;
+      match.marketEffects.liquidityDrainCasterId = caster.id;
+      result.feedText = `${caster.username} played Liquidity Drain - max lot size capped at 0.1 for everyone else`;
       result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
     }
     case 'reversal_flash': {
       if (!match.marketEffects[effectSymbol]) match.marketEffects[effectSymbol] = { spreadMultiplier: 1, spreadUntil: 0, reversal: null };
       const direction = Math.random() < 0.5 ? 1 : -1;
-      match.marketEffects[effectSymbol].reversal = { until: now + cardDef.duration * 1000, direction, startedAt: now };
+      // The reversal itself is shared/unavoidable once it starts (price is
+      // the same for everyone) - the caster's edge is a 1s private warning
+      // before it begins, not immunity from the price move. startedAt is
+      // pushed 1s into the future so getEffectivePrice's reversal gate holds
+      // off applying the offset until the warning window has elapsed.
+      const WARNING_MS = 1000;
+      const startedAt = now + WARNING_MS;
+      match.marketEffects[effectSymbol].reversal = { until: startedAt + cardDef.duration * 1000, direction, startedAt };
       result.feedText = `${caster.username} played Reversal Flash on ${effectSymbol}`;
       result.notify.push({
-        to: 'all',
+        to: caster.id,
+        event: 'sabotage:reversal_warning',
+        payload: { cardType, symbol: effectSymbol },
+      });
+      // Opponents only learn about it once it actually starts moving price -
+      // gameEngine.js's playSabotageCard schedules this after WARNING_MS.
+      result.delayedNotify = {
+        delayMs: WARNING_MS,
+        exceptPlayerId: caster.id,
         event: 'sabotage:incoming',
         payload: { cardType, symbol: effectSymbol, duration: cardDef.duration },
-      });
+      };
       break;
     }
     case 'position_freeze': {

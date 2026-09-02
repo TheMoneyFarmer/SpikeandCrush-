@@ -38,7 +38,6 @@ TW.FriendsPanel = (function () {
   }
 
   function friendCardHtml(f) {
-    const initial = f.username[0].toUpperCase();
     const canJoin = f.status === 'in_lobby';
     const canInvite = f.status === 'online' && currentLobbyId;
     const canSpectate = f.status === 'in_match';
@@ -50,12 +49,12 @@ TW.FriendsPanel = (function () {
     return `
       <div class="tw-friend-card" data-friend-id="${f.id}">
         <div class="tw-friend-card-top">
-          <div class="tw-friend-avatar" style="background:${avatarColor(f.username)};">
-            ${initial}
+          <div class="tw-friend-avatar" style="background:transparent;">
+            ${TW.createAvatar(f, 'sm')}
             <span class="tw-friend-status-dot ${f.status}"></span>
           </div>
           <div>
-            <div class="tw-friend-name">${TW.escapeHtml(f.username)}</div>
+            <div class="tw-friend-name">${TW.renderUsername(f)}</div>
             <div class="tw-friend-meta">${TW.escapeHtml(f.tier)} · ${f.warRating} rating</div>
           </div>
         </div>
@@ -218,9 +217,9 @@ TW.FriendsPanel = (function () {
                 .map(
                   (p) => `
                     <div class="tw-search-result-row">
-                      <div class="tw-friend-avatar" style="background:${avatarColor(p.username)};width:28px;height:28px;font-size:12px;">${p.username[0].toUpperCase()}</div>
+                      ${TW.createAvatar(p, 'sm')}
                       <div style="flex:1;">
-                        <div style="font-weight:700;font-size:13px;">${TW.escapeHtml(p.username)}</div>
+                        <div style="font-weight:700;font-size:13px;">${TW.renderUsername(p)}</div>
                         <div style="font-size:11px;color:var(--text-secondary);">${TW.escapeHtml(p.tier)} · ${p.warRating}</div>
                       </div>
                       <button class="btn btn-primary" data-add="${p.id}" style="padding:6px 12px;font-size:12px;">Add</button>

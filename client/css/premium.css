@@ -3,11 +3,11 @@
    treatments without altering any existing selector's layout behavior. */
 
 :root {
-  --gradient-primary: linear-gradient(135deg, #00c896 0%, #0052cc 100%);
-  --gradient-dark: linear-gradient(135deg, #080810 0%, #0f1018 100%);
-  --gradient-gold: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
-  --gradient-danger: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
-  --gradient-card: linear-gradient(135deg, #0f1018 0%, #161820 100%);
+  --gradient-primary: linear-gradient(135deg, var(--accent-teal) 0%, var(--accent-teal-dark) 100%);
+  --gradient-dark: linear-gradient(135deg, var(--bg-surface-1) 0%, var(--bg-surface-2) 100%);
+  --gradient-gold: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-gold-dark) 100%);
+  --gradient-danger: linear-gradient(135deg, var(--accent-red) 0%, var(--accent-red-dark) 100%);
+  --gradient-card: linear-gradient(135deg, var(--bg-surface-1) 0%, var(--bg-surface-2) 100%);
 }
 
 body {
@@ -37,10 +37,10 @@ h1, h2, h3 {
 .trading-panel,
 .room-code-panel,
 .chat-panel {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--overlay-soft);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-normal);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
@@ -197,7 +197,7 @@ h1, h2, h3 {
   background: rgba(10, 10, 20, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--overlay-soft);
   flex-wrap: wrap;
 }
 
@@ -281,7 +281,7 @@ h1, h2, h3 {
 
 .tw-nav-links a:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--overlay-soft);
 }
 
 .tw-nav-links a.active {
@@ -310,8 +310,8 @@ h1, h2, h3 {
   height: 38px;
   min-height: 38px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-normal);
+  background: var(--overlay-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -322,7 +322,7 @@ h1, h2, h3 {
 }
 
 .tw-nav-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--overlay-medium);
 }
 
 .tw-hamburger {
@@ -359,8 +359,8 @@ h1, h2, h3 {
   right: 0;
   bottom: 0;
   width: 260px;
-  background: #141414;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface);
+  border-left: 1px solid var(--border-normal);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -379,7 +379,7 @@ h1, h2, h3 {
 }
 
 .tw-nav-drawer a:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--overlay-soft);
 }
 
 /* ---- hero / home page -------------------------------------------------------- */
@@ -480,9 +480,9 @@ h1, h2, h3 {
 }
 
 .tw-stat-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--overlay-soft);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-normal);
   border-radius: 10px;
   padding: 16px;
 }
@@ -506,8 +506,8 @@ h1, h2, h3 {
   margin: 24px auto 0 auto;
   padding: 16px 20px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--overlay-soft);
+  border: 1px solid var(--border-normal);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -544,7 +544,7 @@ h1, h2, h3 {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.15);
+  border: 3px solid var(--border-strong);
   border-top-color: var(--accent);
   animation: tw-spin 0.8s linear infinite;
 }
@@ -790,7 +790,7 @@ h1, h2, h3 {
   background: rgba(10, 10, 20, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid var(--overlay-medium);
   z-index: 300;
   display: flex;
   flex-direction: column;
@@ -1081,3 +1081,159 @@ h1, h2, h3 {
 .tw-invite-friends-list { max-height: 320px; overflow-y: auto; }
 .tw-invite-friend-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--border); }
 .tw-invite-friend-row:last-child { border-bottom: none; }
+
+/* ============================================================
+   Cosmetics: avatar frames, nameplate effects, profile backgrounds
+   ============================================================ */
+
+.tw-avatar-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+.tw-avatar-circle {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #06251d;
+  overflow: hidden;
+}
+.tw-avatar-frame {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  z-index: 2;
+  pointer-events: none;
+}
+.tw-avatar-frame.frame-none { display: none; }
+.tw-avatar-frame.frame-basic { border: 2px solid rgba(255, 255, 255, 0.3); }
+
+.tw-avatar-frame.frame-teal-ring {
+  border: 3px solid var(--accent-teal, #00c896);
+  box-shadow: 0 0 10px rgba(0, 200, 150, 0.5), inset 0 0 10px rgba(0, 200, 150, 0.1);
+  animation: twFrameTealPulse 2s ease-in-out infinite;
+}
+@keyframes twFrameTealPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(0, 200, 150, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(0, 200, 150, 0.8); }
+}
+
+.tw-avatar-frame.frame-gold-sparkle {
+  border: 3px solid var(--gold, #ffd700);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+  animation: twFrameGoldSpin 3s linear infinite;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 215, 0, 0.3) 30deg, transparent 60deg, transparent 360deg);
+}
+@keyframes twFrameGoldSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.tw-avatar-frame.frame-fire-ring {
+  border: 3px solid var(--accent-red, #ff4444);
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.7), 0 0 40px rgba(255, 140, 0, 0.3);
+  animation: twFrameFirePulse 0.8s ease-in-out infinite;
+}
+@keyframes twFrameFirePulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(255, 68, 68, 0.7); }
+  50% { box-shadow: 0 0 30px rgba(255, 140, 0, 0.9); }
+}
+
+.tw-avatar-frame.frame-war-lord-crown {
+  border: 3px solid var(--gold, #ffd700);
+  background: conic-gradient(#ffd700, #ffa500, #ffd700, #ff8c00, #ffd700);
+  animation: twFrameCrownRotate 4s linear infinite;
+  -webkit-mask: radial-gradient(circle at center, transparent 60%, black 62%);
+  mask: radial-gradient(circle at center, transparent 60%, black 62%);
+}
+@keyframes twFrameCrownRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Nameplate effects - applied directly to username text nodes */
+.tw-nameplate.nameplate-standard { color: inherit; }
+
+.tw-nameplate.nameplate-flame {
+  background: linear-gradient(90deg, #ff4444, #ff8c00, #ffd700, #ff8c00, #ff4444);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: twNameplateMove 2s linear infinite;
+}
+
+.tw-nameplate.nameplate-lightning {
+  background: linear-gradient(90deg, #4fc3f7, #ffffff, #ffd700, #ffffff, #4fc3f7);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: twNameplateMove 1.5s linear infinite;
+}
+
+.tw-nameplate.nameplate-matrix-rain {
+  color: #00ff88;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+  font-family: var(--mono);
+}
+
+.tw-nameplate.nameplate-rainbow {
+  background: linear-gradient(90deg, #ff4444, #ff8c00, #ffd700, #00c896, #4fc3f7, #a855f7);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: twNameplateMove 3s linear infinite;
+}
+
+@keyframes twNameplateMove { to { background-position: 200% center; } }
+
+/* Profile backgrounds - applied to the profile header card */
+.tw-profile-header { position: relative; overflow: hidden; border-radius: var(--radius-lg); }
+.tw-profile-header.profile-bg-terminal-dark { background: linear-gradient(135deg, #080810 0%, #0f1018 100%); }
+
+.tw-profile-header.profile-bg-neon-city { background: linear-gradient(135deg, #0a0820 0%, #1a0840 50%, #0a0820 100%); }
+.tw-profile-header.profile-bg-neon-city::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 200, 150, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 200, 150, 0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+  pointer-events: none;
+}
+
+.tw-profile-header.profile-bg-gold-rush { background: linear-gradient(135deg, #1a1000 0%, #2a1800 50%, #1a1000 100%); }
+.tw-profile-header.profile-bg-gold-rush::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.1) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.tw-profile-header.profile-bg-deep-space { background: linear-gradient(135deg, #000008 0%, #040020 50%, #000008 100%); }
+.tw-profile-header.profile-bg-deep-space::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, white, transparent),
+    radial-gradient(1px 1px at 27% 68%, white, transparent),
+    radial-gradient(1px 1px at 42% 15%, white, transparent),
+    radial-gradient(1px 1px at 58% 78%, white, transparent),
+    radial-gradient(1px 1px at 73% 34%, white, transparent),
+    radial-gradient(1px 1px at 88% 58%, white, transparent),
+    radial-gradient(1px 1px at 15% 88%, white, transparent),
+    radial-gradient(1px 1px at 63% 8%, white, transparent);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.tw-profile-header.profile-bg-blood-red-market { background: linear-gradient(135deg, #1a0000 0%, #2a0000 50%, #1a0000 100%); }
+.tw-profile-header.profile-bg-blood-red-market::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 70%, rgba(255, 68, 68, 0.15) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.tw-profile-header > * { position: relative; z-index: 1; }
+
+/* Shop item live cosmetic preview */
+.tw-shop-preview { display: flex; align-items: center; justify-content: center; padding: 10px 0; min-height: 50px; }

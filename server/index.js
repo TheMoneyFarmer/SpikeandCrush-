@@ -171,6 +171,28 @@ function sanitizePlayer(p) {
   return rest;
 }
 
+// Attaches the player's equipped cosmetics (shop.js SLOT_BY_TYPE: avatar_frame,
+// background, nameplate) to a sanitized player object as equipped_frame /
+// equipped_background / equipped_nameplate, so the client can render frames,
+// nameplate effects, and profile backgrounds right after login/register/OAuth
+// without a second round-trip. Falls back to the free default item id per slot.
+async function withEquippedCosmetics(player) {
+  const sanitized = sanitizePlayer(player);
+  try {
+    const equipped = await db.getEquippedCosmetics(player.id);
+    const bySlot = {};
+    for (const e of equipped) bySlot[e.slot] = e.item_id;
+    sanitized.equipped_frame = bySlot.avatar_frame || 'none';
+    sanitized.equipped_background = bySlot.background || 'bg_terminal_dark';
+    sanitized.equipped_nameplate = bySlot.nameplate || 'name_standard';
+  } catch (e) {
+    sanitized.equipped_frame = 'none';
+    sanitized.equipped_background = 'bg_terminal_dark';
+    sanitized.equipped_nameplate = 'name_standard';
+  }
+  return sanitized;
+}
+
 // Verifies a password by actually attempting a Supabase Auth sign-in with it
 // (there's no local password hash to compare against anymore - Supabase owns
 // the credential). Used anywhere the app previously did
@@ -226,15 +248,21 @@ function requireDb(req, res, next) {
 
 // Stripe needs the raw request body to verify webhook signatures, so this
 // route must be registered before the global express.json() body parser.
+const stripeWebhookConfigured = Boolean(process.env.STRIPE_WEBHOOK_SECRET && process.env.STRIPE_WEBHOOK_SECRET !== 'your_value');
+
 app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  // Every coin/battle-pass/coaching credit below is driven by this event, so
+  // an unsigned body must never be trusted - fail closed (503) rather than
+  // fall back to trusting arbitrary JSON when the secret isn't configured
+  // yet. Get the real secret from the Stripe dashboard before going live.
+  if (!stripeWebhookConfigured) {
+    console.error('[stripe webhook] rejected: STRIPE_WEBHOOK_SECRET is not configured');
+    return res.status(503).json({ error: 'Stripe webhook is not configured' });
+  }
   const sig = req.headers['stripe-signature'];
   let event;
   try {
-    if (!process.env.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET === 'your_value') {
-      event = JSON.parse(req.body.toString());
-    } else {
-      event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    }
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (e) {
     console.error('[stripe webhook] signature verification failed:', e.message);
     return res.status(400).send(`Webhook Error: ${e.message}`);
@@ -285,6 +313,10 @@ app.get('/', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 app.get('/wallet', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'wallet.html')));
 app.get('/cards', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'cards.html')));
 app.get('/settings', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'settings.html')));
+app.get('/help', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'help.html')));
+app.get('/terms', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'terms.html')));
+app.get('/privacy', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'privacy.html')));
+app.get('/responsible', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'responsible.html')));
 app.get('/shop', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'shop.html')));
 app.get('/battle-pass', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'battle-pass.html')));
 app.get('/coaching', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'coaching.html')));
@@ -362,7 +394,7 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
     res.json({
       token: signIn.session.access_token,
       refresh_token: signIn.session.refresh_token,
-      player: sanitizePlayer(player),
+      player: await withEquippedCosmetics(player),
       welcomeBonus: 500,
       sessionId: session.id,
     });
@@ -419,7 +451,7 @@ app.post('/api/auth/login', authLimiter, requireDb, async (req, res) => {
     res.json({
       token: signIn.session.access_token,
       refresh_token: signIn.session.refresh_token,
-      player: sanitizePlayer(player),
+      player: await withEquippedCosmetics(player),
       sessionId: session.id,
     });
   } catch (e) {
@@ -441,6 +473,27 @@ app.post('/api/auth/logout', requireDb, authenticate, async (req, res) => {
   } catch (e) {
     console.error('[logout]', e);
     res.status(500).json({ error: 'Could not log out' });
+  }
+});
+
+// Fresh sanitized player + cosmetics for the current session - used by the
+// tutorial system to check tutorial_completed authoritatively rather than
+// trusting the localStorage player cache, which predates this column for
+// every account that logged in before the tutorial shipped.
+app.get('/api/player/me', requireDb, authenticate, async (req, res) => {
+  res.json(await withEquippedCosmetics(req.player));
+});
+
+app.post('/api/tutorial/complete', requireDb, authenticate, async (req, res) => {
+  try {
+    const updated = await db.updatePlayer(req.player.id, {
+      tutorial_completed: true,
+      tutorial_completed_at: new Date().toISOString(),
+    });
+    res.json({ success: true, player: await withEquippedCosmetics(updated) });
+  } catch (e) {
+    console.error('[tutorial complete]', e);
+    res.status(500).json({ error: 'Could not save tutorial completion' });
   }
 });
 
@@ -474,7 +527,7 @@ app.post('/api/auth/oauth-callback', requireDb, async (req, res) => {
     if (error || !user) return res.status(401).json({ error: 'Invalid or expired token' });
 
     const existing = await db.getPlayerBySupabaseUserId(user.id);
-    if (existing) return res.json({ player: sanitizePlayer(existing) });
+    if (existing) return res.json({ player: await withEquippedCosmetics(existing) });
 
     const name = req.body?.name || user.user_metadata?.full_name || user.user_metadata?.name;
     const email = user.email;
@@ -491,7 +544,7 @@ app.post('/api/auth/oauth-callback', requireDb, async (req, res) => {
     await db.recordLoginEvent({ playerId: player.id, ip: clientIp(req), userAgent: req.headers['user-agent'] });
     await db.recordCoinTransaction({ playerId: player.id, type: 'welcome_bonus', amount: player.coins, balanceAfter: player.coins });
 
-    res.json({ player: sanitizePlayer(player), isNew: true, sessionId: session.id });
+    res.json({ player: await withEquippedCosmetics(player), isNew: true, sessionId: session.id });
   } catch (e) {
     console.error('[oauth-callback]', e);
     res.status(500).json({ error: 'Could not complete sign-in' });
@@ -754,6 +807,18 @@ app.patch('/api/player/settings', requireDb, authenticate, async (req, res) => {
   }
 });
 
+app.post('/api/notifications/coaching-notify', requireDb, authenticate, async (req, res) => {
+  try {
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    await db.updatePlayer(player.id, { settings: { ...player.settings, coaching_notify: true } });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[coaching notify]', e);
+    res.status(500).json({ error: 'Could not save notification preference' });
+  }
+});
+
 app.post('/api/player/avatar', requireDb, authenticate, avatarUpload.single('avatar'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -955,8 +1020,10 @@ app.get('/api/player/:id', requireDb, async (req, res) => {
 app.get('/api/friends', requireDb, authenticate, async (req, res) => {
   try {
     const friends = await db.listFriends(req.tokenPlayer.id);
+    const cosmeticsByPlayer = await db.getEquippedCosmeticsForPlayers(friends.map((f) => f.id));
     const withPresence = friends.map((f) => {
       const p = presence.getPresence(f.id);
+      const cosmetics = cosmeticsByPlayer[f.id] || {};
       return {
         id: f.id,
         username: f.username,
@@ -968,6 +1035,8 @@ app.get('/api/friends', requireDb, authenticate, async (req, res) => {
         lobbyId: p.lobbyId,
         mode: p.mode,
         lastSeen: p.lastSeen,
+        equipped_frame: cosmetics.avatar_frame || 'none',
+        equipped_nameplate: cosmetics.nameplate || 'name_standard',
       };
     });
     res.json({ friends: withPresence });
@@ -995,6 +1064,8 @@ app.post('/api/friends/request', requireDb, authenticate, async (req, res) => {
     const requesterId = req.tokenPlayer.id;
     const targetId = req.body?.targetId;
     if (!targetId || targetId === requesterId) return res.status(400).json({ error: 'Invalid target' });
+    const targetPlayer = await db.getPlayerById(targetId);
+    if (!targetPlayer || targetPlayer.is_persona) return res.status(404).json({ error: 'Player not found' });
     const existing = await db.getFriendshipBetween(requesterId, targetId);
     if (existing) {
       const msg = existing.status === 'accepted' ? 'Already friends' : existing.status === 'blocked' ? 'Unable to send request' : 'Request already pending';
@@ -1213,7 +1284,9 @@ app.post('/api/shop/purchase', requireDb, authenticate, async (req, res) => {
     if (item.requiresTier && tierForRating(player.war_rating) !== item.requiresTier) {
       return res.status(403).json({ error: `Requires ${item.requiresTier} tier` });
     }
-    if (player.coins < item.price) return res.status(400).json({ error: 'Not enough coins' });
+    if (player.coins < item.price) {
+      return res.status(400).json({ error: 'Not enough coins', required: item.price, balance: player.coins });
+    }
 
     if (item.price > 0) await db.debitCoins(player.id, item.price, { type: 'shop_purchase' });
     await db.recordShopPurchase({ playerId: player.id, itemType: item.type, itemId: item.id, coinsSpent: item.price });
@@ -2044,11 +2117,20 @@ app.get('/api/leaderboard', requireDb, async (req, res) => {
     const viewerRow = viewerId ? rows.find((r) => r.id === viewerId) : null;
     const viewerInPage = viewerRow && page.some((r) => r.id === viewerId);
 
+    const cosmeticsByPlayer = await db.getEquippedCosmeticsForPlayers(
+      Array.from(new Set([...page.map((r) => r.id), ...(viewerRow ? [viewerRow.id] : [])]))
+    );
+    const withCosmetics = (r) => ({
+      ...r,
+      equipped_nameplate: cosmeticsByPlayer[r.id]?.nameplate || 'name_standard',
+      equipped_frame: cosmeticsByPlayer[r.id]?.avatar_frame || 'none',
+    });
+
     res.json({
-      leaderboard: page,
+      leaderboard: page.map(withCosmetics),
       period,
       tiers: TIERS.map((t) => t.name),
-      viewerRank: viewerRow && !viewerInPage ? viewerRow : null,
+      viewerRank: viewerRow && !viewerInPage ? withCosmetics(viewerRow) : null,
     });
   } catch (e) {
     console.error('[leaderboard]', e);
@@ -2090,7 +2172,7 @@ app.post('/api/coins/purchase', requireDb, authenticate, async (req, res) => {
         },
       ],
       metadata: { playerId: player.id, coins: String(pkg.coins) },
-      success_url: `${origin}/profile.html?purchase=success`,
+      success_url: `${origin}/profile.html?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/profile.html?purchase=cancelled`,
     });
 
@@ -2106,6 +2188,39 @@ app.post('/api/coins/purchase', requireDb, authenticate, async (req, res) => {
   } catch (e) {
     console.error('[coins/purchase]', e);
     res.status(500).json({ error: 'Could not start checkout' });
+  }
+});
+
+// Fallback completion path for the success redirect. The webhook above is
+// the source of truth in production, but it requires a configured
+// STRIPE_WEBHOOK_SECRET and a publicly reachable URL (or `stripe listen`)
+// to ever fire - neither is available in every deployment, which otherwise
+// leaves paid purchases stuck in "pending" forever. This asks Stripe
+// directly whether the session was paid (never trusts the client) and
+// reuses the same idempotent db.completeCoinPurchase used by the webhook,
+// so calling both for the same session is harmless.
+app.post('/api/coins/verify-session', requireDb, authenticate, async (req, res) => {
+  try {
+    if (!stripeConfigured) {
+      return res.status(503).json({ error: 'Stripe is not configured - add STRIPE_SECRET_KEY to .env' });
+    }
+    const sessionId = req.body?.sessionId;
+    if (!sessionId) return res.status(400).json({ error: 'sessionId is required' });
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.metadata?.playerId !== req.tokenPlayer.id) {
+      return res.status(403).json({ error: 'This session does not belong to you' });
+    }
+    if (session.payment_status !== 'paid') {
+      return res.json({ status: session.payment_status, credited: false });
+    }
+
+    const purchase = await db.completeCoinPurchase(session.id);
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    res.json({ status: 'paid', credited: true, coins: purchase?.package_coins ?? null, player });
+  } catch (e) {
+    console.error('[coins/verify-session]', e);
+    res.status(500).json({ error: 'Could not verify purchase' });
   }
 });
 
@@ -2241,6 +2356,17 @@ io.on('connection', (socket) => {
           targetId: data?.targetId,
           symbol: data?.symbol,
         })
+      : { success: false, error: 'Not joined to a match' };
+    if (typeof ack === 'function') ack(result);
+  });
+
+  // FIX: voluntary leave / "get out after elimination" instead of being
+  // stuck spectating - records a forfeited last place immediately, the
+  // match keeps running for everyone else.
+  socket.on('match:leave', async (data, ack) => {
+    const session = gameEngine.getSession(socket.id);
+    const result = session
+      ? await gameEngine.leaveMatch(session.matchId, session.playerId)
       : { success: false, error: 'Not joined to a match' };
     if (typeof ack === 'function') ack(result);
   });

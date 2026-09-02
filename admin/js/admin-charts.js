@@ -5,12 +5,12 @@ window.Admin = window.Admin || {};
 (function () {
   function applyDefaults() {
     if (!window.Chart) return;
-    Chart.defaults.color = '#6b7280';
-    Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.borderColor = 'rgba(15,15,30,0.08)';
     Chart.defaults.font.family = "'Inter', sans-serif";
   }
 
-  const PALETTE = { teal: '#00c896', red: '#ff4444', gold: '#ffd700', info: '#4fc3f7', warning: '#ff8c00', purple: '#a78bfa' };
+  const PALETTE = { teal: '#00a87c', red: '#dc2626', gold: '#d97706', info: '#0284c7', warning: '#d97706', purple: '#7c3aed' };
 
   function lineChart(ctx, { labels, datasets, yLabel }) {
     return new Chart(ctx, {
@@ -24,7 +24,7 @@ window.Admin = window.Admin || {};
         plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 10 } } },
         scales: {
           x: { grid: { display: false } },
-          y: { title: { display: !!yLabel, text: yLabel }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { title: { display: !!yLabel, text: yLabel }, grid: { color: 'rgba(15,15,30,0.06)' } },
         },
       },
     });
@@ -40,7 +40,7 @@ window.Admin = window.Admin || {};
         plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 10 } } },
         scales: {
           x: { stacked, grid: { display: false } },
-          y: { stacked, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { stacked, grid: { color: 'rgba(15,15,30,0.06)' } },
         },
       },
     });
@@ -55,7 +55,7 @@ window.Admin = window.Admin || {};
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' } }, y: { grid: { display: false } } },
+        scales: { x: { grid: { color: 'rgba(15,15,30,0.06)' } }, y: { grid: { display: false } } },
       },
     });
   }
@@ -91,7 +91,7 @@ window.Admin = window.Admin || {};
       data: {
         datasets: [{
           data: [value, Math.max(0, max - value)],
-          backgroundColor: [value / max > 0.85 ? PALETTE.red : color, 'rgba(255,255,255,0.06)'],
+          backgroundColor: [value / max > 0.85 ? PALETTE.red : color, 'rgba(15,15,30,0.08)'],
           borderWidth: 0,
         }],
       },

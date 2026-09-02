@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Profile</title>
@@ -115,10 +116,13 @@
   <div id="twNav" data-active=""></div>
 
   <div class="tw-container">
-    <div class="panel">
+    <div class="panel" id="profileHeaderCard">
       <div class="profile-head">
-        <img class="profile-avatar-img hidden" id="profileAvatarImg" alt="Avatar" />
-        <div class="profile-avatar" id="profileAvatar">?</div>
+        <div class="tw-avatar-wrap" style="width:72px;height:72px;">
+          <img class="profile-avatar-img hidden" id="profileAvatarImg" alt="Avatar" style="width:72px;height:72px;" />
+          <div class="profile-avatar" id="profileAvatar">?</div>
+          <div class="tw-avatar-frame frame-none" id="profileAvatarFrame"></div>
+        </div>
         <div style="flex:1;">
           <h2 id="profileUsername">-</h2>
           <span class="pill" id="profileTier">-</span>
@@ -232,7 +236,12 @@
           avatarInitial.classList.remove('hidden');
         }
 
-        document.getElementById('profileUsername').textContent = p.username;
+        const cosmetics = data.equippedCosmetics || {};
+        document.getElementById('profileAvatarFrame').className =
+          'tw-avatar-frame ' + (cosmetics.avatar_frame ? `frame-${TW.cosmeticSlug(cosmetics.avatar_frame, 'frame_')}` : 'frame-none');
+        document.getElementById('profileHeaderCard').className =
+          'panel tw-profile-header ' + `profile-bg-${TW.cosmeticSlug(cosmetics.background || 'bg_terminal_dark', 'bg_')}`;
+        document.getElementById('profileUsername').innerHTML = TW.renderUsername({ username: p.username, equipped_nameplate: cosmetics.nameplate });
         document.getElementById('profileTier').textContent = p.tier;
         document.getElementById('profileTier').className = `pill ${TW.tierClass(p.tier)}`;
         document.getElementById('profileRating').textContent = `${p.war_rating} WR`;
@@ -403,10 +412,41 @@
     });
 
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('purchase') === 'success') TW.toast('Payment received! Coins will credit shortly.', 'info');
-    else if (urlParams.get('purchase') === 'cancelled') TW.toast('Purchase cancelled.', 'warning');
+    if (urlParams.get('purchase') === 'success') {
+      const sessionId = urlParams.get('session_id');
+      if (sessionId) {
+        TW.api('/api/coins/verify-session', { method: 'POST', body: { sessionId } })
+          .then((data) => {
+            if (data.credited) {
+              TW.updatePlayerCache(data.player);
+              TW.updateHeader();
+              TW.toast(`${data.coins} coins added to your wallet!`, 'info');
+              loadProfile();
+            } else {
+              TW.toast('Payment received! Coins will credit shortly.', 'info');
+            }
+          })
+          .catch(() => TW.toast('Payment received! Coins will credit shortly.', 'info'));
+      } else {
+        TW.toast('Payment received! Coins will credit shortly.', 'info');
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (urlParams.get('purchase') === 'cancelled') {
+      TW.toast('Purchase cancelled.', 'warning');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
 
     loadProfile();
   </script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-links">
+        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
+      </p>
+    </div>
+  </footer>
 </body>
 </html>

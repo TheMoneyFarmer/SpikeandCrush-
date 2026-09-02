@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Lobby</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/lobby.css" />
 <link rel="stylesheet" href="css/premium.css" />
 </head>
@@ -46,7 +48,7 @@
             </div>
           </div>
           <div class="lobby-fill-timer" id="lobbyFillTimer"></div>
-          <button id="startNowBtn" class="btn btn-outline hidden" style="margin-top: 10px;">⚡ Start now with AI</button>
+          <button id="startNowBtn" class="btn btn-outline hidden" style="margin-top: 10px;">⚡ Start Now</button>
           <div style="display:flex;gap:8px;margin-top:10px;">
             <button id="loadoutBtn" class="btn btn-outline" style="flex:1;">🎮 Loadout</button>
             <button id="inviteFriendsBtn" class="btn btn-outline" style="flex:1;">👥 Invite Friends</button>
@@ -81,6 +83,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/main.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -103,13 +106,10 @@
       state.players.forEach((p) => {
         const li = document.createElement('li');
         li.className = 'player-row';
-        const initial = TW.escapeHtml((p.username || '?')[0].toUpperCase());
         li.innerHTML = `
-          <div class="player-avatar">${initial}</div>
+          ${TW.createAvatar(p, 'md')}
           <div class="meta">
-            <div class="name">${TW.escapeHtml(p.username)}${p.isAI ? '<span class="ai-tag">AI</span>' : ''}${
-          p.id === state.you ? ' (you)' : ''
-        }</div>
+            <div class="name">${TW.renderUsername(p)}${p.id === state.you ? ' (you)' : ''}</div>
             <div class="rating ${TW.tierClass(p.tier)}">${p.warRating} · ${TW.escapeHtml(p.tier)}</div>
           </div>
           <span class="ready-badge ${p.ready ? 'ready' : ''}">${p.ready ? 'READY' : 'WAITING'}</span>
@@ -121,7 +121,7 @@
       for (let i = 0; i < remaining; i++) {
         const li = document.createElement('li');
         li.className = 'player-row pending';
-        li.innerHTML = `<div class="player-avatar">?</div><div class="meta"><div class="name">Waiting for player...</div><div class="rating">AI fills this slot if empty</div></div>`;
+        li.innerHTML = `<div class="player-avatar tw-finding-dots">•••</div><div class="meta"><div class="name">Finding opponent<span class="tw-finding-dots">•••</span></div></div>`;
         list.appendChild(li);
       }
       document.getElementById('playerCount').textContent = state.players.length;
@@ -130,16 +130,15 @@
     function updateLobbyTimer(state) {
       clearInterval(lobbyTimerInterval);
       const timerEl = document.getElementById('lobbyFillTimer');
-      if (!state.lobbyDeadline) {
-        timerEl.textContent = '';
+      if (!state.lobbyDeadline || state.players.length >= (state.lobbyTargetSize || 4)) {
+        timerEl.innerHTML = '';
         return;
       }
-      lobbyTimerInterval = setInterval(() => {
-        const remaining = Math.max(0, Math.ceil((state.lobbyDeadline - Date.now()) / 1000));
-        timerEl.textContent =
-          remaining > 0 ? `AI fills any empty slots in ${remaining}s if the lobby isn't ready` : '';
-        if (remaining <= 0) clearInterval(lobbyTimerInterval);
-      }, 500);
+      const found = state.players.length;
+      timerEl.innerHTML =
+        found > 1
+          ? `${found} traders found &middot; searching for more<span class="tw-finding-dots">&bull;&bull;&bull;</span>`
+          : `Finding opponents<span class="tw-finding-dots">&bull;&bull;&bull;</span>`;
     }
 
     let lobbyEnteredAt = null;
@@ -206,7 +205,6 @@
 
     socket.on('match:state', handleState);
     socket.on('player:joined', (data) => appendChat(`${data.player.username} joined the lobby`, true));
-    socket.on('ai:joined', (data) => appendChat(`🤖 AI Trader ${data.player.username} joined — match starts in 10s`, true));
     socket.on('lobby:chat', (data) => appendChat(`${data.username}: ${data.message}`, false));
     socket.on('match:countdown', (data) => {
       document.getElementById('countdownOverlay').classList.remove('hidden');
@@ -452,9 +450,9 @@
     }
 
     async function renderLoadoutOpponentsTab(container) {
-      const opponents = (currentState?.players || []).filter((p) => p.id !== currentState.you && !p.isAI);
+      const opponents = (currentState?.players || []).filter((p) => p.id !== currentState.you);
       if (!opponents.length) {
-        container.innerHTML = '<div class="text-secondary">No human opponents in this lobby yet.</div>';
+        container.innerHTML = '<div class="text-secondary">No other opponents in this lobby yet.</div>';
         return;
       }
       container.innerHTML = opponents.map((o) => `<div class="tw-opponent-card" id="opp-${o.id}"><div class="text-secondary">Loading ${TW.escapeHtml(o.username)}...</div></div>`).join('');
@@ -525,5 +523,15 @@
       renderLoadoutTab();
     });
   </script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-links">
+        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
+      </p>
+    </div>
+  </footer>
 </body>
 </html>

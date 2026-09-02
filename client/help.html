@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Help & Rules</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<link rel="stylesheet" href="css/tutorial.css" />
+<style>
+  .help-layout { display: grid; grid-template-columns: 220px 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 800px) { .help-layout { grid-template-columns: 1fr; } .help-sidebar { position: static !important; } }
+  .help-sidebar { position: sticky; top: 16px; }
+  .help-sidebar a { display: block; padding: 6px 10px; font-size: 13px; color: var(--text-secondary); text-decoration: none; border-radius: 6px; border-left: 2px solid transparent; }
+  .help-sidebar a:hover { color: var(--text); background: var(--overlay-soft, rgba(255,255,255,0.03)); }
+  .help-sidebar .group-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin: 14px 0 4px 10px; }
+  .help-sidebar .group-label:first-child { margin-top: 0; }
+  .help-search { width: 100%; padding: 12px 16px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); color: var(--text); font-size: 14px; margin-bottom: 20px; }
+  .help-section { margin-bottom: 40px; scroll-margin-top: 20px; }
+  .help-section h2 { font-size: 20px; margin-bottom: 4px; }
+  .help-section .section-sub { color: var(--text-secondary); font-size: 13px; margin-bottom: 16px; }
+  .help-section h3 { font-size: 15px; margin: 20px 0 8px; color: var(--accent); }
+  .help-section p, .help-section li { color: var(--text-secondary); font-size: 14px; line-height: 1.7; }
+  .help-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+  .help-table th { text-align: left; padding: 8px 10px; background: var(--surface); color: var(--text-secondary); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .help-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-subtle, var(--border)); vertical-align: top; }
+  mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: var(--text); border-radius: 3px; padding: 0 2px; }
+  .faq-item { border-bottom: 1px solid var(--border); }
+  .faq-question { width: 100%; text-align: left; background: none; border: none; color: var(--text); font-weight: 600; font-size: 14px; padding: 14px 0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+  .faq-item.open .faq-answer { max-height: 400px; padding-bottom: 14px; }
+  .faq-arrow { transition: transform 0.2s; color: var(--text-secondary); }
+  .faq-item.open .faq-arrow { transform: rotate(180deg); }
+  .no-results { display: none; text-align: center; padding: 40px; color: var(--text-secondary); }
+</style>
+</head>
+<body data-page="help">
+  <div id="twNav" data-active=""></div>
+
+  <div class="tw-container">
+    <div class="panel" style="margin-bottom:20px;">
+      <h1 style="margin:0 0 4px;font-size:24px;">📖 Help &amp; Rules</h1>
+      <p class="text-secondary" style="margin:0;">Everything you need to know about Spike &amp; Crush, in one place.</p>
+      <input type="search" id="helpSearch" class="help-search" placeholder="Search the help page (e.g. 'stop loss', 'war rating', 'coins')..." style="margin-top:16px;margin-bottom:0;" />
+    </div>
+
+    <div class="help-layout">
+      <nav class="help-sidebar">
+        <div class="group-label">Basics</div>
+        <a href="#how-to-play">How to Play</a>
+        <a href="#trading-basics">Trading Basics</a>
+        <div class="group-label">Playing</div>
+        <a href="#game-modes">Game Modes</a>
+        <a href="#sabotage-cards">Sabotage Cards</a>
+        <a href="#scoring">Scoring &amp; Ratings</a>
+        <div class="group-label">Progression</div>
+        <a href="#battle-pass">Battle Pass</a>
+        <a href="#coins-payments">Coins &amp; Payments</a>
+        <div class="group-label">Your Account</div>
+        <a href="#account">Account</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+
+      <div id="helpContent">
+        <div class="no-results" id="noResults">No sections match your search.</div>
+
+        <section class="help-section" id="how-to-play">
+          <h2>How to Play</h2>
+          <p class="section-sub">The short version, if you read nothing else on this page.</p>
+          <p>Spike &amp; Crush is a competitive trading game. Every match, you and a group of opponents start with $10,000 in virtual capital and a fixed amount of time. You buy and sell real historical price data on live-feeling charts, trying to end the match with the highest profit. Everyone also gets sabotage cards - small, one-time abilities you can use against opponents to disrupt their trading at the worst possible moment.</p>
+          <h3>The Basic Loop</h3>
+          <ol>
+            <li>Pick a game mode and enter a match (most modes cost coins to enter).</li>
+            <li>Trade the instruments in that match - buy when you expect price to rise, sell when you expect it to fall.</li>
+            <li>Use your sabotage cards against opponents when the timing is right.</li>
+            <li>When the timer hits zero, whoever has the highest profit (P&amp;L) wins the largest share of the prize pool.</li>
+            <li>Ranked matches also adjust your War Rating based on how you finished.</li>
+          </ol>
+          <h3>You Never Risk Real Money in a Match</h3>
+          <p>The $10,000 starting capital is entirely virtual - it exists only for that one match and resets every time. The only real stake is your coin entry fee, which you can win back (and then some) by playing well.</p>
+        </section>
+
+        <section class="help-section" id="trading-basics">
+          <h2>Trading Basics</h2>
+          <p class="section-sub">For players who have never traded anything before.</p>
+          <h3>What Is a Pip?</h3>
+          <p>A pip is the smallest standard unit of price movement for an instrument. For a pair like EURUSD, a move from 1.0850 to 1.0851 is one pip. Different instruments use different pip sizes - gold (XAUUSD) and indices move in larger increments than currency pairs.</p>
+          <h3>What Is a Lot Size?</h3>
+          <p>Lot size controls how large your position is, and therefore how much each pip of movement is worth to you in dollars. A bigger lot size means bigger swings in your P&amp;L for the same price movement - both up and down.</p>
+          <h3>What Is a Spread?</h3>
+          <p>The spread is the gap between the buy (ask) price and the sell (bid) price. It's the built-in cost of opening a trade - you pay it once, immediately, the moment you enter a position. Tighter spreads are cheaper to trade.</p>
+          <h3>What Is Stop Loss / Take Profit?</h3>
+          <p><strong>Stop Loss (SL)</strong> automatically closes your trade once price moves a set amount against you, capping your downside. <strong>Take Profit (TP)</strong> automatically closes your trade once price reaches a target in your favour, locking in a win before it can reverse. Both can be set in pips or at an exact price, and dragged directly on the chart mid-trade.</p>
+          <h3>What Is Margin?</h3>
+          <p>Margin is the portion of your capital held as collateral for your open positions. The more you have open, the more margin is in use. If margin usage gets too high, you risk a margin call that force-closes positions to protect what's left of your capital.</p>
+          <h3>What Is Leverage?</h3>
+          <p>Leverage lets a relatively small amount of capital control a much larger position size - it's what makes lot sizes bigger than your raw capital possible at all. It amplifies both gains and losses, which is exactly why lot size and stop losses matter so much.</p>
+        </section>
+
+        <section class="help-section" id="game-modes">
+          <h2>Game Modes</h2>
+          <p class="section-sub">Five ways to play, from a 3-minute sprint to a 20-minute grind.</p>
+          <table class="help-table">
+            <thead><tr><th>Mode</th><th>Duration</th><th>Entry</th><th>Ranked</th><th>Cards</th></tr></thead>
+            <tbody>
+              <tr><td>Quick War</td><td>10 minutes</td><td>10 coins</td><td>Yes (War Rating)</td><td>3 random</td></tr>
+              <tr><td>Blitz War</td><td>3 minutes</td><td>5 coins</td><td>No</td><td>1 random</td></tr>
+              <tr><td>Grand War</td><td>20 minutes</td><td>25 coins</td><td>Yes (separate Grand War rating)</td><td>5, self-selected deck</td></tr>
+              <tr><td>Solo Ranked</td><td>10 minutes</td><td>Free</td><td>Yes (separate Solo rating)</td><td>3 random, vs AI</td></tr>
+              <tr><td>Async Daily Challenge</td><td>10 minutes, any time today</td><td>5 coins</td><td>Separate daily leaderboard</td><td>None</td></tr>
+            </tbody>
+          </table>
+          <h3>Quick War</h3>
+          <p>The standard battle. 10 minutes, 5 random instruments, 3 sabotage cards. This is the mode most players should learn on.</p>
+          <h3>Blitz War</h3>
+          <p>Three minutes of pure chaos with only one sabotage card. Fast, cheap, casual - great for short sessions, and the fastest way to rack up match count.</p>
+          <h3>Grand War</h3>
+          <p>The prestige mode. Longer, bigger stakes, and you pre-select your 5-card deck before the lobby starts - deck-building strategy matters here in a way it doesn't in the shorter modes.</p>
+          <h3>Solo Ranked</h3>
+          <p>Free, always available, and played entirely against AI opponents with distinct personalities. The best place to learn a new instrument or test a sabotage strategy without spending coins.</p>
+          <h3>Async Daily Challenge</h3>
+          <p>Every player who enters on a given day trades the exact same historical market window - same prices, same opportunities, no live opponents and no sabotage. It's the purest test of trading decision-making on the platform.</p>
+        </section>
+
+        <section class="help-section" id="sabotage-cards">
+          <h2>Sabotage Cards</h2>
+          <p class="section-sub">All 12 cards. Each can be played once per match.</p>
+          <table class="help-table">
+            <thead><tr><th>Card</th><th>Type</th><th>Effect</th></tr></thead>
+            <tbody id="cardsTableBody"></tbody>
+          </table>
+        </section>
+
+        <section class="help-section" id="scoring">
+          <h2>Scoring &amp; Ratings</h2>
+          <h3>How War Rating Works</h3>
+          <p>Ranked matches adjust your War Rating based on where you finish: 1st place gains 25 rating, 2nd gains 10, 3rd is unchanged, every other position loses 10, and finishing dead last loses 25. There's also a small additional adjustment (±5) if the opponents you played were notably stronger or weaker rated than you.</p>
+          <h3>Tiers</h3>
+          <table class="help-table">
+            <thead><tr><th>Tier</th><th>Rating Range</th></tr></thead>
+            <tbody id="tiersTableBody"></tbody>
+          </table>
+          <h3>Prize Pool Distribution</h3>
+          <p>Every player's entry coins go into the match's prize pool. The platform keeps 15%, and the remaining 85% is split by finishing position: 1st place gets 50% of it, 2nd gets 25%, 3rd gets 15%, and 4th gets 10%. Lower finishes in larger matches (Grand War) don't receive a prize share.</p>
+          <h3>Draw Rules</h3>
+          <p>If two or more players finish with the exact same P&amp;L (to the cent), they share every rank position their group collectively occupies - their combined prize percentage is split evenly between the humans in the tie, and their rating change is averaged across those positions. AI opponents never receive coins, so a human tied with an AI keeps the AI's share of the prize instead of losing it. Solo Ranked never registers a draw at all, since it's always exactly one human against AI.</p>
+        </section>
+
+        <section class="help-section" id="battle-pass">
+          <h2>Battle Pass</h2>
+          <p>A monthly progression track alongside normal matches. Everyone has a Free Track that earns coins and basic rewards from playing; subscribing unlocks a parallel Premium Track with exclusive cosmetics and bigger coin rewards at every tier.</p>
+          <h3>Earning XP</h3>
+          <p>Every match gives XP, winning gives a bonus on top, and completing daily/weekly challenges gives more. Progress through tiers by playing - there's no way to buy tiers directly.</p>
+          <h3>Challenges</h3>
+          <p>Daily challenges refresh every day and are quick, achievable goals. Weekly challenges refresh every week, are harder, and reward more XP and coins for consistent, skilled play across the week.</p>
+          <h3>Season Reset</h3>
+          <p>Each season lasts a fixed number of days. When it ends, tier progress resets for the new season's track, but every reward you already claimed stays in your inventory permanently.</p>
+        </section>
+
+        <section class="help-section" id="coins-payments">
+          <h2>Coins &amp; Payments</h2>
+          <h3>How Coins Work</h3>
+          <p>Coins are the platform's in-game currency. New accounts start with a welcome bonus. You earn more by winning matches, finishing challenges, and battle pass tiers. You spend them on match entry fees and cosmetic shop items.</p>
+          <h3>Buying Coins</h3>
+          <p>Additional coin packages can be purchased from the Wallet page via Stripe (test mode in this build). Purchases are recorded as real transactions in your coin transaction history.</p>
+          <h3>Match Entry Fees</h3>
+          <p>Entry fees vary by mode (see the Game Modes table above) and are deducted the moment you join a match, going straight into that match's prize pool.</p>
+          <h3>Prizes</h3>
+          <p>Prize coins are credited to your balance automatically the instant a match ends - no manual claim step.</p>
+          <h3>Withdrawals</h3>
+          <p>Coins are currently a closed-loop in-game balance - there is no cash withdrawal system in this build. Coins earned in matches stay in-game and are spent on entries and cosmetics, not converted back to real money.</p>
+        </section>
+
+        <section class="help-section" id="account">
+          <h2>Account</h2>
+          <h3>Creating an Account</h3>
+          <p>Sign up with an email and password, or continue with Google/Apple, from the home page. New accounts receive a coin welcome bonus automatically.</p>
+          <h3>Changing Settings</h3>
+          <p>Profile details, game preferences, privacy, security (including two-factor authentication), and notification preferences are all managed from the Settings page.</p>
+          <h3>Managing Cosmetics</h3>
+          <p>Avatar frames, nameplate effects, and profile backgrounds purchased from the Shop can be equipped from your Profile page.</p>
+          <h3>Privacy</h3>
+          <p>Session and login history, blocked players, and account data controls live under Settings → Privacy and Settings → Security.</p>
+        </section>
+
+        <section class="help-section" id="faq">
+          <h2>Frequently Asked Questions</h2>
+          <div id="faqList"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/help-tooltips.js"></script>
+  <script>
+    const CARD_ROWS = [
+      { name: 'News Bomb', type: 'Targeted', effect: "Shows the target a fake breaking news headline for a short time." },
+      { name: 'Chart Ghost', type: 'Targeted', effect: "Freezes the target's price display for a few seconds." },
+      { name: 'False Signal', type: 'Targeted', effect: "Shows a fake technical signal on the target's chart." },
+      { name: 'Smoke Screen', type: 'Market-wide', effect: 'Blurs the leaderboard for everyone for a short time.' },
+      { name: 'Spread Spike', type: 'Market-wide', effect: 'Multiplies the spread on one instrument temporarily.' },
+      { name: 'Volatility Surge', type: 'Market-wide', effect: 'Speeds up price movement on one instrument.' },
+      { name: 'Liquidity Drain', type: 'Market-wide', effect: 'Caps max lot size on one instrument for everyone.' },
+      { name: 'Reversal Flash', type: 'Market-wide', effect: 'Forces a brief sharp price reversal before snapping back.' },
+      { name: 'Position Freeze', type: 'Targeted', effect: 'Blocks the target from opening new trades briefly.' },
+      { name: 'Force Close', type: 'Targeted', effect: "Force-closes the target's best open position at market price." },
+      { name: 'Capital Drain', type: 'Targeted', effect: "Deducts virtual capital directly from the target." },
+      { name: 'Mirror Trade', type: 'Targeted', effect: "Copies your open position onto the target's account." },
+    ];
+    document.getElementById('cardsTableBody').innerHTML = CARD_ROWS.map((c) => `<tr><td>${c.name}</td><td>${c.type}</td><td>${c.effect}</td></tr>`).join('');
+
+    const TIER_ROWS = [
+      ['Recruit', '0 – 999'], ['Trader', '1,000 – 1,499'], ['Broker', '1,500 – 1,999'],
+      ['Analyst', '2,000 – 2,499'], ['Veteran', '2,500 – 2,999'], ['Elite', '3,000 – 3,499'], ['War Lord', '3,500+'],
+    ];
+    document.getElementById('tiersTableBody').innerHTML = TIER_ROWS.map(([n, r]) => `<tr><td>${n}</td><td>${r}</td></tr>`).join('');
+
+    const FAQS = [
+      ['Do I lose real money if I lose a match?', 'No. The $10,000 starting capital is virtual and resets every match. Only your coin entry fee is at stake, and coins have no cash value in this build.'],
+      ['How do I get more coins?', 'Win matches, complete daily/weekly Battle Pass challenges, or buy a coin package from the Wallet page.'],
+      ['Can I play with friends?', 'Yes - Private War is free to create and lets you invite friends with a 6-digit room code.'],
+      ['What happens if I disconnect mid-match?', "Your open positions stay in the match. Reconnect using the same match link and you'll pick up where you left off."],
+      ['Do sabotage cards give a real gameplay advantage, or are they just cosmetic?', "They're a real mechanic - cards can freeze opponents, force-close their positions, or manipulate what they see. They're a core part of strategy, not decoration."],
+      ['Is Async Daily Challenge fair if I play it late in the day?', "Yes - the price window is fixed for everyone the moment it's revealed, regardless of when during the day you complete it."],
+      ['What's the difference between War Rating, Grand War rating, and Solo rating?', 'They\'re tracked separately. Quick War, Blitz, and Private matches affect your main War Rating; Grand War and Solo Ranked each have their own independent rating.'],
+      ['Do cosmetics affect gameplay?', 'No. Avatar frames, nameplate effects, and profile backgrounds are purely visual.'],
+      ['What happens if two players tie?', "They share the combined prize and rating change of every rank position their tie spans - see the Draw Rules section above."],
+      ['Can I change my username?', 'Username changes aren\'t currently supported after registration - contact support if you need help with your account.'],
+      ['How is Solo Ranked different from playing AI in other modes?', "Every mode can AI-fill empty human slots, but Solo Ranked is built entirely around a human-vs-AI match and tracks its own separate rating."],
+      ['Why did my War Rating change by a different amount than expected?', "There's a small additional adjustment (±5) based on the average rating of the opponents you played against, on top of the base amount for your finishing position."],
+      ['Do I need to complete the tutorial?', 'No - it can be skipped at any time and replayed later from Settings → Help if you want to revisit it.'],
+      ['What is the platform fee on match prize pools?', "The platform keeps 15% of every match's prize pool; the remaining 85% is distributed by finishing position."],
+      ['Can I cancel my Battle Pass subscription?', 'Yes, from the Wallet page. It continues automatically until cancelled; rewards you already earned are kept permanently.'],
+      ['Is there a mobile app?', 'Spike & Crush runs in your mobile browser - there is no separate native app in this build.'],
+      ['What instruments can I trade?', "Each match uses a random selection of instruments (forex pairs, metals, indices, and more depending on mode) - the exact set is shown before and during the match."],
+      ['Can I practice without spending coins?', "Yes - Solo Ranked is completely free."],
+      ['How do I report another player?', "Use the report option from their profile or from a match's post-game screen."],
+      ['Where can I see my match history?', 'Your Profile page lists recent matches with mode, result, and P&L for each.'],
+    ];
+    document.getElementById('faqList').innerHTML = FAQS.map(([q, a], i) => `
+      <div class="faq-item" data-i="${i}">
+        <button class="faq-question"><span>${q}</span><span class="faq-arrow">▾</span></button>
+        <div class="faq-answer"><p style="margin:0;">${a}</p></div>
+      </div>
+    `).join('');
+    document.querySelectorAll('.faq-question').forEach((btn) => {
+      btn.addEventListener('click', () => btn.closest('.faq-item').classList.toggle('open'));
+    });
+
+    // ---- search: highlights matches and hides sections with none ----
+    const searchInput = document.getElementById('helpSearch');
+    const sections = Array.from(document.querySelectorAll('.help-section'));
+    let originalHtml = new Map(sections.map((s) => [s, s.innerHTML]));
+
+    function clearHighlights() {
+      sections.forEach((s) => { s.innerHTML = originalHtml.get(s); s.style.display = ''; });
+      document.getElementById('cardsTableBody') && (document.getElementById('cardsTableBody').innerHTML = CARD_ROWS.map((c) => `<tr><td>${c.name}</td><td>${c.type}</td><td>${c.effect}</td></tr>`).join(''));
+    }
+
+    function highlightText(root, query) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      let n;
+      while ((n = walker.nextNode())) nodes.push(n);
+      let found = false;
+      nodes.forEach((node) => {
+        const idx = node.textContent.toLowerCase().indexOf(query);
+        if (idx === -1) return;
+        found = true;
+        const span = document.createElement('span');
+        const before = node.textContent.slice(0, idx);
+        const match = node.textContent.slice(idx, idx + query.length);
+        const after = node.textContent.slice(idx + query.length);
+        span.innerHTML = `${TW.escapeHtml(before)}<mark>${TW.escapeHtml(match)}</mark>${TW.escapeHtml(after)}`;
+        node.replaceWith(span);
+      });
+      return found;
+    }
+
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      if (!q) { clearHighlights(); document.getElementById('noResults').style.display = 'none'; return; }
+      let anyMatch = false;
+      sections.forEach((s) => {
+        s.innerHTML = originalHtml.get(s);
+        const matched = highlightText(s, q);
+        s.style.display = matched ? '' : 'none';
+        if (matched) anyMatch = true;
+      });
+      document.getElementById('noResults').style.display = anyMatch ? 'none' : 'block';
+    });
+  </script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-links">
+        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

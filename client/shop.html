@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Shop</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/premium.css" />
 <style>
   .shop-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -41,6 +43,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/main.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -75,13 +78,31 @@
       return `
         <div class="shop-item">
           ${owned ? '<div class="owned-badge">OWNED</div>' : ''}
-          <div class="icon">${item.icon || '✨'}</div>
+          ${cosmeticPreview(item)}
           <div class="name">${TW.escapeHtml(item.name)}</div>
           ${item.requiresTier ? `<div class="text-secondary" style="font-size:11px;">Requires ${TW.escapeHtml(item.requiresTier)} tier</div>` : ''}
           <div class="price">${item.price > 0 ? `🪙 ${item.price}` : 'Free'}</div>
           ${btnHtml}
         </div>
       `;
+    }
+
+    // Live preview of the actual cosmetic effect, using the shopper's own
+    // username/initial so it looks like what they'd actually see equipped -
+    // shown inline on the card instead of a separate preview modal.
+    function cosmeticPreview(item) {
+      const me = TW.getPlayer() || { username: 'Trader' };
+      if (item.type === 'avatar_frame') {
+        return `<div class="tw-shop-preview">${TW.createAvatar({ username: me.username, equipped_frame: item.id }, 'lg')}</div>`;
+      }
+      if (item.type === 'profile_background') {
+        const bgClass = `profile-bg-${TW.cosmeticSlug(item.id, 'bg_')}`;
+        return `<div class="tw-shop-preview tw-profile-header ${bgClass}" style="width:100%;height:56px;border-radius:8px;"></div>`;
+      }
+      if (item.type === 'nameplate') {
+        return `<div class="tw-shop-preview" style="font-size:16px;font-weight:700;">${TW.renderUsername({ username: me.username, equipped_nameplate: item.id })}</div>`;
+      }
+      return `<div class="icon">${item.icon || '✨'}</div>`;
     }
 
     function render() {
@@ -149,5 +170,15 @@
 
     loadCatalog();
   </script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-links">
+        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
+      </p>
+    </div>
+  </footer>
 </body>
 </html>

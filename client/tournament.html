@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Tournament</title>
@@ -37,6 +38,9 @@
         </div>
         <span class="t-status-pill" id="tStatusPill"></span>
       </div>
+      <p class="tournament-disclaimer">
+        Tournament prizes are distributed from the collected entry pool. Spike &amp; Crush is a skill-based competition platform. All trading is simulated using historical data and does not involve real financial markets or instruments.
+      </p>
       <div id="ctaArea"></div>
       <div id="registrationsArea" style="margin-bottom:16px;"></div>
       <div class="t-bracket" id="bracketArea"></div>
@@ -155,5 +159,15 @@
 
     load();
   </script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-links">
+        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
+      </p>
+    </div>
+  </footer>
 </body>
 </html>

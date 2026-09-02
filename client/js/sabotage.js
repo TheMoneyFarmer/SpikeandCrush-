@@ -23,7 +23,7 @@ TW.Sabotage = (function () {
       div.className = 'sabotage-card' + (c.used ? ' used' : '') + (selectedCardType === c.type ? ' selected' : '');
       div.innerHTML = `
         <div class="icon">${def.icon}</div>
-        <div class="name">${TW.escapeHtml(def.name)}</div>
+        <div class="name">${TW.escapeHtml(def.name)} <button type="button" class="help-btn" data-help="${def.id}" title="What does this card do?" onclick="event.stopPropagation()">?</button></div>
         <div class="desc">${TW.escapeHtml(def.description)}</div>
         <div class="category-tag">${TW.escapeHtml(def.category)}</div>
       `;
@@ -103,11 +103,11 @@ TW.Sabotage = (function () {
     else if (payload.cardType === 'position_freeze') sub = 'You cannot open new trades right now.';
     else if (payload.cardType === 'false_signal') sub = 'A fake indicator signal has appeared on your chart.';
     else if (payload.cardType === 'force_close') sub = 'One of your positions was force-closed at market.';
-    else if (payload.cardType === 'spread_spike') sub = `Spread tripled on ${payload.symbol}.`;
-    else if (payload.cardType === 'volatility_surge') sub = 'Price swings just doubled for everyone.';
-    else if (payload.cardType === 'liquidity_drain') sub = 'Max lot size capped at 0.1 for everyone.';
+    else if (payload.cardType === 'spread_spike') sub = `Spread tripled on ${payload.symbol} for everyone except whoever played it.`;
+    else if (payload.cardType === 'volatility_surge') sub = 'Price swings just doubled for everyone except whoever played it.';
+    else if (payload.cardType === 'liquidity_drain') sub = 'Max lot size capped at 0.1 for everyone except whoever played it.';
     else if (payload.cardType === 'reversal_flash') sub = `Sharp reversal incoming on ${payload.symbol}!`;
-    else if (payload.cardType === 'smoke_screen') sub = 'The leaderboard is blurred for everyone.';
+    else if (payload.cardType === 'smoke_screen') sub = 'The leaderboard is blurred for everyone except whoever played it.';
 
     const overlay = document.createElement('div');
     overlay.className = 'sabotage-overlay';
@@ -123,5 +123,26 @@ TW.Sabotage = (function () {
     setTimeout(() => overlay.remove(), 2600);
   }
 
-  return { render, showIncoming };
+  // FIX: market-wide cards no longer affect the player who played them -
+  // small, unobtrusive bottom-right confirmation so they know it's deliberate,
+  // not a bug. Auto-dismisses in 2s.
+  function showImmune() {
+    const el = document.createElement('div');
+    el.className = 'sabotage-immune-toast';
+    el.textContent = '🛡️ You are immune to your own card';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2000);
+  }
+
+  // Reversal Flash: the caster gets this 1s before the shared price reversal
+  // actually starts moving - opponents get no such warning.
+  function showReversalWarning() {
+    const el = document.createElement('div');
+    el.className = 'sabotage-reversal-warning-toast';
+    el.textContent = '⚡ Reversal incoming...';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1200);
+  }
+
+  return { render, showIncoming, showImmune, showReversalWarning };
 })();

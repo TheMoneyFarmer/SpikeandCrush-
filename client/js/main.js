@@ -27,10 +27,21 @@ window.TW = window.TW || {};
   };
   TW.requireAuth = () => {
     if (!TW.getToken()) {
-      window.location.href = 'index.html';
+      try {
+        localStorage.setItem('tw_redirect_after_login', window.location.href);
+      } catch (e) {}
+      window.location.href = 'index.html?login=required';
       return false;
     }
     return true;
+  };
+  TW.consumePostLoginRedirect = () => {
+    let redirect = null;
+    try {
+      redirect = localStorage.getItem('tw_redirect_after_login');
+      localStorage.removeItem('tw_redirect_after_login');
+    } catch (e) {}
+    return redirect;
   };
   TW.logout = () => {
     TW.clearSession();
@@ -41,6 +52,82 @@ window.TW = window.TW || {};
     const div = document.createElement('div');
     div.textContent = String(str ?? '');
     return div.innerHTML;
+  };
+
+  // ---- theme (dark / midnight / light) --------------------------------
+  // The <head> of every page runs a tiny inline script (before any CSS
+  // paints) that reads this same localStorage key and stamps data-theme on
+  // <html>, so there's no flash of the wrong theme on load - see the
+  // <script> right after the viewport meta tag in each HTML file.
+  const THEME_KEY = 'sc_theme';
+  TW.getTheme = () => {
+    try {
+      return localStorage.getItem(THEME_KEY) || 'dark';
+    } catch (e) {
+      return 'dark';
+    }
+  };
+  TW.setTheme = (theme) => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch (e) {}
+    if (TW.getToken()) {
+      TW.api('/api/player/settings', { method: 'PATCH', body: { settings: { theme } } }).catch(() => {});
+    }
+    if (window.reinitializeCharts) window.reinitializeCharts();
+  };
+
+  // ---- cosmetics: avatar frames / nameplate effects / profile backgrounds --
+  // Shop item ids (frame_teal_ring, name_matrix_rain, bg_blood_red_market)
+  // are turned into CSS class suffixes (teal-ring, matrix-rain,
+  // blood-red-market) by stripping the slot prefix and swapping underscores
+  // for hyphens - see the .frame-*/.nameplate-*/.profile-bg-* rules in
+  // premium.css, which use this exact same naming convention.
+  TW.cosmeticSlug = (itemId, prefix) => {
+    if (!itemId) return null;
+    let s = String(itemId);
+    if (prefix && s.startsWith(prefix)) s = s.slice(prefix.length);
+    return s.replace(/_/g, '-');
+  };
+
+  const AVATAR_PALETTE = ['#00c896', '#4fc3f7', '#ffd700', '#ff8c00', '#ff4444', '#a78bfa', '#00e0ff'];
+  TW.avatarColor = (username) => {
+    const s = String(username || '');
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+    return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+  };
+
+  // player may be the logged-in session's own player object (equipped_frame/
+  // equipped_background/equipped_nameplate, set at login) or another
+  // player's public profile data (avatar_frame/background/nameplate, from
+  // /api/player/by-username's equippedCosmetics) - both shapes are accepted.
+  TW.createAvatar = (player, size = 'md') => {
+    const sizes = { sm: 28, md: 36, lg: 48, xl: 64 };
+    const px = sizes[size] || sizes.md;
+    const frameId = player?.equipped_frame || player?.avatar_frame || 'none';
+    const frameClass = frameId === 'none' || frameId === 'frame_none' ? 'frame-none' : `frame-${TW.cosmeticSlug(frameId, 'frame_')}`;
+    const initial = (player?.username || '?').charAt(0).toUpperCase();
+    const color = TW.avatarColor(player?.username);
+    const fontSize = px <= 28 ? 12 : px <= 36 ? 14 : px <= 48 ? 18 : 24;
+    return (
+      `<span class="tw-avatar-wrap" style="width:${px}px;height:${px}px;">` +
+      `<span class="tw-avatar-frame ${frameClass}"></span>` +
+      `<span class="tw-avatar-circle" style="width:${px}px;height:${px}px;background:${color};font-size:${fontSize}px;">${TW.escapeHtml(initial)}</span>` +
+      `</span>`
+    );
+  };
+
+  TW.renderUsername = (player, extraAttrs = '') => {
+    const nameplateId = player?.equipped_nameplate || player?.nameplate || 'name_standard';
+    const cls = `tw-nameplate nameplate-${TW.cosmeticSlug(nameplateId, 'name_')}`;
+    return `<span class="${cls}" ${extraAttrs}>${TW.escapeHtml(player?.username || '')}</span>`;
+  };
+
+  TW.profileBackgroundClass = (player) => {
+    const bgId = player?.equipped_background || player?.background || 'bg_terminal_dark';
+    return `profile-bg-${TW.cosmeticSlug(bgId, 'bg_')}`;
   };
 
   TW.formatMoney = (n) => {
@@ -116,7 +203,7 @@ window.TW = window.TW || {};
     }
     if (ratingEl) ratingEl.textContent = player ? `${player.war_rating} · ${player.tier}` : '';
     if (nameEl) {
-      nameEl.textContent = player ? player.username : '';
+      nameEl.innerHTML = player ? TW.renderUsername(player) : '';
       nameEl.classList.toggle('tw-name-warlord', Boolean(player && player.tier === 'War Lord'));
     }
     if (authLink) authLink.textContent = player ? 'Log out' : 'Log in';
@@ -159,6 +246,10 @@ window.TW = window.TW || {};
     }
     refreshVisibility();
 
+    if (new URLSearchParams(window.location.search).get('login') === 'required') {
+      document.getElementById('loginRequiredBanner')?.classList.remove('hidden');
+    }
+
     const loginTab = document.getElementById('loginTab');
     const registerTab = document.getElementById('registerTab');
     const loginForm = document.getElementById('loginForm');
@@ -190,6 +281,11 @@ window.TW = window.TW || {};
       try {
         const data = await TW.api('/api/auth/login', { method: 'POST', body: { username, password, totpCode } });
         await TW.establishSession(data.token, data.refresh_token, data.player);
+        const redirect = TW.consumePostLoginRedirect();
+        if (redirect) {
+          window.location.href = redirect;
+          return;
+        }
         TW.updateHeader();
         refreshVisibility();
         TW.toast(`Welcome back, ${data.player.username}`, 'info');
@@ -215,6 +311,11 @@ window.TW = window.TW || {};
       try {
         const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password } });
         await TW.establishSession(data.token, data.refresh_token, data.player);
+        const redirect = TW.consumePostLoginRedirect();
+        if (redirect) {
+          window.location.href = redirect;
+          return;
+        }
         TW.updateHeader();
         refreshVisibility();
         TW.toast(
@@ -234,11 +335,15 @@ window.TW = window.TW || {};
       TW.handleForgotPassword();
     });
 
-    document.getElementById('modeQuickBtn')?.addEventListener('click', () => startMatch('quick'));
-    document.getElementById('modeBlitzBtn')?.addEventListener('click', () => startMatch('blitz'));
-    document.getElementById('modeGrandBtn')?.addEventListener('click', () => startMatch('grand'));
-    document.getElementById('modeSoloBtn')?.addEventListener('click', () => startMatch('solo'));
-    document.getElementById('modeAsyncBtn')?.addEventListener('click', () => { window.location.href = '/async'; });
+    // Wraps each mode's real action with the mode-cards.js "explain this mode
+    // the first 3 times" tutorial (see client/js/mode-cards.js) - falls back
+    // to the real action directly if that script isn't on the page.
+    const withModeTutorial = (mode, action) => (TW.startModeWithTutorial ? TW.startModeWithTutorial(mode, action) : action());
+    document.getElementById('modeQuickBtn')?.addEventListener('click', () => withModeTutorial('quickwar', () => startMatch('quick')));
+    document.getElementById('modeBlitzBtn')?.addEventListener('click', () => withModeTutorial('blitz', () => startMatch('blitz')));
+    document.getElementById('modeGrandBtn')?.addEventListener('click', () => withModeTutorial('grandwar', () => startMatch('grand')));
+    document.getElementById('modeSoloBtn')?.addEventListener('click', () => withModeTutorial('solo', () => startMatch('solo')));
+    document.getElementById('modeAsyncBtn')?.addEventListener('click', () => withModeTutorial('async', () => { window.location.href = '/async'; }));
     document.getElementById('modePrivateBtn')?.addEventListener('click', () => startMatch('private'));
     document.getElementById('modeTournamentBtn')?.addEventListener('click', () => { window.location.href = '/tournaments'; });
 

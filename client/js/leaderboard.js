@@ -29,7 +29,7 @@ TW.Leaderboard = (function () {
 
       tr.innerHTML = `
         <td class="${rankClass}">${row.rank}</td>
-        <td>${TW.escapeHtml(row.username)}${row.isAI ? ' 🤖' : ''}${badge}</td>
+        <td>${TW.renderUsername(row)}${badge}</td>
         <td class="${pnlClass} mono">${TW.formatMoney(row.pnl)}</td>
         <td>${row.tradesMade}</td>
       `;

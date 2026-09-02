@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Wallet</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/premium.css" />
 <style>
   .overview-grid {
@@ -64,6 +66,10 @@
     <div class="panel" style="margin-top: 20px;">
       <h3>Buy Coins</h3>
       <p>Quick War entry costs 10 coins. Private Wars are always free.</p>
+      <div class="wallet-disclaimer">
+        <span class="disclaimer-icon">ℹ️</span>
+        <span>Coins are virtual in-game currency for entertainment use only. Coin purchases are final and non-refundable. Coins have no real-world cash value outside of tournament prize distributions governed by our <a href="/terms">Terms of Service</a>.</span>
+      </div>
       <div class="coin-packages">
         <div class="coin-package" data-pkg="100"><div class="amount">100</div><div class="price">$0.99</div><div class="per-coin">$0.0099/coin</div></div>
         <div class="coin-package" data-pkg="500"><div class="amount">500</div><div class="price">$3.99</div><div class="per-coin">$0.0080/coin</div></div>
@@ -90,6 +96,7 @@
   </div>
 
   <script src="js/nav.js"></script>
+  <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/main.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -220,5 +227,15 @@
     loadWallet();
     loadTransactions();
   </script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-links">
+        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
+      </p>
+    </div>
+  </footer>
 </body>
 </html>

@@ -366,6 +366,50 @@ function router() {
     }
   });
 
+  // Finds leftover QA/dev accounts (IsoTest*, DebugTest*, Monitor*, PClose*,
+  // etc.) that pollute the public leaderboard - real players never end up
+  // with these names. Without { confirm: true } this only previews the
+  // matching accounts; nothing is deleted until confirm is explicitly sent,
+  // and even then only accounts with < 5 matches and $0 revenue qualify, so
+  // a real (if oddly-named) player is never at risk.
+  r.post('/cleanup-test-accounts', async (req, res) => {
+    if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
+    const confirm = req.body?.confirm === true;
+    try {
+      const { data: candidates, error } = await supabase
+        .from('players')
+        .select('id, username, email, total_matches, war_rating, created_at')
+        .or('username.ilike.%test%,username.ilike.%debug%,username.ilike.%iso%,username.ilike.monitor%,username.ilike.pclose%,username.ilike.%clean%')
+        .lt('total_matches', 5)
+        .eq('is_persona', false);
+      if (error) throw error;
+
+      const revenueByPlayer = await computeRevenueByPlayer(candidates.map((p) => p.id));
+      const matches = candidates.filter((p) => !(revenueByPlayer[p.id] > 0));
+
+      if (!confirm) {
+        return res.json({ dryRun: true, count: matches.length, accounts: matches });
+      }
+
+      const ids = matches.map((p) => p.id);
+      if (ids.length > 0) {
+        await supabase.from('players').delete().in('id', ids);
+      }
+      await logAdminAction({
+        adminUsername: req.admin.username,
+        actionType: 'cleanup_test_accounts',
+        targetType: 'player',
+        targetId: null,
+        details: { count: ids.length, usernames: matches.map((p) => p.username) },
+        ip: clientIp(req),
+      });
+      res.json({ dryRun: false, count: ids.length, accounts: matches });
+    } catch (e) {
+      console.error('[admin cleanup-test-accounts]', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   return r;
 }
 

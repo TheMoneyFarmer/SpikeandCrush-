@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Coaching</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/premium.css" />
 <style>
   .coach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
@@ -29,25 +31,78 @@
   .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
   .tabs button { padding: 8px 16px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); cursor: pointer; font-weight: 600; }
   .tabs button.active { background: var(--gradient-primary); color: #06251d; border-color: transparent; }
+
+  .coming-soon-container { display: flex; align-items: center; justify-content: center; min-height: 70vh; }
+  .coming-soon-card {
+    text-align: center;
+    max-width: 480px;
+    padding: 60px 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+  }
+  .coming-soon-icon { font-size: 64px; margin-bottom: 24px; }
+  .coming-soon-card h1 { font-size: 28px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  .coming-soon-subtitle {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .coming-soon-desc { font-size: 15px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 32px; }
+  .coming-soon-features { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; text-align: left; }
+  .feature-item {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: 14px;
+    color: var(--text-secondary);
+    padding: 10px 16px;
+    background: var(--surface-2);
+    border-radius: 8px;
+  }
+  .notify-btn {
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: 8px;
+    color: #06251d;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 14px 32px;
+    cursor: pointer;
+    width: 100%;
+  }
+  .notify-btn:disabled { opacity: 0.7; cursor: default; }
 </style>
 </head>
 <body data-page="coaching">
   <div id="twNav" data-active="coaching"></div>
 
   <div class="tw-container">
-    <div class="panel become-coach-panel" id="becomeCoachPanel" style="display:none;"></div>
-
-    <div class="panel">
-      <div class="tabs" id="coachTabs">
-        <button data-tab="browse" class="active">Find a Coach</button>
-        <button data-tab="mine">My Sessions</button>
+    <div class="coming-soon-container">
+      <div class="coming-soon-card">
+        <div class="coming-soon-icon">🎓</div>
+        <h1>Coaching Marketplace</h1>
+        <p class="coming-soon-subtitle">Coming Soon</p>
+        <p class="coming-soon-desc">
+          War Lord-ranked traders will be able to offer coaching sessions to players looking to
+          improve their game. Watch this space.
+        </p>
+        <div class="coming-soon-features">
+          <div class="feature-item"><span>⚔️</span><span>Live match coaching from War Lords</span></div>
+          <div class="feature-item"><span>📊</span><span>Strategy and chart analysis sessions</span></div>
+          <div class="feature-item"><span>💰</span><span>Book sessions with coins or cash</span></div>
+        </div>
+        <button class="notify-btn" id="notifyCoachingBtn">Notify Me When Live</button>
       </div>
-      <div id="tabContent">Spike & Crush loading...</div>
     </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/main.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -58,225 +113,27 @@
   <script>
     TW.requireAuth();
 
-    let me = null;
-    let coachesData = null;
-    let activeTab = 'browse';
-
-    function starString(n) {
-      if (!n) return 'No reviews yet';
-      return `${'★'.repeat(Math.round(n))}${'☆'.repeat(5 - Math.round(n))} (${n})`;
-    }
-
-    function coachCard(c) {
-      const initial = c.username[0].toUpperCase();
-      return `
-        <div class="coach-card">
-          <div class="top">
-            <div class="avatar">${initial}</div>
-            <div>
-              <div class="name">${TW.escapeHtml(c.username)}</div>
-              <div class="tier">${TW.escapeHtml(c.tier)} · ${c.warRating} rating</div>
-            </div>
-          </div>
-          <div class="bio">${c.bio ? TW.escapeHtml(c.bio) : 'No bio provided.'}</div>
-          <div class="rating">${starString(c.avgRating)} · ${c.count} session${c.count === 1 ? '' : 's'}</div>
-          <div class="rate">AED ${c.rateAed} / session</div>
-          <button class="btn btn-primary" data-book="${c.id}" style="width:100%;">Book Session</button>
-        </div>
-      `;
-    }
-
-    function openBookModal(coachId) {
-      const coach = coachesData.coaches.find((c) => c.id === coachId);
-      if (!coach) return;
-      const backdrop = document.createElement('div');
-      backdrop.className = 'modal-backdrop';
-      const typeOptions = Object.entries(coachesData.sessionTypes)
-        .map(([key, t]) => `<option value="${key}">${TW.escapeHtml(t.label)}</option>`)
-        .join('');
-      backdrop.innerHTML = `
-        <div class="modal-box">
-          <h3>Book ${TW.escapeHtml(coach.username)}</h3>
-          <label>Session Type</label>
-          <select id="bookSessionType">${typeOptions}</select>
-          <label>Date &amp; Time</label>
-          <input type="datetime-local" id="bookScheduledAt" />
-          <div style="margin-top:16px;display:flex;gap:8px;">
-            <button class="btn btn-outline" id="bookCancel" style="flex:1;">Cancel</button>
-            <button class="btn btn-primary" id="bookConfirm" style="flex:1;">Pay AED ${coach.rateAed}</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(backdrop);
-      backdrop.querySelector('#bookCancel').addEventListener('click', () => backdrop.remove());
-      backdrop.querySelector('#bookConfirm').addEventListener('click', async () => {
-        const sessionType = backdrop.querySelector('#bookSessionType').value;
-        const scheduledAt = backdrop.querySelector('#bookScheduledAt').value;
-        if (!scheduledAt) { TW.toast('Pick a date and time', 'danger'); return; }
-        try {
-          const result = await TW.api('/api/coaching/book', {
-            method: 'POST',
-            body: { coachId, sessionType, scheduledAt: new Date(scheduledAt).toISOString() },
-          });
-          if (result.url) window.location.href = result.url;
-        } catch (e) {
-          TW.toast(e.message, 'danger');
-        }
-      });
-    }
-
-    async function renderBrowse() {
-      const content = document.getElementById('tabContent');
-      content.innerHTML = '<div class="text-secondary">Loading coaches...</div>';
+    document.getElementById('notifyCoachingBtn').addEventListener('click', async (e) => {
+      const btn = e.target;
+      btn.disabled = true;
       try {
-        coachesData = await TW.api('/api/coaching/coaches');
-      } catch (e) {
-        content.innerHTML = `<div class="text-secondary">${TW.escapeHtml(e.message)}</div>`;
-        return;
+        await TW.api('/api/notifications/coaching-notify', { method: 'POST' });
+        btn.textContent = '✓ We will notify you';
+      } catch (err) {
+        btn.disabled = false;
+        TW.toast(err.message, 'danger');
       }
-      if (!coachesData.coaches.length) {
-        content.innerHTML = '<div class="text-secondary">No War Lord coaches are accepting bookings yet.</div>';
-        return;
-      }
-      content.innerHTML = `<div class="coach-grid">${coachesData.coaches.map(coachCard).join('')}</div>`;
-      content.querySelectorAll('[data-book]').forEach((btn) => {
-        btn.addEventListener('click', () => openBookModal(btn.dataset.book));
-      });
-    }
-
-    function sessionStatusLabel(s) {
-      return { pending_payment: 'Awaiting payment', scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled' }[s] || s;
-    }
-
-    function sessionRow(s, myId) {
-      const isCoach = s.coach_id === myId;
-      const role = isCoach ? 'Coaching' : 'Booked with';
-      const canReview = !isCoach && s.status === 'scheduled';
-      return `
-        <div class="session-row">
-          <div>
-            <div style="font-weight:600;font-size:13px;">${role} · ${TW.escapeHtml(s.session_type)}</div>
-            <div class="text-secondary" style="font-size:11px;">${new Date(s.scheduled_at).toLocaleString()} · AED ${s.price_aed}</div>
-            ${s.rating ? `<div style="font-size:11px;color:var(--gold);">${'★'.repeat(s.rating)} ${s.review_text ? TW.escapeHtml(s.review_text) : ''}</div>` : ''}
-          </div>
-          <div style="text-align:right;">
-            <span class="status-pill">${sessionStatusLabel(s.status)}</span>
-            ${canReview ? `<div style="margin-top:6px;"><button class="btn btn-outline" data-review="${s.id}" style="font-size:11px;padding:4px 10px;">Mark complete &amp; review</button></div>` : ''}
-          </div>
-        </div>
-      `;
-    }
-
-    function openReviewModal(sessionId) {
-      const backdrop = document.createElement('div');
-      backdrop.className = 'modal-backdrop';
-      backdrop.innerHTML = `
-        <div class="modal-box">
-          <h3>Rate your session</h3>
-          <label>Rating (1-5)</label>
-          <select id="reviewRating">${[5,4,3,2,1].map((n) => `<option value="${n}">${'★'.repeat(n)}</option>`).join('')}</select>
-          <label>Review (optional)</label>
-          <input type="text" id="reviewText" maxlength="200" />
-          <div style="margin-top:16px;display:flex;gap:8px;">
-            <button class="btn btn-outline" id="reviewCancel" style="flex:1;">Cancel</button>
-            <button class="btn btn-primary" id="reviewConfirm" style="flex:1;">Submit</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(backdrop);
-      backdrop.querySelector('#reviewCancel').addEventListener('click', () => backdrop.remove());
-      backdrop.querySelector('#reviewConfirm').addEventListener('click', async () => {
-        try {
-          await TW.api('/api/coaching/complete', {
-            method: 'POST',
-            body: {
-              sessionId,
-              rating: Number(backdrop.querySelector('#reviewRating').value),
-              reviewText: backdrop.querySelector('#reviewText').value,
-            },
-          });
-          backdrop.remove();
-          TW.toast('Review submitted!', 'info');
-          renderMine();
-        } catch (e) {
-          TW.toast(e.message, 'danger');
-        }
-      });
-    }
-
-    async function renderMine() {
-      const content = document.getElementById('tabContent');
-      content.innerHTML = '<div class="text-secondary">Loading your sessions...</div>';
-      try {
-        const data = await TW.api('/api/coaching/my-sessions');
-        if (!data.sessions.length) {
-          content.innerHTML = '<div class="text-secondary">No coaching sessions yet.</div>';
-          return;
-        }
-        content.innerHTML = data.sessions.map((s) => sessionRow(s, data.playerId)).join('');
-        content.querySelectorAll('[data-review]').forEach((btn) => {
-          btn.addEventListener('click', () => openReviewModal(btn.dataset.review));
-        });
-      } catch (e) {
-        content.innerHTML = `<div class="text-secondary">${TW.escapeHtml(e.message)}</div>`;
-      }
-    }
-
-    function renderTab() {
-      if (activeTab === 'browse') renderBrowse();
-      else renderMine();
-    }
-
-    function renderBecomeCoachPanel() {
-      const panel = document.getElementById('becomeCoachPanel');
-      if (!me || me.tier !== 'War Lord') { panel.style.display = 'none'; return; }
-      panel.style.display = 'block';
-      const enabled = !!me.coaching_enabled;
-      panel.innerHTML = `
-        <h3>🎓 Coach Settings <span class="text-secondary" style="font-size:12px;font-weight:400;">War Lord tier unlocks coaching</span></h3>
-        <label style="display:block;font-size:12px;color:var(--text-secondary);margin:10px 0 4px;">Rate per session (AED 50-500)</label>
-        <input type="number" id="coachRate" min="50" max="500" value="${me.coaching_rate_aed || 100}" style="width:160px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);" />
-        <label style="display:block;font-size:12px;color:var(--text-secondary);margin:10px 0 4px;">Bio</label>
-        <input type="text" id="coachBio" maxlength="200" value="${me.coaching_bio ? TW.escapeHtml(me.coaching_bio) : ''}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);" />
-        <div style="margin-top:12px;">
-          <button class="btn ${enabled ? 'btn-outline' : 'btn-primary'}" id="toggleCoachBtn">${enabled ? 'Stop Coaching' : 'Start Coaching'}</button>
-        </div>
-      `;
-      panel.querySelector('#toggleCoachBtn').addEventListener('click', async () => {
-        try {
-          const rateAed = Number(panel.querySelector('#coachRate').value);
-          const bio = panel.querySelector('#coachBio').value;
-          const result = await TW.api('/api/coaching/profile', { method: 'POST', body: { enabled: !enabled, rateAed, bio } });
-          me = result.player;
-          TW.toast(enabled ? 'Coaching disabled' : 'You are now listed as a coach!', 'info');
-          renderBecomeCoachPanel();
-          if (activeTab === 'browse') renderBrowse();
-        } catch (e) {
-          TW.toast(e.message, 'danger');
-        }
-      });
-    }
-
-    document.getElementById('coachTabs').addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-tab]');
-      if (!btn) return;
-      document.querySelectorAll('#coachTabs button').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeTab = btn.dataset.tab;
-      renderTab();
     });
-
-    (async () => {
-      try {
-        const cached = TW.getPlayer();
-        const data = await TW.api(`/api/player/${cached.id}`);
-        me = data.player;
-      } catch (e) {
-        me = null;
-      }
-      renderBecomeCoachPanel();
-      renderTab();
-    })();
   </script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-links">
+        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
+      </p>
+    </div>
+  </footer>
 </body>
 </html>

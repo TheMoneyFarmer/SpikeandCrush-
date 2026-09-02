@@ -134,13 +134,13 @@
   border-color: var(--accent);
 }
 
-.ai-tag {
-  font-size: 10px;
-  color: var(--warning);
-  border: 1px solid var(--warning);
-  border-radius: 4px;
-  padding: 1px 5px;
-  margin-left: 6px;
+.tw-finding-dots {
+  display: inline-block;
+  animation: tw-finding-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tw-finding-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
 }
 
 .countdown-overlay {
