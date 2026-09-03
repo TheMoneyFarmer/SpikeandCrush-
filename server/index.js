@@ -1973,6 +1973,19 @@ app.get('/api/version', (req, res) => {
   res.json({ version: require('../package.json').version });
 });
 
+// ---- public client config ----------------------------------------------------------
+// Lets the same client bundle run against whichever Supabase project this
+// deployment's .env points to (dev vs prod) instead of hardcoding the dev
+// project's URL/anon key into auth.js - the anon key is safe to expose
+// client-side by design (RLS enforces access, not secrecy of this key).
+
+app.get('/api/config/public', (req, res) => {
+  res.json({
+    supabaseUrl: process.env.SUPABASE_URL || null,
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
+  });
+});
+
 // ---- home page stats --------------------------------------------------------------
 
 app.get('/api/stats/home', async (req, res) => {

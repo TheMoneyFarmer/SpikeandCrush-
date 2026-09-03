@@ -70,6 +70,7 @@
       }
 
       try {
+        if (window.TW && window.TW.authReady) await window.TW.authReady;
         if (!window.supabaseClient) {
           fail('Authentication service unavailable.');
           return;
