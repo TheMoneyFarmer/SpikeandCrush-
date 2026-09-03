@@ -80,6 +80,46 @@ function router() {
     }
   });
 
+  // ---- promotional popup (fires client-side once/day after login) -------------
+
+  r.get('/promo-popups', async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('promotional_popups').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.post('/promo-popups', async (req, res) => {
+    const { headline, subtext, buttonText, buttonUrl, gradientFrom, gradientTo, activeFrom, activeUntil } = req.body || {};
+    if (!headline || !subtext || !buttonUrl) return res.status(400).json({ error: 'headline, subtext, and buttonUrl are required' });
+    try {
+      const { data, error } = await supabase.from('promotional_popups').insert({
+        headline, subtext, button_text: buttonText || 'GET IN', button_url: buttonUrl,
+        gradient_from: gradientFrom || '#00C896', gradient_to: gradientTo || '#04040C',
+        active_from: activeFrom ? new Date(activeFrom).toISOString() : new Date().toISOString(),
+        active_until: activeUntil ? new Date(activeUntil).toISOString() : null,
+        created_by: req.admin.username,
+      }).select().single();
+      if (error) throw error;
+      await logAdminAction({ adminUsername: req.admin.username, actionType: 'create_promo_popup', targetType: 'promo_popup', targetId: data.id, details: { headline }, ip: clientIp(req) });
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.delete('/promo-popups/:id', async (req, res) => {
+    try {
+      await supabase.from('promotional_popups').update({ active: false }).eq('id', req.params.id);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // ---- push / in-app notifications --------------------------------------------
 
   r.post('/notifications/send', async (req, res) => {

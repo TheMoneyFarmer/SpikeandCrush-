@@ -93,7 +93,7 @@ TW.Sabotage = (function () {
   }
 
   function showIncoming(payload) {
-    const title = payload.cardName || payload.cardType;
+    const name = payload.cardName || payload.cardType;
     let sub = 'Your position has been affected!';
     if (payload.cardType === 'news_bomb') sub = `"${payload.headline}"`;
     else if (payload.cardType === 'capital_drain') sub = `-$${payload.amount} drained from your capital`;
@@ -108,40 +108,41 @@ TW.Sabotage = (function () {
     else if (payload.cardType === 'liquidity_drain') sub = 'Max lot size capped at 0.1 for everyone except whoever played it.';
     else if (payload.cardType === 'reversal_flash') sub = `Sharp reversal incoming on ${payload.symbol}!`;
     else if (payload.cardType === 'smoke_screen') sub = 'The leaderboard is blurred for everyone except whoever played it.';
+    else if (payload.cardType === 'margin_scare') sub = 'Fake margin-call warning on your screen — your account is fine.';
+    else if (payload.cardType === 'phantom_candle') sub = 'A fake candle just appeared on your chart.';
+    else if (payload.cardType === 'blackout') sub = 'Your live P&L display just went blank.';
+    else if (payload.cardType === 'static_burst') sub = 'Your chart is covered in visual static.';
+    else if (payload.cardType === 'decoy_order') sub = 'Fake giant sell-wall alert on your screen — not real.';
+    else if (payload.cardType === 'mirage') sub = 'A fake ghost position just appeared in your position list.';
+    else if (payload.cardType === 'intel_leak') {
+      sub = payload.targetUsername
+        ? `You can see ${payload.targetUsername}'s real balance and open positions for a while.`
+        : "You can see your target's real balance and open positions for a while.";
+    } else if (payload.cardType === 'double_spread') sub = 'Spread doubled on every instrument for everyone except whoever played it.';
+    else if (payload.cardType === 'time_warp') sub = 'Price feed delayed 3 seconds for everyone except whoever played it.';
+    else if (payload.cardType === 'fog_of_war') sub = 'Random price jitter thrown into the feed for everyone except whoever played it.';
+    else if (payload.cardType === 'panic_wave') sub = 'Every instrument is about to reverse at once!';
+    else if (payload.cardType === 'dead_calm') sub = 'Price is frozen for everyone except whoever played it.';
+    else if (payload.cardType === 'lockout') sub = 'You cannot close positions right now.';
+    else if (payload.cardType === 'margin_call') sub = 'All of your positions were force-closed at market.';
+    else if (payload.cardType === 'lot_limiter') sub = 'Your max lot size is capped at 0.05 for a while.';
+    else if (payload.cardType === 'pip_theft') sub = `-$${payload.amount} stolen from your capital`;
+    else if (payload.cardType === 'ghost_trade') sub = 'A losing position was forced onto your account.';
+    else if (payload.cardType === 'stop_snipe') sub = "Your best position's stop-loss was dragged to break-even.";
 
-    const overlay = document.createElement('div');
-    overlay.className = 'sabotage-overlay';
-    overlay.innerHTML = `
-      <div class="sabotage-overlay-card">
-        <div class="icon">⚠️</div>
-        <h3>${TW.escapeHtml(title)}</h3>
-        <div>${TW.escapeHtml(sub)}</div>
-        <div class="sabotage-overlay-irony text-sell">It's about to get crushed.</div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    setTimeout(() => overlay.remove(), 2600);
+    TW.showMatchNotification(`⚠️ ${name} — ${sub}`);
   }
 
-  // FIX: market-wide cards no longer affect the player who played them -
-  // small, unobtrusive bottom-right confirmation so they know it's deliberate,
-  // not a bug. Auto-dismisses in 2s.
+  // FIX: market-wide cards no longer affect the player who played them - a
+  // brief center-screen confirmation so they know it's deliberate, not a bug.
   function showImmune() {
-    const el = document.createElement('div');
-    el.className = 'sabotage-immune-toast';
-    el.textContent = '🛡️ You are immune to your own card';
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 2000);
+    TW.showMatchNotification('🛡️ Your card does not affect you');
   }
 
   // Reversal Flash: the caster gets this 1s before the shared price reversal
   // actually starts moving - opponents get no such warning.
   function showReversalWarning() {
-    const el = document.createElement('div');
-    el.className = 'sabotage-reversal-warning-toast';
-    el.textContent = '⚡ Reversal incoming...';
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 1200);
+    TW.showMatchNotification('⚡ Reversal incoming...');
   }
 
   return { render, showIncoming, showImmune, showReversalWarning };

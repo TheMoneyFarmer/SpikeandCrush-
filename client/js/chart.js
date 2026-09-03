@@ -109,21 +109,33 @@ TW.Chart = (function () {
     return `${sign}${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   }
 
-  // Reads the current data-theme and returns matching lightweight-charts
-  // colors - keeps the chart canvas in sync with the dark/midnight/light
-  // page theme instead of staying hardcoded to the original dark palette.
+  // Reads the live --chart-* / --candle-* CSS custom properties (set per
+  // data-theme in css/themes.css) instead of a hardcoded per-theme-name
+  // table - this is what makes the chart automatically follow whichever of
+  // the 4 themes is active (and any theme added later) with zero JS changes
+  // needed here again.
   function getChartTheme() {
-    const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const style = getComputedStyle(document.documentElement);
+    const get = (name, fallback) => style.getPropertyValue(name).trim() || fallback;
     return {
-      dark: { bg: '#0d0d0d', text: '#888888', grid: '#1f1f1f', border: '#2a2a2a' },
-      midnight: { bg: '#0c0a14', text: '#9988bb', grid: 'rgba(150,100,255,0.08)', border: 'rgba(150,100,255,0.2)' },
-      light: { bg: '#ffffff', text: '#555555', grid: '#e5e7eb', border: '#dde1e6' },
-    }[theme];
+      bg: get('--chart-bg', '#080D14'),
+      text: get('--chart-text', '#5A7090'),
+      grid: get('--chart-grid', 'rgba(100,140,200,0.06)'),
+      border: get('--chart-border', 'rgba(100,140,200,0.12)'),
+      up: get('--candle-up', '#00C896'),
+      down: get('--candle-down', '#FF3D5C'),
+    };
   }
 
   function init(containerId) {
     const container = document.getElementById(containerId);
     const ct = getChartTheme();
+    // Seed the candle colors from whichever theme is already active (the
+    // anti-FOUC <head> script may have set a non-default data-theme before
+    // this ever runs) rather than always starting from the War Room green/red
+    // hardcoded above.
+    settings.bullColor = ct.up;
+    settings.bearColor = ct.down;
     chart = LightweightCharts.createChart(container, {
       layout: { background: { color: ct.bg }, textColor: ct.text },
       grid: { vertLines: { color: ct.grid }, horzLines: { color: ct.grid } },
@@ -289,8 +301,23 @@ TW.Chart = (function () {
       timeScale: { borderColor: ct.border },
       rightPriceScale: { borderColor: ct.border },
     });
+    // Candle up/down colors are a per-theme value too (teal in War Room,
+    // gold in Gold Rush, ...) - resetting settings.bullColor/bearColor here
+    // means a theme switch overrides any earlier chart-settings-gear
+    // customization, which matches "switching themes re-colors the whole
+    // app" rather than leaving stale colors from the previous theme behind.
+    settings.bullColor = ct.up;
+    settings.bearColor = ct.down;
+    if (series) {
+      series.applyOptions({ upColor: ct.up, downColor: ct.down, wickUpColor: ct.up, wickDownColor: ct.down });
+    }
     refreshActiveSeries();
   }
+
+  // Theme changes dispatch this from TW.setTheme (main.js) after the browser
+  // has had a chance to recompute --chart-*/--candle-* for the new
+  // data-theme - see the setTimeout there.
+  window.addEventListener('sc:theme-change', refreshTheme);
 
   function setGhosted(active) {
     ghosted = active;

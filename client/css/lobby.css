@@ -11,6 +11,100 @@
   }
 }
 
+/* ---- pre-match screen: you vs. opponents ------------------------------------------
+   This game has no real teams (quick/blitz/private are 2-6 player free-for-alls,
+   grand war up to 8) - "opponents" is every other player in the lobby individually,
+   not a fabricated allied team, which is why this is a 1-vs-many layout rather than
+   a literal two-team mirror. */
+
+.tw-prematch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .tw-prematch-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tw-prematch-side-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.side-you .tw-prematch-side-label { color: var(--accent-teal); }
+.side-opponents .tw-prematch-side-label { color: var(--accent-red); }
+
+.player-row-you {
+  border-left: 3px solid var(--accent-teal);
+  padding: 16px 12px;
+}
+
+.player-row-opponent {
+  border-left: 3px solid var(--accent-red);
+  background: linear-gradient(90deg, rgba(255, 68, 68, 0.06), transparent 60%);
+}
+
+.tw-empty-silhouette {
+  background: var(--overlay-soft);
+  border: 1px dashed var(--border-normal);
+  opacity: 0.6;
+}
+
+.tw-prematch-center {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tw-prematch-match-card {
+  text-align: center;
+}
+
+.tw-prematch-match-mode {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.tw-prematch-match-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.tw-prematch-match-row span:last-child {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tw-prematch-rules-brief {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.tw-prematch-bottom-text {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+  margin: 18px 0;
+}
+
 .room-code-panel {
   text-align: center;
   padding: 32px 20px;

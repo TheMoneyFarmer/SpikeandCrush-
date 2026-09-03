@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike & Crush — Up. Then not.</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+:root{
+  --gold:#F5C542;
+  --gold-dark:#D4A017;
+  --teal:#00C896;
+  --red:#FF3D5C;
+  --navy:#0A0C14;
+  --navy2:#1A1E2A;
+  --navy3:#1E2438;
+}
+
+html,body{
+  width:100%;height:100%;
+  background:var(--navy);
+  font-family:'Outfit',sans-serif;
+  overflow-x:hidden;
+  cursor:none;
+}
+
+/* ── CURSOR ── */
+#cr{
+  position:fixed;width:44px;height:44px;
+  border:1.5px solid rgba(245,197,66,0.7);
+  border-radius:50%;pointer-events:none;
+  z-index:99999;top:0;left:0;
+  transform:translate(-50%,-50%) scale(0);
+  opacity:0;transition:opacity .4s,border-color .4s;
+}
+#cr.on{opacity:1;}
+#cr.big{border-color:rgba(245,197,66,0.2);}
+
+#cp{
+  position:fixed;top:0;left:0;z-index:99998;
+  pointer-events:none;padding:.65rem 1.4rem;
+  background:rgba(245,197,66,0.1);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(245,197,66,0.25);
+  border-radius:9999px;
+  transform:translate(-50%,-50%) scale(0);
+  opacity:0;transition:opacity .4s;
+  white-space:nowrap;
+}
+#cp.on{opacity:1;}
+#cp span{
+  font-family:'Outfit',sans-serif;
+  font-size:.75rem;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;
+  color:var(--gold);
+}
+#cp span.w{color:#fff;}
+
+/* ── BACKGROUND CANVAS ── */
+#bgc{
+  position:fixed;inset:0;width:100%;height:100%;
+  z-index:0;opacity:.3;
+}
+
+/* ── AMBIENT GLOWS ── */
+.gl{
+  position:fixed;border-radius:50%;
+  pointer-events:none;z-index:1;
+  animation:glp 7s ease-in-out infinite;
+}
+.gl1{
+  width:70vw;height:70vw;
+  bottom:-30%;left:-10%;
+  background:radial-gradient(circle,rgba(0,200,150,0.1) 0%,transparent 65%);
+}
+.gl2{
+  width:55vw;height:55vw;
+  bottom:-25%;right:-5%;
+  background:radial-gradient(circle,rgba(255,61,92,0.08) 0%,transparent 65%);
+  animation-delay:2s;
+}
+.gl3{
+  width:40vw;height:40vw;
+  top:5%;right:5%;
+  background:radial-gradient(circle,rgba(245,197,66,0.06) 0%,transparent 65%);
+  animation-delay:4s;
+}
+@keyframes glp{
+  0%,100%{transform:scale(1);opacity:.6;}
+  50%{transform:scale(1.2);opacity:1;}
+}
+
+/* ── TOP FADE ── */
+.tf{
+  position:fixed;top:0;left:0;width:100%;height:45vh;
+  background:linear-gradient(to bottom,var(--navy) 0%,var(--navy) 20%,rgba(10,12,20,.7) 60%,transparent 100%);
+  z-index:2;pointer-events:none;
+}
+.bf{
+  position:fixed;bottom:0;left:0;width:100%;height:30vh;
+  background:linear-gradient(to top,var(--navy) 0%,rgba(10,12,20,.5) 60%,transparent 100%);
+  z-index:2;pointer-events:none;
+}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;
+  padding:1.2rem 2.5rem;
+  display:flex;align-items:center;justify-content:space-between;
+  z-index:20;
+}
+.nav-logo{display:flex;align-items:flex-end;gap:0;line-height:1;}
+.nl{font-size:18px;font-weight:900;font-style:italic;display:inline-block;}
+.nl1{color:#008F6A;font-size:14px;}
+.nl2{color:#00A87C;font-size:17px;}
+.nl3{color:#00C896;font-size:20px;}
+.nl4{color:#00E0AA;font-size:23px;}
+.nl5{color:#00FF88;font-size:26px;}
+.nl6{color:#fff;font-size:28px;opacity:.9;margin:0 2px;}
+.nl7{color:#FF4444;font-size:26px;}
+.nl8{color:#EE3333;font-size:23px;}
+.nl9{color:#DD2222;font-size:20px;}
+.nl10{color:#CC1111;font-size:17px;}
+.nl11{color:#BB0000;font-size:14px;}
+
+.nav-links{display:flex;gap:2rem;align-items:center;}
+.nav-links a{
+  color:rgba(255,255,255,.55);
+  text-decoration:none;font-size:.85rem;
+  font-weight:500;letter-spacing:.04em;
+  text-transform:uppercase;transition:color .2s;
+  cursor:none;
+}
+.nav-links a:hover{color:var(--gold);}
+.nav-cta{
+  background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+  color:#000;font-weight:700;font-size:.8rem;
+  letter-spacing:.1em;text-transform:uppercase;
+  padding:.6rem 1.4rem;border-radius:9999px;
+  border:none;cursor:none;
+  transition:all .2s;
+}
+.nav-cta:hover{filter:brightness(1.1);transform:translateY(-1px);}
+
+/* ── HERO ── */
+.hero{
+  min-height:100vh;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:0 2rem;
+  position:relative;z-index:10;
+  text-align:center;
+  padding-top:4rem;
+}
+
+/* ── FLOATING CANDLESTICK PARTICLES ── */
+/* Small individual candles drifting up/down through the hero, independent of
+   the scrolling #bgc chart tape behind everything - same effect used on the
+   logged-in app's own hero (see .tw-hero-candle in css/premium.css), ported
+   here since this page doesn't load that stylesheet. */
+.hero-particles{
+  position:absolute;inset:0;
+  pointer-events:none;
+  overflow:hidden;
+  /* Negative, not 0 - .hero's other children are normal-flow (not
+     positioned), and a negative z-index is the one value CSS guarantees
+     always paints behind them, regardless of DOM order. */
+  z-index:-1;
+}
+.hero-candle{
+  position:absolute;
+  width:6px;
+  border-radius:1px;
+  opacity:.35;
+}
+.hero-candle::before{
+  content:'';
+  position:absolute;
+  left:50%;top:-8px;bottom:-8px;width:1px;
+  background:var(--candle-color);
+  transform:translateX(-50%);
+}
+.hero-candle.candle-up{
+  bottom:-40px;
+  animation:hcFloatUp linear infinite;
+}
+.hero-candle.candle-down{
+  top:-40px;
+  animation:hcFloatDown linear infinite;
+}
+@keyframes hcFloatUp{
+  from{transform:translateY(0) rotate(0deg);opacity:0;}
+  10%{opacity:.35;}
+  90%{opacity:.35;}
+  to{transform:translateY(-110vh) rotate(8deg);opacity:0;}
+}
+@keyframes hcFloatDown{
+  from{transform:translateY(0) rotate(0deg);opacity:0;}
+  10%{opacity:.35;}
+  90%{opacity:.35;}
+  to{transform:translateY(110vh) rotate(-8deg);opacity:0;}
+}
+
+.hero-badge{
+  display:inline-flex;align-items:center;gap:.6rem;
+  background:rgba(0,200,150,0.1);
+  border:1px solid rgba(0,200,150,0.2);
+  border-radius:9999px;padding:.45rem 1.2rem;
+  margin-bottom:2rem;
+  animation:fadeUp .8s cubic-bezier(.16,1,.3,1) .2s both;
+}
+.hero-badge .dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--teal);
+  box-shadow:0 0 8px var(--teal);
+  animation:dp 1.5s ease-in-out infinite;
+}
+@keyframes dp{
+  0%,100%{opacity:.5;transform:scale(.8);}
+  50%{opacity:1;transform:scale(1.1);}
+}
+.hero-badge span{
+  font-size:.75rem;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--teal);
+}
+
+.hero-logo{
+  display:flex;align-items:flex-end;gap:0;
+  margin-bottom:1.5rem;line-height:1;
+  animation:logoIn .8s cubic-bezier(.16,1,.3,1) .3s both;
+}
+@keyframes logoIn{
+  from{opacity:0;transform:translateY(-16px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.hl{font-size:clamp(40px,7vw,84px);font-weight:900;font-style:italic;display:inline-block;}
+.hs1{color:#008F6A;}
+.hs2{color:#00A87C;}
+.hs3{color:#00C896;text-shadow:0 0 40px rgba(0,200,150,0.4);}
+.hs4{color:#00E0AA;}
+.hs5{color:#00FF88;text-shadow:0 0 60px rgba(0,255,136,0.5);}
+.hamp{color:#fff;opacity:.9;margin:0 4px;font-size:clamp(44px,7.5vw,90px);}
+.hc1{color:#FF4444;text-shadow:0 0 60px rgba(255,68,68,0.5);}
+.hc2{color:#EE3333;}
+.hc3{color:#DD2222;text-shadow:0 0 40px rgba(221,34,34,0.4);}
+.hc4{color:#CC1111;}
+.hc5{color:#BB0000;}
+
+.hero-tagline{
+  font-size:.9rem;font-weight:600;
+  letter-spacing:.2em;text-transform:uppercase;
+  color:rgba(255,255,255,.3);
+  margin-bottom:2.5rem;
+  animation:fadeUp .8s cubic-bezier(.16,1,.3,1) .5s both;
+}
+
+.hero-title{
+  font-family:'Playfair Display',serif;
+  font-size:clamp(2rem,4.5vw,3.6rem);
+  font-weight:400;font-style:italic;
+  color:#fff;line-height:1.15;
+  letter-spacing:-.02em;
+  max-width:760px;
+  margin-bottom:1.2rem;
+  text-shadow:0 4px 40px rgba(0,0,0,.8);
+  animation:fadeUp .8s cubic-bezier(.16,1,.3,1) .6s both;
+}
+.hero-title em{font-style:normal;color:var(--gold);}
+
+.hero-sub{
+  font-size:1rem;color:rgba(255,255,255,.45);
+  max-width:520px;line-height:1.7;
+  margin-bottom:3rem;
+  animation:fadeUp .8s cubic-bezier(.16,1,.3,1) .7s both;
+}
+
+/* ── STATS ROW ── */
+.stats{
+  display:flex;align-items:center;gap:0;
+  margin-bottom:3rem;
+  animation:fadeUp .8s cubic-bezier(.16,1,.3,1) .8s both;
+}
+.stat{
+  display:flex;flex-direction:column;align-items:center;
+  padding:0 2.5rem;
+}
+.stat+.stat{border-left:1px solid rgba(255,255,255,.1);}
+.stat-v{
+  font-family:'JetBrains Mono',monospace;
+  font-size:1.6rem;font-weight:700;
+  color:var(--gold);letter-spacing:.02em;
+}
+.stat-l{
+  font-size:.65rem;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;
+  color:rgba(255,255,255,.35);margin-top:3px;
+}
+
+/* ── CTA BUTTONS ── */
+.cta-row{
+  display:flex;align-items:center;gap:1rem;
+  margin-bottom:4rem;
+  animation:fadeUp .8s cubic-bezier(.16,1,.3,1) .9s both;
+}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:.8rem;
+  background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+  color:#000;font-weight:800;font-size:1rem;
+  letter-spacing:.06em;text-transform:uppercase;
+  padding:1.1rem 2.5rem;border-radius:9999px;
+  border:none;cursor:none;
+  box-shadow:0 4px 30px rgba(245,197,66,.35),0 0 80px rgba(245,197,66,.1);
+  transition:all .3s cubic-bezier(.16,1,.3,1);
+}
+.btn-primary:hover{
+  filter:brightness(1.1);transform:translateY(-3px);
+  box-shadow:0 8px 50px rgba(245,197,66,.5),0 0 100px rgba(245,197,66,.15);
+}
+.btn-primary .pdot{
+  width:9px;height:9px;border-radius:50%;
+  background:rgba(0,0,0,.5);position:relative;
+}
+.btn-primary .pdot::after{
+  content:'';position:absolute;
+  top:-4px;left:-4px;right:-4px;bottom:-4px;
+  background:rgba(0,0,0,.3);border-radius:50%;
+  animation:pw 2s ease-in-out infinite;
+}
+@keyframes pw{
+  0%{transform:scale(.6);opacity:.9;}
+  100%{transform:scale(2.2);opacity:0;}
+}
+.btn-secondary{
+  display:inline-flex;align-items:center;gap:.7rem;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.15);
+  color:rgba(255,255,255,.8);
+  font-weight:600;font-size:.95rem;
+  letter-spacing:.04em;text-transform:uppercase;
+  padding:1.1rem 2rem;border-radius:9999px;
+  cursor:none;transition:all .3s;
+}
+.btn-secondary:hover{
+  background:rgba(255,255,255,.1);
+  border-color:rgba(255,255,255,.3);
+  color:#fff;transform:translateY(-2px);
+}
+.btn-secondary svg{opacity:.6;}
+
+/* ── FLOATING PLAYER CARDS ── */
+.fc-wrap{
+  position:relative;width:100%;max-width:1100px;
+  height:200px;margin-bottom:0;
+  animation:fadeUp .8s cubic-bezier(.16,1,.3,1) 1s both;
+  pointer-events:none;
+}
+.fc{
+  position:absolute;
+  background:rgba(26,30,42,.85);
+  backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:14px;padding:1rem 1.4rem;
+  display:flex;align-items:center;gap:1rem;
+  min-width:200px;
+  animation:fcFloat 0s ease-in-out infinite;
+}
+/* Evenly spaced left: 0/27/54/81% on a 1100px wrap gives each card a ~297px
+   pitch against a 200px min-width - roomy enough that even the two cards
+   carrying an extra .fc-win-badge (which pushes their real rendered width
+   past the 200px minimum) still clear the next card instead of stacking on
+   top of it. */
+.fc:nth-child(1){left:0%;top:10px;animation:fcFloat1 4s ease-in-out infinite .5s;}
+.fc:nth-child(2){left:27%;top:-10px;animation:fcFloat1 4.5s ease-in-out infinite 1s;border-color:rgba(0,200,150,.2);}
+.fc:nth-child(3){left:54%;top:20px;animation:fcFloat1 3.8s ease-in-out infinite 0s;}
+.fc:nth-child(4){left:81%;top:-5px;animation:fcFloat1 5s ease-in-out infinite 1.5s;}
+
+@keyframes fcFloat1{
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-12px);}
+}
+
+.fc-av{
+  width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;color:#000;flex-shrink:0;
+}
+.fc-av.g{background:linear-gradient(135deg,var(--teal),#00A878);}
+.fc-av.r{background:linear-gradient(135deg,var(--red),#CC1F40);}
+.fc-av.y{background:linear-gradient(135deg,var(--gold),var(--gold-dark));}
+.fc-av.p{background:linear-gradient(135deg,#A060E0,#7040B0);}
+
+.fc-info{flex:1;}
+.fc-name{font-size:.8rem;font-weight:700;color:#fff;margin-bottom:2px;}
+.fc-detail{font-size:.7rem;color:rgba(255,255,255,.4);}
+
+.fc-pnl{text-align:right;}
+.fc-pnl .amt{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.9rem;font-weight:700;
+}
+.fc-pnl .amt.up{color:var(--teal);}
+.fc-pnl .amt.dn{color:var(--red);}
+.fc-pnl .mode{font-size:.65rem;color:rgba(255,255,255,.35);margin-top:2px;}
+
+.fc-win-badge{
+  background:rgba(0,200,150,.15);
+  border:1px solid rgba(0,200,150,.3);
+  border-radius:6px;padding:3px 8px;
+  font-size:.65rem;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;
+  color:var(--teal);
+}
+
+@keyframes fscroll{
+  0%{transform:translateX(0);}
+  100%{transform:translateX(-50%);}
+}
+
+/* ── PARTNER STRIP ── */
+.partners{
+  width:100%;background:rgba(26,30,42,.6);
+  border-top:1px solid rgba(255,255,255,.06);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  padding:2.4rem 0;position:relative;z-index:10;
+  overflow:hidden;
+}
+.partners-label{
+  text-align:center;
+  font-size:.8rem;font-weight:700;
+  letter-spacing:.22em;text-transform:uppercase;
+  color:rgba(255,255,255,.3);
+  margin-bottom:1.4rem;
+}
+.partner-inner{
+  display:flex;gap:0;
+  animation:fscroll 22s linear infinite;
+  width:max-content;
+}
+.partner-item{
+  display:flex;align-items:center;gap:1rem;
+  padding:0 3.5rem;white-space:nowrap;
+  border-right:1px solid rgba(255,255,255,.08);
+}
+.partner-logo{
+  width:44px;height:44px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;font-weight:800;color:#000;
+  background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+  flex-shrink:0;overflow:hidden;
+}
+.partner-logo img{width:100%;height:100%;object-fit:cover;}
+.partner-name{
+  font-size:1.05rem;font-weight:600;
+  color:rgba(255,255,255,.65);
+}
+.partner-tier{
+  font-size:.68rem;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;
+  color:rgba(245,197,66,.65);
+  margin-left:.4rem;
+}
+
+/* ── GAME PREVIEW SECTION ── */
+.preview-section{
+  position:relative;z-index:10;
+  padding:6rem 2rem;
+  display:flex;flex-direction:column;
+  align-items:center;
+}
+.section-label{
+  font-size:.7rem;font-weight:700;
+  letter-spacing:.2em;text-transform:uppercase;
+  color:var(--teal);margin-bottom:1rem;
+}
+.section-title{
+  font-family:'Playfair Display',serif;
+  font-size:clamp(2rem,4vw,3rem);
+  color:#fff;text-align:center;
+  margin-bottom:1rem;letter-spacing:-.02em;
+}
+.section-sub{
+  font-size:1rem;color:rgba(255,255,255,.4);
+  text-align:center;max-width:500px;
+  line-height:1.7;margin-bottom:4rem;
+}
+
+/* ── GAME MODE CARDS ── */
+.modes{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:1rem;width:100%;max-width:1200px;
+  margin-bottom:4rem;
+}
+.mode-card{
+  background:rgba(26,30,42,.8);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:16px;padding:2rem 1.5rem;
+  transition:all .3s;cursor:none;
+  position:relative;overflow:hidden;
+}
+.mode-card::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:3px;
+  transition:opacity .3s;opacity:0;
+}
+.mode-card:hover{
+  border-color:rgba(255,255,255,.15);
+  transform:translateY(-4px);
+}
+.mode-card:hover::before{opacity:1;}
+.mc-teal::before{background:linear-gradient(90deg,var(--teal),transparent);}
+.mc-gold::before{background:linear-gradient(90deg,var(--gold),transparent);}
+.mc-red::before{background:linear-gradient(90deg,var(--red),transparent);}
+
+.mc-icon{font-size:2rem;margin-bottom:1rem;}
+.mc-name{
+  font-size:1.1rem;font-weight:800;
+  color:#fff;margin-bottom:.3rem;
+  letter-spacing:-.01em;
+}
+.mc-sub{
+  font-size:.75rem;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;
+  margin-bottom:.8rem;
+}
+.mc-teal .mc-sub{color:var(--teal);}
+.mc-gold .mc-sub{color:var(--gold);}
+.mc-red .mc-sub{color:var(--red);}
+
+.mc-desc{
+  font-size:.85rem;color:rgba(255,255,255,.45);
+  line-height:1.6;margin-bottom:1.2rem;
+}
+.mc-meta{
+  display:flex;gap:1rem;
+  font-family:'JetBrains Mono',monospace;
+  font-size:.7rem;color:rgba(255,255,255,.3);
+}
+.mc-meta span{display:flex;align-items:center;gap:.3rem;}
+
+/* ── SABOTAGE SHOWCASE ── */
+.sab-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:.75rem;width:100%;max-width:1000px;
+  margin-bottom:2rem;
+}
+.sab-card{
+  background:rgba(26,30,42,.7);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;padding:1.2rem;
+  text-align:center;transition:all .3s;cursor:none;
+}
+.sab-card:hover{
+  border-color:rgba(245,197,66,.2);
+  transform:scale(1.03);
+  background:rgba(26,30,42,.95);
+}
+.sc-ico{font-size:1.5rem;margin-bottom:.6rem;}
+.sc-nm{
+  font-size:.8rem;font-weight:700;color:#fff;
+  margin-bottom:.4rem;
+}
+.sc-ef{
+  font-size:.68rem;color:rgba(255,255,255,.35);
+  line-height:1.5;
+}
+.sab-more{
+  border:1px dashed rgba(245,197,66,.35);
+  background:rgba(245,197,66,.05);
+}
+.sab-more:hover{
+  border-color:rgba(245,197,66,.6);
+  background:rgba(245,197,66,.1);
+}
+.sab-more .sc-nm{color:var(--gold);}
+.sab-more .sc-ef{color:rgba(245,197,66,.55);}
+
+/* ── TICKER ── */
+.ticker{
+  position:fixed;bottom:0;left:0;width:100%;
+  background:rgba(10,12,20,.9);
+  border-top:1px solid rgba(245,197,66,.1);
+  padding:5px 0;z-index:30;overflow:hidden;
+}
+.tick-inner{
+  display:flex;gap:0;
+  animation:ts 28s linear infinite;
+  width:max-content;
+}
+.tick-item{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.68rem;color:rgba(255,255,255,.4);
+  padding:0 2.5rem;display:flex;align-items:center;gap:.5rem;
+  border-right:1px solid rgba(255,255,255,.06);
+}
+.tick-item .sym{color:rgba(255,255,255,.6);font-weight:700;}
+.tick-item .up{color:var(--teal);}
+.tick-item .dn{color:var(--red);}
+@keyframes ts{
+  0%{transform:translateX(0);}
+  100%{transform:translateX(-50%);}
+}
+
+/* ── FOOTER MID ── */
+.footer-mid{
+  position:relative;z-index:10;
+  padding:3rem 2.5rem 6rem;
+  display:flex;align-items:flex-start;
+  justify-content:space-between;
+  border-top:1px solid rgba(255,255,255,.07);
+  max-width:1100px;margin:0 auto;width:100%;
+}
+.fm-left h3{
+  font-size:1.1rem;font-weight:700;
+  color:#fff;margin-bottom:.4rem;
+}
+.fm-left p{font-size:.85rem;color:rgba(255,255,255,.35);}
+.fm-links{
+  display:flex;gap:2rem;
+}
+.fm-links a{
+  font-size:.8rem;color:rgba(255,255,255,.4);
+  text-decoration:none;letter-spacing:.04em;
+  text-transform:uppercase;font-weight:500;
+  transition:color .2s;cursor:none;
+}
+.fm-links a:hover{color:var(--gold);}
+.fm-right{
+  font-size:.8rem;color:rgba(255,255,255,.25);
+  text-align:right;
+}
+
+/* ── WORDMARK ── */
+.wordmark{
+  position:fixed;bottom:22px;left:0;right:0;
+  display:flex;justify-content:center;
+  pointer-events:none;z-index:5;
+  overflow:hidden;
+}
+.wm-text{
+  font-family:'Outfit',sans-serif;
+  font-size:17vw;font-weight:900;
+  font-style:italic;letter-spacing:-.05em;
+  color:#fff;opacity:.04;
+  white-space:nowrap;line-height:.85;
+  text-transform:uppercase;
+}
+
+/* ── LOGIN SIDE PANEL ── */
+.panel-overlay{
+  position:fixed;inset:0;z-index:50;
+  background:rgba(0,0,0,.6);
+  backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;
+  transition:opacity .4s;
+}
+.panel-overlay.open{opacity:1;pointer-events:all;}
+
+.side-panel{
+  position:fixed;top:0;right:0;bottom:0;
+  width:400px;max-width:100vw;
+  background:var(--navy2);
+  border-left:1px solid rgba(255,255,255,.1);
+  z-index:51;
+  transform:translateX(100%);
+  transition:transform .5s cubic-bezier(.16,1,.3,1);
+  overflow-y:auto;
+  padding:2.5rem;
+  display:flex;flex-direction:column;
+}
+.side-panel.open{transform:translateX(0);}
+
+.sp-close{
+  position:absolute;top:1.2rem;right:1.2rem;
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  color:#fff;font-size:1.1rem;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .2s;
+}
+.sp-close:hover{background:rgba(255,255,255,.15);}
+
+.sp-logo{margin-bottom:2.5rem;margin-top:1rem;}
+
+.sp-title{
+  font-family:'Playfair Display',serif;
+  font-size:1.7rem;color:#fff;
+  margin-bottom:.4rem;font-style:italic;
+}
+.sp-sub{
+  font-size:.85rem;color:rgba(255,255,255,.4);
+  margin-bottom:2rem;line-height:1.5;
+}
+
+.soc-btns{display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.5rem;}
+.soc-btn{
+  display:flex;align-items:center;justify-content:center;
+  gap:.75rem;padding:.9rem;border-radius:10px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);
+  color:#fff;font-weight:600;font-size:.9rem;
+  cursor:pointer;transition:all .2s;
+}
+.soc-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);}
+.soc-btn.google{border-color:rgba(255,255,255,.15);}
+.soc-btn.apple{border-color:rgba(255,255,255,.15);}
+
+.divider{
+  display:flex;align-items:center;gap:1rem;
+  margin-bottom:1.5rem;
+}
+.divider-line{flex:1;height:1px;background:rgba(255,255,255,.1);}
+.divider-text{font-size:.75rem;color:rgba(255,255,255,.3);letter-spacing:.06em;text-transform:uppercase;}
+
+.sp-field{margin-bottom:1rem;}
+.sp-field label{
+  display:block;font-size:.75rem;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;
+  color:rgba(255,255,255,.4);margin-bottom:.5rem;
+}
+.sp-field input{
+  width:100%;padding:.9rem 1.1rem;
+  background:var(--navy3);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;color:#fff;
+  font-family:'Outfit',sans-serif;font-size:.9rem;
+  outline:none;transition:border-color .2s;
+}
+.sp-field input:focus{border-color:var(--gold);}
+.sp-field input::placeholder{color:rgba(255,255,255,.2);}
+
+.sp-error{
+  color:var(--red);
+  font-size:.8rem;
+  min-height:1em;
+  margin:-.4rem 0 .8rem;
+}
+
+.sp-submit{
+  width:100%;padding:1rem;
+  background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+  color:#000;font-weight:800;font-size:.95rem;
+  letter-spacing:.06em;text-transform:uppercase;
+  border:none;border-radius:10px;cursor:pointer;
+  margin-top:.5rem;transition:all .2s;
+}
+.sp-submit:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.sp-submit:disabled{opacity:.6;cursor:not-allowed;filter:none;transform:none;}
+
+.sp-toggle{
+  text-align:center;margin-top:1.5rem;
+  font-size:.82rem;color:rgba(255,255,255,.3);
+}
+.sp-toggle a{color:var(--gold);text-decoration:none;cursor:pointer;}
+
+.sp-legal{
+  margin-top:2rem;
+  font-size:.7rem;color:rgba(255,255,255,.2);
+  text-align:center;line-height:1.6;
+}
+.sp-legal a{color:rgba(255,255,255,.35);text-decoration:none;}
+
+/* ── REVEAL ANIMATIONS ── */
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .modes{grid-template-columns:1fr;}
+  .sab-grid{grid-template-columns:repeat(2,1fr);}
+  .stats{flex-wrap:wrap;justify-content:center;}
+  .stat+.stat{border-left:none;border-top:1px solid rgba(255,255,255,.1);padding-top:1rem;}
+  .cta-row{flex-direction:column;}
+  .fc-wrap{height:auto;position:static;display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
+  .fc{position:static;animation:none !important;}
+  .nav-links{display:none;}
+  .side-panel{width:100vw;}
+  .footer-mid{flex-direction:column;gap:2rem;}
+  .fm-right{text-align:left;}
+}
+</style>
+</head>
+<body>
+
+<!-- ambient glows -->
+<div class="gl gl1"></div>
+<div class="gl gl2"></div>
+<div class="gl gl3"></div>
+
+<!-- fades -->
+<div class="tf"></div>
+<div class="bf"></div>
+
+<!-- bg canvas -->
+<canvas id="bgc"></canvas>
+
+<!-- wordmark -->
+<div class="wordmark"><span class="wm-text">SPIKE&CRUSH</span></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <span class="nl nl1">S</span><span class="nl nl2">P</span><span class="nl nl3">I</span>
+    <span class="nl nl4">K</span><span class="nl nl5">E</span><span class="nl nl6">&amp;</span>
+    <span class="nl nl7">C</span><span class="nl nl8">R</span><span class="nl nl9">U</span>
+    <span class="nl nl10">S</span><span class="nl nl11">H</span>
+  </div>
+  <div class="nav-links">
+    <a href="#">How it works</a>
+    <a href="#">Leaderboard</a>
+    <a href="#">Tournaments</a>
+    <a href="#">Brokers</a>
+  </div>
+  <button class="nav-cta" onclick="openPanel()">Play Now</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-particles" id="lpHeroParticles"></div>
+  <div class="hero-badge">
+    <div class="dot"></div>
+    <span id="heroBadgeText">Live — 2,847 traders active right now</span>
+  </div>
+
+  <div class="hero-logo">
+    <span class="hl hs1">S</span><span class="hl hs2">P</span><span class="hl hs3">I</span>
+    <span class="hl hs4">K</span><span class="hl hs5">E</span>
+    <span class="hl hamp">&amp;</span>
+    <span class="hl hc1">C</span><span class="hl hc2">R</span><span class="hl hc3">U</span>
+    <span class="hl hc4">S</span><span class="hl hc5">H</span>
+  </div>
+
+  <div class="hero-tagline">Up. Then not.</div>
+
+  <h1 class="hero-title">
+    The competitive trading game where<br>
+    <em>sabotage is legal</em> and mercy is not.
+  </h1>
+
+  <p class="hero-sub">
+    10-minute matches. Real market data. 30 sabotage cards.
+    Trade against real opponents, destroy their positions, and climb to War Lord.
+  </p>
+
+  <div class="stats">
+    <div class="stat">
+      <span class="stat-v" id="sv1">2,847</span>
+      <span class="stat-l">Active Traders</span>
+    </div>
+    <div class="stat">
+      <span class="stat-v" id="sv2">14,392</span>
+      <span class="stat-l">Matches Today</span>
+    </div>
+    <div class="stat">
+      <span class="stat-v" id="sv3">+$44,517</span>
+      <span class="stat-l">Largest Win Today</span>
+    </div>
+    <div class="stat">
+      <span class="stat-v" id="sv4">$0</span>
+      <span class="stat-l">Total Prizes Distributed</span>
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <button class="btn-primary" id="mainCta" onclick="openPanel()">
+      Enter the War
+      <div class="pdot"></div>
+    </button>
+    <button class="btn-secondary" onclick="scrollToPreview()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+      Watch a Match
+    </button>
+  </div>
+
+  <!-- floating player cards -->
+  <div class="fc-wrap">
+    <div class="fc">
+      <div class="fc-av g">N</div>
+      <div class="fc-info">
+        <div class="fc-name">NakedPip</div>
+        <div class="fc-detail">Analyst · 1,820 ⭐</div>
+      </div>
+      <div class="fc-pnl">
+        <div class="amt up">+$23,450</div>
+        <div class="mode">Quick War · 1st</div>
+      </div>
+    </div>
+    <div class="fc">
+      <div class="fc-av y">G</div>
+      <div class="fc-info">
+        <div class="fc-name">GoldSniper</div>
+        <div class="fc-detail">Broker · 1,340 ⭐</div>
+      </div>
+      <div class="fc-pnl">
+        <div class="amt up">+$8,730</div>
+        <div class="mode">Grand War · 2nd</div>
+      </div>
+      <div class="fc-win-badge">HOT 🔥</div>
+    </div>
+    <div class="fc">
+      <div class="fc-av r">W</div>
+      <div class="fc-info">
+        <div class="fc-name">WickHunter</div>
+        <div class="fc-detail">Trader · 1,050 ⭐</div>
+      </div>
+      <div class="fc-pnl">
+        <div class="amt dn">-$1,240</div>
+        <div class="mode">Blitz War · 4th</div>
+      </div>
+    </div>
+    <div class="fc">
+      <div class="fc-av p">S</div>
+      <div class="fc-info">
+        <div class="fc-name">SmartMoney</div>
+        <div class="fc-detail">Veteran · 2,110 ⭐</div>
+      </div>
+      <div class="fc-pnl">
+        <div class="amt up">+$44,517</div>
+        <div class="mode">Grand War · 1st</div>
+      </div>
+      <div class="fc-win-badge" style="background:rgba(245,197,66,.15);border-color:rgba(245,197,66,.3);color:var(--gold);">🏆 WAR LORD</div>
+    </div>
+  </div>
+</section>
+
+<!-- PARTNER STRIP -->
+<div class="partners" id="partnersStrip" style="display:none;">
+  <div class="partners-label">Sponsored By</div>
+  <div class="partner-inner" id="partnerInner"></div>
+</div>
+
+<!-- GAME PREVIEW -->
+<section class="preview-section" id="preview">
+  <div class="section-label">Game Modes</div>
+  <h2 class="section-title">Pick your battlefield</h2>
+  <p class="section-sub">Every mode tests a different edge of your trading psychology. Choose wisely.</p>
+
+  <div class="modes">
+    <div class="mode-card mc-teal">
+      <div class="mc-icon">⚔️</div>
+      <div class="mc-name">Quick War</div>
+      <div class="mc-sub">Ranked · Standard</div>
+      <div class="mc-desc">2-4 traders. 10 minutes. 5 instruments. 3 sabotage cards. The standard battle where most legends are made.</div>
+      <div class="mc-meta">
+        <span>⏱ 10 min</span>
+        <span>🪙 10 coins</span>
+        <span>👥 2-4</span>
+      </div>
+    </div>
+    <div class="mode-card mc-gold">
+      <div class="mc-icon">💨</div>
+      <div class="mc-name">Blitz War</div>
+      <div class="mc-sub">Casual · Fast</div>
+      <div class="mc-desc">3 minutes of pure chaos. One card. Three instruments. Blink and you are last. Perfect for the clip.</div>
+      <div class="mc-meta">
+        <span>⏱ 3 min</span>
+        <span>🪙 5 coins</span>
+        <span>👥 2-4</span>
+      </div>
+    </div>
+    <div class="mode-card mc-red">
+      <div class="mc-icon">🏆</div>
+      <div class="mc-name">Grand War</div>
+      <div class="mc-sub">Ranked · Prestige</div>
+      <div class="mc-desc">20 minutes. 8 traders. You choose your 5 cards. The longest match where patience wins wars.</div>
+      <div class="mc-meta">
+        <span>⏱ 20 min</span>
+        <span>🪙 25 coins</span>
+        <span>👥 4-8</span>
+      </div>
+    </div>
+    <div class="mode-card mc-teal">
+      <div class="mc-icon">🔐</div>
+      <div class="mc-name">Private War</div>
+      <div class="mc-sub">Unranked · Invite-Only</div>
+      <div class="mc-desc">Set a room code and battle your own friends. Free entry, standard 10-minute rules, nobody uninvited gets in.</div>
+      <div class="mc-meta">
+        <span>⏱ 10 min</span>
+        <span>🪙 Free</span>
+        <span>👥 2-8</span>
+      </div>
+    </div>
+    <div class="mode-card mc-gold">
+      <div class="mc-icon">🎯</div>
+      <div class="mc-name">Solo Ranked</div>
+      <div class="mc-sub">Ranked · Vs. AI</div>
+      <div class="mc-desc">Just you against 3 AI opponents. Two instruments, three cards, your own solo rating on the line.</div>
+      <div class="mc-meta">
+        <span>⏱ 10 min</span>
+        <span>🪙 Free</span>
+        <span>👥 1 + 3 AI</span>
+      </div>
+    </div>
+    <div class="mode-card mc-red">
+      <div class="mc-icon">🏅</div>
+      <div class="mc-name">Tournament War</div>
+      <div class="mc-sub">Bracket · Elimination</div>
+      <div class="mc-desc">Head-to-head bracket rounds. Win and advance, lose and you're out. Five instruments, four sabotage cards, 15-minute rounds.</div>
+      <div class="mc-meta">
+        <span>⏱ 15 min</span>
+        <span>🪙 Bracket entry</span>
+        <span>👥 1v1</span>
+      </div>
+    </div>
+    <div class="mode-card mc-teal">
+      <div class="mc-icon">📊</div>
+      <div class="mc-name">Async Daily Challenge</div>
+      <div class="mc-sub">Unranked · Solo</div>
+      <div class="mc-desc">No live opponents. Trade the same locked historical window everyone gets today, then see where your score lands on the leaderboard.</div>
+      <div class="mc-meta">
+        <span>⏱ 10 min</span>
+        <span>🪙 5 coins</span>
+        <span>👥 Solo</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top:3rem;">Sabotage Cards</div>
+  <h2 class="section-title">30 ways to destroy your opponents</h2>
+  <p class="section-sub">Legal in every match. Strategic. Devastating.</p>
+
+  <div class="sab-grid">
+    <div class="sab-card">
+      <div class="sc-ico">🔒</div>
+      <div class="sc-nm">Force Close</div>
+      <div class="sc-ef">Closes opponent's best position at market price. Devastating.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">📰</div>
+      <div class="sc-nm">News Bomb</div>
+      <div class="sc-ef">Injects a fake news headline into the target's feed for 15 seconds.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">🌪️</div>
+      <div class="sc-nm">Volatility Surge</div>
+      <div class="sc-ef">Doubles price movement speed for everyone except you, for 25 seconds.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">🧊</div>
+      <div class="sc-nm">Position Freeze</div>
+      <div class="sc-ef">Target cannot open new trades for 15 seconds. Pure suffocation.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">💸</div>
+      <div class="sc-nm">Capital Drain</div>
+      <div class="sc-ef">Deducts $200 from target's virtual capital. Psychological warfare.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">🪞</div>
+      <div class="sc-nm">Mirror Trade</div>
+      <div class="sc-ef">Copies your open position onto an opponent. If you win, they lose too.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">⚡</div>
+      <div class="sc-nm">Spread Spike</div>
+      <div class="sc-ef">Triples the spread on one instrument for 20 seconds.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">👻</div>
+      <div class="sc-nm">Chart Ghost</div>
+      <div class="sc-ef">Freezes the target's price display for 10 seconds.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">📉</div>
+      <div class="sc-nm">False Signal</div>
+      <div class="sc-ef">Shows a fake RSI divergence on the target's chart for 20 seconds.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">🏜️</div>
+      <div class="sc-nm">Liquidity Drain</div>
+      <div class="sc-ef">Caps max lot size at 0.1 for everyone except you, for 30 seconds.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">↩️</div>
+      <div class="sc-nm">Reversal Flash</div>
+      <div class="sc-ef">Forces a sharp reversal on one instrument, then snaps back, over 8 seconds.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">💨</div>
+      <div class="sc-nm">Smoke Screen</div>
+      <div class="sc-ef">Blurs the leaderboard for everyone except you, for 30 seconds.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">⚠️</div>
+      <div class="sc-nm">Margin Call</div>
+      <div class="sc-ef">Force-closes every one of the target's open positions at market.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">🥷</div>
+      <div class="sc-nm">Pip Theft</div>
+      <div class="sc-ef">Steals $150 from the target's capital straight into yours.</div>
+    </div>
+    <div class="sab-card">
+      <div class="sc-ico">📉</div>
+      <div class="sc-nm">Panic Wave</div>
+      <div class="sc-ef">Forces a synchronized reversal across every instrument at once.</div>
+    </div>
+    <div class="sab-card sab-more" onclick="openPanel()">
+      <div class="sc-ico">🎴</div>
+      <div class="sc-nm">+15 More</div>
+      <div class="sc-ef">See all 30 sabotage cards →</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<div class="footer-mid">
+  <div class="fm-left">
+    <h3>Spike &amp; Crush</h3>
+    <p>The competitive trading game. Up. Then not.</p>
+  </div>
+  <div class="fm-links">
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/responsible">Responsible Gaming</a>
+    <a href="/help">Support</a>
+  </div>
+  <div class="fm-right">
+    <p>© 2026 Spike &amp; Crush</p>
+    <p style="margin-top:.4rem;font-size:.7rem;">Simulated trading environment. Not financial advice.</p>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker"><div class="tick-inner" id="tickInner"></div></div>
+
+<!-- PANEL OVERLAY -->
+<div class="panel-overlay" id="overlay" onclick="closePanel()"></div>
+
+<!-- SIDE PANEL -->
+<div class="side-panel" id="sidePanel">
+  <button class="sp-close" onclick="closePanel()">✕</button>
+
+  <div class="sp-logo">
+    <div style="display:flex;align-items:flex-end;gap:0;line-height:1;">
+      <span style="font-size:13px;font-weight:900;font-style:italic;color:#008F6A;">S</span>
+      <span style="font-size:16px;font-weight:900;font-style:italic;color:#00A87C;">P</span>
+      <span style="font-size:19px;font-weight:900;font-style:italic;color:#00C896;">I</span>
+      <span style="font-size:22px;font-weight:900;font-style:italic;color:#00E0AA;">K</span>
+      <span style="font-size:25px;font-weight:900;font-style:italic;color:#00FF88;">E</span>
+      <span style="font-size:27px;font-weight:900;font-style:italic;color:#fff;margin:0 2px;opacity:.9;">&amp;</span>
+      <span style="font-size:25px;font-weight:900;font-style:italic;color:#FF4444;">C</span>
+      <span style="font-size:22px;font-weight:900;font-style:italic;color:#EE3333;">R</span>
+      <span style="font-size:19px;font-weight:900;font-style:italic;color:#DD2222;">U</span>
+      <span style="font-size:16px;font-weight:900;font-style:italic;color:#CC1111;">S</span>
+      <span style="font-size:13px;font-weight:900;font-style:italic;color:#BB0000;">H</span>
+    </div>
+  </div>
+
+  <h2 class="sp-title">Enter the War</h2>
+  <p class="sp-sub">Join 2,847 traders competing right now. 500 free coins on registration.</p>
+
+  <div class="soc-btns">
+    <button class="soc-btn google" onclick="TW.loginWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+    <button class="soc-btn apple" onclick="TW.loginWithApple()">
+      <svg width="16" height="20" viewBox="0 0 814 1000"><path fill="white" d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105.7-57.2-155.5-127.4C46 790.7 0 663 0 541.8c0-207.8 135.4-317.9 268.8-317.9 71 0 130.2 46.8 174.7 46.8 42.7 0 109.3-49.5 189.5-49.5 30.4 0 108.2 2.6 168.6 71.9zm-174.7-186.7c31.6-37.9 54.4-90.7 54.4-143.5 0-7.1-.6-14.3-1.9-20.7-51.6 1.9-112.3 34.8-149.1 78.3-28.4 32.9-55.1 85.7-55.1 139.2 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 136.2-72.7z"/></svg>
+      Continue with Apple
+    </button>
+  </div>
+
+  <div class="divider">
+    <div class="divider-line"></div>
+    <div class="divider-text">or</div>
+    <div class="divider-line"></div>
+  </div>
+
+  <form id="lpLoginForm" onsubmit="return handleLpLogin(event)">
+    <div class="sp-field">
+      <label>Username</label>
+      <input type="text" id="lpLoginUsername" placeholder="Enter your username" required autocomplete="username">
+    </div>
+    <div class="sp-field">
+      <label>Password</label>
+      <input type="password" id="lpLoginPassword" placeholder="••••••••" required autocomplete="current-password">
+    </div>
+    <div class="sp-error" id="lpLoginError"></div>
+    <button class="sp-submit" type="submit" id="lpLoginSubmit">Log In — Enter the War</button>
+    <div class="sp-toggle">
+      No account? <a onclick="toggleForm()">Register free — 500 coins</a>
+    </div>
+  </form>
+
+  <form id="lpRegisterForm" style="display:none;" onsubmit="return handleLpRegister(event)">
+    <div class="sp-field">
+      <label>Username</label>
+      <input type="text" id="lpRegisterUsername" placeholder="GoldSniper or NakedPip..." required minlength="3" maxlength="20" autocomplete="username">
+    </div>
+    <div class="sp-field">
+      <label>Email</label>
+      <input type="email" id="lpRegisterEmail" placeholder="you@email.com" required autocomplete="email">
+    </div>
+    <div class="sp-field">
+      <label>Password</label>
+      <input type="password" id="lpRegisterPassword" placeholder="••••••••" required minlength="6" autocomplete="new-password">
+    </div>
+    <div class="sp-error" id="lpRegisterError"></div>
+    <button class="sp-submit" type="submit" id="lpRegisterSubmit">Create Account — Get 500 Free Coins</button>
+    <div class="sp-toggle">
+      Already playing? <a onclick="toggleForm()">Log in</a>
+    </div>
+  </form>
+
+  <div class="sp-legal">
+    By continuing you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.<br>
+    Simulated trading environment. Not financial advice. 18+.
+  </div>
+</div>
+
+<!-- CURSOR -->
+<div id="cr"></div>
+<div id="cp"><span class="w">Enter</span> <span>the War!</span></div>
+
+<script src="js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/auth.js"></script>
+<script>
+// ── BACKGROUND CANDLESTICK CHART ──
+(function(){
+  const c=document.getElementById('bgc');
+  const ctx=c.getContext('2d');
+  function resize(){c.width=window.innerWidth;c.height=window.innerHeight;}
+  resize();
+  window.addEventListener('resize',resize);
+
+  function genCandles(n,p,v){
+    const arr=[];
+    for(let i=0;i<n;i++){
+      const o=p;
+      const mv=(Math.random()-.47)*v;
+      const cl=o+mv;
+      const h=Math.max(o,cl)+Math.random()*v*.4;
+      const l=Math.min(o,cl)-Math.random()*v*.4;
+      arr.push({o,h,l,c:cl});
+      p=cl;
+    }
+    return arr;
+  }
+
+  let candles=genCandles(150,1950,10);
+  let off=0,frame=0;
+
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    const W=c.width,H=c.height;
+    const cw=W/55;
+    const pad=H*.08;
+    const ch=H-pad*2;
+    const si=Math.floor(off/cw)%candles.length;
+    const vis=[];
+    for(let i=0;i<75;i++) vis.push(candles[(si+i)%candles.length]);
+
+    const ps=vis.flatMap(x=>[x.h,x.l]);
+    const mn=Math.min(...ps),mx=Math.max(...ps);
+    const rng=mx-mn||1;
+    const py=p=>pad+(1-(p-mn)/rng)*ch;
+
+    // grid
+    ctx.strokeStyle='rgba(42,48,64,0.25)';ctx.lineWidth=1;
+    for(let i=0;i<=5;i++){
+      const y=pad+ch/5*i;
+      ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+    }
+
+    // candles
+    vis.forEach((cd,i)=>{
+      const x=i*cw-(off%cw);
+      const up=cd.c>=cd.o;
+      const col=up?'rgba(0,200,150,':'rgba(255,61,92,';
+      const oy=py(cd.o),cy=py(cd.c),hy=py(cd.h),ly=py(cd.l);
+      const bt=Math.min(oy,cy),bh=Math.max(Math.abs(cy-oy),1);
+      const bw=cw*.7,bx=x+(cw-bw)/2;
+
+      ctx.strokeStyle=col+'.65)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x+cw/2,hy);ctx.lineTo(x+cw/2,ly);ctx.stroke();
+      ctx.fillStyle=col+'.65)';
+      ctx.fillRect(bx,bt,bw,bh);
+    });
+
+    // fades
+    const fl=ctx.createLinearGradient(0,0,W*.18,0);
+    fl.addColorStop(0,'rgba(10,12,20,1)');fl.addColorStop(1,'rgba(10,12,20,0)');
+    ctx.fillStyle=fl;ctx.fillRect(0,0,W*.18,H);
+
+    const fr=ctx.createLinearGradient(W*.82,0,W,0);
+    fr.addColorStop(0,'rgba(10,12,20,0)');fr.addColorStop(1,'rgba(10,12,20,1)');
+    ctx.fillStyle=fr;ctx.fillRect(W*.82,0,W*.18,H);
+
+    off+=.5;frame++;
+    if(frame%55===0){
+      const last=candles[candles.length-1];
+      const o=last.c,mv=(Math.random()-.47)*10,cl=o+mv;
+      candles.push({o,h:Math.max(o,cl)+Math.random()*4,l:Math.min(o,cl)-Math.random()*4,c:cl});
+      if(candles.length>250)candles.shift();
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── PARTNER STRIP (real data: GET /api/stats/broker-partners) ──
+// Strip stays hidden (see the inline display:none in the markup) unless
+// this actually returns at least one active partner - no fake/placeholder
+// sponsors shown if the fetch fails or the table is empty.
+async function loadPartners(){
+  try{
+    const res=await fetch('/api/stats/broker-partners');
+    const data=await res.json();
+    const partners=(data.partners||[]).filter(p=>p&&p.name);
+    if(!partners.length)return;
+    const esc=(window.TW&&TW.escapeHtml)?TW.escapeHtml:(s=>String(s));
+    const doubled=[...partners,...partners];
+    document.getElementById('partnerInner').innerHTML=doubled.map(p=>{
+      const initial=esc((p.name||'?').trim().charAt(0).toUpperCase());
+      const logo=p.logoUrl?`<img src="${esc(p.logoUrl)}" alt="${esc(p.name)}">`:initial;
+      return `<div class="partner-item"><div class="partner-logo">${logo}</div><span class="partner-name">${esc(p.name)}</span><span class="partner-tier">${esc(p.tier||'')}</span></div>`;
+    }).join('');
+    document.getElementById('partnersStrip').style.display='';
+  }catch(e){
+    // stays hidden
+  }
+}
+loadPartners();
+
+// ── TICKER ──
+(function(){
+  const ticks=[
+    {sym:'EURUSD',p:'1.0856',c:'+0.21%',up:true},
+    {sym:'XAUUSD',p:'1,952.30',c:'-0.12%',up:false},
+    {sym:'BTCUSD',p:'43,250',c:'+2.01%',up:true},
+    {sym:'NAS100',p:'16,842',c:'+0.87%',up:true},
+    {sym:'GBPUSD',p:'1.2634',c:'-0.09%',up:false},
+    {sym:'USOIL',p:'78.42',c:'+1.23%',up:true},
+    {sym:'ETHUSD',p:'2,340',c:'+3.15%',up:true},
+    {sym:'USDJPY',p:'149.82',c:'-0.34%',up:false},
+    {sym:'US30',p:'38,124',c:'+0.56%',up:true},
+    {sym:'BRENT',p:'82.10',c:'+0.98%',up:true},
+    {sym:'XAGUSD',p:'23.45',c:'+0.77%',up:true},
+    {sym:'AAPL',p:'189.30',c:'+0.43%',up:true},
+  ];
+  const ti=document.getElementById('tickInner');
+  const doubled=[...ticks,...ticks];
+  ti.innerHTML=doubled.map(t=>
+    `<div class="tick-item"><span class="sym">${t.sym}</span>${t.p}<span class="${t.up?'up':'dn'}">${t.c}</span></div>`
+  ).join('');
+})();
+
+// ── FLOATING CANDLESTICK PARTICLES ──
+(function(){
+  const wrap=document.getElementById('lpHeroParticles');
+  if(!wrap)return;
+  for(let i=0;i<22;i++){
+    const el=document.createElement('div');
+    const isBull=Math.random()<0.5;
+    const color=isBull?'#00c896':'#ff4444';
+    el.className=`hero-candle ${isBull?'candle-up':'candle-down'}`;
+    const height=20+Math.random()*60;
+    el.style.left=`${Math.random()*100}%`;
+    el.style.height=`${height}px`;
+    el.style.background=color;
+    el.style.setProperty('--candle-color',color);
+    el.style.animationDuration=`${14+Math.random()*12}s`;
+    el.style.animationDelay=`${Math.random()*-20}s`;
+    wrap.appendChild(el);
+  }
+})();
+
+// ── PANEL ──
+function openPanel(){
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('sidePanel').classList.add('open');
+}
+function closePanel(){
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('sidePanel').classList.remove('open');
+}
+function toggleForm(){
+  const lf=document.getElementById('lpLoginForm');
+  const rf=document.getElementById('lpRegisterForm');
+  if(lf.style.display==='none'){lf.style.display='block';rf.style.display='none';}
+  else{lf.style.display='none';rf.style.display='block';}
+}
+function scrollToPreview(){
+  document.getElementById('preview').scrollIntoView({behavior:'smooth'});
+}
+
+// ── AUTH: LOGIN / REGISTER ──
+// Reuses the same TW.api / TW.establishSession primitives index.html's own
+// login form uses (see js/main.js + js/auth.js) - but with this page's own
+// success behavior (redirect to /play) instead of main.js's built-in handler,
+// which just toggles index.html's logged-out/logged-in sections in place and
+// would be calling functions (refreshVisibility, etc.) that don't exist here.
+// Distinct element ids (lpLogin*/lpRegister*, not loginForm/registerForm) keep
+// main.js's own prewired listeners from also attaching to these forms.
+async function handleLpLogin(e){
+  e.preventDefault();
+  const errEl=document.getElementById('lpLoginError');
+  const btn=document.getElementById('lpLoginSubmit');
+  errEl.textContent='';
+  const username=document.getElementById('lpLoginUsername').value.trim();
+  const password=document.getElementById('lpLoginPassword').value;
+  btn.disabled=true;
+  try{
+    const data=await TW.api('/api/auth/login',{method:'POST',body:{username,password}});
+    await TW.establishSession(data.token,data.refresh_token,data.player);
+    closePanel();
+    window.location.href='/play';
+  }catch(err){
+    errEl.textContent=err.message||'Could not log in.';
+    btn.disabled=false;
+  }
+  return false;
+}
+
+async function handleLpRegister(e){
+  e.preventDefault();
+  const errEl=document.getElementById('lpRegisterError');
+  const btn=document.getElementById('lpRegisterSubmit');
+  errEl.textContent='';
+  const username=document.getElementById('lpRegisterUsername').value.trim();
+  const email=document.getElementById('lpRegisterEmail').value.trim();
+  const password=document.getElementById('lpRegisterPassword').value;
+  btn.disabled=true;
+  try{
+    const data=await TW.api('/api/auth/register',{method:'POST',body:{username,email,password}});
+    await TW.establishSession(data.token,data.refresh_token,data.player);
+    closePanel();
+    window.location.href='/play';
+  }catch(err){
+    errEl.textContent=err.message||'Could not create account.';
+    btn.disabled=false;
+  }
+  return false;
+}
+
+// ── COUNTERS ──
+function animCount(el,target){
+  if(!el)return;
+  let s=0;const dur=2200,st=performance.now();
+  const step=now=>{
+    const p=Math.min((now-st)/dur,1);
+    const e=1-Math.pow(1-p,3);
+    el.textContent=Math.floor(e*target).toLocaleString();
+    if(p<1)requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+function animCountFormatted(el,target,formatter){
+  if(!el)return;
+  const dur=2200,st=performance.now();
+  const step=now=>{
+    const p=Math.min((now-st)/dur,1);
+    const e=1-Math.pow(1-p,3);
+    el.textContent=formatter(e*target);
+    if(p<1)requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// ── LIVE STATS (GET /api/stats/live) ──
+function formatWin(n){
+  return (n<0?'-$':'+$')+Math.abs(Math.round(n)).toLocaleString();
+}
+function formatTotal(n){
+  return '$'+Math.round(n).toLocaleString();
+}
+async function loadLiveStats(){
+  try{
+    const res=await fetch('/api/stats/live');
+    const data=await res.json();
+    const badge=document.getElementById('heroBadgeText');
+    if(badge) badge.textContent=`Live — ${Number(data.activePlayers||0).toLocaleString()} traders active right now`;
+    animCount(document.getElementById('sv1'),data.activePlayers||0);
+    animCount(document.getElementById('sv2'),data.matchesToday||0);
+    animCountFormatted(document.getElementById('sv3'),data.largestWinToday||0,formatWin);
+    animCountFormatted(document.getElementById('sv4'),data.totalPrizesDistributed||0,formatTotal);
+  }catch(e){
+    // Fall back silently to the static placeholder numbers already in the markup.
+  }
+}
+setTimeout(loadLiveStats,600);
+
+// ── CUSTOM CURSOR ──
+(function(){
+  const cr=document.getElementById('cr');
+  const cp=document.getElementById('cp');
+  let mx=window.innerWidth/2,my=window.innerHeight/2;
+  let cx=mx,cy=my,rx=mx,ry=my;
+  let first=true,scale=0,tscale=0,hov=false;
+
+  document.addEventListener('mousemove',e=>{
+    mx=e.clientX;my=e.clientY;
+    if(first){cx=mx;cy=my;rx=mx;ry=my;first=false;cr.classList.add('on');cp.classList.add('on');}
+    if(!hov)tscale=1;
+  });
+  document.addEventListener('mouseleave',()=>{tscale=0;});
+  document.addEventListener('mouseenter',()=>{if(!hov)tscale=1;});
+
+  document.querySelectorAll('button,a,.soc-btn,.nav-cta,.btn-primary,.btn-secondary,.mode-card,.sab-card').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{hov=true;tscale=0;cr.classList.add('big');});
+    el.addEventListener('mouseleave',()=>{hov=false;tscale=1;cr.classList.remove('big');});
+  });
+
+  const loop=()=>{
+    cx+=(mx-cx)*.08;cy+=(my-cy)*.08;
+    rx=mx;ry=my;
+    scale+=(tscale-scale)*.15;
+    const rs=cr.classList.contains('big')?1.8*scale:scale;
+    cp.style.transform=`translate3d(${cx}px,${cy}px,0) translate(-50%,-50%) scale(${scale})`;
+    cr.style.transform=`translate3d(${rx}px,${ry}px,0) translate(-50%,-50%) scale(${rs})`;
+    requestAnimationFrame(loop);
+  };
+  loop();
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 'use strict';
 
-// All 12 sabotage cards. `targeted` cards require a target player; market
+// All 30 sabotage cards. `targeted` cards require a target player; market
 // cards (`targeted: false`) affect the whole match environment. Cards with
 // `requiresSymbol` act on one instrument (defaults to a random one if the
 // caller doesn't supply one). `duration: 0` cards are instantaneous.
@@ -112,6 +112,170 @@ const CARDS = {
     category: 'opponent',
     icon: '🪞',
     description: "Copy your current position onto the target's account.",
+    duration: 0,
+    targeted: true,
+  },
+
+  // ---- expansion set (18 more, added to reach 30 total) -------------------
+  margin_scare: {
+    id: 'margin_scare',
+    name: 'Margin Scare',
+    category: 'information',
+    icon: '🚨',
+    description: "Flash a fake margin-call warning on the target's screen for 10s.",
+    duration: 10,
+    targeted: true,
+  },
+  phantom_candle: {
+    id: 'phantom_candle',
+    name: 'Phantom Candle',
+    category: 'information',
+    icon: '🕯️',
+    description: "Inject one fake bearish candle into the target's chart for 8s.",
+    duration: 8,
+    targeted: true,
+  },
+  blackout: {
+    id: 'blackout',
+    name: 'Blackout',
+    category: 'information',
+    icon: '⬛',
+    description: "Blank out the target's live P&L display for 12s.",
+    duration: 12,
+    targeted: true,
+  },
+  static_burst: {
+    id: 'static_burst',
+    name: 'Static Burst',
+    category: 'information',
+    icon: '📺',
+    description: "Cover the target's chart in visual static for 10s.",
+    duration: 10,
+    targeted: true,
+  },
+  decoy_order: {
+    id: 'decoy_order',
+    name: 'Decoy Order',
+    category: 'information',
+    icon: '🐋',
+    description: 'Show the target a fake giant sell-wall alert for 12s.',
+    duration: 12,
+    targeted: true,
+  },
+  mirage: {
+    id: 'mirage',
+    name: 'Mirage',
+    category: 'information',
+    icon: '👁️',
+    description: "Plant a fake ghost position in the target's position list for 15s.",
+    duration: 15,
+    targeted: true,
+  },
+  intel_leak: {
+    id: 'intel_leak',
+    name: 'Intel Leak',
+    category: 'information',
+    icon: '🕵️',
+    description: "Reveal the target's real P&L and open positions to you for 10s.",
+    duration: 10,
+    targeted: true,
+  },
+  double_spread: {
+    id: 'double_spread',
+    name: 'Double Spread',
+    category: 'market',
+    icon: '〽️',
+    description: 'Double the spread on every instrument for everyone except you, for 15s.',
+    duration: 15,
+    targeted: false,
+  },
+  time_warp: {
+    id: 'time_warp',
+    name: 'Time Warp',
+    category: 'market',
+    icon: '📡',
+    description: 'Delay the price feed by 3 seconds for everyone except you, for 10s.',
+    duration: 10,
+    targeted: false,
+  },
+  fog_of_war: {
+    id: 'fog_of_war',
+    name: 'Fog of War',
+    category: 'market',
+    icon: '🌫️',
+    description: 'Throw random price jitter into the feed for everyone except you, for 10s.',
+    duration: 10,
+    targeted: false,
+  },
+  panic_wave: {
+    id: 'panic_wave',
+    name: 'Panic Wave',
+    category: 'market',
+    icon: '📉',
+    description: 'Force a brief synchronized reversal across every instrument, then snap back, over 8s.',
+    duration: 8,
+    targeted: false,
+  },
+  dead_calm: {
+    id: 'dead_calm',
+    name: 'Dead Calm',
+    category: 'market',
+    icon: '🧊',
+    description: 'Freeze price movement on every instrument for everyone except you, for 6s.',
+    duration: 6,
+    targeted: false,
+  },
+  lockout: {
+    id: 'lockout',
+    name: 'Lockout',
+    category: 'opponent',
+    icon: '🔐',
+    description: 'Target cannot close any position for 10s.',
+    duration: 10,
+    targeted: true,
+  },
+  margin_call: {
+    id: 'margin_call',
+    name: 'Margin Call',
+    category: 'opponent',
+    icon: '⚠️',
+    description: "Force-close every one of the target's open positions at market.",
+    duration: 0,
+    targeted: true,
+  },
+  lot_limiter: {
+    id: 'lot_limiter',
+    name: 'Lot Limiter',
+    category: 'opponent',
+    icon: '📏',
+    description: "Cap the target's max lot size at 0.05 for 15s.",
+    duration: 15,
+    targeted: true,
+  },
+  pip_theft: {
+    id: 'pip_theft',
+    name: 'Pip Theft',
+    category: 'opponent',
+    icon: '🥷',
+    description: "Steal $150 from the target's capital straight into yours.",
+    duration: 0,
+    targeted: true,
+  },
+  ghost_trade: {
+    id: 'ghost_trade',
+    name: 'Ghost Trade',
+    category: 'opponent',
+    icon: '👻',
+    description: "Force a small guaranteed-losing position onto the target's account.",
+    duration: 0,
+    targeted: true,
+  },
+  stop_snipe: {
+    id: 'stop_snipe',
+    name: 'Stop Snipe',
+    category: 'opponent',
+    icon: '🎯',
+    description: "Drag the target's best position's stop-loss to break-even, wiping their cushion.",
     duration: 0,
     targeted: true,
   },
@@ -336,6 +500,162 @@ function playCard(match, casterId, cardType, { targetId, symbol } = {}, now = Da
       });
       break;
     }
+
+    // ---- expansion set ------------------------------------------------
+    case 'margin_scare': {
+      target.effects.margin_scare = { until: now + cardDef.duration * 1000 };
+      result.feedText = `${caster.username} played Margin Scare on ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'phantom_candle': {
+      target.effects.phantom_candle = { until: now + cardDef.duration * 1000 };
+      result.feedText = `${caster.username} played Phantom Candle on ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'blackout': {
+      target.effects.blackout = { until: now + cardDef.duration * 1000 };
+      result.feedText = `${caster.username} played Blackout on ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'static_burst': {
+      target.effects.static_burst = { until: now + cardDef.duration * 1000 };
+      result.feedText = `${caster.username} played Static Burst on ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'decoy_order': {
+      target.effects.decoy_order = { until: now + cardDef.duration * 1000 };
+      result.feedText = `${caster.username} played Decoy Order on ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'mirage': {
+      target.effects.mirage = { until: now + cardDef.duration * 1000 };
+      result.feedText = `${caster.username} played Mirage on ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'intel_leak': {
+      target.effects.intel_leak = { until: now + cardDef.duration * 1000 };
+      result.feedText = `${caster.username} played Intel Leak on ${target.username}`;
+      // Unlike every other targeted card, this one benefits the CASTER, not
+      // the target - the notify (carrying the target's real data) goes to
+      // the caster instead of the usual "you were sabotaged" push.
+      result.notify.push({
+        to: caster.id,
+        event: 'sabotage:incoming',
+        payload: {
+          cardType,
+          duration: cardDef.duration,
+          targetUsername: target.username,
+          targetBalance: target.balance,
+          targetPositions: target.positions.map((p) => ({ symbol: p.symbol, direction: p.direction, lots: p.lots })),
+        },
+      });
+      break;
+    }
+    case 'double_spread': {
+      match.marketEffects.doubleSpreadUntil = now + cardDef.duration * 1000;
+      match.marketEffects.doubleSpreadCasterId = caster.id;
+      result.feedText = `${caster.username} played Double Spread - spread doubled on every instrument for everyone else`;
+      result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'time_warp': {
+      match.marketEffects.timeWarpUntil = now + cardDef.duration * 1000;
+      match.marketEffects.timeWarpCasterId = caster.id;
+      result.feedText = `${caster.username} played Time Warp - price feed delayed for everyone else`;
+      result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'fog_of_war': {
+      match.marketEffects.fogOfWarUntil = now + cardDef.duration * 1000;
+      match.marketEffects.fogOfWarCasterId = caster.id;
+      result.feedText = `${caster.username} played Fog of War - price feed jittered for everyone else`;
+      result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'panic_wave': {
+      // Same shared-reversal-with-private-warning mechanism as
+      // reversal_flash, just applied to every instrument in the match at
+      // once instead of a single requiresSymbol target.
+      const WARNING_MS = 1000;
+      const startedAt = now + WARNING_MS;
+      const until = startedAt + cardDef.duration * 1000;
+      for (const s of matchInstruments) {
+        if (!match.marketEffects[s]) match.marketEffects[s] = { spreadMultiplier: 1, spreadUntil: 0, reversal: null };
+        const direction = Math.random() < 0.5 ? 1 : -1;
+        match.marketEffects[s].reversal = { until, direction, startedAt };
+      }
+      result.feedText = `${caster.username} played Panic Wave - every instrument about to reverse`;
+      result.notify.push({ to: caster.id, event: 'sabotage:reversal_warning', payload: { cardType } });
+      result.delayedNotify = {
+        delayMs: WARNING_MS,
+        exceptPlayerId: caster.id,
+        event: 'sabotage:incoming',
+        payload: { cardType, duration: cardDef.duration },
+      };
+      break;
+    }
+    case 'dead_calm': {
+      // Baseline mid-price per symbol is captured by gameEngine.js right
+      // after playCard() returns (needs live prices, which sabotage.js has
+      // no access to) - exactly the same split responsibility as
+      // volatility_surge's baseline capture just above in playSabotageCard.
+      match.marketEffects.deadCalmUntil = now + cardDef.duration * 1000;
+      match.marketEffects.deadCalmCasterId = caster.id;
+      result.feedText = `${caster.username} played Dead Calm - price frozen for everyone else`;
+      result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'lockout': {
+      target.effects.lockout = { until: now + cardDef.duration * 1000 };
+      result.feedText = `${caster.username} played Lockout on ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'margin_call': {
+      if (target.positions.length === 0) return { success: false, error: 'Target has no open positions' };
+      result.forceCloseAllTarget = true;
+      result.feedText = `${caster.username} played Margin Call - all of ${target.username}'s positions are being force-closed`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: 0 } });
+      break;
+    }
+    case 'lot_limiter': {
+      target.effects.lot_limiter = { until: now + cardDef.duration * 1000 };
+      result.feedText = `${caster.username} played Lot Limiter on ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
+      break;
+    }
+    case 'pip_theft': {
+      const stolen = Math.min(150, target.balance);
+      target.balance = Math.max(0, target.balance - 150);
+      caster.balance = Math.round((caster.balance + stolen) * 100) / 100;
+      result.feedText = `${caster.username} stole $${stolen} from ${target.username}`;
+      result.notify.push({
+        to: target.id,
+        event: 'sabotage:incoming',
+        payload: { cardType, amount: stolen, duration: 0 },
+      });
+      break;
+    }
+    case 'ghost_trade': {
+      if (target.positions.length >= 3) return { success: false, error: "Target's position slots are full" };
+      result.ghostTrade = { symbol: matchInstruments[Math.floor(Math.random() * matchInstruments.length)] };
+      result.feedText = `${caster.username} forced a ghost trade onto ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: 0 } });
+      break;
+    }
+    case 'stop_snipe': {
+      if (target.positions.length === 0) return { success: false, error: 'Target has no open positions' };
+      result.stopSnipeTarget = true;
+      result.feedText = `${caster.username} sniped the stop-loss on ${target.username}'s best position`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: 0 } });
+      break;
+    }
     default:
       return { success: false, error: 'Unhandled card type' };
   }
@@ -358,6 +678,10 @@ function createMarketEffects() {
     volatilitySurgeUntil: 0,
     liquidityDrainUntil: 0,
     smokeScreenUntil: 0,
+    doubleSpreadUntil: 0,
+    timeWarpUntil: 0,
+    fogOfWarUntil: 0,
+    deadCalmUntil: 0,
   };
 }
 
@@ -367,6 +691,15 @@ function createPlayerEffects() {
     chart_ghost: null,
     false_signal: null,
     position_freeze: null,
+    margin_scare: null,
+    phantom_candle: null,
+    blackout: null,
+    static_burst: null,
+    decoy_order: null,
+    mirage: null,
+    intel_leak: null,
+    lockout: null,
+    lot_limiter: null,
   };
 }
 

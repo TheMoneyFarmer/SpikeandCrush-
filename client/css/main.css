@@ -1,10 +1,8 @@
 /* ============================================================
-   Theme system - 3 themes (dark / midnight / light), switched via
-   data-theme on <html>. Every color below is a token; the rest of
-   this file (and premium.css/lobby.css/game.css) consumes them via
-   var(--x) so switching data-theme re-colors the whole app. Bare
-   :root carries the dark theme's values as the fallback so pages
-   that haven't run the anti-FOUC script yet still render correctly.
+   Theme system - see css/themes.css for the 4 theme definitions (War
+   Room / Gold Rush / Blood Market / Light), switched via data-theme on
+   <html>. Every color used below is a token from that file; this file
+   only owns non-color structural tokens (radius/font/mono).
    ============================================================ */
 :root {
   --radius: 8px;
@@ -13,157 +11,8 @@
   --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
-:root,
-[data-theme='dark'] {
-  --bg: #080810;
-  --surface: #0f1018;
-  --surface-2: #161820;
-  --surface-3: #1e2028;
-  --border: #1e2028;
-  --text: #ffffff;
-  --text-secondary: #888888;
-  --text-muted: rgba(255, 255, 255, 0.35);
-  --accent: #00c896;
-  --buy: #00c896;
-  --sell: #ff4444;
-  --warning: #ff8c00;
-  --gold: #ffd700;
-
-  --bg-base: #080810;
-  --bg-surface-1: #0f1018;
-  --bg-surface-2: #161820;
-  --bg-surface-3: #1e2028;
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-normal: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.15);
-  --overlay-soft: rgba(255, 255, 255, 0.03);
-  --overlay-medium: rgba(255, 255, 255, 0.08);
-  --accent-teal: #00c896;
-  --accent-teal-dark: #00a878;
-  --accent-gold: #ffd700;
-  --accent-gold-dark: #ffa500;
-  --accent-red: #ff4444;
-  --accent-red-dark: #cc0000;
-  --glow-teal: rgba(0, 200, 150, 0.35);
-  --glow-gold: rgba(255, 215, 0, 0.4);
-  --glow-red: rgba(255, 68, 68, 0.35);
-  --accent-irony: var(--warning);
-  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  --chart-bg: #080810;
-  --chart-grid: rgba(255, 255, 255, 0.04);
-  --btn-primary-text: #000000;
-
-  --spike-green: var(--accent-teal);
-  --spike-green-bright: #00ff88;
-  --crush-red: var(--accent-red);
-  --crush-red-dark: var(--accent-red-dark);
-  --spike-glow: var(--glow-teal);
-  --crush-glow: var(--glow-red);
-}
-
-[data-theme='midnight'] {
-  --bg: #08060f;
-  --surface: #100d1a;
-  --surface-2: #181424;
-  --surface-3: #201c2e;
-  --border: #201c2e;
-  --text: #ffffff;
-  --text-secondary: #9988bb;
-  --text-muted: rgba(200, 180, 255, 0.3);
-  --accent: #a855f7;
-  --buy: #00c896;
-  --sell: #ff4444;
-  --warning: #ff8c00;
-  --gold: #ffd700;
-
-  --bg-base: #08060f;
-  --bg-surface-1: #100d1a;
-  --bg-surface-2: #181424;
-  --bg-surface-3: #201c2e;
-  --border-subtle: rgba(150, 100, 255, 0.1);
-  --border-normal: rgba(150, 100, 255, 0.15);
-  --border-strong: rgba(150, 100, 255, 0.22);
-  --overlay-soft: rgba(150, 100, 255, 0.05);
-  --overlay-medium: rgba(150, 100, 255, 0.12);
-  --accent-teal: #a855f7;
-  --accent-teal-dark: #7c3aed;
-  --accent-gold: #ffd700;
-  --accent-gold-dark: #ffa500;
-  --accent-red: #ff4444;
-  --accent-red-dark: #cc0000;
-  --glow-teal: rgba(168, 85, 247, 0.35);
-  --glow-gold: rgba(255, 215, 0, 0.4);
-  --glow-red: rgba(255, 68, 68, 0.35);
-  --accent-irony: var(--warning);
-  --card-shadow: 0 4px 20px rgba(100, 50, 200, 0.2);
-  --chart-bg: #08060f;
-  --chart-grid: rgba(150, 100, 255, 0.06);
-  --btn-primary-text: #ffffff;
-
-  --spike-green: #00c896;
-  --spike-green-bright: #00ff88;
-  --crush-red: var(--accent-red);
-  --crush-red-dark: var(--accent-red-dark);
-  --spike-glow: rgba(0, 200, 150, 0.35);
-  --crush-glow: var(--glow-red);
-}
-
-[data-theme='light'] {
-  --bg: #f0f2f5;
-  --surface: #ffffff;
-  --surface-2: #f8f9fa;
-  --surface-3: #eceef1;
-  --border: #dde1e6;
-  --text: #0a0a14;
-  --text-secondary: #555555;
-  --text-muted: rgba(0, 0, 0, 0.35);
-  --accent: #007a5e;
-  --buy: #007a5e;
-  --sell: #cc0000;
-  --warning: #996600;
-  --gold: #b8860b;
-
-  --bg-base: #f0f2f5;
-  --bg-surface-1: #ffffff;
-  --bg-surface-2: #f8f9fa;
-  --bg-surface-3: #eceef1;
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-normal: rgba(0, 0, 0, 0.1);
-  --border-strong: rgba(0, 0, 0, 0.15);
-  --overlay-soft: rgba(0, 0, 0, 0.03);
-  --overlay-medium: rgba(0, 0, 0, 0.06);
-  --accent-teal: #007a5e;
-  --accent-teal-dark: #005a44;
-  --accent-gold: #b8860b;
-  --accent-gold-dark: #96690a;
-  --accent-red: #cc0000;
-  --accent-red-dark: #990000;
-  --glow-teal: rgba(0, 122, 94, 0.25);
-  --glow-gold: rgba(184, 134, 11, 0.3);
-  --glow-red: rgba(204, 0, 0, 0.25);
-  --accent-irony: var(--warning);
-  --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  --chart-bg: #ffffff;
-  --chart-grid: rgba(0, 0, 0, 0.06);
-  --btn-primary-text: #ffffff;
-
-  --spike-green: var(--accent-teal);
-  --spike-green-bright: #00a86b;
-  --crush-red: var(--accent-red);
-  --crush-red-dark: var(--accent-red-dark);
-  --spike-glow: var(--glow-teal);
-  --crush-glow: var(--glow-red);
-}
-
 * {
   box-sizing: border-box;
-}
-
-html {
-  color-scheme: dark;
-}
-[data-theme='light'] {
-  color-scheme: light;
 }
 
 html,
@@ -298,21 +147,29 @@ p {
   transform: none;
 }
 
+/* Primary/CTA buttons (Quick Play, Save, Submit, ...) are always GOLD - the
+   COD-style "menu chrome" accent - via --accent-teal, which every theme in
+   themes.css aliases to its own --gold value (not literally teal anymore;
+   the name is legacy so main.css/premium.css's many existing consumers
+   don't all need renaming - see themes.css's file header). */
 .btn-primary {
   background: linear-gradient(135deg, var(--accent-teal) 0%, var(--accent-teal-dark) 100%);
-  color: #000000;
+  color: var(--btn-primary-text);
   font-weight: 700;
   border: none;
 }
 
 .btn-primary:hover {
-  box-shadow: 0 0 25px var(--glow-teal), 0 4px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 25px var(--gold-glow), 0 4px 15px rgba(0, 0, 0, 0.3);
   background: linear-gradient(135deg, var(--accent-teal) 0%, var(--accent-teal-dark) 100%);
 }
 
+/* Buy is a trading action, not a generic "primary" one - it stays green (or
+   Midnight's purple) in every theme by using --buy-color instead of the
+   shifting brand accent, which is gold almost everywhere now. */
 .btn-buy {
-  background: linear-gradient(135deg, var(--accent-teal) 0%, var(--accent-teal-dark) 100%);
-  color: #000000;
+  background: linear-gradient(135deg, var(--buy-color) 0%, var(--buy-color-dark) 100%);
+  color: var(--btn-primary-text);
   font-weight: 700;
   border: none;
 }
@@ -339,8 +196,8 @@ p {
 }
 
 .btn-outline:hover {
-  background: rgba(0, 200, 150, 0.1);
-  box-shadow: 0 0 15px rgba(0, 200, 150, 0.2);
+  background: var(--gold-subtle);
+  box-shadow: 0 0 15px var(--gold-glow);
 }
 
 .btn-block {
@@ -379,7 +236,7 @@ p {
 .field select:focus {
   outline: none;
   border-color: var(--accent-teal);
-  box-shadow: 0 0 0 3px rgba(0, 200, 150, 0.15);
+  box-shadow: 0 0 0 3px var(--input-focus);
 }
 
 .field.error input,
@@ -387,7 +244,7 @@ p {
 .field input.error,
 .field select.error {
   border-color: var(--accent-red);
-  box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.15);
+  box-shadow: 0 0 0 3px var(--red-subtle);
 }
 
 .form-error {
@@ -462,28 +319,28 @@ p {
 }
 
 .tier-Recruit {
-  color: #888888;
+  color: var(--tier-recruit);
 }
 .tier-Trader {
-  color: #4fc3f7;
+  color: var(--tier-trader);
 }
 .tier-Broker {
-  color: #81c784;
+  color: var(--tier-broker);
 }
 .tier-Analyst {
-  color: #ffb74d;
+  color: var(--tier-analyst);
 }
 .tier-Veteran {
-  color: #ba68c8;
+  color: var(--tier-veteran);
 }
 .tier-Elite {
-  color: #ff8a65;
+  color: var(--tier-elite);
 }
 .tier-War\.Lord {
-  background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-gold-dark) 100%);
-  color: #000000;
+  background: linear-gradient(135deg, var(--tier-warlord) 0%, var(--accent-gold-dark) 100%);
+  color: var(--btn-cta-text, #000000);
   font-weight: 800;
-  box-shadow: 0 0 15px var(--glow-gold);
+  box-shadow: 0 0 15px var(--gold-glow);
   border: none;
 }
 
@@ -749,7 +606,7 @@ p {
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 200, 150, 0.3);
+  background: var(--gold-glow);
 }
 
 /* ---- loading skeleton ---------------------------------------------------- */

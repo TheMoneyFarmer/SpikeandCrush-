@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Lobby</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/themes.css" />
 <link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/lobby.css" />
 <link rel="stylesheet" href="css/premium.css" />
@@ -23,8 +24,30 @@
       </div>
       <span class="sc-logo-tagline">Up. Then not.</span>
     </div>
-    <div class="lobby-grid">
-      <div>
+    <div class="tw-prematch-grid">
+      <div class="tw-prematch-side side-you">
+        <div class="tw-prematch-side-label">YOU</div>
+        <ul class="player-list" id="youSlot"></ul>
+      </div>
+
+      <div class="tw-prematch-center">
+        <div class="panel tw-prematch-match-card" id="matchInfoCard">
+          <div class="tw-prematch-match-mode" id="matchModeValue">-</div>
+          <div class="tw-prematch-match-row">
+            <span>Instruments</span><span id="matchInstrumentsValue">-</span>
+          </div>
+          <div class="tw-prematch-match-row">
+            <span>Duration</span><span id="matchDurationValue">-</span>
+          </div>
+          <div class="tw-prematch-match-row">
+            <span>Entry</span><span id="matchEntryValue">-</span>
+          </div>
+          <div class="tw-prematch-match-row">
+            <span>Starting Capital</span><span>$10,000</span>
+          </div>
+          <div class="tw-prematch-rules-brief">Max 5.0 lots · Max 3 positions · Margin call at $5,000 equity</div>
+        </div>
+
         <div class="panel room-code-panel">
           <div class="text-secondary">ROOM CODE</div>
           <div class="room-code-value" id="roomCodeValue">------</div>
@@ -32,45 +55,32 @@
             <button id="copyCodeBtn" class="btn btn-primary">📋 Copy Code</button>
             <button id="shareLinkBtn" class="btn btn-outline">🔗 Share Link</button>
           </div>
-
-          <div class="match-settings-row">
-            <div class="setting">
-              <span class="label">Mode</span>
-              <span class="value" id="matchModeValue">-</span>
-            </div>
-            <div class="setting">
-              <span class="label">Instruments</span>
-              <span class="value" id="matchInstrumentsValue">-</span>
-            </div>
-            <div class="setting">
-              <span class="label">Duration</span>
-              <span class="value" id="matchDurationValue">-</span>
-            </div>
-          </div>
           <div class="lobby-fill-timer" id="lobbyFillTimer"></div>
           <button id="startNowBtn" class="btn btn-outline hidden" style="margin-top: 10px;">⚡ Start Now</button>
           <div style="display:flex;gap:8px;margin-top:10px;">
-            <button id="loadoutBtn" class="btn btn-outline" style="flex:1;">🎮 Loadout</button>
+            <button id="loadoutBtn" class="btn btn-outline" style="flex:1;">⚙️ Trade Setup</button>
             <button id="inviteFriendsBtn" class="btn btn-outline" style="flex:1;">👥 Invite Friends</button>
           </div>
-        </div>
-
-        <div class="panel chat-panel">
-          <h3>Match Chat</h3>
-          <div class="chat-log" id="chatLog"></div>
-          <div class="chat-presets" id="chatPresets">
-            <button class="btn" data-msg="GL HF">GL HF</button>
-            <button class="btn" data-msg="Let's go">Let's go</button>
-            <button class="btn" data-msg="May the best trader win">May the best trader win</button>
-            <button class="btn" data-msg="Ready to war">Ready to war</button>
-          </div>
+          <button id="readyBtn" class="btn btn-primary btn-block" style="margin-top: 10px">Ready</button>
         </div>
       </div>
 
-      <div class="panel">
-        <h3>Traders (<span id="playerCount">0</span>)</h3>
-        <ul class="player-list" id="playerList"></ul>
-        <button id="readyBtn" class="btn btn-primary btn-block" style="margin-top: 16px">Ready</button>
+      <div class="tw-prematch-side side-opponents">
+        <div class="tw-prematch-side-label">OPPONENTS (<span id="playerCount">0</span>)</div>
+        <ul class="player-list" id="opponentSlots"></ul>
+      </div>
+    </div>
+
+    <div class="tw-prematch-bottom-text">Invite friends to trade alongside you - more traders means more sabotage to go around.</div>
+
+    <div class="panel chat-panel">
+      <h3>Match Chat</h3>
+      <div class="chat-log" id="chatLog"></div>
+      <div class="chat-presets" id="chatPresets">
+        <button class="btn" data-msg="GL HF">GL HF</button>
+        <button class="btn" data-msg="Let's go">Let's go</button>
+        <button class="btn" data-msg="May the best trader win">May the best trader win</button>
+        <button class="btn" data-msg="Ready to war">Ready to war</button>
       </div>
     </div>
   </div>
@@ -100,31 +110,58 @@
     let currentState = null;
     let lobbyTimerInterval = null;
 
+    function countryFlag(code) {
+      if (!code || !/^[A-Za-z]{2}$/.test(code)) return '';
+      return String.fromCodePoint(...code.toUpperCase().split('').map((c) => 127397 + c.charCodeAt(0)));
+    }
+
+    function playerCardHtml(p, isYou) {
+      const flag = countryFlag(p.country);
+      return `
+        ${TW.createAvatar(p, isYou ? 'lg' : 'md')}
+        <div class="meta">
+          <div class="name">${TW.renderUsername(p)} ${flag}</div>
+          <div class="rating ${TW.tierClass(p.tier)}">${TW.TIER_ICON[p.tier] || '🔰'} ${TW.escapeHtml(p.tier)} · ${p.warRating}</div>
+        </div>
+        <span class="ready-badge ${p.ready ? 'ready' : ''}">${p.ready ? 'READY' : 'WAITING'}</span>
+      `;
+    }
+
+    function emptySlotHtml() {
+      return `<div class="player-avatar tw-empty-silhouette"></div><div class="meta"><div class="name text-secondary">Finding opponent<span class="tw-finding-dots">•••</span></div></div>`;
+    }
+
     function renderPlayers(state) {
-      const list = document.getElementById('playerList');
-      list.innerHTML = '';
-      state.players.forEach((p) => {
+      const youSlot = document.getElementById('youSlot');
+      const opponentSlots = document.getElementById('opponentSlots');
+      youSlot.innerHTML = '';
+      opponentSlots.innerHTML = '';
+
+      const me = state.players.find((p) => p.id === state.you);
+      const opponents = state.players.filter((p) => p.id !== state.you);
+
+      if (me) {
         const li = document.createElement('li');
-        li.className = 'player-row';
-        li.innerHTML = `
-          ${TW.createAvatar(p, 'md')}
-          <div class="meta">
-            <div class="name">${TW.renderUsername(p)}${p.id === state.you ? ' (you)' : ''}</div>
-            <div class="rating ${TW.tierClass(p.tier)}">${p.warRating} · ${TW.escapeHtml(p.tier)}</div>
-          </div>
-          <span class="ready-badge ${p.ready ? 'ready' : ''}">${p.ready ? 'READY' : 'WAITING'}</span>
-        `;
-        list.appendChild(li);
+        li.className = 'player-row player-row-you';
+        li.innerHTML = playerCardHtml(me, true) + '<span class="pill pill-gold">YOU</span>';
+        youSlot.appendChild(li);
+      }
+
+      opponents.forEach((p) => {
+        const li = document.createElement('li');
+        li.className = 'player-row player-row-opponent';
+        li.innerHTML = playerCardHtml(p, false);
+        opponentSlots.appendChild(li);
       });
 
       const remaining = Math.max(0, (state.lobbyTargetSize || 4) - state.players.length);
       for (let i = 0; i < remaining; i++) {
         const li = document.createElement('li');
-        li.className = 'player-row pending';
-        li.innerHTML = `<div class="player-avatar tw-finding-dots">•••</div><div class="meta"><div class="name">Finding opponent<span class="tw-finding-dots">•••</span></div></div>`;
-        list.appendChild(li);
+        li.className = 'player-row player-row-opponent pending';
+        li.innerHTML = emptySlotHtml();
+        opponentSlots.appendChild(li);
       }
-      document.getElementById('playerCount').textContent = state.players.length;
+      document.getElementById('playerCount').textContent = opponents.length;
     }
 
     function updateLobbyTimer(state) {
@@ -165,6 +202,7 @@
       document.getElementById('matchModeValue').textContent = state.modeLabel || (state.mode === 'quick' ? 'Quick War' : 'Private War');
       document.getElementById('matchInstrumentsValue').textContent = state.instruments.join(' / ');
       document.getElementById('matchDurationValue').textContent = `${Math.floor(state.durationSeconds / 60)} min`;
+      document.getElementById('matchEntryValue').textContent = state.entryCoins > 0 ? `🪙 ${state.entryCoins} coins` : 'Free';
       renderPlayers(state);
       updateLobbyTimer(state);
       updateStartNowButton(state);
@@ -360,7 +398,7 @@
             return;
           }
           const result = await TW.emitAck('loadout:select_cards', { cardTypes: Array.from(selectedCardTypes) });
-          if (result.success) TW.toast('Loadout saved!', 'info');
+          if (result.success) TW.toast('Setup saved!', 'info');
           else TW.toast(result.error, 'danger');
         });
       } else {

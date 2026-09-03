@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Settings</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/themes.css" />
 <link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/premium.css" />
 <style>
@@ -34,28 +35,30 @@
   .session-row, .login-row, .block-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 10px; }
   .danger-zone { border: 1px solid var(--sell); border-radius: var(--radius); padding: 16px; margin-top: 20px; }
 
-  .theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 8px; }
-  .theme-card { border: 2px solid var(--border); border-radius: var(--radius); padding: 10px; cursor: pointer; transition: border-color 0.15s; }
-  .theme-card:hover { border-color: var(--border-strong); }
-  .theme-card.active { border-color: var(--accent); }
-  .theme-preview { width: 100%; height: 80px; border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; }
-  .theme-preview .preview-nav { height: 16px; }
-  .theme-preview .preview-content { flex: 1; display: flex; gap: 6px; padding: 8px; }
-  .theme-preview .preview-card { flex: 1; border-radius: 4px; }
-  .theme-label { font-weight: 700; font-size: 13px; margin-top: 8px; }
-  .theme-desc { font-size: 11px; color: var(--text-secondary); }
+  .theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px; }
+  @media (max-width: 480px) { .theme-grid { grid-template-columns: 1fr; } }
+  .theme-card {
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    background: var(--bg-surface-2);
+  }
+  .theme-card:hover { border-color: var(--border-strong); transform: scale(1.02); }
+  .theme-card.active { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-glow); }
+  .theme-preview { height: 80px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; }
+  .theme-preview-dots { display: flex; gap: 6px; }
+  .theme-preview-dots span { width: 8px; height: 8px; border-radius: 50%; }
+  .theme-preview-accent { height: 3px; border-radius: 2px; width: 60%; }
+  .theme-info { padding: 8px 12px 10px; background: var(--bg-surface-2); }
+  .theme-label { font-weight: 800; font-size: 12px; letter-spacing: 0.08em; color: var(--text-primary); }
+  .theme-desc { font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
 
-  .theme-dark-preview { background: #080810; }
-  .theme-dark-preview .preview-nav { background: #0f1018; }
-  .theme-dark-preview .preview-card { background: #161820; }
-
-  .theme-midnight-preview { background: #08060f; }
-  .theme-midnight-preview .preview-nav { background: #100d1a; }
-  .theme-midnight-preview .preview-card { background: #181424; }
-
-  .theme-light-preview { background: #f0f2f5; }
-  .theme-light-preview .preview-nav { background: #ffffff; }
-  .theme-light-preview .preview-card { background: #f8f9fa; border: 1px solid #dde1e6; }
+  .theme-default-preview { background: linear-gradient(135deg, #0A0C14, #1A1E2A); }
+  .theme-midnight-preview { background: linear-gradient(135deg, #08060F, #100D1C); }
+  .theme-combat-preview { background: linear-gradient(135deg, #0E0508, #1A0C10); }
+  .theme-light-preview { background: linear-gradient(135deg, #F0F2F7, #FFFFFF); }
 </style>
 </head>
 <body data-page="settings">
@@ -158,20 +161,45 @@
         <div class="field" style="margin-top:14px;">
           <label>Theme</label>
           <div class="theme-grid" id="themeGrid">
-            <div class="theme-card" data-theme="dark">
-              <div class="theme-preview theme-dark-preview"><div class="preview-nav"></div><div class="preview-content"><div class="preview-card"></div><div class="preview-card"></div></div></div>
-              <div class="theme-label">Dark</div>
-              <div class="theme-desc">Default dark trading terminal</div>
+            <div class="theme-card" data-theme="default">
+              <div class="theme-preview theme-default-preview">
+                <div class="theme-preview-dots"><span style="background:#F5C542;"></span><span style="background:#00C896;"></span><span style="background:#FF3D5C;"></span></div>
+                <div class="theme-preview-accent" style="background:#F5C542;"></div>
+              </div>
+              <div class="theme-info">
+                <div class="theme-label">WAR ROOM</div>
+                <div class="theme-desc">Navy Gold · Default</div>
+              </div>
             </div>
             <div class="theme-card" data-theme="midnight">
-              <div class="theme-preview theme-midnight-preview"><div class="preview-nav"></div><div class="preview-content"><div class="preview-card"></div><div class="preview-card"></div></div></div>
-              <div class="theme-label">Midnight</div>
-              <div class="theme-desc">Deep purple night mode</div>
+              <div class="theme-preview theme-midnight-preview">
+                <div class="theme-preview-dots"><span style="background:#C080FF;"></span><span style="background:#A060E0;"></span><span style="background:#FF4080;"></span></div>
+                <div class="theme-preview-accent" style="background:#C080FF;"></div>
+              </div>
+              <div class="theme-info">
+                <div class="theme-label">MIDNIGHT</div>
+                <div class="theme-desc">Purple Dark · Intense</div>
+              </div>
+            </div>
+            <div class="theme-card" data-theme="combat">
+              <div class="theme-preview theme-combat-preview">
+                <div class="theme-preview-dots"><span style="background:#FF8C42;"></span><span style="background:#FF3D5C;"></span><span style="background:#00C896;"></span></div>
+                <div class="theme-preview-accent" style="background:#FF8C42;"></div>
+              </div>
+              <div class="theme-info">
+                <div class="theme-label">COMBAT</div>
+                <div class="theme-desc">Crimson Red · Aggressive</div>
+              </div>
             </div>
             <div class="theme-card" data-theme="light">
-              <div class="theme-preview theme-light-preview"><div class="preview-nav"></div><div class="preview-content"><div class="preview-card"></div><div class="preview-card"></div></div></div>
-              <div class="theme-label">Light</div>
-              <div class="theme-desc">Clean light mode</div>
+              <div class="theme-preview theme-light-preview">
+                <div class="theme-preview-dots"><span style="background:#B8860B;"></span><span style="background:#007A5E;"></span><span style="background:#CC1F40;"></span></div>
+                <div class="theme-preview-accent" style="background:#B8860B;"></div>
+              </div>
+              <div class="theme-info">
+                <div class="theme-label">CLEAN LIGHT</div>
+                <div class="theme-desc">White Pro · Bloomberg</div>
+              </div>
             </div>
           </div>
         </div>

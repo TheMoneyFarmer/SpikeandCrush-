@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<script>(function(){try{var t=localStorage.getItem("sc_theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Spectate</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/themes.css" />
 <link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/game.css" />
 <link rel="stylesheet" href="css/premium.css" />
@@ -22,7 +23,7 @@
         <div class="topbar-pnl-value">👁️</div>
       </div>
       <div class="instrument-tabs" id="instrumentTabs"></div>
-      <a href="/" class="btn btn-outline">Exit</a>
+      <a href="/play" class="btn btn-outline">Exit</a>
     </div>
 
     <div class="game-main">
@@ -60,7 +61,7 @@
     TW.requireAuth();
     const params = new URLSearchParams(window.location.search);
     const matchId = params.get('matchId');
-    if (!matchId) window.location.href = '/';
+    if (!matchId) window.location.href = '/play';
 
     TW.Chart.init('chartCanvas');
     let activeInstrument = 'EURUSD';
@@ -116,7 +117,7 @@
     }
 
     const socket = TW.connectSocket();
-    if (!socket) window.location.href = '/';
+    if (!socket) window.location.href = '/play';
 
     socket.on('connect', async () => {
       const result = await TW.emitAck('spectate:join', { matchId });
@@ -134,7 +135,7 @@
     socket.on('leaderboard:update', (payload) => TW.Leaderboard.render(payload, null));
     socket.on('match:end', () => {
       TW.toast('This match has ended', 'info');
-      setTimeout(() => (window.location.href = '/'), 2500);
+      setTimeout(() => (window.location.href = '/play'), 2500);
     });
   </script>
   <footer class="legal-footer">

@@ -1,0 +1,735 @@
+/* ============================================================
+   Theme system - COD Mobile-inspired palette, 4 themes (Default War Room /
+   Midnight / Combat / Light), switched via data-theme on <html>.
+
+   Philosophy: navy not black for depth: GOLD is the primary UI accent
+   (buttons, borders, focus rings, ranks - like COD's menu chrome); TEAL and
+   RED are reserved for trading actions (buy/profit, sell/loss) ONLY.
+
+   Each theme block below has two parts:
+     1. The full spec variable set (--gold-*, --teal-*, --red-*, --grad-*,
+        --btn-*, --tier-*, ...) - the source of truth for every color.
+     2. A "backward-compat aliases" block mapping the OLDER short/long names
+        still consumed throughout main.css/premium.css/game.css/lobby.css
+        (--bg, --accent, --buy-color, --gradient-primary, --glow-teal, ...)
+        onto the values above, so nothing already built against those names
+        breaks. --gradient-primary specifically stays pointed at the TEAL/
+        buy gradient (not gold) because it's shared by positive-P&L text and
+        the logo gradient, not just the primary CTA button - .btn-primary
+        itself is fixed directly in main.css/premium.css to reference gold.
+
+   A bare :root carries the Default theme's values as the fallback so any
+   page that hasn't run its anti-FOUC script yet still renders correctly -
+   see the inline <script> right after the viewport meta tag in each HTML
+   file, and TW.setTheme/getTheme in js/main.js.
+   ============================================================ */
+
+/* ═══════════════════════════════════
+   THEME 1 — DEFAULT (COD-inspired navy gold) — War Room
+   ═══════════════════════════════════ */
+
+:root,
+[data-theme='default'] {
+  /* ── Backgrounds ── */
+  --bg-base: #0A0C14;
+  --bg-surface-1: #1A1E2A;
+  --bg-surface-2: #1E2438;
+  --bg-surface-3: #242C44;
+  --bg-elevated: #2A3450;
+  --bg-card: #1A1E2A;
+  --bg-overlay: rgba(10, 12, 20, 0.92);
+
+  /* ── Borders ── */
+  --border-subtle: rgba(42, 48, 64, 0.8);
+  --border-normal: #2A3040;
+  --border-strong: #3A4060;
+  --border-gold: rgba(245, 197, 66, 0.4);
+  --border-teal: rgba(0, 200, 150, 0.3);
+
+  /* ── Text ── */
+  --text-primary: #FFFFFF;
+  --text-secondary: #8090A8;
+  --text-muted: #4A5870;
+  --text-gold: #F5C542;
+  --text-teal: #00C896;
+  --text-red: #FF3D5C;
+  --text-blue: #A0C8F0;
+  --text-mint: #C8F0E0;
+
+  /* ── Primary accent — GOLD like COD ── */
+  --gold: #F5C542;
+  --gold-bright: #FFD700;
+  --gold-dark: #D4A017;
+  --gold-btn: #C8A830;
+  --gold-deep: #B8860B;
+  --gold-glow: rgba(245, 197, 66, 0.35);
+  --gold-subtle: rgba(245, 197, 66, 0.08);
+  --gold-border: rgba(245, 197, 66, 0.3);
+
+  /* ── Trading accent — TEAL ── */
+  --teal: #00C896;
+  --teal-bright: #00FF9D;
+  --teal-dark: #00956F;
+  --teal-glow: rgba(0, 200, 150, 0.35);
+  --teal-subtle: rgba(0, 200, 150, 0.08);
+  --teal-border: rgba(0, 200, 150, 0.3);
+
+  /* ── Danger — RED ── */
+  --red: #FF3D5C;
+  --red-bright: #FF6080;
+  --red-dark: #CC1F40;
+  --red-glow: rgba(255, 61, 92, 0.35);
+  --red-subtle: rgba(255, 61, 92, 0.08);
+
+  /* ── Teams and UI ── */
+  --blue-team: #1E2E48;
+  --red-team: #2E1E1E;
+  --blue-text: #4A90D0;
+  --purple-text: #A060E0;
+  --badge-red: #CC1A1A;
+
+  /* ── Trading specific ── */
+  --buy: #00C896;
+  --sell: #FF3D5C;
+  --profit: #00C896;
+  --loss: #FF3D5C;
+  --warning: #F5C542;
+  --neutral: #8090A8;
+
+  /* ── Gradients ── */
+  --grad-gold: linear-gradient(135deg, #F5C542 0%, #D4A017 100%);
+  --grad-gold-btn: linear-gradient(135deg, #D4A017 0%, #C8A830 100%);
+  --grad-teal: linear-gradient(135deg, #00C896 0%, #00956F 100%);
+  --grad-red: linear-gradient(135deg, #FF3D5C 0%, #CC1F40 100%);
+  --grad-surface: linear-gradient(135deg, #1A1E2A 0%, #1E2438 100%);
+  --grad-hero: linear-gradient(160deg, #0A0C14 0%, #0E1220 30%, #121830 60%, #0A0C14 100%);
+  --grad-card: linear-gradient(160deg, #1A1E2A 0%, #1E2438 100%);
+
+  /* ── Shadows ── */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.6);
+  --shadow-gold: 0 0 30px rgba(245, 197, 66, 0.2);
+  --shadow-teal: 0 0 30px rgba(0, 200, 150, 0.15);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+
+  /* ── Navigation ── */
+  --nav-bg: rgba(10, 12, 20, 0.95);
+  --nav-border: #2A3040;
+  --nav-height: 60px;
+
+  /* ── Inputs ── */
+  --input-bg: #1E2438;
+  --input-border: #2A3040;
+  --input-focus: rgba(245, 197, 66, 0.25);
+  --input-text: #FFFFFF;
+  --input-ph: #4A5870;
+
+  /* ── Chart ── */
+  --chart-bg: #0A0C14;
+  --chart-grid: rgba(42, 48, 64, 0.6);
+  --chart-text: #4A5870;
+  --chart-border: #2A3040;
+  --candle-up: #00C896;
+  --candle-down: #FF3D5C;
+
+  /* ── Buttons ── */
+  --btn-cta-bg: var(--grad-gold-btn);
+  --btn-cta-text: #0A0800;
+  --btn-primary-bg: var(--grad-teal);
+  --btn-primary-text: #000000;
+  --btn-danger-bg: var(--grad-red);
+  --btn-danger-text: #FFFFFF;
+  --btn-ghost-bg: rgba(255, 255, 255, 0.06);
+  --btn-ghost-text: #FFFFFF;
+  --btn-ghost-border: #2A3040;
+
+  /* ── Tier colors ── */
+  --tier-recruit: #8090A8;
+  --tier-trader: #A0C8F0;
+  --tier-broker: #00C896;
+  --tier-analyst: #A060E0;
+  --tier-veteran: #FF8C42;
+  --tier-elite: #F5C542;
+  --tier-warlord: #FFD700;
+
+  /* ---- backward-compat aliases (older short/long names still consumed by
+     main.css/premium.css/game.css/lobby.css) - see file header ---- */
+  --bg: var(--bg-base);
+  --surface: var(--bg-surface-1);
+  --surface-2: var(--bg-surface-2);
+  --surface-3: var(--bg-surface-3);
+  --border: var(--border-normal);
+  --text: var(--text-primary);
+  --accent: var(--gold);
+  --accent-teal: var(--gold);
+  --accent-teal-dark: var(--gold-dark);
+  --accent-gold: var(--gold);
+  --accent-gold-dark: var(--gold-dark);
+  --accent-red: var(--red);
+  --accent-red-dark: var(--red-dark);
+  --accent-irony: var(--gold);
+  --glow-teal: var(--teal-glow);
+  --glow-gold: var(--gold-glow);
+  --glow-red: var(--red-glow);
+  --buy-color: var(--buy);
+  --buy-color-dark: #00956F;
+  --sell-color: var(--sell);
+  --profit-color: var(--profit);
+  --loss-color: var(--loss);
+  --warning-color: var(--warning);
+  --spike-green: var(--buy);
+  --spike-green-bright: var(--teal-bright);
+  --spike-glow: rgba(0, 200, 150, 0.35);
+  --crush-red: var(--sell);
+  --crush-red-dark: var(--red-dark);
+  --crush-glow: var(--red-glow);
+  /* --gradient-primary stays TEAL (not gold) - shared by positive-P&L text
+     and the logo gradient, not just the CTA button; .btn-primary itself is
+     fixed directly to gold in main.css/premium.css. */
+  --gradient-primary: var(--grad-teal);
+  --gradient-danger: var(--grad-red);
+  --gradient-gold: var(--grad-gold);
+  --gradient-dark: var(--grad-surface);
+  --gradient-surface: var(--grad-surface);
+  --gradient-card: var(--grad-card);
+  --gradient-hero: var(--grad-hero);
+  --card-shadow: var(--shadow-card);
+  --shadow-elevated: var(--shadow-lg);
+  --shadow-glow-teal: var(--shadow-teal);
+  --overlay-soft: rgba(255, 255, 255, 0.03);
+  --overlay-medium: rgba(255, 255, 255, 0.08);
+  --border-accent: var(--border-gold);
+  --text-accent: var(--gold);
+  --btn-secondary-bg: var(--btn-ghost-bg);
+}
+
+/* ═══════════════════════════════════
+   THEME 2 — MIDNIGHT (Deep purple)
+   ═══════════════════════════════════ */
+
+[data-theme='midnight'] {
+  --bg-base: #08060F;
+  --bg-surface-1: #100D1C;
+  --bg-surface-2: #161428;
+  --bg-surface-3: #1E1A36;
+  --bg-elevated: #261F44;
+  --bg-card: #100D1C;
+  --bg-overlay: rgba(8, 6, 15, 0.95);
+
+  --border-subtle: rgba(100, 80, 180, 0.12);
+  --border-normal: rgba(120, 100, 200, 0.2);
+  --border-strong: rgba(140, 120, 220, 0.3);
+  --border-gold: rgba(180, 120, 255, 0.4);
+  --border-teal: rgba(140, 80, 255, 0.3);
+
+  --text-primary: #E8E0FF;
+  --text-secondary: #7060A0;
+  --text-muted: #403060;
+  --text-gold: #C080FF;
+  --text-teal: #A060E0;
+  --text-red: #FF4080;
+  --text-blue: #C0A0FF;
+  --text-mint: #E0C0FF;
+
+  --gold: #C080FF;
+  --gold-bright: #E0A0FF;
+  --gold-dark: #9040CC;
+  --gold-btn: #A060E0;
+  --gold-deep: #7030B0;
+  --gold-glow: rgba(192, 128, 255, 0.4);
+  --gold-subtle: rgba(192, 128, 255, 0.08);
+  --gold-border: rgba(192, 128, 255, 0.3);
+
+  --teal: #A060E0;
+  --teal-bright: #C080FF;
+  --teal-dark: #7040B0;
+  --teal-glow: rgba(160, 96, 224, 0.4);
+  --teal-subtle: rgba(160, 96, 224, 0.08);
+  --teal-border: rgba(160, 96, 224, 0.3);
+
+  --red: #FF4080;
+  --red-bright: #FF60A0;
+  --red-dark: #CC1050;
+  --red-glow: rgba(255, 64, 128, 0.35);
+  --red-subtle: rgba(255, 64, 128, 0.08);
+
+  --blue-team: #1E2E48;
+  --red-team: #2E1E1E;
+  --blue-text: #C0A0FF;
+  --purple-text: #C080FF;
+  --badge-red: #CC1A5A;
+
+  /* Midnight deliberately goes full-purple, including trading actions -
+     buy/profit are purple here, not green (Combat below keeps buy green
+     instead, since red-vs-red would be confusing there). */
+  --buy: #A060E0;
+  --sell: #FF4080;
+  --profit: #A060E0;
+  --loss: #FF4080;
+  --warning: #C080FF;
+  --neutral: #7060A0;
+
+  --grad-gold: linear-gradient(135deg, #C080FF 0%, #9040CC 100%);
+  --grad-gold-btn: linear-gradient(135deg, #9040CC 0%, #7030B0 100%);
+  --grad-teal: linear-gradient(135deg, #A060E0 0%, #7040B0 100%);
+  --grad-red: linear-gradient(135deg, #FF4080 0%, #CC1050 100%);
+  --grad-surface: linear-gradient(135deg, #100D1C 0%, #161428 100%);
+  --grad-hero: linear-gradient(160deg, #08060F 0%, #0C0A18 30%, #100D20 60%, #08060F 100%);
+  --grad-card: linear-gradient(160deg, #100D1C 0%, #161428 100%);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.7);
+  --shadow-gold: 0 0 30px rgba(192, 128, 255, 0.25);
+  --shadow-teal: 0 0 30px rgba(160, 96, 224, 0.2);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(180, 160, 255, 0.05) inset;
+
+  --nav-bg: rgba(8, 6, 15, 0.95);
+  --nav-border: rgba(100, 80, 180, 0.2);
+  --nav-height: 60px;
+
+  --input-bg: #161428;
+  --input-border: rgba(120, 100, 200, 0.2);
+  --input-focus: rgba(192, 128, 255, 0.25);
+  --input-text: #E8E0FF;
+  --input-ph: #403060;
+
+  --chart-bg: #08060F;
+  --chart-grid: rgba(100, 80, 180, 0.08);
+  --chart-text: #403060;
+  --chart-border: rgba(100, 80, 180, 0.15);
+  --candle-up: #A060E0;
+  --candle-down: #FF4080;
+
+  --btn-cta-bg: var(--grad-gold-btn);
+  --btn-cta-text: #FFFFFF;
+  --btn-primary-bg: var(--grad-teal);
+  --btn-primary-text: #FFFFFF;
+  --btn-danger-bg: var(--grad-red);
+  --btn-danger-text: #FFFFFF;
+  --btn-ghost-bg: rgba(192, 128, 255, 0.06);
+  --btn-ghost-text: #E8E0FF;
+  --btn-ghost-border: rgba(120, 100, 200, 0.2);
+
+  --tier-recruit: #7060A0;
+  --tier-trader: #C0A0FF;
+  --tier-broker: #A060E0;
+  --tier-analyst: #C080FF;
+  --tier-veteran: #FF60A0;
+  --tier-elite: #E0A0FF;
+  --tier-warlord: #FFD700;
+
+  /* ---- backward-compat aliases ---- */
+  --bg: var(--bg-base);
+  --surface: var(--bg-surface-1);
+  --surface-2: var(--bg-surface-2);
+  --surface-3: var(--bg-surface-3);
+  --border: var(--border-normal);
+  --text: var(--text-primary);
+  --accent: var(--gold);
+  --accent-teal: var(--gold);
+  --accent-teal-dark: var(--gold-dark);
+  --accent-gold: var(--gold);
+  --accent-gold-dark: var(--gold-dark);
+  --accent-red: var(--red);
+  --accent-red-dark: var(--red-dark);
+  --accent-irony: var(--gold);
+  --glow-teal: var(--teal-glow);
+  --glow-gold: var(--gold-glow);
+  --glow-red: var(--red-glow);
+  --buy-color: var(--buy);
+  --buy-color-dark: #7040B0;
+  --sell-color: var(--sell);
+  --profit-color: var(--profit);
+  --loss-color: var(--loss);
+  --warning-color: var(--warning);
+  --spike-green: var(--buy);
+  --spike-green-bright: var(--teal-bright);
+  --spike-glow: rgba(160, 96, 224, 0.4);
+  --crush-red: var(--sell);
+  --crush-red-dark: var(--red-dark);
+  --crush-glow: var(--red-glow);
+  --gradient-primary: var(--grad-teal);
+  --gradient-danger: var(--grad-red);
+  --gradient-gold: var(--grad-gold);
+  --gradient-dark: var(--grad-surface);
+  --gradient-surface: var(--grad-surface);
+  --gradient-card: var(--grad-card);
+  --gradient-hero: var(--grad-hero);
+  --card-shadow: var(--shadow-card);
+  --shadow-elevated: var(--shadow-lg);
+  --shadow-glow-teal: var(--shadow-teal);
+  --overlay-soft: rgba(192, 128, 255, 0.04);
+  --overlay-medium: rgba(192, 128, 255, 0.1);
+  --border-accent: var(--border-gold);
+  --text-accent: var(--gold);
+  --btn-secondary-bg: var(--btn-ghost-bg);
+}
+
+/* ═══════════════════════════════════
+   THEME 3 — COMBAT (Blood Market crimson)
+   ═══════════════════════════════════ */
+
+[data-theme='combat'] {
+  --bg-base: #0E0508;
+  --bg-surface-1: #1A0C10;
+  --bg-surface-2: #221018;
+  --bg-surface-3: #2A1420;
+  --bg-elevated: #32182A;
+  --bg-card: #1A0C10;
+  --bg-overlay: rgba(14, 5, 8, 0.95);
+
+  --border-subtle: rgba(180, 40, 60, 0.1);
+  --border-normal: rgba(200, 50, 70, 0.18);
+  --border-strong: rgba(220, 60, 80, 0.28);
+  --border-gold: rgba(255, 100, 60, 0.4);
+  --border-teal: rgba(255, 61, 92, 0.3);
+
+  --text-primary: #FFE8EC;
+  --text-secondary: #805060;
+  --text-muted: #502030;
+  --text-gold: #FF8C42;
+  --text-teal: #FF3D5C;
+  --text-red: #FF3D5C;
+  --text-blue: #FFA080;
+  --text-mint: #FFC0A0;
+
+  --gold: #FF8C42;
+  --gold-bright: #FFA060;
+  --gold-dark: #CC5500;
+  --gold-btn: #E06030;
+  --gold-deep: #AA3A10;
+  --gold-glow: rgba(255, 140, 66, 0.4);
+  --gold-subtle: rgba(255, 140, 66, 0.08);
+  --gold-border: rgba(255, 140, 66, 0.3);
+
+  --teal: #FF3D5C;
+  --teal-bright: #FF6080;
+  --teal-dark: #CC1F40;
+  --teal-glow: rgba(255, 61, 92, 0.4);
+  --teal-subtle: rgba(255, 61, 92, 0.08);
+  --teal-border: rgba(255, 61, 92, 0.3);
+
+  --red: #FF3D5C;
+  --red-bright: #FF6080;
+  --red-dark: #CC1F40;
+  --red-glow: rgba(255, 61, 92, 0.5);
+  --red-subtle: rgba(255, 61, 92, 0.1);
+
+  --blue-team: #1E2E48;
+  --red-team: #2E1E1E;
+  --blue-text: #FFA080;
+  --purple-text: #E06030;
+  --badge-red: #CC1A1A;
+
+  /* Combat keeps buy/profit GREEN on purpose - if buy were also red-ish
+     here, buy vs sell would be nearly indistinguishable mid-match. */
+  --buy: #00C896;
+  --sell: #FF3D5C;
+  --profit: #00C896;
+  --loss: #FF3D5C;
+  --warning: #FF8C42;
+  --neutral: #805060;
+
+  --grad-gold: linear-gradient(135deg, #FF8C42 0%, #CC5500 100%);
+  --grad-gold-btn: linear-gradient(135deg, #CC5500 0%, #AA3A10 100%);
+  --grad-teal: linear-gradient(135deg, #FF3D5C 0%, #CC1F40 100%);
+  --grad-red: linear-gradient(135deg, #FF3D5C 0%, #CC1F40 100%);
+  --grad-surface: linear-gradient(135deg, #1A0C10 0%, #221018 100%);
+  --grad-hero: linear-gradient(160deg, #0E0508 0%, #140810 30%, #180B14 60%, #0E0508 100%);
+  --grad-card: linear-gradient(160deg, #1A0C10 0%, #221018 100%);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.75);
+  --shadow-gold: 0 0 30px rgba(255, 140, 66, 0.25);
+  --shadow-teal: 0 0 30px rgba(255, 61, 92, 0.2);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 100, 80, 0.05) inset;
+
+  --nav-bg: rgba(14, 5, 8, 0.95);
+  --nav-border: rgba(180, 40, 60, 0.15);
+  --nav-height: 60px;
+
+  --input-bg: #221018;
+  --input-border: rgba(200, 50, 70, 0.18);
+  --input-focus: rgba(255, 140, 66, 0.25);
+  --input-text: #FFE8EC;
+  --input-ph: #502030;
+
+  --chart-bg: #0E0508;
+  --chart-grid: rgba(180, 40, 60, 0.06);
+  --chart-text: #503040;
+  --chart-border: rgba(180, 40, 60, 0.12);
+  --candle-up: #00C896;
+  --candle-down: #FF3D5C;
+
+  --btn-cta-bg: var(--grad-gold-btn);
+  --btn-cta-text: #FFFFFF;
+  --btn-primary-bg: var(--grad-teal);
+  --btn-primary-text: #FFFFFF;
+  --btn-danger-bg: var(--grad-red);
+  --btn-danger-text: #FFFFFF;
+  --btn-ghost-bg: rgba(255, 61, 92, 0.06);
+  --btn-ghost-text: #FFE8EC;
+  --btn-ghost-border: rgba(200, 50, 70, 0.18);
+
+  --tier-recruit: #805060;
+  --tier-trader: #FFA080;
+  --tier-broker: #00C896;
+  --tier-analyst: #E06030;
+  --tier-veteran: #FF8C42;
+  --tier-elite: #FFA060;
+  --tier-warlord: #FFD700;
+
+  /* ---- backward-compat aliases ---- */
+  --bg: var(--bg-base);
+  --surface: var(--bg-surface-1);
+  --surface-2: var(--bg-surface-2);
+  --surface-3: var(--bg-surface-3);
+  --border: var(--border-normal);
+  --text: var(--text-primary);
+  --accent: var(--gold);
+  --accent-teal: var(--gold);
+  --accent-teal-dark: var(--gold-dark);
+  --accent-gold: var(--gold);
+  --accent-gold-dark: var(--gold-dark);
+  --accent-red: var(--red);
+  --accent-red-dark: var(--red-dark);
+  --accent-irony: var(--gold);
+  --glow-teal: var(--teal-glow);
+  --glow-gold: var(--gold-glow);
+  --glow-red: var(--red-glow);
+  --buy-color: var(--buy);
+  --buy-color-dark: #00956F;
+  --sell-color: var(--sell);
+  --profit-color: var(--profit);
+  --loss-color: var(--loss);
+  --warning-color: var(--warning);
+  --spike-green: var(--buy);
+  --spike-green-bright: #00FF9D;
+  --spike-glow: rgba(0, 200, 150, 0.35);
+  --crush-red: var(--sell);
+  --crush-red-dark: var(--red-dark);
+  --crush-glow: var(--red-glow);
+  --gradient-primary: var(--grad-teal);
+  --gradient-danger: var(--grad-red);
+  --gradient-gold: var(--grad-gold);
+  --gradient-dark: var(--grad-surface);
+  --gradient-surface: var(--grad-surface);
+  --gradient-card: var(--grad-card);
+  --gradient-hero: var(--grad-hero);
+  --card-shadow: var(--shadow-card);
+  --shadow-elevated: var(--shadow-lg);
+  --shadow-glow-teal: var(--shadow-teal);
+  --overlay-soft: rgba(255, 61, 92, 0.04);
+  --overlay-medium: rgba(255, 61, 92, 0.1);
+  --border-accent: var(--border-gold);
+  --text-accent: var(--gold);
+  --btn-secondary-bg: var(--btn-ghost-bg);
+}
+
+/* ═══════════════════════════════════
+   THEME 4 — CLEAN LIGHT
+   Professional Bloomberg/TradingView light
+   ═══════════════════════════════════ */
+
+[data-theme='light'] {
+  --bg-base: #F0F2F7;
+  --bg-surface-1: #FFFFFF;
+  --bg-surface-2: #F8F9FC;
+  --bg-surface-3: #EEF0F5;
+  --bg-elevated: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-overlay: rgba(240, 242, 247, 0.95);
+
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-normal: rgba(0, 0, 0, 0.1);
+  --border-strong: rgba(0, 0, 0, 0.18);
+  --border-gold: rgba(180, 130, 0, 0.3);
+  --border-teal: rgba(0, 130, 100, 0.3);
+
+  --text-primary: #0A0E18;
+  --text-secondary: #5A6478;
+  --text-muted: #9AA0B0;
+  --text-gold: #B8860B;
+  --text-teal: #007A5E;
+  --text-red: #CC1F40;
+  --text-blue: #1A6FCC;
+  --text-mint: #005A44;
+
+  --gold: #B8860B;
+  --gold-bright: #D4A017;
+  --gold-dark: #8B6508;
+  --gold-btn: #C8A030;
+  --gold-deep: #7A5500;
+  --gold-glow: rgba(184, 134, 11, 0.2);
+  --gold-subtle: rgba(184, 134, 11, 0.08);
+  --gold-border: rgba(184, 134, 11, 0.25);
+
+  --teal: #007A5E;
+  --teal-bright: #00C896;
+  --teal-dark: #005A44;
+  --teal-glow: rgba(0, 122, 94, 0.2);
+  --teal-subtle: rgba(0, 122, 94, 0.08);
+  --teal-border: rgba(0, 122, 94, 0.25);
+
+  --red: #CC1F40;
+  --red-bright: #FF3D5C;
+  --red-dark: #990F28;
+  --red-glow: rgba(204, 31, 64, 0.2);
+  --red-subtle: rgba(204, 31, 64, 0.06);
+
+  --blue-team: #E8EEF8;
+  --red-team: #F8ECEC;
+  --blue-text: #1A6FCC;
+  --purple-text: #7040B0;
+  --badge-red: #CC1A1A;
+
+  --buy: #007A5E;
+  --sell: #CC1F40;
+  --profit: #007A5E;
+  --loss: #CC1F40;
+  --warning: #B8860B;
+  --neutral: #5A6478;
+
+  --grad-gold: linear-gradient(135deg, #D4A017 0%, #B8860B 100%);
+  --grad-gold-btn: linear-gradient(135deg, #C8A030 0%, #B8860B 100%);
+  --grad-teal: linear-gradient(135deg, #007A5E 0%, #005A44 100%);
+  --grad-red: linear-gradient(135deg, #CC1F40 0%, #990F28 100%);
+  --grad-surface: linear-gradient(135deg, #FFFFFF 0%, #F8F9FC 100%);
+  --grad-hero: linear-gradient(160deg, #E8ECF4 0%, #EEF2FA 30%, #E8F0F8 60%, #E8ECF4 100%);
+  --grad-card: linear-gradient(160deg, #FFFFFF 0%, #F8F9FC 100%);
+
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.12);
+  --shadow-gold: 0 0 20px rgba(184, 134, 11, 0.12);
+  --shadow-teal: 0 0 20px rgba(0, 122, 94, 0.1);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+
+  --nav-bg: rgba(255, 255, 255, 0.96);
+  --nav-border: rgba(0, 0, 0, 0.08);
+  --nav-height: 60px;
+
+  --input-bg: #F8F9FC;
+  --input-border: rgba(0, 0, 0, 0.1);
+  --input-focus: rgba(184, 134, 11, 0.2);
+  --input-text: #0A0E18;
+  --input-ph: #9AA0B0;
+
+  --chart-bg: #FFFFFF;
+  --chart-grid: rgba(0, 0, 0, 0.04);
+  --chart-text: #8090A8;
+  --chart-border: rgba(0, 0, 0, 0.08);
+  --candle-up: #007A5E;
+  --candle-down: #CC1F40;
+
+  --btn-cta-bg: var(--grad-gold-btn);
+  --btn-cta-text: #FFFFFF;
+  --btn-primary-bg: var(--grad-teal);
+  --btn-primary-text: #FFFFFF;
+  --btn-danger-bg: var(--grad-red);
+  --btn-danger-text: #FFFFFF;
+  --btn-ghost-bg: rgba(0, 0, 0, 0.05);
+  --btn-ghost-text: #0A0E18;
+  --btn-ghost-border: rgba(0, 0, 0, 0.12);
+
+  --tier-recruit: #9AA0B0;
+  --tier-trader: #1A6FCC;
+  --tier-broker: #007A5E;
+  --tier-analyst: #7040B0;
+  --tier-veteran: #CC6A20;
+  --tier-elite: #B8860B;
+  --tier-warlord: #D4A017;
+
+  /* ---- backward-compat aliases ---- */
+  --bg: var(--bg-base);
+  --surface: var(--bg-surface-1);
+  --surface-2: var(--bg-surface-2);
+  --surface-3: var(--bg-surface-3);
+  --border: var(--border-normal);
+  --text: var(--text-primary);
+  --accent: var(--gold);
+  --accent-teal: var(--gold);
+  --accent-teal-dark: var(--gold-dark);
+  --accent-gold: var(--gold);
+  --accent-gold-dark: var(--gold-dark);
+  --accent-red: var(--red);
+  --accent-red-dark: var(--red-dark);
+  --accent-irony: var(--gold);
+  --glow-teal: var(--teal-glow);
+  --glow-gold: var(--gold-glow);
+  --glow-red: var(--red-glow);
+  --buy-color: var(--buy);
+  --buy-color-dark: #005A44;
+  --sell-color: var(--sell);
+  --profit-color: var(--profit);
+  --loss-color: var(--loss);
+  --warning-color: var(--warning);
+  --spike-green: var(--buy);
+  --spike-green-bright: #00A86B;
+  --spike-glow: rgba(0, 122, 94, 0.2);
+  --crush-red: var(--sell);
+  --crush-red-dark: var(--red-dark);
+  --crush-glow: var(--red-glow);
+  --gradient-primary: var(--grad-teal);
+  --gradient-danger: var(--grad-red);
+  --gradient-gold: var(--grad-gold);
+  --gradient-dark: var(--grad-surface);
+  --gradient-surface: var(--grad-surface);
+  --gradient-card: var(--grad-card);
+  --gradient-hero: var(--grad-hero);
+  --card-shadow: var(--shadow-card);
+  --shadow-elevated: var(--shadow-lg);
+  --shadow-glow-teal: var(--shadow-teal);
+  --overlay-soft: rgba(0, 0, 0, 0.03);
+  --overlay-medium: rgba(0, 0, 0, 0.06);
+  --border-accent: var(--border-gold);
+  --text-accent: var(--gold);
+  --btn-secondary-bg: var(--btn-ghost-bg);
+}
+
+html {
+  color-scheme: dark;
+}
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+/* ═══════════════════════════════════
+   Global reset (per spec)
+   ═══════════════════════════════════ */
+
+* {
+  box-sizing: border-box;
+}
+
+/* ═══════════════════════════════════
+   Hero atmosphere - Default theme only gets the extra radial glow pools;
+   the other 3 themes use their own flat --grad-hero (set per theme above).
+   ═══════════════════════════════════ */
+
+[data-theme='default'] .tw-hero-section,
+:root:not([data-theme]) .tw-hero-section,
+[data-theme='default'] .trading-floor,
+[data-theme='default'] .page-hero {
+  background:
+    radial-gradient(ellipse 60% 40% at 15% 85%, var(--teal-subtle) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 85% 15%, var(--gold-subtle) 0%, transparent 60%),
+    var(--grad-hero);
+}
+
+.tw-hero-section,
+.trading-floor,
+.page-hero {
+  background: var(--grad-hero);
+}
+
+/* Card depth: inset top-edge highlight + real shadow - see --shadow-card per theme */
+.panel,
+.card,
+[class*='-card'],
+[class*='-panel'] {
+  box-shadow: var(--shadow-card);
+}

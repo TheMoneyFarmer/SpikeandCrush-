@@ -13,7 +13,11 @@ const { supabase, isConfigured } = require('./lib/supabaseAdmin');
 const { signAdminToken, requireAdmin, requirePageAuth, logAdminAction, recordLoginAttempt, isLockedOut, clientIp, ipAllowed, SESSION_HOURS } = require('./lib/auth');
 const internal = require('./lib/internalGameServer');
 
-const ADMIN_PORT = process.env.ADMIN_PORT || 3003;
+// Railway (and most PaaS hosts) inject PORT and require the service to bind
+// to exactly that value - ADMIN_PORT stays as the local-dev override for
+// running both servers on one machine (`npm run start:all`), but PORT wins
+// whenever the platform sets it.
+const ADMIN_PORT = process.env.PORT || process.env.ADMIN_PORT || 3003;
 
 if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD || !process.env.ADMIN_SECRET) {
   console.error('[admin] ADMIN_USERNAME / ADMIN_PASSWORD / ADMIN_SECRET must be set in .env - refusing to start.');

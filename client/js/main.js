@@ -54,7 +54,7 @@ window.TW = window.TW || {};
     return div.innerHTML;
   };
 
-  // ---- theme (dark / midnight / light) --------------------------------
+  // ---- theme (Default War Room / Midnight / Combat / Light) -----------------
   // The <head> of every page runs a tiny inline script (before any CSS
   // paints) that reads this same localStorage key and stamps data-theme on
   // <html>, so there's no flash of the wrong theme on load - see the
@@ -62,9 +62,9 @@ window.TW = window.TW || {};
   const THEME_KEY = 'sc_theme';
   TW.getTheme = () => {
     try {
-      return localStorage.getItem(THEME_KEY) || 'dark';
+      return localStorage.getItem(THEME_KEY) || 'default';
     } catch (e) {
-      return 'dark';
+      return 'default';
     }
   };
   TW.setTheme = (theme) => {
@@ -75,7 +75,13 @@ window.TW = window.TW || {};
     if (TW.getToken()) {
       TW.api('/api/player/settings', { method: 'PATCH', body: { settings: { theme } } }).catch(() => {});
     }
-    if (window.reinitializeCharts) window.reinitializeCharts();
+    // Charts read CSS variables (background/grid/candle colors) that only
+    // update visually once the browser recomputes styles for the new
+    // data-theme attribute - a custom event (rather than calling a specific
+    // global function name) lets any page's chart code react independently:
+    // game.html's shared TW.Chart module and replay.html's own standalone
+    // lightweight-charts instances both listen for this.
+    setTimeout(() => window.dispatchEvent(new CustomEvent('sc:theme-change', { detail: { theme } })), 0);
   };
 
   // ---- cosmetics: avatar frames / nameplate effects / profile backgrounds --
@@ -138,6 +144,58 @@ window.TW = window.TW || {};
 
   TW.tierClass = (tier) => `tier-${String(tier || 'Recruit').replace(/\s+/g, '.')}`;
 
+  // Mirrors server/gameEngine.js's TIERS - kept in sync manually since tier
+  // boundaries almost never change and this avoids a round trip just to
+  // draw a progress bar.
+  const TIER_RANGES = [
+    { name: 'Recruit', min: 0, max: 999 },
+    { name: 'Trader', min: 1000, max: 1499 },
+    { name: 'Broker', min: 1500, max: 1999 },
+    { name: 'Analyst', min: 2000, max: 2499 },
+    { name: 'Veteran', min: 2500, max: 2999 },
+    { name: 'Elite', min: 3000, max: 3499 },
+    { name: 'War Lord', min: 3500, max: Infinity },
+  ];
+
+  // % progress through the current tier's rating band, for a thin
+  // next-tier progress bar. War Lord (no ceiling) always reads as full.
+  TW.tierProgressPct = (rating) => {
+    const r = Number(rating) || 0;
+    const tier = TIER_RANGES.find((t) => r >= t.min && r <= t.max) || TIER_RANGES[0];
+    if (!Number.isFinite(tier.max)) return 100;
+    return Math.max(0, Math.min(100, ((r - tier.min) / (tier.max - tier.min + 1)) * 100));
+  };
+
+  TW.TIER_ICON = {
+    Recruit: '🔰',
+    Trader: '⚔️',
+    Broker: '💼',
+    Analyst: '📊',
+    Veteran: '🎖️',
+    Elite: '💎',
+    'War Lord': '👑',
+  };
+
+  // The one consistent player-identity format used everywhere a player
+  // appears: [Avatar] [Username] [TierIcon] [Rating]. `player` accepts
+  // either DB-shaped rows (war_rating) or live match-state rows (warRating);
+  // pass opts.rating to force a specific one (e.g. grand_war_rating).
+  TW.renderPlayerBadge = (player, opts = {}) => {
+    const tier = player?.tier || 'Recruit';
+    const icon = TW.TIER_ICON[tier] || '🔰';
+    const rating = opts.rating ?? player?.war_rating ?? player?.warRating ?? 0;
+    const showAvatar = opts.showAvatar !== false;
+    const showRating = opts.showRating !== false;
+    return (
+      `<span class="tw-player-badge ${opts.extraClass || ''}">` +
+      (showAvatar ? TW.createAvatar(player, opts.size || 'sm') : '') +
+      `<span class="tw-player-badge-name">${TW.renderUsername(player)}</span>` +
+      `<span class="tw-player-badge-tier" title="${TW.escapeHtml(tier)}">${icon}</span>` +
+      (showRating ? `<span class="tw-player-badge-rating mono">${Number(rating).toLocaleString()}</span>` : '') +
+      `</span>`
+    );
+  };
+
   async function api(path, options = {}) {
     const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
     const token = TW.getToken();
@@ -181,6 +239,48 @@ window.TW = window.TW || {};
     setTimeout(() => item.remove(), 4500);
   };
 
+  // In-match center-screen notifications (sabotage cards, margin warnings,
+  // leaderboard overtakes, SL/TP hits) - subtle, auto-dismissing, and never
+  // blocks the chart, replacing what used to be full-screen modal overlays.
+  // Up to 3 stack at once; the newest sits dead-center and older ones get
+  // pushed up and fade toward translucent; the oldest is dropped first.
+  const MATCH_NOTIF_MAX = 3;
+  const MATCH_NOTIF_SLOT_PX = 42;
+  let matchNotifContainer = null;
+  let matchNotifQueue = [];
+
+  function repositionMatchNotifs() {
+    const total = matchNotifQueue.length;
+    matchNotifQueue.forEach((item, i) => {
+      const fromNewest = total - 1 - i;
+      item.el.style.setProperty('--tw-notif-y', `${-fromNewest * MATCH_NOTIF_SLOT_PX}px`);
+      item.el.classList.toggle('tw-notif-stacked', fromNewest > 0);
+    });
+  }
+
+  TW.showMatchNotification = (text) => {
+    if (!matchNotifContainer) {
+      matchNotifContainer = document.createElement('div');
+      matchNotifContainer.className = 'tw-match-notifications';
+      document.body.appendChild(matchNotifContainer);
+    }
+    const el = document.createElement('div');
+    el.className = 'match-notification';
+    el.textContent = text;
+    matchNotifContainer.appendChild(el);
+    const item = { el };
+    matchNotifQueue.push(item);
+    if (matchNotifQueue.length > MATCH_NOTIF_MAX) {
+      matchNotifQueue.shift().el.remove();
+    }
+    repositionMatchNotifs();
+    setTimeout(() => {
+      el.remove();
+      matchNotifQueue = matchNotifQueue.filter((q) => q !== item);
+      repositionMatchNotifs();
+    }, 4000);
+  };
+
   TW.updateHeader = () => {
     const player = TW.getPlayer();
     const coinWrap = document.getElementById('headerCoinWrap');
@@ -189,6 +289,9 @@ window.TW = window.TW || {};
     const nameEl = document.getElementById('headerUsername');
     const authLink = document.getElementById('headerAuthLink');
     const tierBadge = document.getElementById('headerTierBadge');
+    const identity = document.getElementById('twNavIdentity');
+    const identityAvatar = document.getElementById('twNavIdentityAvatar');
+    const progressFill = document.getElementById('twNavProgressFill');
     if (coinWrap) coinWrap.classList.toggle('hidden', !player);
     if (coinBalance) {
       const prev = Number(coinBalance.dataset.prevCoins || coinBalance.textContent);
@@ -201,20 +304,66 @@ window.TW = window.TW || {};
       coinBalance.textContent = next;
       if (player) coinBalance.dataset.prevCoins = String(player.coins);
     }
-    if (ratingEl) ratingEl.textContent = player ? `${player.war_rating} · ${player.tier}` : '';
+    if (ratingEl) ratingEl.textContent = player ? Number(player.war_rating || 0).toLocaleString() : '';
     if (nameEl) {
       nameEl.innerHTML = player ? TW.renderUsername(player) : '';
       nameEl.classList.toggle('tw-name-warlord', Boolean(player && player.tier === 'War Lord'));
     }
-    if (authLink) authLink.textContent = player ? 'Log out' : 'Log in';
+    if (identity) identity.classList.toggle('hidden', !player);
+    if (identityAvatar) identityAvatar.innerHTML = player ? TW.createAvatar(player, 'sm') : '';
+    if (progressFill) progressFill.style.width = player ? `${TW.tierProgressPct(player.war_rating)}%` : '0%';
+    if (authLink) authLink.classList.toggle('hidden', Boolean(player));
+    document.getElementById('twLogoutBtn')?.classList.toggle('hidden', !player);
     if (tierBadge) {
       tierBadge.classList.toggle('hidden', !player);
       if (player) {
-        tierBadge.textContent = player.tier;
-        tierBadge.className = `pill ${TW.tierClass(player.tier)}`;
+        tierBadge.textContent = TW.TIER_ICON[player.tier] || '🔰';
+        tierBadge.title = player.tier;
+        tierBadge.className = `tw-nav-tier ${TW.tierClass(player.tier)}`;
       }
     }
   };
+
+  // Admin-managed promotional popup (Communications > Promotional Popup).
+  // Fires once per calendar day per popup id - storing the id alongside the
+  // date means a newly-published promo shows again immediately even if
+  // today's earlier one was already dismissed, without needing a server
+  // round trip to know "is this a new promo?".
+  const PROMO_DISMISS_KEY = 'sc_promo_dismissed';
+  async function checkPromoPopup() {
+    if (!TW.getToken || !TW.getToken()) return;
+    let popup;
+    try {
+      popup = await TW.api('/api/promo/active');
+    } catch (e) {
+      return;
+    }
+    if (!popup) return;
+    let dismissed = null;
+    try { dismissed = JSON.parse(localStorage.getItem(PROMO_DISMISS_KEY) || 'null'); } catch (e) {}
+    const today = new Date().toISOString().slice(0, 10);
+    if (dismissed && dismissed.id === popup.id && dismissed.date === today) return;
+
+    setTimeout(() => {
+      const overlay = document.createElement('div');
+      overlay.className = 'tw-promo-overlay';
+      overlay.innerHTML = `
+        <button type="button" class="tw-promo-close" aria-label="Close">&times;</button>
+        <div class="tw-promo-image" style="background:linear-gradient(160deg, ${popup.gradient_from} 0%, ${popup.gradient_to} 100%);"></div>
+        <div class="tw-promo-panel">
+          <div class="tw-promo-headline">${TW.escapeHtml(popup.headline)}</div>
+          <div class="tw-promo-subtext">${TW.escapeHtml(popup.subtext)}</div>
+          <a class="tw-promo-btn" href="${TW.escapeHtml(popup.button_url)}">${TW.escapeHtml(popup.button_text)}</a>
+        </div>
+      `;
+      const dismiss = () => {
+        localStorage.setItem(PROMO_DISMISS_KEY, JSON.stringify({ id: popup.id, date: today }));
+        overlay.remove();
+      };
+      overlay.querySelector('.tw-promo-close').addEventListener('click', dismiss);
+      document.body.appendChild(overlay);
+    }, 500);
+  }
 
   document.addEventListener('DOMContentLoaded', () => {
     TW.updateHeader();
@@ -230,19 +379,25 @@ window.TW = window.TW || {};
       }
     });
 
+    checkPromoPopup();
+
     if (document.body.dataset.page === 'index') initIndexPage();
   });
 
   // -------------------------------------------------------------- index page
 
   function initIndexPage() {
-    const authSection = document.getElementById('authSection');
+    const loginHero = document.getElementById('twLoginHero');
+    const hubHero = document.getElementById('twHubHero');
     const mainMenu = document.getElementById('mainMenu');
+    const marketTickerWrap = document.getElementById('twMarketTickerWrap');
 
     function refreshVisibility() {
       const logged = Boolean(TW.getPlayer());
-      if (authSection) authSection.classList.toggle('hidden', logged);
+      if (loginHero) loginHero.classList.toggle('hidden', logged);
+      if (hubHero) hubHero.classList.toggle('hidden', !logged);
       if (mainMenu) mainMenu.classList.toggle('hidden', !logged);
+      if (marketTickerWrap) marketTickerWrap.classList.toggle('hidden', !logged);
     }
     refreshVisibility();
 
@@ -269,6 +424,8 @@ window.TW = window.TW || {};
     }
     loginTab?.addEventListener('click', showLogin);
     registerTab?.addEventListener('click', showRegister);
+    document.getElementById('registerTabLink')?.addEventListener('click', (e) => { e.preventDefault(); showRegister(); });
+    document.getElementById('loginTabLink')?.addEventListener('click', (e) => { e.preventDefault(); showLogin(); });
 
     loginForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -288,6 +445,8 @@ window.TW = window.TW || {};
         }
         TW.updateHeader();
         refreshVisibility();
+        if (TW.refreshHubData) TW.refreshHubData();
+        checkPromoPopup();
         TW.toast(`Welcome back, ${data.player.username}`, 'info');
         loadLeaderboardPreview();
       } catch (err) {
@@ -318,6 +477,8 @@ window.TW = window.TW || {};
         }
         TW.updateHeader();
         refreshVisibility();
+        if (TW.refreshHubData) TW.refreshHubData();
+        checkPromoPopup();
         TW.toast(
           `Welcome to Spike & Crush, ${data.player.username}. Up. Then not. +${data.welcomeBonus} coin welcome bonus`,
           'info'

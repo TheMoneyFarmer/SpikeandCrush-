@@ -55,7 +55,7 @@ TW.FriendsPanel = (function () {
           </div>
           <div>
             <div class="tw-friend-name">${TW.renderUsername(f)}</div>
-            <div class="tw-friend-meta">${TW.escapeHtml(f.tier)} · ${f.warRating} rating</div>
+            <div class="tw-friend-meta">${TW.TIER_ICON[f.tier] || '🔰'} ${f.warRating}</div>
           </div>
         </div>
         <div class="tw-friend-status-text">${statusText(f)}</div>
@@ -220,7 +220,7 @@ TW.FriendsPanel = (function () {
                       ${TW.createAvatar(p, 'sm')}
                       <div style="flex:1;">
                         <div style="font-weight:700;font-size:13px;">${TW.renderUsername(p)}</div>
-                        <div style="font-size:11px;color:var(--text-secondary);">${TW.escapeHtml(p.tier)} · ${p.warRating}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);">${TW.TIER_ICON[p.tier] || '🔰'} ${p.warRating}</div>
                       </div>
                       <button class="btn btn-primary" data-add="${p.id}" style="padding:6px 12px;font-size:12px;">Add</button>
                     </div>

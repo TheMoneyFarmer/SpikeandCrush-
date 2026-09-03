@@ -783,7 +783,7 @@ window.TW = window.TW || {};
     }
     matchEnded = true;
     TW.toast('You left the match. Final rank recorded as last place.', 'warning');
-    setTimeout(() => { window.location.href = '/'; }, 1200);
+    setTimeout(() => { window.location.href = '/play'; }, 1200);
   }
 
   // ---- sabotage visual side-effects --------------------------------------------
@@ -838,7 +838,13 @@ window.TW = window.TW || {};
         break;
       }
       default:
-        break; // spread_spike / liquidity_drain / reversal_flash / smoke_screen / force_close / capital_drain / mirror_trade need no extra visual beyond the incoming overlay + feed
+        // Every other card (spread_spike, liquidity_drain, reversal_flash,
+        // smoke_screen, force_close, capital_drain, mirror_trade, and all 18
+        // expansion-set cards) needs no extra visual beyond the incoming
+        // overlay + feed text - their real effect is server-enforced
+        // (blocked trades, worse fills, closed positions, balance changes),
+        // not something that needs its own bespoke chart/UI treatment.
+        break;
     }
   }
 
@@ -974,7 +980,7 @@ window.TW = window.TW || {};
         <button class="btn btn-primary" id="playAgainBtn">⚔️ Play Again</button>
         <button class="btn btn-outline" id="shareResultBtn">📤 Share Result</button>
         <a class="btn" href="/profile">👤 View Stats</a>
-        <a class="btn" href="/">🏠 Home</a>
+        <a class="btn" href="/play">🏠 Home</a>
       </div>
     `;
     document.body.appendChild(overlay);
@@ -994,7 +1000,7 @@ window.TW = window.TW || {};
           <div class="rank-num">#${r.rank}</div>
           <div class="rr-name">
             <strong>${TW.escapeHtml(r.username)}</strong>
-            <span class="pill ${TW.tierClass(r.newTier)}" style="font-size:10px;">${TW.escapeHtml(r.newTier)}</span>
+            <span class="pill ${TW.tierClass(r.newTier)}" style="font-size:10px;">${TW.TIER_ICON[r.newTier] || '🔰'} ${TW.escapeHtml(r.newTier)}</span>
             ${r.playerId === lastState?.you ? '<span class="pill pill-gold">YOU</span>' : ''}
           </div>
           <div class="rr-pnl ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(r.pnl)}<span class="pct">${
@@ -1097,7 +1103,7 @@ window.TW = window.TW || {};
         window.location.href = `lobby.html?matchId=${data.matchId}`;
       } catch (err) {
         TW.toast(err.message, 'danger');
-        window.location.href = '/';
+        window.location.href = '/play';
       }
     });
 
@@ -1259,10 +1265,10 @@ window.TW = window.TW || {};
 
   socket.on('trade:closed', (data) => {
     if (data.reason === 'stop_loss') {
-      TW.toast(`Crushed at stop loss: ${TW.formatMoney(data.pnl)}.`, 'danger');
+      TW.showMatchNotification(`💥 Stop loss hit — ${TW.formatMoney(Math.abs(data.pnl))} lost`);
       TW.Sound.play('sl_hit');
     } else if (data.reason === 'take_profit') {
-      TW.toast(`Spiked to target. Cash secured: ${TW.formatMoney(data.pnl)}.`, 'info');
+      TW.showMatchNotification(`🎯 Take profit hit — +${TW.formatMoney(Math.abs(data.pnl))} secured`);
       TW.Sound.play('tp_hit');
     } else {
       TW.toast(`Position closed: ${TW.formatMoney(data.pnl)}`, data.pnl >= 0 ? 'info' : 'warning');
@@ -1316,6 +1322,7 @@ window.TW = window.TW || {};
       showEliminationModal(payload);
     } else {
       TW.Sound.play('margin_alert');
+      if (payload.level === 'warning') TW.showMatchNotification(`⚠️ Margin warning — equity $${payload.equity}`);
     }
   });
 
@@ -1323,6 +1330,9 @@ window.TW = window.TW || {};
   socket.on('leaderboard:update', (payload) => {
     TW.Leaderboard.render(payload, lastState?.you);
     const myRow = payload.rows.find((r) => r.id === lastState?.you);
+    if (myRow && lastViewerRank !== null && myRow.rank > lastViewerRank) {
+      TW.showMatchNotification(`📉 You just got overtaken — now #${myRow.rank}`);
+    }
     if (myRow && lastViewerRank !== null && myRow.rank !== lastViewerRank) TW.Sound.play('leaderboardChange');
     if (myRow) lastViewerRank = myRow.rank;
   });
@@ -1347,13 +1357,13 @@ window.TW = window.TW || {};
   socket.on('match:kicked', (payload) => {
     matchEnded = true;
     TW.toast(payload.reason || 'You were removed from this match by an admin.', 'danger');
-    setTimeout(() => { window.location.href = '/'; }, 2000);
+    setTimeout(() => { window.location.href = '/play'; }, 2000);
   });
   socket.on('match:voided', (payload) => {
     if (matchEnded) return;
     matchEnded = true;
     TW.toast(payload.reason || 'This match was cancelled by an admin.', 'warning');
-    setTimeout(() => { window.location.href = '/'; }, 2500);
+    setTimeout(() => { window.location.href = '/play'; }, 2500);
   });
 
   document.getElementById('leaveMatchBtn')?.addEventListener('click', () => confirmLeaveMatch());

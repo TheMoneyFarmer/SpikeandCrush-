@@ -55,9 +55,19 @@ const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABAS
 const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== 'your_value');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
 
+// ALLOWED_ORIGIN restricts CORS to the real domain(s) in production - unset
+// (dev/local) falls back to wide-open, since local testing hits this from
+// whatever port/host is convenient. Accepts a comma-separated list so both
+// the apex domain and www can be allowed at once.
+const allowedOrigins = (process.env.ALLOWED_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+const corsOrigin = allowedOrigins.length > 0 ? allowedOrigins : '*';
+
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, { cors: { origin: corsOrigin } });
 
 // Global playerId -> Set<socketId> registry (independent of match sessions) so
 // the notification bell works on any page, not just while inside a match.
@@ -302,14 +312,18 @@ app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), async
   res.json({ received: true });
 });
 
-app.use(cors());
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'client')));
+// index:false - without it, static's default directory-index behavior would
+// serve client/index.html for a bare "/" request before the explicit
+// app.get('/') route below (landing.html) is ever reached.
+app.use(express.static(path.join(__dirname, '..', 'client'), { index: false }));
 
 // Clean URL routes for the new pages (kept alongside the original .html
 // paths, which existing client-side navigation still uses unchanged).
 const CLIENT_DIR = path.join(__dirname, '..', 'client');
-app.get('/', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
+app.get('/', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'landing.html')));
+app.get('/play', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 app.get('/wallet', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'wallet.html')));
 app.get('/cards', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'cards.html')));
 app.get('/settings', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'settings.html')));
@@ -582,6 +596,7 @@ app.post('/api/match/create', requireDb, authenticate, async (req, res) => {
     const playerInfo = {
       id: player.id,
       username: player.username,
+      country: player.country,
       war_rating: player.war_rating,
       grand_war_rating: player.grand_war_rating,
       solo_rating: player.solo_rating,
@@ -1681,7 +1696,7 @@ app.post('/api/tournament/:id/play', requireDb, authenticate, async (req, res) =
     if (matchup.matchId) return res.json({ matchId: matchup.matchId });
 
     const [playerA, playerB] = await Promise.all([db.getPlayerById(matchup.playerAId), db.getPlayerById(matchup.playerBId)]);
-    const toPlayerInfo = (p) => ({ id: p.id, username: p.username, war_rating: p.war_rating, tier: tierForRating(p.war_rating) });
+    const toPlayerInfo = (p) => ({ id: p.id, username: p.username, country: p.country, war_rating: p.war_rating, tier: tierForRating(p.war_rating) });
 
     const match = await gameEngine.createMatch('tournament', {
       configOverrides: { tournamentId: t.id, round: myReg.current_round, matchupIndex: matchup.matchup },
@@ -1954,6 +1969,10 @@ app.patch('/api/wallet/daily-limit', requireDb, authenticate, async (req, res) =
   }
 });
 
+app.get('/api/version', (req, res) => {
+  res.json({ version: require('../package.json').version });
+});
+
 // ---- home page stats --------------------------------------------------------------
 
 app.get('/api/stats/home', async (req, res) => {
@@ -1968,6 +1987,30 @@ app.get('/api/stats/home', async (req, res) => {
   }
 });
 
+// Public marketing stats for the landing page (client/landing.html). Distinct
+// from /api/stats/home above: activePlayers there only counts players inside
+// a live match, but the landing page's hero badge wants everyone currently
+// connected to the site (playerSockets, the same in-memory socket registry
+// index.js already uses for presence pushes), and it also wants a lifetime
+// total rather than /api/stats/home's today-scoped coinsWonToday.
+app.get('/api/stats/live', async (req, res) => {
+  try {
+    const activePlayers = playerSockets.size;
+    const { matchesToday } = gameEngine.getHomeStats();
+    if (!db.isConfigured) {
+      return res.json({ activePlayers, matchesToday, largestWinToday: 0, totalPrizesDistributed: 0 });
+    }
+    const [largestWinToday, totalPrizesDistributed] = await Promise.all([
+      db.getLargestWinToday(),
+      db.getTotalPrizesDistributed(),
+    ]);
+    res.json({ activePlayers, matchesToday, largestWinToday, totalPrizesDistributed });
+  } catch (e) {
+    console.error('[stats live]', e);
+    res.json({ activePlayers: 0, matchesToday: 0, largestWinToday: 0, totalPrizesDistributed: 0 });
+  }
+});
+
 // Written by the admin panel's Communications > Announcements tab
 // (admin/routes/communications.js), read on page load so both logged-in and
 // anonymous visitors see it - the live socket push (announcement:new) only
@@ -1978,6 +2021,14 @@ app.get('/api/announcements/active', async (req, res) => {
     res.json(await db.getActiveAnnouncements('home'));
   } catch (e) {
     res.json([]);
+  }
+});
+
+app.get('/api/promo/active', requireDb, authenticate, async (req, res) => {
+  try {
+    res.json(await db.getActivePromoPopup());
+  } catch (e) {
+    res.json(null);
   }
 });
 
@@ -2188,6 +2239,31 @@ app.post('/api/coins/purchase', requireDb, authenticate, async (req, res) => {
   } catch (e) {
     console.error('[coins/purchase]', e);
     res.status(500).json({ error: 'Could not start checkout' });
+  }
+});
+
+// Dev-only self-service top-up so testing the game doesn't require running
+// a real Stripe test-mode checkout every time. Self-disabling the moment a
+// real webhook secret is configured (the same signal /api/webhook/stripe
+// uses to fail closed), so this can never work against a production Stripe
+// setup - it only exists while the payment integration itself is still
+// unconfigured for real webhook delivery. Grants a fixed, modest amount per
+// call (rate-limited by the existing apiLimiter) rather than an arbitrary
+// client-supplied number, so it can't be scripted into an unlimited coin
+// faucet even in dev.
+const DEV_COIN_GRANT_AMOUNT = 1000;
+app.post('/api/dev/add-coins', requireDb, authenticate, async (req, res) => {
+  if (stripeWebhookConfigured) {
+    return res.status(403).json({ error: 'Dev coin grants are disabled once a real Stripe webhook is configured' });
+  }
+  try {
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    const updated = await db.creditCoins(player.id, DEV_COIN_GRANT_AMOUNT, { type: 'dev_grant' });
+    res.json({ success: true, granted: DEV_COIN_GRANT_AMOUNT, coins: updated.coins });
+  } catch (e) {
+    console.error('[dev/add-coins]', e);
+    res.status(500).json({ error: 'Could not grant coins' });
   }
 });
 
@@ -2526,7 +2602,7 @@ io.on('connection', (socket) => {
         return ack?.({ success: false, error: `Not enough coins - this lobby costs ${entryCoins} coins to join` });
       }
 
-      const playerInfo = { id: player.id, username: player.username, war_rating: player.war_rating, grand_war_rating: player.grand_war_rating, solo_rating: player.solo_rating, tier: tierForRating(player.war_rating) };
+      const playerInfo = { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, grand_war_rating: player.grand_war_rating, solo_rating: player.solo_rating, tier: tierForRating(player.war_rating) };
       const result = gameEngine.joinMatch(match, playerInfo, socket.id);
       if (!result.success) return ack?.({ success: false, error: result.error });
 

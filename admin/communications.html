@@ -17,6 +17,7 @@
 
         <div class="admin-tabs">
           <button class="admin-tab" data-tab="announcements">Announcements</button>
+          <button class="admin-tab" data-tab="promo">Promotional Popup</button>
           <button class="admin-tab" data-tab="push">Push / In-App Notifications</button>
           <button class="admin-tab" data-tab="email">Email Campaigns</button>
           <button class="admin-tab" data-tab="direct">In-Game Messages</button>
@@ -39,6 +40,45 @@
             <button class="btn btn-primary" id="createAnnouncementBtn">Create Announcement</button>
           </div>
           <div id="announcementsTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-promo">
+          <div class="text-secondary" style="font-size:12px;margin-bottom:12px;">
+            Shows as a full-screen popup 0.5s after login, once per calendar day per player. Publishing a new one shows
+            again even if today's earlier popup was already dismissed. Image is CSS gradient art for now (no upload pipeline yet).
+          </div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;">
+            <div class="panel" style="max-width:420px;flex:1;">
+              <h3>New Promotional Popup</h3>
+              <div class="field"><label>Headline</label><input id="pHeadline" placeholder="MONTHLY CHAMPIONSHIP LIVE NOW!" oninput="updatePromoPreview()" /></div>
+              <div class="field"><label>Subtext</label><textarea id="pSubtext" placeholder="Win a $5,000 funded trading account" oninput="updatePromoPreview()"></textarea></div>
+              <div class="field-row">
+                <div class="field"><label>Button Text</label><input id="pButtonText" value="GET IN" oninput="updatePromoPreview()" /></div>
+                <div class="field"><label>Button Destination URL</label><input id="pButtonUrl" placeholder="/tournament?id=..." /></div>
+              </div>
+              <div class="field-row">
+                <div class="field"><label>Gradient From</label><input id="pGradientFrom" type="color" value="#00C896" oninput="updatePromoPreview()" /></div>
+                <div class="field"><label>Gradient To</label><input id="pGradientTo" type="color" value="#04040C" oninput="updatePromoPreview()" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field"><label>Active From</label><input id="pActiveFrom" type="datetime-local" /></div>
+                <div class="field"><label>Active Until (optional)</label><input id="pActiveUntil" type="datetime-local" /></div>
+              </div>
+              <button class="btn btn-primary" id="createPromoBtn">Publish Popup</button>
+            </div>
+            <div class="panel" style="max-width:340px;">
+              <h3>Preview</h3>
+              <div id="promoPreview" style="border-radius:8px;overflow:hidden;border:1px solid var(--border,#333);">
+                <div id="promoPreviewImage" style="height:160px;background:linear-gradient(160deg,#00C896 0%,#04040C 100%);"></div>
+                <div style="background:#0a0a0a;padding:16px;">
+                  <div id="promoPreviewHeadline" style="font-size:16px;font-weight:800;color:#fff;">MONTHLY CHAMPIONSHIP LIVE NOW!</div>
+                  <div id="promoPreviewSubtext" style="font-size:12px;color:#999;margin:6px 0 10px;">Win a $5,000 funded trading account</div>
+                  <div id="promoPreviewBtn" style="text-align:center;padding:10px;border-radius:6px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1a1300;font-weight:800;font-size:12px;">GET IN</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="promoTableWrap"><div class="empty-state">Loading…</div></div>
         </div>
 
         <div class="admin-tab-panel" id="tab-push">
@@ -113,6 +153,21 @@
           </table></div>
         ` : '<div class="empty-state">No announcements yet.</div>';
       },
+      promo: async () => {
+        const rows = await Admin.api('/communications/promo-popups');
+        document.getElementById('promoTableWrap').innerHTML = rows.length ? `
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Headline</th><th>Button</th><th>Active</th><th>Views</th><th>From</th><th>Until</th><th></th></tr></thead>
+            <tbody>${rows.map((p) => `<tr><td>${Admin.escapeHtml(p.headline)}</td><td>${Admin.escapeHtml(p.button_text)}</td><td>${p.active ? '✅' : '❌'}</td><td>${p.views}</td><td>${Admin.formatDate(p.active_from)}</td><td>${p.active_until ? Admin.formatDate(p.active_until) : 'No end'}</td><td>${p.active ? `<button class="btn btn-outline" data-deactivate="${p.id}" style="font-size:11px;padding:4px 10px;">Deactivate</button>` : ''}</td></tr>`).join('')}</tbody>
+          </table></div>
+        ` : '<div class="empty-state">No promotional popups yet.</div>';
+        document.querySelectorAll('[data-deactivate]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            await Admin.api(`/communications/promo-popups/${btn.dataset.deactivate}`, { method: 'DELETE' });
+            loaded.promo = false; activateTab('promo');
+          });
+        });
+      },
       push: async () => {
         const rows = await Admin.api('/communications/notifications/history');
         document.getElementById('notifHistoryWrap').innerHTML = rows.length ? `
@@ -144,6 +199,29 @@
 
     document.getElementById('nSegment').addEventListener('change', (e) => {
       document.getElementById('tierFieldWrap').style.display = e.target.value === 'tier' ? 'block' : 'none';
+    });
+
+    function updatePromoPreview() {
+      document.getElementById('promoPreviewImage').style.background = `linear-gradient(160deg, ${pGradientFrom.value} 0%, ${pGradientTo.value} 100%)`;
+      document.getElementById('promoPreviewHeadline').textContent = pHeadline.value || 'MONTHLY CHAMPIONSHIP LIVE NOW!';
+      document.getElementById('promoPreviewSubtext').textContent = pSubtext.value || 'Win a $5,000 funded trading account';
+      document.getElementById('promoPreviewBtn').textContent = pButtonText.value || 'GET IN';
+    }
+
+    document.getElementById('createPromoBtn').addEventListener('click', async () => {
+      try {
+        if (!pHeadline.value || !pSubtext.value || !pButtonUrl.value) {
+          Admin.toast('Headline, subtext, and button URL are required', 'danger');
+          return;
+        }
+        await Admin.api('/communications/promo-popups', { method: 'POST', body: {
+          headline: pHeadline.value, subtext: pSubtext.value, buttonText: pButtonText.value,
+          buttonUrl: pButtonUrl.value, gradientFrom: pGradientFrom.value, gradientTo: pGradientTo.value,
+          activeFrom: pActiveFrom.value || null, activeUntil: pActiveUntil.value || null,
+        }});
+        Admin.toast('Promotional popup published', 'success');
+        loaded.promo = false; activateTab('promo');
+      } catch (e) { Admin.toast(e.message, 'danger'); }
     });
 
     document.getElementById('createAnnouncementBtn').addEventListener('click', async () => {

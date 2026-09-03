@@ -152,10 +152,15 @@ function computeMatchResults(players, mode, config) {
     return others.reduce((s, r) => s + r, 0) / others.length;
   };
 
-  // Only humans pay the entry fee, so only their coins fund the pool; the
-  // platform keeps 15%, the rest splits by finish position (1st/2nd/3rd/4th
-  // get 50/25/15/10%, 5th+ get nothing - same shares regardless of lobby size).
-  const payingPlayers = ranked.filter((r) => !r.player.isAI).length;
+  // Persona-filled slots never pay a real entry fee (see fillWithAI), so
+  // sizing the pool off payingPlayers alone caps it at whatever the one or
+  // two real humans put in - in a now-typical 1 human + 3 persona lobby that
+  // makes even 1st place pay out less than the entry fee itself, so winning
+  // nets a loss. The pool is sized off the full table instead (persona seats
+  // count same as a human one) so a human's win pays out like it would in a
+  // genuinely full paid lobby; the platform keeps 15%, the rest splits by
+  // finish position (1st/2nd/3rd/4th get 50/25/15/10%, 5th+ nothing).
+  const payingPlayers = ranked.length;
   const prizePool = Math.round(config.entryCoins * payingPlayers * 0.85);
 
   // Solo Ranked is always exactly 1 human vs AI who never receive coins or
@@ -315,6 +320,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     return {
       id: p.id,
       username: p.username,
+      country: p.country,
       warRating: p.warRating,
       tier: p.tier,
       ready: p.ready,
@@ -383,7 +389,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   // move a shared price for everyone; the caster's edge is a private
   // warning before it starts, handled in playSabotageCard/sabotage.js.
   function getEffectivePrice(match, symbol, elapsedSeconds, nowMs, viewerId = null) {
-    const raw = instruments.getCurrentPrice(match.id, symbol, elapsedSeconds);
+    // time_warp: everyone except the caster reads prices from 3 seconds in
+    // the past for the effect's duration - getCurrentPrice already clamps
+    // an out-of-range index to 0, so this is safe even early in a match.
+    const timeWarpActive = nowMs < match.marketEffects.timeWarpUntil && viewerId !== match.marketEffects.timeWarpCasterId;
+    const effectiveElapsed = timeWarpActive ? elapsedSeconds - 3 : elapsedSeconds;
+
+    const raw = instruments.getCurrentPrice(match.id, symbol, effectiveElapsed);
     let mid = raw.mid;
 
     // createMarketEffects() only seeds EURUSD/XAUUSD entries (its hardcoded,
@@ -402,6 +414,18 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       mid = baseline + (mid - baseline) * 2;
     }
 
+    // dead_calm: price stays pinned at the value it had the instant the card
+    // was cast, for everyone except the caster - baseline captured by
+    // playSabotageCard right after sabotage.js's playCard() returns, exactly
+    // like volatility_surge's baseline just above.
+    if (
+      nowMs < match.marketEffects.deadCalmUntil &&
+      match.marketEffects.deadCalmBaseline &&
+      viewerId !== match.marketEffects.deadCalmCasterId
+    ) {
+      mid = match.marketEffects.deadCalmBaseline[symbol];
+    }
+
     const reversal = match.marketEffects[symbol].reversal;
     if (reversal) {
       if (nowMs >= reversal.startedAt && nowMs < reversal.until) {
@@ -411,10 +435,21 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       }
     }
 
+    // fog_of_war: random jitter thrown into the feed for everyone except the
+    // caster - the true price underneath is untouched, so the chart snaps
+    // back to where it actually was once the effect ends.
+    if (nowMs < match.marketEffects.fogOfWarUntil && viewerId !== match.marketEffects.fogOfWarCasterId) {
+      const pipSize = instruments.getInstrument(symbol)?.pipSize || 0.0001;
+      mid += (Math.random() * 2 - 1) * 4 * pipSize;
+    }
+
     const baseSpread = instruments.getSpread(symbol);
     const spreadActive =
       nowMs < match.marketEffects[symbol].spreadUntil && viewerId !== match.marketEffects[symbol].spreadCasterId;
-    const spread = spreadActive ? baseSpread * match.marketEffects[symbol].spreadMultiplier : baseSpread;
+    const doubleSpreadActive =
+      nowMs < match.marketEffects.doubleSpreadUntil && viewerId !== match.marketEffects.doubleSpreadCasterId;
+    let spread = spreadActive ? baseSpread * match.marketEffects[symbol].spreadMultiplier : baseSpread;
+    if (doubleSpreadActive) spread *= 2;
 
     const decimals = instruments.getInstrument(symbol)?.decimals ?? (symbol === 'EURUSD' ? 5 : 2);
     mid = Number(mid.toFixed(decimals));
@@ -544,6 +579,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     return {
       id: info.id,
       username: info.username,
+      country: info.country || null,
       warRating: rating,
       tier: tierForRating(rating),
       isAI,
@@ -757,7 +793,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
 
     const liquidityDrained =
       nowMs < match.marketEffects.liquidityDrainUntil && match.marketEffects.liquidityDrainCasterId !== playerId;
-    const maxLot = liquidityDrained ? 0.1 : MAX_LOTS;
+    const lotLimited = player.effects.lot_limiter && nowMs < player.effects.lot_limiter.until;
+    const maxLot = Math.min(liquidityDrained ? 0.1 : MAX_LOTS, lotLimited ? 0.05 : MAX_LOTS);
     const numLots = Number(lots);
     if (!Number.isFinite(numLots) || numLots <= 0 || numLots > maxLot) {
       return { success: false, error: `Lot size must be between 0 and ${maxLot}` };
@@ -837,6 +874,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     if (idx === -1) return { success: false, error: 'Position not found' };
 
     const nowMs = Date.now();
+    // reason !== 'manual' covers SL/TP auto-close and this file's own
+    // sabotage-triggered closes (margin_call/force_close/stop_snipe) -
+    // lockout only blocks the target's own voluntary close attempts.
+    if (reason === 'manual' && player.effects.lockout && nowMs < player.effects.lockout.until) {
+      return { success: false, error: 'Lockout active - cannot close positions' };
+    }
     const elapsedSeconds = getElapsedSeconds(match, nowMs);
     const position = player.positions[idx];
     const price = getEffectivePrice(match, position.symbol, elapsedSeconds, nowMs, playerId);
@@ -1000,6 +1043,14 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       }
     }
 
+    if (cardType === 'dead_calm') {
+      const elapsedSeconds = getElapsedSeconds(match, nowMs);
+      match.marketEffects.deadCalmBaseline = {};
+      for (const symbol of match.instruments) {
+        match.marketEffects.deadCalmBaseline[symbol] = instruments.getCurrentPrice(match.id, symbol, elapsedSeconds).mid;
+      }
+    }
+
     if (result.forceCloseTarget) {
       const target = match.players[result.targetId];
       const elapsedSeconds = getElapsedSeconds(match, nowMs);
@@ -1014,7 +1065,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
           best = pos;
         }
       }
-      if (best) closeTrade(match.id, target.id, best.id);
+      if (best) closeTrade(match.id, target.id, best.id, 'sabotage');
     }
 
     if (result.mirrorSource) {
@@ -1052,6 +1103,67 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       emitToPlayer(match, target.id, 'trade:executed', { position, mirrored: true });
     }
 
+    if (result.forceCloseAllTarget) {
+      const target = match.players[result.targetId];
+      // 'sabotage' bypasses lockout - a lockout on the target must not
+      // protect them from a *different* card force-closing their positions.
+      for (const pos of target.positions.slice()) closeTrade(match.id, target.id, pos.id, 'sabotage');
+    }
+
+    if (result.ghostTrade) {
+      const target = match.players[result.targetId];
+      const elapsedSeconds = getElapsedSeconds(match, nowMs);
+      const symbol = result.ghostTrade.symbol;
+      const price = getEffectivePrice(match, symbol, elapsedSeconds, nowMs, target.id);
+      const direction = Math.random() < 0.5 ? 'BUY' : 'SELL';
+      const pipSize = instruments.getInstrument(symbol)?.pipSize || 0.0001;
+      // Deliberately fills 3 pips worse than the real market price, in the
+      // direction that hurts the target - a real position they now have to
+      // manage, already underwater the instant it lands.
+      const entryPrice = direction === 'BUY' ? price.ask + 3 * pipSize : price.bid - 3 * pipSize;
+      const position = {
+        id: crypto.randomUUID(),
+        symbol,
+        direction,
+        lots: 0.05,
+        entryPrice,
+        openedAt: nowMs,
+        stopLoss: null,
+        takeProfit: null,
+        dbId: null,
+      };
+      target.positions.push(position);
+      if (db.isConfigured && match.dbMatchId) {
+        db
+          .recordTrade({ matchId: match.dbMatchId, playerId: target.id, symbol, direction, lots: position.lots, entryPrice })
+          .then((row) => {
+            position.dbId = row.id;
+          })
+          .catch(() => {});
+      }
+      emitToPlayer(match, target.id, 'trade:executed', { position, ghostTrade: true });
+    }
+
+    if (result.stopSnipeTarget) {
+      const target = match.players[result.targetId];
+      const elapsedSeconds = getElapsedSeconds(match, nowMs);
+      let best = null;
+      let bestPnl = -Infinity;
+      for (const pos of target.positions) {
+        const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs, target.id);
+        const exitPrice = pos.direction === 'BUY' ? price.bid : price.ask;
+        const pnl = instruments.calculatePnL(pos.direction, pos.lots, pos.entryPrice, exitPrice, pos.symbol);
+        if (pnl > bestPnl) {
+          bestPnl = pnl;
+          best = pos;
+        }
+      }
+      if (best) {
+        best.stopLoss = best.entryPrice;
+        emitToPlayer(match, target.id, 'trade:executed', { position: best, stopSniped: true });
+      }
+    }
+
     if (db.isConfigured && match.dbMatchId) {
       db
         .recordSabotageEvent({
@@ -1083,7 +1195,18 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     // isn't included here since it gets its own private warning instead
     // (the price move itself is shared, not something the caster is immune
     // to) - handled via result.delayedNotify below.
-    if (['volatility_surge', 'spread_spike', 'liquidity_drain', 'smoke_screen'].includes(cardType)) {
+    if (
+      [
+        'volatility_surge',
+        'spread_spike',
+        'liquidity_drain',
+        'smoke_screen',
+        'double_spread',
+        'time_warp',
+        'fog_of_war',
+        'dead_calm',
+      ].includes(cardType)
+    ) {
       emitToPlayer(match, playerId, 'sabotage:immune', {
         cardType,
         message: 'Your card does not affect you',
@@ -1315,7 +1438,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     const overallLossPct = (STARTING_CAPITAL - equity) / STARTING_CAPITAL;
     if (overallLossPct >= HARD_LOSS_PCT) {
       player.eliminated = true;
-      for (const pos of player.positions.slice()) closeTrade(match.id, player.id, pos.id);
+      for (const pos of player.positions.slice()) closeTrade(match.id, player.id, pos.id, 'eliminated');
       pushFeed(match, `${player.username} hit max loss (-50%) and is eliminated from the match`, {
         type: 'margin_warning',
         timestamp: elapsedSeconds,
@@ -1361,6 +1484,18 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     const activeExemptIds = new Set();
     if (nowMs < match.marketEffects.volatilitySurgeUntil && match.marketEffects.volatilitySurgeCasterId) {
       activeExemptIds.add(match.marketEffects.volatilitySurgeCasterId);
+    }
+    if (nowMs < match.marketEffects.doubleSpreadUntil && match.marketEffects.doubleSpreadCasterId) {
+      activeExemptIds.add(match.marketEffects.doubleSpreadCasterId);
+    }
+    if (nowMs < match.marketEffects.timeWarpUntil && match.marketEffects.timeWarpCasterId) {
+      activeExemptIds.add(match.marketEffects.timeWarpCasterId);
+    }
+    if (nowMs < match.marketEffects.fogOfWarUntil && match.marketEffects.fogOfWarCasterId) {
+      activeExemptIds.add(match.marketEffects.fogOfWarCasterId);
+    }
+    if (nowMs < match.marketEffects.deadCalmUntil && match.marketEffects.deadCalmCasterId) {
+      activeExemptIds.add(match.marketEffects.deadCalmCasterId);
     }
     for (const symbol of match.instruments) {
       const symbolEffects = match.marketEffects[symbol];
@@ -1565,7 +1700,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     clearInterval(match.timers.leaderboardInterval);
 
     for (const player of Object.values(match.players)) {
-      for (const pos of player.positions.slice()) closeTrade(match.id, player.id, pos.id);
+      for (const pos of player.positions.slice()) closeTrade(match.id, player.id, pos.id, 'match_end');
     }
 
     const results = computeMatchResults(Object.values(match.players), match.mode, match.config);
@@ -1834,7 +1969,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   function selectLoadoutCards(matchId, playerId, cardTypes) {
     const match = matches.get(matchId);
     if (!match) return { success: false, error: 'Match not found' };
-    if (match.status !== 'waiting') return { success: false, error: 'Cannot change loadout after the match has started' };
+    if (match.status !== 'waiting') return { success: false, error: 'Cannot change your setup after the match has started' };
     const player = match.players[playerId];
     if (!player) return { success: false, error: 'Player not in match' };
 

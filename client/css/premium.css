@@ -13,15 +13,29 @@
 body {
   font-variant-numeric: tabular-nums;
   animation: tw-page-fade-in 0.2s ease;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
-h1, h2, h3 {
+h1, h2, h3, h4, .title {
   font-weight: 800;
   letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.mono, .topbar-pnl-value, .position-row .pnl, table td.mono {
+.mono, .topbar-pnl-value, .position-row .pnl, table td.mono,
+.pnl-value, .coin-balance, .war-rating, .price-display, .timer, .match-pnl,
+[class*="balance"], [class*="amount"], [class*="coins"], [class*="rating"] {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.label, .stat-label, .section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
 @keyframes tw-page-fade-in {
@@ -54,18 +68,22 @@ h1, h2, h3 {
   transform: scale(0.97);
 }
 
+/* Primary/CTA buttons are always GOLD (COD-style menu chrome) - --grad-gold-btn
+   is a theme variable, not tied to the legacy "teal" name, so this can't
+   accidentally end up sharing --gradient-primary's teal/buy meaning. */
 .btn-primary {
-  background: var(--gradient-primary);
+  background: var(--grad-gold-btn);
+  color: var(--btn-cta-text);
   border: none;
 }
 
 .btn-buy {
-  background: linear-gradient(135deg, #00c896 0%, #00a878 100%);
+  background: linear-gradient(135deg, var(--buy-color) 0%, var(--buy-color-dark) 100%);
   border: none;
 }
 
 .btn-buy:hover {
-  box-shadow: 0 0 20px rgba(0, 200, 150, 0.5);
+  box-shadow: 0 0 20px var(--teal-glow);
 }
 
 .btn-sell {
@@ -74,10 +92,14 @@ h1, h2, h3 {
 }
 
 .btn-sell:hover {
-  box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+  box-shadow: 0 0 20px var(--red-glow);
 }
 
 /* ---- P&L flash on change (JS toggles these classes briefly) ---------------- */
+/* tw-flash-up is kept as a fixed teal/green, NOT var(--teal-glow) - Combat
+   repoints --teal to crimson red, which would make a price going UP flash
+   red (reads as a loss). tw-flash-down is safe to theme since --red/--sell
+   never diverge from "danger" across themes. */
 
 @keyframes tw-flash-up {
   0% { background-color: rgba(0, 200, 150, 0.35); }
@@ -85,7 +107,7 @@ h1, h2, h3 {
 }
 
 @keyframes tw-flash-down {
-  0% { background-color: rgba(255, 68, 68, 0.35); }
+  0% { background-color: var(--red-glow); }
   100% { background-color: transparent; }
 }
 
@@ -97,7 +119,7 @@ h1, h2, h3 {
 @keyframes tw-coin-flash {
   0% { color: var(--text-secondary); }
   50% { color: var(--accent-gold); text-shadow: 0 0 15px var(--glow-gold); }
-  100% { color: #ffffff; }
+  100% { color: var(--text-primary); }
 }
 .coin-flash { animation: tw-coin-flash 0.6s ease; }
 
@@ -143,7 +165,7 @@ h1, h2, h3 {
 
 .leaderboard-table tr.rank-1 {
   box-shadow: inset 3px 0 0 var(--gold);
-  background: linear-gradient(90deg, rgba(255, 215, 0, 0.12), transparent 60%);
+  background: linear-gradient(90deg, var(--gold-subtle), transparent 60%);
 }
 
 .leaderboard-table tr.rank-2 {
@@ -163,8 +185,8 @@ h1, h2, h3 {
 }
 
 @keyframes tw-timer-pulse {
-  0%, 100% { color: var(--sell); text-shadow: 0 0 12px rgba(255, 68, 68, 0.6); }
-  50% { color: #ff8080; text-shadow: 0 0 4px rgba(255, 68, 68, 0.3); }
+  0%, 100% { color: var(--sell); text-shadow: 0 0 12px var(--red-glow); }
+  50% { color: var(--red-bright); text-shadow: 0 0 4px var(--red-glow); }
 }
 
 /* ---- gradient P&L text ------------------------------------------------------ */
@@ -194,7 +216,7 @@ h1, h2, h3 {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 24px;
-  background: rgba(10, 10, 20, 0.8);
+  background: var(--nav-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--overlay-soft);
@@ -228,8 +250,8 @@ h1, h2, h3 {
   position: absolute;
   top: 2px;
   right: 2px;
-  background: var(--danger, #ff4d4f);
-  color: #fff;
+  background: var(--badge-red);
+  color: var(--btn-danger-text);
   font-size: 9px;
   font-weight: 800;
   min-width: 14px;
@@ -325,6 +347,109 @@ h1, h2, h3 {
   background: var(--overlay-medium);
 }
 
+/* Left-side identity cluster: avatar, username, tier icon, rating, and a
+   thin progress bar toward the next tier - always visible once logged in,
+   sitting right after the logo so the bar reads left-to-right as
+   brand -> who you are -> your stuff -> quick actions. */
+.tw-nav-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.tw-nav-identity:hover {
+  background: var(--overlay-soft);
+}
+
+.tw-nav-identity-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 90px;
+}
+
+.tw-nav-identity-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tw-nav-tier {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.tw-nav-progress {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--overlay-soft);
+  overflow: hidden;
+}
+
+.tw-nav-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 2px;
+  background: var(--gradient-primary);
+  box-shadow: 0 0 4px var(--glow-teal);
+  transition: width 0.3s ease;
+}
+
+.tw-nav-spacer {
+  flex: 1;
+}
+
+.tw-login-icon-link {
+  text-decoration: none;
+}
+
+.tw-account-name {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tw-account-dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.tw-account-dropdown-item:hover {
+  background: var(--overlay-soft);
+}
+
+.tw-account-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 4px;
+}
+
+.tw-logout-item {
+  color: var(--accent);
+}
+
 .tw-hamburger {
   display: none;
 }
@@ -335,13 +460,13 @@ h1, h2, h3 {
 }
 
 @media (max-width: 480px) {
-  /* Keep only what a trader needs at a glance on a phone-width nav bar - coin
-     balance, mute, and the hamburger (which already has Profile/Settings/logout-
-     adjacent links) - everything else is reachable from there instead. */
-  #headerUsername,
-  #headerTierBadge,
+  /* Keep only what a trader needs at a glance on a phone-width nav bar -
+     coin balance, friends, and the hamburger (which already has
+     Profile/Settings/logout reachable inside it) - everything else folds
+     away since it's one tap from there instead. */
+  #twNavIdentity,
   #twNotifBtn,
-  .tw-nav-right > a[title='Settings'] {
+  #twLogoutBtn {
     display: none !important;
   }
 }
@@ -389,7 +514,13 @@ h1, h2, h3 {
   overflow: hidden;
   padding: 70px 20px 50px 20px;
   text-align: center;
-  background: var(--gradient-dark);
+  /* Same background treatment as the logged-out login hero (.tw-login-hero)
+     so the two never look like different apps - see the shared ::before/
+     ::after ambient glow blobs below. */
+  background:
+    radial-gradient(ellipse at 30% 60%, var(--teal-subtle) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 40%, var(--gold-subtle) 0%, transparent 50%),
+    var(--grad-hero);
 }
 
 .tw-hero-particles {
@@ -572,18 +703,18 @@ h1, h2, h3 {
 }
 
 .sabotage-card:not(.used) {
-  border: 1px solid rgba(0, 200, 150, 0.3);
-  box-shadow: 0 0 10px rgba(0, 200, 150, 0.1);
+  border: 1px solid var(--gold-border);
+  box-shadow: 0 0 10px var(--gold-subtle);
 }
 
 .sabotage-card:not(.used):hover {
-  border: 1px solid rgba(0, 200, 150, 0.6);
-  box-shadow: 0 0 20px rgba(0, 200, 150, 0.2);
+  border: 1px solid var(--gold);
+  box-shadow: 0 0 20px var(--gold-glow);
   transform: translateY(-2px) scale(1.02);
 }
 
 .sabotage-card.selected {
-  box-shadow: 0 0 0 2px var(--accent), 0 0 16px rgba(0, 200, 150, 0.4);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 16px var(--gold-glow);
 }
 
 .sabotage-card.used {
@@ -603,7 +734,7 @@ h1, h2, h3 {
 /* ---- trading floor: match screen background + chart glow + active tab --------- */
 
 .game-shell {
-  background: linear-gradient(135deg, #080810 0%, #0a0a18 25%, #080814 50%, #0a0810 75%, #080810 100%);
+  background: var(--gradient-hero);
   background-size: 400% 400%;
   animation: tw-gradient-shift 15s ease infinite;
 }
@@ -615,12 +746,12 @@ h1, h2, h3 {
 }
 
 .chart-section {
-  border: 1px solid rgba(0, 200, 150, 0.15);
-  box-shadow: 0 0 40px rgba(0, 200, 150, 0.04) inset;
+  border: 1px solid var(--chart-border);
+  box-shadow: 0 0 40px var(--gold-subtle) inset;
 }
 
 .instrument-tab.active {
-  box-shadow: 0 0 15px rgba(0, 200, 150, 0.25);
+  box-shadow: 0 0 15px var(--gold-glow);
   border-bottom: 2px solid var(--accent-teal);
 }
 
@@ -656,6 +787,464 @@ h1, h2, h3 {
 @keyframes tw-ticker-scroll {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
+}
+
+/* ---- full-bleed login (logged-out home screen) ---------------------------------- */
+
+.tw-login-hero {
+  position: relative;
+  min-height: calc(100vh - 74px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse at 30% 60%, var(--teal-subtle) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 40%, var(--gold-subtle) 0%, transparent 50%),
+    var(--grad-hero);
+}
+
+/* Two large, slowly-pulsing ambient glow blobs (spike green / crush red) -
+   the base gradient above is too subtle (0.08 alpha) to read as "ambient
+   light" on its own, so these sit on top of it for real presence without
+   competing with the form for attention (z-index 0, same layer as the
+   chart canvas, blurred well past legibility). */
+.tw-login-hero::before,
+.tw-login-hero::after,
+.tw-hero-section::before,
+.tw-hero-section::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(70px);
+  animation: tw-login-ambient-pulse 7s ease-in-out infinite;
+}
+.tw-login-hero::before,
+.tw-hero-section::before {
+  bottom: -18%;
+  left: 6%;
+  width: 42vw;
+  height: 42vw;
+  background: radial-gradient(circle, color-mix(in srgb, var(--buy, #00c896) 22%, transparent) 0%, transparent 70%);
+}
+.tw-login-hero::after,
+.tw-hero-section::after {
+  bottom: -20%;
+  right: 4%;
+  width: 38vw;
+  height: 38vw;
+  background: radial-gradient(circle, color-mix(in srgb, var(--sell, #ff3d5c) 18%, transparent) 0%, transparent 70%);
+  animation-delay: 1.2s;
+  animation-duration: 8.5s;
+}
+
+@keyframes tw-login-ambient-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.18); opacity: 1; }
+}
+
+.tw-login-topbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  /* Only .tw-login-version lives here now - the logo was removed since
+     #twNav (nav.js) already renders one on every page, this one duplicated
+     it. flex-end keeps the version tag pinned to its original top-right spot
+     instead of collapsing to flex-start with only one child left. */
+  justify-content: flex-end;
+  padding: 24px 28px 0;
+}
+
+.tw-login-version {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: var(--mono);
+}
+
+.tw-login-spacer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 20px;
+  min-height: 0;
+}
+
+@media (max-width: 700px) {
+  .tw-login-spacer { display: none; }
+}
+
+.tw-login-bottom {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 0 20px 8px;
+}
+
+.tw-login-social-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tw-login-social-row .google-signin-btn,
+.tw-login-social-row .apple-signin-btn {
+  flex: 1;
+  height: 52px;
+  min-height: 52px;
+  border-radius: 10px;
+  background: rgba(20, 20, 30, 0.55);
+  border: 1px solid var(--border-normal);
+  color: var(--text);
+  backdrop-filter: blur(6px);
+}
+
+.tw-login-social-row .google-signin-btn:hover,
+.tw-login-social-row .apple-signin-btn:hover {
+  background: rgba(30, 30, 42, 0.7);
+}
+
+.tw-login-bottom input {
+  background: rgba(10, 10, 18, 0.6);
+  border: 1px solid var(--border-normal);
+}
+
+.tw-login-legal-links {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 14px 0 22px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.tw-login-legal-links a {
+  color: var(--accent-gold);
+  text-decoration: none;
+}
+
+.tw-login-legal-links a:hover {
+  text-decoration: underline;
+}
+
+.tw-login-legal-links .sep {
+  color: var(--accent-teal);
+  margin: 0 8px;
+}
+
+@media (max-width: 700px) {
+  .tw-login-social-row { flex-direction: column; }
+}
+
+/* Decorative candlestick chart drawn behind the login hero (see the
+   loginChartCanvas script in index.html) - sits under the existing radial
+   glow background and above nothing, so it never competes with the real
+   form for attention. */
+.tw-login-chart-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.tw-login-headline {
+  position: relative;
+  z-index: 1;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0 auto;
+  max-width: 780px;
+  padding: 0 20px;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);
+}
+
+.tw-login-headline .word {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(14px);
+  transform: translateY(40%);
+  animation: tw-login-headline-in 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes tw-login-headline-in {
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+
+.tw-login-stats-bar {
+  position: relative;
+  z-index: 1;
+  margin-top: 32px;
+}
+
+/* ---- trading floor hub: 3-column layout ------------------------------------------ */
+
+.tw-hub-grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 220px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .tw-hub-grid {
+    grid-template-columns: 1fr;
+  }
+  .tw-hub-left {
+    flex-direction: row !important;
+    overflow-x: auto;
+  }
+  .tw-hub-left .tw-hub-card {
+    min-width: 200px;
+  }
+}
+
+.tw-hub-left {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Used to cap at 480px with overflow-y: auto, which silently clipped
+     content with no visible scrollbar the moment there was enough to fill
+     it (4 hub cards + partner cards routinely exceeds 480px) - it just
+     looked like the extra content wasn't there at all. This column grows
+     naturally instead now, same as the center/right hub columns. */
+}
+
+.tw-hub-card {
+  position: relative;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tw-hub-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--card-shadow);
+}
+
+.tw-hub-card-icon {
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.tw-hub-card-title {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.tw-hub-card-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.tw-hub-center {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tw-hub-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tw-hub-identity-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.tw-hub-identity-name {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.tw-hub-identity-stats {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.tw-hub-right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tw-hub-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, filter 0.15s ease;
+}
+
+.tw-hub-mode-btn:hover {
+  border-left-color: var(--accent-teal);
+  filter: brightness(1.15);
+}
+
+.tw-hub-mode-btn .icon {
+  font-size: 18px;
+}
+
+.tw-hub-mode-btn .meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.tw-hub-mode-btn .label {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+}
+
+.tw-hub-mode-btn .sub {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tw-hub-start-btn {
+  margin-top: 6px;
+  padding: 16px 14px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--gradient-primary);
+  color: var(--btn-primary-text);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  box-shadow: 0 0 20px var(--glow-teal);
+}
+
+.tw-hub-start-btn:hover {
+  filter: brightness(1.08);
+}
+
+.tw-hub-private-row {
+  margin-top: 4px;
+}
+
+/* ---- trading floor hub: staggered card entrance ----------------------------------
+   Every interactive card/button in the hub (left-column tournament/battle-pass/
+   shop/daily cards, the center identity panel + join row + private war row,
+   the right-column mode buttons, the trading partner cards) fades and slides
+   up on load, each a beat behind the last, so the hub reads as one cascading
+   reveal instead of everything just appearing at once. Hover states (lift,
+   border glow, shine sweep) are unchanged - this only covers the initial
+   entrance. */
+.tw-hub-left > .tw-hub-card,
+.tw-hub-center > *,
+.tw-hub-right > .tw-hub-mode-btn,
+.tw-hub-right > .tw-hub-start-btn,
+.tw-partner-card {
+  animation: tw-card-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes tw-card-in {
+  from { opacity: 0; transform: translateY(28px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tw-hub-left > .tw-hub-card:nth-child(1) { animation-delay: 0.05s; }
+.tw-hub-left > .tw-hub-card:nth-child(2) { animation-delay: 0.16s; }
+.tw-hub-left > .tw-hub-card:nth-child(3) { animation-delay: 0.27s; }
+.tw-hub-left > .tw-hub-card:nth-child(4) { animation-delay: 0.38s; }
+.tw-hub-left > .tw-hub-card:nth-child(5) { animation-delay: 0.49s; }
+
+.tw-hub-center > *:nth-child(1) { animation-delay: 0.08s; }
+.tw-hub-center > *:nth-child(2) { animation-delay: 0.2s; }
+.tw-hub-center > *:nth-child(3) { animation-delay: 0.32s; }
+.tw-hub-center > *:nth-child(4) { animation-delay: 0.44s; }
+.tw-hub-center > *:nth-child(5) { animation-delay: 0.56s; }
+
+.tw-hub-right > .tw-hub-mode-btn:nth-child(1) { animation-delay: 0.08s; }
+.tw-hub-right > .tw-hub-mode-btn:nth-child(2) { animation-delay: 0.17s; }
+.tw-hub-right > .tw-hub-mode-btn:nth-child(3) { animation-delay: 0.26s; }
+.tw-hub-right > .tw-hub-mode-btn:nth-child(4) { animation-delay: 0.35s; }
+.tw-hub-right > .tw-hub-mode-btn:nth-child(5) { animation-delay: 0.44s; }
+.tw-hub-right > .tw-hub-mode-btn:nth-child(6) { animation-delay: 0.53s; }
+.tw-hub-right > .tw-hub-start-btn { animation-delay: 0.64s; }
+
+.tw-partner-card:nth-child(1) { animation-delay: 0.08s; }
+.tw-partner-card:nth-child(2) { animation-delay: 0.17s; }
+.tw-partner-card:nth-child(3) { animation-delay: 0.26s; }
+.tw-partner-card:nth-child(4) { animation-delay: 0.35s; }
+.tw-partner-card:nth-child(5) { animation-delay: 0.44s; }
+.tw-partner-card:nth-child(n+6) { animation-delay: 0.53s; }
+
+/* General-purpose reveal for everything below the hub grid (the activity
+   ticker, the leaderboard preview, Recent Activity / Hot Streaks / War Lord
+   Spotlight) so the whole page cascades in as one continuous sequence
+   instead of the hub grid being the only part that moves. Each element
+   sets its own --reveal-delay inline to continue that sequence - see the
+   style="--reveal-delay:...' attributes in index.html. */
+.tw-reveal {
+  animation: tw-card-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--reveal-delay, 0s);
+}
+
+/* Corner status badges - LIVE already pulses (its own dot animation);
+   NEW/FREE/HOT get a slow shimmer sweep (see .tw-corner-badge.badge-new
+   etc. further down, next to their background/gradient definitions) so
+   nothing on the hub reads as static once the entrance cascade finishes. */
+@keyframes tw-badge-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ---- trading floor hub: bottom activity ticker ----------------------------------- */
+
+.tw-hub-ticker-wrap {
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  white-space: nowrap;
+  padding: 10px 0;
+  margin-top: 16px;
+}
+
+.tw-hub-ticker-track {
+  display: inline-flex;
+  animation: tw-ticker-scroll 40s linear infinite;
+}
+
+.tw-hub-ticker-item {
+  display: inline-flex;
+  padding: 0 24px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 /* ---- trading floor: mode action grid -------------------------------------------- */
@@ -717,7 +1306,7 @@ h1, h2, h3 {
 .tw-warlord-spotlight .meta { color: var(--text-secondary); font-size: 12px; }
 
 .tw-daily-widget {
-  background: linear-gradient(135deg, rgba(0, 200, 150, 0.12), rgba(0, 150, 200, 0.08));
+  background: linear-gradient(135deg, var(--gold-subtle), var(--gold-border));
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   padding: 16px;
@@ -767,17 +1356,114 @@ h1, h2, h3 {
   to { transform: scale(1); opacity: 1; }
 }
 
-/* ---- broker partners (tiered display) ------------------------------------------- */
+/* ---- broker partners: interactive cards below Private War in the hub center --- */
 
-.tw-broker-tier { margin-bottom: 14px; text-align: center; }
-.tw-broker-tier:last-child { margin-bottom: 0; }
-.tw-broker-tier-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; }
-.tw-broker-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.tw-broker-chip { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 18px; font-weight: 700; text-decoration: none; color: var(--text); transition: border-color 0.15s; }
-.tw-broker-chip:hover { border-color: var(--accent); }
-.tw-broker-tier[data-tier="title"] .tw-broker-chip { font-size: 18px; padding: 16px 32px; border-color: var(--gold, #ffd700); }
-.tw-broker-tier[data-tier="official"] .tw-broker-chip { font-size: 15px; padding: 12px 24px; }
-.tw-broker-tier[data-tier="featured"] .tw-broker-chip { font-size: 12px; padding: 8px 16px; color: var(--text-secondary); }
+.tw-partners-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  margin: 16px 0 8px 2px;
+}
+
+/* Fills the space below the Private War row that's otherwise left empty -
+   the hub grid uses align-items: start (each column keeps its own natural
+   height, none stretch to match the tallest), so this can't rely on flex-
+   grow to match the left/right columns; sized generously enough on its own
+   (2-wide, tall cards) to read as intentional rather than left over. */
+.tw-partner-cards-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.tw-partner-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, var(--radius));
+  padding: 26px 16px;
+  min-height: 168px;
+  text-decoration: none;
+  color: var(--text);
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.tw-partner-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--card-shadow);
+}
+
+/* Slow diagonal light sweep - purely decorative "alive" feel, runs
+   continuously but subtly so it reads as premium rather than distracting. */
+.tw-partner-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.09) 50%, transparent 60%);
+  background-size: 250% 250%;
+  animation: tw-partner-shine-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes tw-partner-shine-sweep {
+  0% { background-position: 200% 0%; }
+  100% { background-position: -100% 0%; }
+}
+
+.tw-partner-logo {
+  position: relative;
+  z-index: 1;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.tw-partner-logo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-3);
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--text-secondary);
+}
+
+.tw-partner-name {
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.tw-corner-badge.badge-partner { background: var(--badge-red); }
+
+.tw-partner-card.tier-title {
+  border-color: var(--gold, #ffd700);
+  box-shadow: 0 0 0 1px var(--gold-subtle, rgba(255, 215, 0, 0.15));
+}
+.tw-partner-card.tier-title .badge-partner {
+  background: linear-gradient(135deg, var(--gold, #ffd700), var(--warning, #ff8c00));
+  color: #241300;
+}
+.tw-partner-card.tier-title .tw-partner-logo,
+.tw-partner-card.tier-title .tw-partner-name { font-weight: 800; }
+
+.tw-partner-card.tier-official { border-color: var(--accent-teal, var(--accent)); }
+.tw-partner-card.tier-official .badge-partner { background: var(--accent-teal, var(--accent)); color: var(--btn-primary-text); }
+
+.tw-partner-card.tier-featured .tw-partner-name { color: var(--text-secondary); font-weight: 600; }
+.tw-partner-card.tier-featured .badge-partner { background: var(--surface-3); color: var(--text-secondary); }
 
 /* ---- friends panel (Block 12, COD style) ----------------------------------------- */
 
@@ -857,7 +1543,7 @@ h1, h2, h3 {
   justify-content: center;
   font-weight: 800;
   font-size: 13px;
-  color: #06251d;
+  color: var(--btn-primary-text);
   flex-shrink: 0;
   position: relative;
 }
@@ -872,10 +1558,10 @@ h1, h2, h3 {
   border: 2px solid rgba(10, 10, 20, 0.95);
 }
 
-.tw-friend-status-dot.online { background: #00c896; }
-.tw-friend-status-dot.in_lobby { background: #ffd700; }
-.tw-friend-status-dot.in_match { background: #ff4444; }
-.tw-friend-status-dot.offline { background: #666; }
+.tw-friend-status-dot.online { background: var(--buy); }
+.tw-friend-status-dot.in_lobby { background: var(--gold); }
+.tw-friend-status-dot.in_match { background: var(--red); }
+.tw-friend-status-dot.offline { background: var(--neutral); }
 
 .tw-friend-name { font-weight: 700; font-size: 13px; line-height: 1.2; }
 .tw-friend-meta { font-size: 11px; color: var(--text-secondary); line-height: 1.3; }
@@ -892,7 +1578,7 @@ h1, h2, h3 {
   color: var(--text);
   cursor: pointer;
 }
-.tw-friend-actions button.primary { background: var(--gradient-primary); color: #06251d; border-color: transparent; font-weight: 700; }
+.tw-friend-actions button.primary { background: var(--gradient-primary); color: var(--btn-primary-text); border-color: transparent; font-weight: 700; }
 
 .tw-friends-empty { font-size: 12px; color: var(--text-secondary); padding: 8px 0; }
 
@@ -902,7 +1588,7 @@ h1, h2, h3 {
   top: -4px;
   right: -6px;
   background: var(--accent);
-  color: #06251d;
+  color: var(--btn-primary-text);
   font-size: 9px;
   font-weight: 800;
   min-width: 14px;
@@ -1004,6 +1690,8 @@ h1, h2, h3 {
   to { transform: translateY(20px); opacity: 0; }
 }
 
+/* Fixed green, not var(--teal-glow) - same reasoning as tw-flash-up: an
+   "invite accepted" confirmation must never render as red in Combat. */
 @keyframes tw-invite-flash-green {
   0% { box-shadow: 0 0 0 0 rgba(0, 200, 150, 0.6); }
   100% { box-shadow: 0 0 0 20px rgba(0, 200, 150, 0); opacity: 0; transform: scale(0.96); }
@@ -1018,7 +1706,7 @@ h1, h2, h3 {
 .tw-invite-expiry-label { font-size: 10px; color: var(--text-secondary); margin-bottom: 10px; }
 .tw-invite-actions { display: flex; gap: 8px; }
 .tw-invite-actions button { flex: 1; padding: 8px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; }
-.tw-invite-actions .accept { background: var(--gradient-primary); color: #06251d; }
+.tw-invite-actions .accept { background: var(--gradient-primary); color: var(--btn-primary-text); }
 .tw-invite-actions .decline { background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
 
 /* ---- lobby loadout modal (Block 12, Part D) --------------------------------------- */
@@ -1048,7 +1736,7 @@ h1, h2, h3 {
 
 .tw-loadout-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
 .tw-loadout-tabs button { padding: 8px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 13px; }
-.tw-loadout-tabs button.active { background: var(--gradient-primary); color: #06251d; border-color: transparent; }
+.tw-loadout-tabs button.active { background: var(--gradient-primary); color: var(--btn-primary-text); border-color: transparent; }
 .tw-loadout-body { overflow-y: auto; flex: 1; }
 
 .tw-loadout-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
@@ -1093,7 +1781,7 @@ h1, h2, h3 {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  color: #06251d;
+  color: var(--btn-primary-text);
   overflow: hidden;
 }
 .tw-avatar-frame {
@@ -1237,3 +1925,224 @@ h1, h2, h3 {
 
 /* Shop item live cosmetic preview */
 .tw-shop-preview { display: flex; align-items: center; justify-content: center; padding: 10px 0; min-height: 50px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Shared visual language - used across leaderboard rows, friends panel,
+   lobby/pre-match cards, results screens, match feed, home hub cards, etc.
+   Kept here (loaded on every page) rather than per-feature CSS files so a
+   single tweak stays consistent everywhere it appears.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ---- player identity badge: [Avatar] [Username] [TierIcon] [Rating] --- */
+
+.tw-player-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+.tw-player-badge-name {
+  font-weight: 600;
+}
+
+.tw-player-badge-tier {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.tw-player-badge-rating {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* ---- corner status badges (NEW / FREE / LIVE / HOT) -------------------- */
+
+.tw-corner-badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--btn-danger-text);
+  z-index: 2;
+  white-space: nowrap;
+}
+
+/* Gradients (not flat fills) so the shimmer animation below has something
+   to actually animate across - see .tw-corner-badge.badge-new etc. */
+.tw-corner-badge.badge-new { background: linear-gradient(135deg, var(--badge-red), var(--warning), var(--badge-red)); }
+.tw-corner-badge.badge-free { background: linear-gradient(135deg, var(--badge-red), var(--warning), var(--badge-red)); }
+.tw-corner-badge.badge-hot { background: linear-gradient(135deg, var(--warning), var(--badge-red)); }
+
+.tw-corner-badge.badge-new,
+.tw-corner-badge.badge-free,
+.tw-corner-badge.badge-hot {
+  background-size: 200% 100%;
+  animation: tw-badge-shimmer 2.4s ease-in-out infinite;
+}
+
+.tw-corner-badge.badge-live {
+  background: var(--badge-red);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tw-corner-badge.badge-live::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: tw-live-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes tw-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Small gold diamond marking anything that costs coins/premium currency */
+.tw-premium-diamond {
+  color: var(--gold);
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+/* ---- progress bars ------------------------------------------------------ */
+
+.tw-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--overlay-soft);
+  overflow: hidden;
+}
+
+.tw-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--gradient-primary);
+  box-shadow: 0 0 6px var(--glow-teal);
+  transition: width 0.3s ease;
+}
+
+/* ---- coin display -------------------------------------------------------- */
+
+.tw-coin-value {
+  font-family: var(--mono);
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* ---- time-remaining chips ------------------------------------------------- */
+
+.tw-time-remaining {
+  color: var(--accent-gold);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---- skeleton loading shimmer --------------------------------------------- */
+
+.tw-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--overlay-soft);
+  border-radius: var(--radius);
+  min-height: 14px;
+}
+
+.tw-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--overlay-medium), transparent);
+  animation: tw-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes tw-skeleton-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+/* ---- admin-managed promotional popup (fires once/day after login) -------------- */
+
+.tw-promo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: tw-page-fade-in 0.2s ease;
+}
+
+.tw-promo-close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.tw-promo-image {
+  position: absolute;
+  inset: 0 0 30% 0;
+}
+
+.tw-promo-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30%;
+  min-height: 180px;
+  background: var(--bg);
+  padding: 20px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.tw-promo-headline {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.tw-promo-subtext {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.tw-promo-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--gradient-gold);
+  color: var(--btn-cta-text);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+}
+
+.tw-promo-btn:hover {
+  filter: brightness(1.06);
+}

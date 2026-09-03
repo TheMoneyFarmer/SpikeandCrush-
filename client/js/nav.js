@@ -8,7 +8,7 @@ window.TW = window.TW || {};
 // working unchanged against the new markup.
 (function () {
   const NAV_LINKS = [
-    { key: 'home', label: 'Home', href: '/' },
+    { key: 'home', label: 'Home', href: '/play' },
     { key: 'leaderboard', label: 'Leaderboard', href: '/leaderboard' },
     { key: 'cards', label: 'Cards', href: '/cards' },
     { key: 'shop', label: 'Shop', href: '/shop' },
@@ -43,26 +43,42 @@ window.TW = window.TW || {};
       (l) => `<a href="${l.href}" class="${l.key === active ? 'active' : ''}">${l.label}</a>`
     ).join('');
 
+    // Persistent 3-zone header (identity / coins / icon-only actions) - full
+    // page navigation lives entirely in the ☰ drawer now, so this bar never
+    // wraps to a second row and never changes shape between pages.
     container.innerHTML = `
       <nav class="tw-navbar">
-        <a href="/" class="tw-logo-link">
+        <a href="/play" class="tw-logo-link">
           <div class="sc-logo-wrapper nav-logo">
             <div class="sc-logo">
               <span class="sc-s1">S</span><span class="sc-p">P</span><span class="sc-i">I</span><span class="sc-k">K</span><span class="sc-e">E</span><span class="sc-amp">&amp;</span><span class="sc-c">C</span><span class="sc-r">R</span><span class="sc-u">U</span><span class="sc-s2">S</span><span class="sc-h">H</span>
             </div>
           </div>
         </a>
+
         <div class="tw-nav-links">${linksHtml}</div>
+
+        <a href="/profile" class="tw-nav-identity hidden" id="twNavIdentity">
+          <span id="twNavIdentityAvatar"></span>
+          <span class="tw-nav-identity-meta">
+            <span class="tw-nav-identity-top">
+              <span id="headerUsername" class="tw-account-name"></span>
+              <span id="headerTierBadge" class="tw-nav-tier hidden"></span>
+              <span id="headerRating" class="tw-player-badge-rating mono"></span>
+            </span>
+            <span class="tw-nav-progress"><span class="tw-nav-progress-fill" id="twNavProgressFill"></span></span>
+          </span>
+        </a>
+
+        <div class="tw-nav-spacer"></div>
+
+        <a href="/wallet" id="headerCoinWrap" class="tw-coin-balance hidden">🪙 <span id="headerCoinBalance">0</span></a>
+
         <div class="tw-nav-right">
-          <a href="/profile" id="headerUsername" class="text-secondary" style="text-decoration:none;"></a>
-          <span id="headerTierBadge" class="pill hidden"></span>
-          <button type="button" class="help-btn" data-help="war-rating" title="What is War Rating?">?</button>
-          <a href="/wallet" id="headerCoinWrap" class="tw-coin-balance hidden">🪙 <span id="headerCoinBalance">0</span></a>
-          <button type="button" class="help-btn" data-help="coins" title="What are coins?">?</button>
-          <button type="button" class="tw-nav-icon-btn" id="twMuteBtn" title="Mute sounds">🔊</button>
           <button type="button" class="tw-nav-icon-btn" id="twNotifBtn" title="Notifications" style="position:relative;">🔔<span id="twNotifBadge" class="tw-notif-badge hidden">0</span></button>
           <button type="button" class="tw-nav-icon-btn tw-friends-toggle-btn" id="twFriendsToggleBtn" title="Friends (0)">👥<span id="twFriendsOnlineBadge" class="tw-friends-online-badge hidden">0</span></button>
-          <a href="#" id="headerAuthLink" class="btn btn-outline">Log in</a>
+          <a href="#" id="headerAuthLink" class="tw-nav-icon-btn tw-login-icon-link hidden" title="Log in">🔑</a>
+          <button type="button" class="tw-nav-icon-btn tw-logout-icon-btn hidden" id="twLogoutBtn" title="Log out">🚪</button>
           <button type="button" class="tw-nav-icon-btn tw-hamburger" id="twHamburgerBtn" title="Menu">☰</button>
         </div>
       </nav>
@@ -73,20 +89,6 @@ window.TW = window.TW || {};
   }
 
   function wireInteractions(container, active) {
-    const muteBtn = container.querySelector('#twMuteBtn');
-    function refreshMuteIcon() {
-      const s = TW.Sound ? TW.Sound.getSettings() : { muted: false };
-      muteBtn.textContent = s.muted ? '🔇' : '🔊';
-    }
-    if (muteBtn) {
-      refreshMuteIcon();
-      muteBtn.addEventListener('click', () => {
-        const s = TW.Sound.getSettings();
-        TW.Sound.updateSettings({ muted: !s.muted });
-        refreshMuteIcon();
-      });
-    }
-
     const notifBtn = container.querySelector('#twNotifBtn');
     if (notifBtn) {
       notifBtn.addEventListener('click', (e) => {
@@ -98,6 +100,11 @@ window.TW = window.TW || {};
     const hamburgerBtn = container.querySelector('#twHamburgerBtn');
     if (hamburgerBtn) {
       hamburgerBtn.addEventListener('click', () => openDrawer(active));
+    }
+
+    const logoutBtn = container.querySelector('#twLogoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => TW.logout());
     }
 
     initNotifications();
@@ -272,6 +279,7 @@ window.TW = window.TW || {};
     const existing = document.getElementById('twNavDrawer');
     if (existing) existing.remove();
 
+    const loggedIn = Boolean(TW.getPlayer());
     const overlay = document.createElement('div');
     overlay.id = 'twNavDrawer';
     overlay.className = 'tw-nav-drawer';
@@ -280,12 +288,37 @@ window.TW = window.TW || {};
         ${NAV_LINKS.map((l) => `<a href="${l.href}" class="${l.key === active ? 'active' : ''}">${l.label}</a>`).join('')}
         <a href="/profile">Profile</a>
         <a href="/help">Help</a>
+        <div class="tw-account-dropdown-divider"></div>
+        <button type="button" class="tw-account-dropdown-item" id="twDrawerMuteBtn">🔊 Mute sounds</button>
+        <a href="#" id="twDrawerAuthLink" class="tw-account-dropdown-item tw-logout-item">${loggedIn ? 'Log out' : 'Log in'}</a>
       </div>
     `;
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) overlay.remove();
     });
     document.body.appendChild(overlay);
+
+    const drawerMuteBtn = overlay.querySelector('#twDrawerMuteBtn');
+    const refreshDrawerMuteIcon = () => {
+      const s = TW.Sound ? TW.Sound.getSettings() : { muted: false };
+      drawerMuteBtn.textContent = s.muted ? '🔇 Unmute sounds' : '🔊 Mute sounds';
+    };
+    refreshDrawerMuteIcon();
+    drawerMuteBtn.addEventListener('click', () => {
+      const s = TW.Sound.getSettings();
+      TW.Sound.updateSettings({ muted: !s.muted });
+      refreshDrawerMuteIcon();
+    });
+
+    overlay.querySelector('#twDrawerAuthLink').addEventListener('click', (e) => {
+      if (TW.getPlayer()) {
+        e.preventDefault();
+        overlay.remove();
+        TW.logout();
+      } else {
+        overlay.remove();
+      }
+    });
   }
 
   document.addEventListener('DOMContentLoaded', renderNav);

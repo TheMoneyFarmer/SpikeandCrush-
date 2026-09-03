@@ -1222,6 +1222,15 @@ async function getLargestWinToday() {
   return data.length ? Number(data[0].final_pnl) : 0;
 }
 
+// Lifetime total, unlike getCoinsWonToday() above which is scoped to today -
+// used by the landing page's "Total Prizes Distributed" stat.
+async function getTotalPrizesDistributed() {
+  assertConfigured();
+  const { data, error } = await supabase.from('coin_transactions').select('amount').eq('type', 'prize_won');
+  if (error) throw error;
+  return data.reduce((sum, row) => sum + row.amount, 0);
+}
+
 // ---- sessions / login history --------------------------------------------------
 
 async function createSession({ playerId, userAgent, ip }) {
@@ -1371,6 +1380,22 @@ async function getLifetimeMatchPnl(playerId) {
 
 // Public-facing (no auth required) - written by the admin panel's
 // Communications > Announcements tab, read by the home page banner.
+async function getActivePromoPopup() {
+  assertConfigured();
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('promotional_popups')
+    .select('id, headline, subtext, button_text, button_url, gradient_from, gradient_to')
+    .eq('active', true)
+    .lte('active_from', nowIso)
+    .or(`active_until.is.null,active_until.gte.${nowIso}`)
+    .order('active_from', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 async function getActiveAnnouncements(location = 'home') {
   assertConfigured();
   const nowIso = new Date().toISOString();
@@ -1475,6 +1500,7 @@ module.exports = {
   getCoinsWonToday,
   getCoinsBreakdown,
   getLargestWinToday,
+  getTotalPrizesDistributed,
   createSession,
   getSession,
   listSessions,
@@ -1491,6 +1517,7 @@ module.exports = {
   getTodayLoss,
   getLifetimeMatchPnl,
   getActiveAnnouncements,
+  getActivePromoPopup,
   getPeriodLeaderboard,
   deletePlayer,
 };
