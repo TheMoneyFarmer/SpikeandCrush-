@@ -105,7 +105,7 @@
 
     const params = new URLSearchParams(window.location.search);
     const matchId = params.get('matchId');
-    if (!matchId) window.location.href = 'index.html';
+    if (!matchId) window.location.href = '/play';
 
     let currentState = null;
     let lobbyTimerInterval = null;
@@ -234,7 +234,7 @@
     }
 
     const socket = TW.connectSocket();
-    if (!socket) window.location.href = 'index.html';
+    if (!socket) window.location.href = '/play';
 
     socket.on('connect', async () => {
       const result = await TW.emitAck('player:join', { matchId });
@@ -275,7 +275,7 @@
 
     document.getElementById('shareLinkBtn').addEventListener('click', () => {
       const code = currentState ? currentState.roomCode : '';
-      const url = `${window.location.origin}/index.html?join=${code}`;
+      const url = `${window.location.origin}/play?join=${code}`;
       navigator.clipboard.writeText(url).then(() => TW.toast('Invite link copied'));
     });
 

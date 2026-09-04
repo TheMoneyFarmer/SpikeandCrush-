@@ -66,6 +66,11 @@ const allowedOrigins = (process.env.ALLOWED_ORIGIN || '')
 const corsOrigin = allowedOrigins.length > 0 ? allowedOrigins : '*';
 
 const app = express();
+// Railway sits in front of this app as a single reverse proxy hop and sets
+// X-Forwarded-For - without telling Express to trust exactly that one hop,
+// express-rate-limit refuses to start (it throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+// rather than risk keying rate limits off a client-spoofable header).
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: corsOrigin } });
 

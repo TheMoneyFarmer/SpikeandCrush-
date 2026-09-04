@@ -8,7 +8,7 @@ window.TW = window.TW || {};
   const params = new URLSearchParams(window.location.search);
   const matchId = params.get('matchId');
   if (!matchId) {
-    window.location.href = 'index.html';
+    window.location.href = '/play';
     return;
   }
 
@@ -1197,7 +1197,7 @@ window.TW = window.TW || {};
 
   const socket = TW.connectSocket();
   if (!socket) {
-    window.location.href = 'index.html';
+    window.location.href = '/play';
     return;
   }
 

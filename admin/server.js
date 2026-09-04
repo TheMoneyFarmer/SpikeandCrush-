@@ -25,6 +25,10 @@ if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD || !process.env.A
 }
 
 const app = express();
+// Same reasoning as the game server - Railway is a single reverse-proxy hop
+// in front of this service, so express-rate-limit needs trust proxy set to
+// use X-Forwarded-For safely.
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: true, credentials: true } });
 
