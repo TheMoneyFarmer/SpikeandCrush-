@@ -1289,6 +1289,13 @@ window.TW = window.TW || {};
     TW.toast(`✅ ${data.username} reconnected`, 'info');
   });
 
+  window.addEventListener('beforeunload', (e) => {
+    if (!matchId || (lastState && lastState.status === 'finished')) return;
+    e.preventDefault();
+    e.returnValue = 'You are in a match. Leaving will result in last place.';
+    return e.returnValue;
+  });
+
   socket.on('match:state', (state) => {
     lastState = state;
     setupInstrumentTabs(state.instruments);
