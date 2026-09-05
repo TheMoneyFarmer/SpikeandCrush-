@@ -1120,11 +1120,21 @@ window.TW = window.TW || {};
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 1000, 560);
 
-      ctx.fillStyle = '#00c896';
-      ctx.font = '700 40px sans-serif';
-      ctx.fillText('Trade', 60, 90);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText('Wars', 175, 90);
+      // SPIKE & CRUSH wordmark - same per-letter staircase colors as the
+      // .sc-s1..sc-h CSS classes used everywhere else in the app (main.css).
+      const wordmark = [
+        { ch: 'S', col: '#008F6A' }, { ch: 'P', col: '#00A87C' }, { ch: 'I', col: '#00C896' },
+        { ch: 'K', col: '#00E0AA' }, { ch: 'E', col: '#00FF88' }, { ch: ' & ', col: '#FFFFFF' },
+        { ch: 'C', col: '#FF4444' }, { ch: 'R', col: '#EE3333' }, { ch: 'U', col: '#DD2222' },
+        { ch: 'S', col: '#CC1111' }, { ch: 'H', col: '#BB0000' },
+      ];
+      ctx.font = '800 40px sans-serif';
+      let wordmarkX = 60;
+      for (const { ch, col } of wordmark) {
+        ctx.fillStyle = col;
+        ctx.fillText(ch, wordmarkX, 90);
+        wordmarkX += ctx.measureText(ch).width;
+      }
 
       if (me) {
         const won = me.rank === 1;
@@ -1156,7 +1166,7 @@ window.TW = window.TW || {};
     function openShareModal() {
       const pnlPct = me ? ((me.pnl / 10000) * 100).toFixed(0) : '0';
       const shareText = me
-        ? `I just finished #${me.rank} in Spike & Crush making ${me.pnl >= 0 ? '+' : ''}${TW.formatMoney(me.pnl)} (${pnlPct}%) in 10 minutes! Think you can beat that? Join at ${window.location.host}`
+        ? `I just finished #${me.rank} in Spike & Crush making ${me.pnl >= 0 ? '+' : ''}${TW.formatMoney(me.pnl)} (${pnlPct}%) in ${durationLabel}! Think you can beat that? Join at ${window.location.host}`
         : `I just finished a Spike & Crush match! Join at ${window.location.host}`;
       const pngDataUrl = drawResultCardPng();
       const replayUrl = `${window.location.origin}/replay?match=${matchId}`;
@@ -1168,6 +1178,7 @@ window.TW = window.TW || {};
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;width:420px;max-width:92vw;">
           <img src="${pngDataUrl}" style="width:100%;border-radius:8px;margin-bottom:14px;" />
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-outline hidden" id="nativeShareBtn">📤 Share</button>
             <a class="btn btn-outline" href="https://wa.me/?text=${encodeURIComponent(shareText)}" target="_blank" rel="noopener" style="text-decoration:none;">📱 WhatsApp</a>
             <a class="btn btn-outline" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}" target="_blank" rel="noopener" style="text-decoration:none;">🐦 Twitter/X</a>
             <button class="btn btn-outline" id="copyResultBtn">🔗 Copy Text</button>
@@ -1177,6 +1188,29 @@ window.TW = window.TW || {};
         </div>
       `;
       document.body.appendChild(backdrop);
+
+      // Native share sheet (mobile) - only shown when the platform actually
+      // supports sharing a file, so desktop just keeps the WhatsApp/Twitter/
+      // copy fallbacks above instead of a button that would silently fail.
+      (async () => {
+        try {
+          const res = await fetch(pngDataUrl);
+          const blob = await res.blob();
+          const file = new File([blob], 'spike-and-crush-result.png', { type: 'image/png' });
+          if (navigator.canShare?.({ files: [file] })) {
+            const nativeBtn = backdrop.querySelector('#nativeShareBtn');
+            nativeBtn.classList.remove('hidden');
+            nativeBtn.addEventListener('click', async () => {
+              try {
+                await navigator.share({ title: 'Spike & Crush Result', text: shareText, files: [file] });
+              } catch (e) {
+                if (e.name !== 'AbortError') TW.toast('Could not open share sheet', 'danger');
+              }
+            });
+          }
+        } catch (e) {}
+      })();
+
       backdrop.querySelector('#copyResultBtn').addEventListener('click', () => {
         navigator.clipboard.writeText(shareText).then(() => TW.toast('Copied!', 'info'));
       });
