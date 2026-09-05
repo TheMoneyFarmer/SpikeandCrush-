@@ -1988,6 +1988,7 @@ app.get('/api/config/public', (req, res) => {
   res.json({
     supabaseUrl: process.env.SUPABASE_URL || null,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
+    devCoinGrantsEnabled: !stripeWebhookConfigured && allowedOrigins.length === 0,
   });
 });
 
@@ -2271,8 +2272,13 @@ app.post('/api/coins/purchase', requireDb, authenticate, async (req, res) => {
 // faucet even in dev.
 const DEV_COIN_GRANT_AMOUNT = 1000;
 app.post('/api/dev/add-coins', requireDb, authenticate, async (req, res) => {
-  if (stripeWebhookConfigured) {
-    return res.status(403).json({ error: 'Dev coin grants are disabled once a real Stripe webhook is configured' });
+  // Prod sets ALLOWED_ORIGIN to lock down CORS to the real domain(s); dev
+  // leaves it unset for convenience. Reusing that same signal here closes
+  // this faucet on any locked-down deployment even before Stripe itself is
+  // configured there - without it, a live prod site with Stripe still
+  // pending would otherwise let any signed-up user free-mint coins.
+  if (stripeWebhookConfigured || allowedOrigins.length > 0) {
+    return res.status(403).json({ error: 'Dev coin grants are disabled on this deployment' });
   }
   try {
     const player = await db.getPlayerById(req.tokenPlayer.id);

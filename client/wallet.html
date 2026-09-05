@@ -190,10 +190,14 @@
       });
     });
 
-    // The panel shows optimistically; the server is the real gate (self-
-    // disables once a production Stripe webhook secret is configured), so a
-    // 403 here just means this isn't a dev environment and the panel hides.
-    document.getElementById('devCoinsPanel').classList.remove('hidden');
+    // Ask the server whether this deployment allows dev coin grants at all
+    // before showing the panel - avoids flashing a "test coins" button at
+    // real users on a locked-down (prod) deployment where Stripe just
+    // hasn't been configured yet. The click handler's 403 check stays as a
+    // second, authoritative gate regardless of what this fetch says.
+    fetch('/api/config/public').then((r) => r.json()).then((cfg) => {
+      if (cfg.devCoinGrantsEnabled) document.getElementById('devCoinsPanel').classList.remove('hidden');
+    }).catch(() => {});
     document.getElementById('devAddCoinsBtn').addEventListener('click', async (e) => {
       const btn = e.target;
       btn.disabled = true;
