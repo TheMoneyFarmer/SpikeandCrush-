@@ -50,7 +50,7 @@ window.TW = window.TW || {};
         }
       }
       if (event === 'TOKEN_REFRESHED' && session) {
-        localStorage.setItem('tw_token', session.access_token);
+        localStorage.setItem('sc_token', session.access_token);
       }
     });
   })();
@@ -120,7 +120,7 @@ window.TW = window.TW || {};
       } = await supabaseClient.auth.getSession();
       if (error || !session) return null; // not hydrated (e.g. legacy tab) or genuinely signed out elsewhere
       if (session.access_token !== TW.getToken()) {
-        localStorage.setItem('tw_token', session.access_token);
+        localStorage.setItem('sc_token', session.access_token);
       }
       return session.access_token;
     } catch (e) {

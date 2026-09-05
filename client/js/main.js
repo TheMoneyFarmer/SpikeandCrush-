@@ -3,8 +3,24 @@
 window.TW = window.TW || {};
 
 (function () {
-  const TOKEN_KEY = 'tw_token';
-  const PLAYER_KEY = 'tw_player';
+  const TOKEN_KEY = 'sc_token';
+  const PLAYER_KEY = 'sc_player';
+
+  // One-time migration from the old TradeWars-era key names - real users are
+  // already signed in on prod under tw_token/tw_player, so a plain rename
+  // would silently log everyone out on their next page load.
+  (function migrateLegacyKeys() {
+    try {
+      if (!localStorage.getItem(TOKEN_KEY) && localStorage.getItem('tw_token')) {
+        localStorage.setItem(TOKEN_KEY, localStorage.getItem('tw_token'));
+        localStorage.removeItem('tw_token');
+      }
+      if (!localStorage.getItem(PLAYER_KEY) && localStorage.getItem('tw_player')) {
+        localStorage.setItem(PLAYER_KEY, localStorage.getItem('tw_player'));
+        localStorage.removeItem('tw_player');
+      }
+    } catch (e) {}
+  })();
 
   TW.getToken = () => localStorage.getItem(TOKEN_KEY);
   TW.getPlayer = () => {
