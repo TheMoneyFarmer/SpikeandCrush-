@@ -1301,6 +1301,54 @@
   font-weight: 700;
 }
 
+.end-rank-row .rr-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.end-rank-row .rr-rate-btn {
+  background: var(--overlay-soft, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.end-rank-row .rr-rate-btn:hover { opacity: 1; }
+.end-rank-row .rr-rate-btn.active { opacity: 1; border-color: var(--accent); }
+.end-rank-row .rr-rate-btn:disabled { cursor: default; }
+
+.end-rank-row .rr-friend-btn {
+  background: rgba(0, 200, 150, 0.1);
+  border: 1px solid rgba(0, 200, 150, 0.25);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.end-rank-row .rr-friend-btn:hover { background: rgba(0, 200, 150, 0.2); }
+.end-rank-row .rr-friend-btn:disabled { opacity: 0.6; cursor: default; }
+
+.end-rank-row .rr-profile-btn {
+  background: var(--overlay-soft, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 6px 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.end-rank-row .rr-profile-btn:hover { color: var(--text); }
+
 /* ---- personal summary / equity curve / replay ------------------------------ */
 
 .end-personal-summary {

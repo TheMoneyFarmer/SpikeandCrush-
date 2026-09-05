@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Support Tickets — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<style>
+  .ticket-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 14px; border-bottom: 1px solid var(--border, #2a2a3a); cursor: pointer; }
+  .ticket-row:hover { background: rgba(255,255,255,0.03); }
+  .ticket-row.active { background: rgba(0,168,124,0.08); }
+  .ticket-subject { font-weight: 700; }
+  .ticket-meta { font-size: 11px; color: var(--text-secondary, #999); margin-top: 2px; }
+  .support-layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .support-layout { grid-template-columns: 1fr; } }
+  .ticket-detail { padding: 16px; }
+  .ticket-message { white-space: pre-wrap; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 12px; margin: 10px 0; }
+  .ticket-response { white-space: pre-wrap; background: rgba(0,168,124,0.08); border-radius: 8px; padding: 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="support-tickets"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+        <div class="admin-table-toolbar">
+          <select id="statusFilter">
+            <option value="">All statuses</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+          </select>
+        </div>
+        <div class="support-layout">
+          <div class="panel" id="ticketListWrap" style="padding:0;max-height:70vh;overflow-y:auto;">Loading…</div>
+          <div class="panel ticket-detail" id="ticketDetailWrap">
+            <div class="empty-state">Select a ticket to view it</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Support Tickets');
+
+    let tickets = [];
+    let activeId = null;
+
+    function statusLabel(s) {
+      return { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved' }[s] || s;
+    }
+
+    function renderList() {
+      const filter = document.getElementById('statusFilter').value;
+      const filtered = filter ? tickets.filter((t) => t.status === filter) : tickets;
+      const wrap = document.getElementById('ticketListWrap');
+      if (!filtered.length) { wrap.innerHTML = '<div class="empty-state">No tickets</div>'; return; }
+      wrap.innerHTML = filtered.map((t) => `
+        <div class="ticket-row ${t.id === activeId ? 'active' : ''}" data-id="${t.id}">
+          <div>
+            <div class="ticket-subject">${Admin.escapeHtml(t.subject)}</div>
+            <div class="ticket-meta">${Admin.escapeHtml(t.player?.username || 'Guest')} · ${Admin.timeAgo(t.created_at)}</div>
+          </div>
+          <span class="status-pill">${statusLabel(t.status)}</span>
+        </div>
+      `).join('');
+      wrap.querySelectorAll('.ticket-row').forEach((el) => el.addEventListener('click', () => selectTicket(el.dataset.id)));
+    }
+
+    function selectTicket(id) {
+      activeId = id;
+      renderList();
+      const t = tickets.find((x) => x.id === id);
+      const wrap = document.getElementById('ticketDetailWrap');
+      if (!t) { wrap.innerHTML = '<div class="empty-state">Select a ticket to view it</div>'; return; }
+      wrap.innerHTML = `
+        <h3 style="margin-top:0;">${Admin.escapeHtml(t.subject)}</h3>
+        <div class="ticket-meta">From ${Admin.escapeHtml(t.player?.username || 'Guest')}${t.player?.email ? ' · ' + Admin.escapeHtml(t.player.email) : ''} · ${Admin.formatDate(t.created_at)}</div>
+        <div class="ticket-message">${Admin.escapeHtml(t.message)}</div>
+        ${t.admin_response ? `<div class="ticket-meta">Response by ${Admin.escapeHtml(t.responded_by || 'admin')}</div><div class="ticket-response">${Admin.escapeHtml(t.admin_response)}</div>` : ''}
+        <div class="field" style="margin-top:14px;">
+          <label>Reply</label>
+          <textarea id="responseInput" rows="4" style="width:100%;padding:8px;border-radius:6px;background:var(--surface-2,#1a1a2a);border:1px solid var(--border,#2a2a3a);color:inherit;">${t.admin_response ? '' : ''}</textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn btn-primary" id="sendReplyBtn">Send Reply</button>
+          <button class="btn btn-primary" id="sendReplyResolveBtn">Send Reply &amp; Resolve</button>
+          ${t.status !== 'resolved' ? '<button class="btn" id="resolveOnlyBtn">Mark Resolved</button>' : ''}
+        </div>
+      `;
+      document.getElementById('sendReplyBtn').addEventListener('click', () => respond(t.id, false));
+      document.getElementById('sendReplyResolveBtn').addEventListener('click', () => respond(t.id, true));
+      const resolveBtn = document.getElementById('resolveOnlyBtn');
+      if (resolveBtn) resolveBtn.addEventListener('click', () => resolveOnly(t.id));
+    }
+
+    async function respond(id, resolve) {
+      const response = document.getElementById('responseInput').value.trim();
+      if (!response) return Admin.toast('Write a reply first', 'warning');
+      try {
+        await Admin.api(`/support/tickets/${id}/respond`, { method: 'POST', body: { response, resolve } });
+        Admin.toast('Reply sent', 'success');
+        await loadTickets();
+        selectTicket(id);
+      } catch (e) {
+        Admin.toast(e.message, 'danger');
+      }
+    }
+
+    async function resolveOnly(id) {
+      try {
+        await Admin.api(`/support/tickets/${id}/resolve`, { method: 'POST' });
+        Admin.toast('Ticket resolved', 'success');
+        await loadTickets();
+        selectTicket(id);
+      } catch (e) {
+        Admin.toast(e.message, 'danger');
+      }
+    }
+
+    async function loadTickets() {
+      tickets = await Admin.api('/support/tickets');
+      renderList();
+    }
+
+    document.getElementById('statusFilter').addEventListener('change', renderList);
+    loadTickets();
+  </script>
+</body>
+</html>

@@ -2,10 +2,49 @@
 
 const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
-const { logAdminAction, clientIp } = require('../lib/auth');
+const { logAdminAction, requireSuperAdmin, clientIp } = require('../lib/auth');
 
 function router() {
   const r = express.Router();
+
+  // ---- unlock gate -----------------------------------------------------------
+  // Controls the "Coming Soon" gate client/tournaments.html shows in front of
+  // the fully-working tournament system below - toggled here rather than
+  // touching the tournaments themselves.
+
+  r.get('/settings', async (req, res) => {
+    if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
+    try {
+      const { data, error } = await supabase.from('app_settings').select('key, value').in('key', ['tournaments_enabled', 'tournaments_unlock_at', 'tournaments_unlock_player_target']);
+      if (error) throw error;
+      const settings = {};
+      (data || []).forEach((row) => { settings[row.key] = row.value; });
+      const { count } = await supabase.from('players').select('id', { count: 'exact', head: true });
+      res.json({
+        enabled: Boolean(settings.tournaments_enabled),
+        unlockAt: settings.tournaments_unlock_at || null,
+        targetPlayers: Number(settings.tournaments_unlock_player_target) || 500,
+        currentPlayers: count || 0,
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.put('/settings', requireSuperAdmin, async (req, res) => {
+    const { enabled, unlockAt, targetPlayers } = req.body || {};
+    try {
+      const updates = [];
+      if (enabled !== undefined) updates.push(supabase.from('app_settings').upsert({ key: 'tournaments_enabled', value: Boolean(enabled), updated_at: new Date().toISOString() }));
+      if (unlockAt !== undefined) updates.push(supabase.from('app_settings').upsert({ key: 'tournaments_unlock_at', value: unlockAt || null, updated_at: new Date().toISOString() }));
+      if (targetPlayers !== undefined) updates.push(supabase.from('app_settings').upsert({ key: 'tournaments_unlock_player_target', value: Number(targetPlayers), updated_at: new Date().toISOString() }));
+      await Promise.all(updates);
+      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'update_tournament_gate', targetType: 'app_settings', details: { enabled, unlockAt, targetPlayers }, ip: clientIp(req) });
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 
   r.get('/', async (req, res) => {
     if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });

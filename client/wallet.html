@@ -94,6 +94,20 @@
     </div>
 
     <div class="panel" style="margin-top: 20px;">
+      <h3>Request Prize Withdrawal</h3>
+      <p class="text-secondary" style="font-size:13px;">Only coins won from tournament prize distribution can be cashed out (see our <a href="/terms">Terms of Service</a>) - this converts coins to a real crypto payout, processed by an admin.</p>
+      <div class="field-row" style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div class="field"><label>Amount (coins)</label><input type="number" id="wdAmount" min="1" style="width:140px;" /></div>
+        <div class="field"><label>Crypto</label>
+          <select id="wdCrypto"><option value="USDT">USDT</option><option value="BTC">BTC</option><option value="ETH">ETH</option></select>
+        </div>
+        <div class="field" style="flex:1;min-width:220px;"><label>Wallet Address</label><input type="text" id="wdAddress" placeholder="Your crypto wallet address" style="width:100%;" /></div>
+      </div>
+      <button class="btn btn-outline" id="wdSubmitBtn" style="margin-top:8px;">Request Withdrawal</button>
+      <div id="wdHistoryWrap" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="panel" style="margin-top: 20px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <h3 style="margin:0;">Transaction History</h3>
         <button class="btn" id="exportCsvBtn">Export to CSV</button>
@@ -125,6 +139,8 @@
       prize_won: 'Prize Won',
       coin_purchase: 'Coin Purchase',
       welcome_bonus: 'Welcome Bonus',
+      withdrawal_request: 'Withdrawal Requested',
+      withdrawal_refund: 'Withdrawal Refunded',
     };
 
     let lastTransactions = [];
@@ -262,8 +278,50 @@
       URL.revokeObjectURL(url);
     });
 
+    const WD_STATUS_LABEL = { pending: 'Pending', processing: 'Processing', paid: 'Paid', rejected: 'Rejected' };
+
+    async function loadWithdrawals() {
+      const wrap = document.getElementById('wdHistoryWrap');
+      try {
+        const data = await TW.api('/api/withdrawals/mine');
+        if (!data.withdrawals.length) { wrap.innerHTML = ''; return; }
+        wrap.innerHTML = `
+          <table class="tx"><thead><tr><th>Date</th><th>Amount</th><th>Crypto</th><th>Status</th><th>TX Hash</th></tr></thead>
+          <tbody>${data.withdrawals.map((w) => `
+            <tr>
+              <td>${new Date(w.created_at).toLocaleString()}</td>
+              <td>${TW.formatMoney(w.amount_usd)} (${w.amount_coins} 🪙)</td>
+              <td>${w.crypto_currency}</td>
+              <td>${WD_STATUS_LABEL[w.status] || w.status}</td>
+              <td class="mono" style="font-size:11px;">${w.tx_hash ? TW.escapeHtml(w.tx_hash) : '—'}</td>
+            </tr>
+          `).join('')}</tbody></table>
+        `;
+      } catch (err) {
+        wrap.innerHTML = '';
+      }
+    }
+
+    document.getElementById('wdSubmitBtn').addEventListener('click', async () => {
+      const amountCoins = Number(document.getElementById('wdAmount').value);
+      const cryptoCurrency = document.getElementById('wdCrypto').value;
+      const walletAddress = document.getElementById('wdAddress').value.trim();
+      if (!amountCoins || !walletAddress) { TW.toast('Enter an amount and wallet address', 'warning'); return; }
+      try {
+        await TW.api('/api/withdrawals/request', { method: 'POST', body: { amountCoins, cryptoCurrency, walletAddress } });
+        TW.toast('Withdrawal request submitted', 'info');
+        document.getElementById('wdAmount').value = '';
+        document.getElementById('wdAddress').value = '';
+        loadWallet();
+        loadWithdrawals();
+      } catch (err) {
+        TW.toast(err.message, 'danger');
+      }
+    });
+
     loadWallet();
     loadTransactions();
+    loadWithdrawals();
   </script>
   <footer class="legal-footer">
     <div class="legal-footer-content">
@@ -276,5 +334,6 @@
       <p class="legal-support">For support: <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a></p>
     </div>
   </footer>
+  <script src="js/support-widget.js"></script>
 </body>
 </html>

@@ -2,6 +2,8 @@
 
 const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
+const { logAdminAction, clientIp } = require('../lib/auth');
+const internal = require('../lib/internalGameServer');
 
 const BATTLE_PASS_PRICE_USD = 4.99; // server/index.js Stripe checkout unit_amount: 499
 
@@ -152,12 +154,91 @@ function router() {
     }
   });
 
-  // No withdrawal system exists in this build - coins don't convert back to
-  // cash (Stripe Connect payouts were deferred at product-decision time, see
-  // the "Real Stripe payments" project note). Returning this explicitly so
-  // the admin UI can show an honest empty state instead of fabricated rows.
-  r.get('/withdrawals', (req, res) => {
-    res.json({ implemented: false, message: 'No cash-withdrawal system exists yet - coins are a closed-loop in-game balance. This tab will populate once Stripe Connect payouts ship.', rows: [] });
+  // Real cash-out requests for tournament prize coins specifically (see the
+  // wallet page's own disclaimer carve-out) - server/index.js's
+  // /api/withdrawals/request debits the coins and inserts here; this is
+  // where an admin actually pays the crypto out and marks it done.
+  r.get('/withdrawals', async (req, res) => {
+    if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
+    try {
+      let query = supabase
+        .from('withdrawal_requests')
+        .select('*, player:players(username, email)')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      if (req.query.status) query = query.eq('status', req.query.status);
+      const { data, error } = await query;
+      if (error) throw error;
+      res.json({ implemented: true, rows: data });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.post('/withdrawals/:id/processing', async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('withdrawal_requests').update({ status: 'processing' }).eq('id', req.params.id).select('*, player:players(username)').single();
+      if (error) throw error;
+      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'withdrawal_processing', targetType: 'withdrawal_request', targetId: req.params.id, ip: clientIp(req) });
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.post('/withdrawals/:id/paid', async (req, res) => {
+    const { txHash } = req.body || {};
+    if (!txHash) return res.status(400).json({ error: 'txHash is required' });
+    try {
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .update({ status: 'paid', tx_hash: txHash, processed_at: new Date().toISOString() })
+        .eq('id', req.params.id)
+        .select('*, player:players(username)')
+        .single();
+      if (error) throw error;
+      if (data.player_id) {
+        internal.notifyPlayer(data.player_id, 'withdrawal_paid', `Your withdrawal of $${data.amount_usd} has been paid out.`, { data: { txHash } }).catch(() => {});
+      }
+      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'withdrawal_paid', targetType: 'withdrawal_request', targetId: req.params.id, details: { txHash }, ip: clientIp(req) });
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Rejecting refunds the coins back to the player - a rejected withdrawal
+  // shouldn't just vanish the coins the earlier debitCoins() already took.
+  r.post('/withdrawals/:id/reject', async (req, res) => {
+    const { reason } = req.body || {};
+    try {
+      const { data: request, error: findErr } = await supabase.from('withdrawal_requests').select('*').eq('id', req.params.id).maybeSingle();
+      if (findErr) throw findErr;
+      if (!request) return res.status(404).json({ error: 'Withdrawal request not found' });
+      if (request.status !== 'pending') return res.status(400).json({ error: 'Only pending requests can be rejected' });
+
+      const { data: player } = await supabase.from('players').select('coins').eq('id', request.player_id).single();
+      if (player) {
+        const newBalance = player.coins + request.amount_coins;
+        await supabase.from('players').update({ coins: newBalance }).eq('id', request.player_id);
+        await supabase.from('coin_transactions').insert({ player_id: request.player_id, type: 'withdrawal_refund', amount: request.amount_coins, balance_after: newBalance });
+      }
+
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .update({ status: 'rejected', admin_notes: reason || null, processed_at: new Date().toISOString() })
+        .eq('id', req.params.id)
+        .select()
+        .single();
+      if (error) throw error;
+      if (request.player_id) {
+        internal.notifyPlayer(request.player_id, 'withdrawal_rejected', `Your withdrawal request was rejected and ${request.amount_coins} coins were refunded.`, { data: { reason } }).catch(() => {});
+      }
+      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'withdrawal_rejected', targetType: 'withdrawal_request', targetId: req.params.id, details: { reason }, ip: clientIp(req) });
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   r.get('/brokers', async (req, res) => {

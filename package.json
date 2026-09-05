@@ -12,6 +12,7 @@
     "generate-data": "node data/dataProcessor.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
     "@supabase/supabase-js": "^2.45.4",
     "bcryptjs": "^2.4.3",
     "concurrently": "^9.1.0",

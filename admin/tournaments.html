@@ -23,6 +23,19 @@
         </div>
 
         <div class="admin-tab-panel" id="tab-active">
+          <div class="panel" id="gatePanel" style="margin-bottom:20px;max-width:640px;">
+            <h3 style="margin-top:0;">Tournament Unlock Gate</h3>
+            <p class="text-secondary" style="font-size:13px;">Players see a "Coming Soon" screen on the Tournaments page until this is switched on - the tournaments themselves work fully underneath, this only controls whether players can see/enter them.</p>
+            <div id="gateProgress" style="margin:10px 0;"></div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="gateEnabledToggle" />
+              <span id="gateStatusLabel">Loading…</span>
+            </label>
+            <div class="field-row" style="margin-top:10px;">
+              <div class="field"><label>Unlock at player count</label><input id="gateTargetInput" type="number" min="1" /></div>
+              <div class="field" style="align-self:flex-end;"><button class="btn btn-sm" id="gateSaveTargetBtn">Save Target</button></div>
+            </div>
+          </div>
           <div class="match-grid" id="activeTournaments"><div class="empty-state">Loading…</div></div>
         </div>
 
@@ -83,7 +96,7 @@
     function activateTab(name) {
       document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
       document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
-      if (name === 'active') loadActive();
+      if (name === 'active') { loadActive(); loadGate(); }
       if (name === 'history') loadHistory();
       if (name === 'sponsors') loadSponsors();
     }
@@ -112,6 +125,35 @@
         </div>
       `).join('') : '<div class="empty-state">No active tournaments.</div>';
     }
+
+    async function loadGate() {
+      try {
+        const s = await Admin.api('/tournaments/settings');
+        document.getElementById('gateEnabledToggle').checked = s.enabled;
+        document.getElementById('gateStatusLabel').textContent = s.enabled ? 'Tournaments are unlocked for players' : 'Tournaments are locked (Coming Soon)';
+        document.getElementById('gateTargetInput').value = s.targetPlayers;
+        const pct = Math.min(100, Math.round((s.currentPlayers / s.targetPlayers) * 100));
+        document.getElementById('gateProgress').innerHTML = `
+          <div class="text-secondary" style="font-size:12px;margin-bottom:4px;">${s.currentPlayers} / ${s.targetPlayers} players (${pct}%)</div>
+          <div style="height:8px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--accent,#00a87c);"></div></div>
+        `;
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+    document.getElementById('gateEnabledToggle').addEventListener('change', async (e) => {
+      try {
+        await Admin.api('/tournaments/settings', { method: 'PUT', body: { enabled: e.target.checked } });
+        Admin.toast(e.target.checked ? 'Tournaments unlocked' : 'Tournaments locked', 'success');
+        loadGate();
+      } catch (err) { Admin.toast(err.message, 'danger'); e.target.checked = !e.target.checked; }
+    });
+    document.getElementById('gateSaveTargetBtn').addEventListener('click', async () => {
+      try {
+        const targetPlayers = Number(document.getElementById('gateTargetInput').value);
+        await Admin.api('/tournaments/settings', { method: 'PUT', body: { targetPlayers } });
+        Admin.toast('Unlock target saved', 'success');
+        loadGate();
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
 
     async function viewBracket(id) {
       const bracket = await Admin.api(`/tournaments/${id}/bracket`);

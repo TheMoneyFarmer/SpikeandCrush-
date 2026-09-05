@@ -23,7 +23,7 @@ function requireInternalSecret(req, res, next) {
   next();
 }
 
-function createInternalAdminRouter({ gameEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors }) {
+function createInternalAdminRouter({ gameEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }) {
   const router = express.Router();
   router.use(requireInternalSecret);
 
@@ -90,6 +90,17 @@ function createInternalAdminRouter({ gameEngine, io, db, instrumentsRegistry, sa
   router.post('/broadcast-announcement', (req, res) => {
     io.emit('announcement:new', req.body);
     res.json({ success: true, deliveredTo: io.engine.clientsCount });
+  });
+
+  // Lets admin-side actions that live entirely in Supabase (withdrawal
+  // processed, support ticket answered) still reach the player as a live
+  // toast if they're online right now - same notifyPlayer() every in-process
+  // game feature already uses, just reachable from the other process.
+  router.post('/notify-player/:playerId', (req, res) => {
+    const { type, message, extra } = req.body || {};
+    if (!type || !message) return res.status(400).json({ error: 'type and message are required' });
+    notifyPlayer(req.params.playerId, type, message, extra || {});
+    res.json({ success: true });
   });
 
   return router;

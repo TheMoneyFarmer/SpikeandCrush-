@@ -39,4 +39,6 @@ module.exports = {
   reloadConfig: () => callInternal('/internal/admin/reload-config', { method: 'POST' }),
   broadcastAnnouncement: (announcement) =>
     callInternal('/internal/admin/broadcast-announcement', { method: 'POST', body: announcement }),
+  notifyPlayer: (playerId, type, message, extra) =>
+    callInternal(`/internal/admin/notify-player/${playerId}`, { method: 'POST', body: { type, message, extra } }),
 };

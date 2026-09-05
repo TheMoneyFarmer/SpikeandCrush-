@@ -31,6 +31,10 @@ window.Admin = window.Admin || {};
       { key: 'mon-withdrawals', label: 'Withdrawals', href: '/monetisation.html?tab=withdrawals' },
       { key: 'mon-brokers', label: 'Broker Partners', href: '/monetisation.html?tab=brokers' },
       { key: 'mon-coaching', label: 'Coaching Sessions', href: '/monetisation.html?tab=coaching' },
+      { key: 'mon-partners', label: 'Referral Partners', href: '/partners.html' },
+    ]},
+    { group: 'Support', icon: '💬', items: [
+      { key: 'support-tickets', label: 'Tickets', href: '/support.html' },
     ]},
     { group: 'Analytics', icon: '📈', items: [
       { key: 'an-players', label: 'Player Analytics', href: '/analytics.html?tab=players' },

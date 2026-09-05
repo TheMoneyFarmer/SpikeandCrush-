@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Referral Partners — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-charts.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="mon-partners"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+
+        <div class="admin-tabs">
+          <button class="admin-tab" data-tab="list">Partner List</button>
+          <button class="admin-tab" data-tab="conversions">Conversions</button>
+          <button class="admin-tab" data-tab="analytics">Analytics</button>
+          <button class="admin-tab" data-tab="payouts">Payouts</button>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-list">
+          <div class="admin-table-toolbar">
+            <input type="search" id="partnerSearch" placeholder="Search partner name…" />
+            <button class="btn btn-primary btn-sm" id="newPartnerBtn">+ New Partner</button>
+          </div>
+          <div id="partnersTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-conversions">
+          <div class="admin-table-toolbar">
+            <select id="convStatusFilter">
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+          <div id="conversionsTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-analytics">
+          <div class="field" style="max-width:320px;margin-bottom:14px;">
+            <label>Partner</label>
+            <select id="analyticsPartnerSelect"></select>
+          </div>
+          <div class="kpi-grid" id="analyticsKpis"></div>
+          <div class="chart-card"><h3>Clicks vs Conversions (last 30 days)</h3><canvas id="chartClicksConversions"></canvas></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-payouts">
+          <div class="admin-table-toolbar">
+            <button class="btn btn-primary btn-sm" id="newPayoutBtn">+ Record Payout</button>
+          </div>
+          <div id="payoutsTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/admin-tables.js"></script>
+  <script src="js/admin-charts.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Referral Partners');
+
+    let partnersCache = [];
+
+    const loaded = {};
+    function activateTab(name) {
+      document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
+      if (!loaded[name]) { loaders[name](); loaded[name] = true; }
+    }
+    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
+
+    function siteOrigin() { return window.location.origin.replace(':3003', ':3000'); }
+
+    const loaders = {
+      list: async () => {
+        partnersCache = await Admin.api('/partners');
+        const table = Admin.createTable({
+          container: document.getElementById('partnersTableWrap'), rows: partnersCache, rowKey: 'id', searchFields: ['name', 'email', 'referral_code'],
+          columns: [
+            { key: 'name', label: 'Partner' },
+            { key: 'referral_code', label: 'Referral Link', render: (p) => `<span class="mono">/r/${Admin.escapeHtml(p.referral_code)}</span>` },
+            { key: 'commission_pct', label: 'Commission %', render: (p) => `${p.commission_pct}%` },
+            { key: 'totalClicks', label: 'Clicks' },
+            { key: 'totalConversions', label: 'Conversions' },
+            { key: 'status', label: 'Status', render: (p) => `<span class="status-pill ${p.status === 'active' ? 'status-good' : 'status-bad'}">${p.status}</span>` },
+            { key: 'actions', label: '', render: (p) => `<button class="btn btn-sm" data-copy="${Admin.escapeHtml(p.referral_code)}">Copy Link</button> <button class="btn btn-sm" data-toggle="${p.id}">${p.status === 'active' ? 'Pause' : 'Activate'}</button>` },
+          ],
+        });
+        document.getElementById('partnerSearch').addEventListener('input', (e) => table.setSearch(e.target.value));
+        document.getElementById('partnersTableWrap').addEventListener('click', async (e) => {
+          const copyCode = e.target.dataset.copy;
+          if (copyCode) {
+            navigator.clipboard.writeText(`${siteOrigin()}/r/${copyCode}`).then(() => Admin.toast('Referral link copied', 'success'));
+          }
+          const toggleId = e.target.dataset.toggle;
+          if (toggleId) {
+            const partner = partnersCache.find((p) => p.id === toggleId);
+            await Admin.api(`/partners/${toggleId}`, { method: 'PUT', body: { status: partner.status === 'active' ? 'paused' : 'active' } });
+            loaded.list = false;
+            loaders.list();
+          }
+        });
+      },
+      conversions: async () => {
+        const rows = await Admin.api('/partners/conversions');
+        const table = Admin.createTable({
+          container: document.getElementById('conversionsTableWrap'), rows, rowKey: 'id', searchFields: [],
+          columns: [
+            { key: 'created_at', label: 'Date', render: (c) => Admin.formatDate(c.created_at) },
+            { key: 'partner', label: 'Partner', render: (c) => Admin.escapeHtml(c.partner?.name || '—') },
+            { key: 'player', label: 'Player', render: (c) => Admin.escapeHtml(c.player?.username || '—') },
+            { key: 'status', label: 'Status', render: (c) => `<span class="status-pill ${c.status === 'approved' || c.status === 'paid' ? 'status-good' : c.status === 'rejected' ? 'status-bad' : 'status-warn'}">${c.status}</span>` },
+            { key: 'actions', label: '', render: (c) => c.status === 'pending' ? `<button class="btn btn-sm btn-primary" data-approve="${c.id}">Approve</button> <button class="btn btn-sm btn-danger" data-reject="${c.id}">Reject</button>` : '—' },
+          ],
+        });
+        document.getElementById('convStatusFilter').addEventListener('change', (e) => table.setFilter('status', e.target.value));
+        document.getElementById('conversionsTableWrap').addEventListener('click', async (e) => {
+          const approveId = e.target.dataset.approve;
+          const rejectId = e.target.dataset.reject;
+          if (approveId) { await Admin.api(`/partners/conversions/${approveId}/approve`, { method: 'POST' }); loaded.conversions = false; loaders.conversions(); }
+          if (rejectId) { await Admin.api(`/partners/conversions/${rejectId}/reject`, { method: 'POST' }); loaded.conversions = false; loaders.conversions(); }
+        });
+      },
+      analytics: async () => {
+        if (!partnersCache.length) partnersCache = await Admin.api('/partners');
+        const select = document.getElementById('analyticsPartnerSelect');
+        select.innerHTML = partnersCache.map((p) => `<option value="${p.id}">${Admin.escapeHtml(p.name)}</option>`).join('');
+        async function loadFor(partnerId) {
+          if (!partnerId) return;
+          const d = await Admin.api(`/partners/${partnerId}/analytics`);
+          document.getElementById('analyticsKpis').innerHTML = `
+            <div class="kpi-card"><div class="kpi-label">Clicks (30d)</div><div class="kpi-value">${d.totalClicks30d}</div></div>
+            <div class="kpi-card"><div class="kpi-label">Conversions (30d)</div><div class="kpi-value">${d.totalConversions30d}</div></div>
+            <div class="kpi-card"><div class="kpi-label">Conversion Rate</div><div class="kpi-value">${d.conversionRatePct}%</div></div>
+          `;
+          Admin.Charts.barChart(document.getElementById('chartClicksConversions'), {
+            labels: d.daily.map((r) => r.date),
+            datasets: [
+              { label: 'Clicks', data: d.daily.map((r) => r.clicks), backgroundColor: Admin.Charts.PALETTE.teal },
+              { label: 'Conversions', data: d.daily.map((r) => r.conversions), backgroundColor: Admin.Charts.PALETTE.gold },
+            ],
+          });
+        }
+        select.addEventListener('change', (e) => loadFor(e.target.value));
+        if (partnersCache[0]) { select.value = partnersCache[0].id; loadFor(partnersCache[0].id); }
+      },
+      payouts: async () => {
+        const rows = await Admin.api('/partners/payouts');
+        Admin.createTable({
+          container: document.getElementById('payoutsTableWrap'), rows, rowKey: 'id', searchFields: [],
+          columns: [
+            { key: 'created_at', label: 'Date', render: (p) => Admin.formatDate(p.created_at) },
+            { key: 'partner', label: 'Partner', render: (p) => Admin.escapeHtml(p.partner?.name || '—') },
+            { key: 'amount_usd', label: 'Amount', render: (p) => Admin.formatMoney(p.amount_usd) },
+            { key: 'status', label: 'Status', render: (p) => `<span class="status-pill ${p.status === 'paid' ? 'status-good' : 'status-warn'}">${p.status}</span>` },
+            { key: 'tx_reference', label: 'TX Reference', render: (p) => p.tx_reference || '—' },
+            { key: 'actions', label: '', render: (p) => p.status === 'pending' ? `<button class="btn btn-sm btn-primary" data-mark-paid="${p.id}">Mark Paid</button>` : '—' },
+          ],
+        });
+        document.getElementById('payoutsTableWrap').addEventListener('click', async (e) => {
+          const id = e.target.dataset.markPaid;
+          if (!id) return;
+          const txReference = prompt('Transaction reference / hash:');
+          if (!txReference) return;
+          await Admin.api(`/partners/payouts/${id}/mark-paid`, { method: 'POST', body: { txReference } });
+          loaded.payouts = false;
+          loaders.payouts();
+        });
+      },
+    };
+
+    document.getElementById('newPartnerBtn').addEventListener('click', async () => {
+      const name = prompt('Partner name (e.g. broker or prop firm):');
+      if (!name) return;
+      const email = prompt('Partner contact email (optional):') || '';
+      const commissionPct = Number(prompt('Commission %:', '20')) || 20;
+      try {
+        await Admin.api('/partners', { method: 'POST', body: { name, email, commissionPct } });
+        Admin.toast('Partner created', 'success');
+        loaded.list = false;
+        loaders.list();
+      } catch (e) {
+        Admin.toast(e.message, 'danger');
+      }
+    });
+
+    document.getElementById('newPayoutBtn').addEventListener('click', async () => {
+      if (!partnersCache.length) partnersCache = await Admin.api('/partners');
+      const options = partnersCache.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+      const idx = Number(prompt(`Partner:\n${options}`)) - 1;
+      const partner = partnersCache[idx];
+      if (!partner) return;
+      const amountUsd = Number(prompt('Amount (USD):'));
+      if (!amountUsd) return;
+      try {
+        await Admin.api('/partners/payouts', { method: 'POST', body: { partnerId: partner.id, amountUsd } });
+        Admin.toast('Payout recorded', 'success');
+        loaded.payouts = false;
+        loaders.payouts();
+      } catch (e) {
+        Admin.toast(e.message, 'danger');
+      }
+    });
+
+    activateTab(new URLSearchParams(location.search).get('tab') || 'list');
+  </script>
+</body>
+</html>

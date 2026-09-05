@@ -1331,6 +1331,20 @@ async function saveCardDeck(playerId, cardTypes) {
   return data;
 }
 
+// Upsert rather than insert - a double-click or retry on the results screen
+// shouldn't 500 on the unique (rater_id, target_id, match_id) constraint,
+// and switching a 👍 to a 👎 for the same match should just overwrite it.
+async function rateTrader(raterId, targetId, matchId, rating) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('trader_ratings')
+    .upsert({ rater_id: raterId, target_id: targetId, match_id: matchId, rating }, { onConflict: 'rater_id,target_id,match_id' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 async function blockPlayer(playerId, blockedPlayerId) {
   assertConfigured();
   const { error } = await supabase.from('player_blocks').insert({ player_id: playerId, blocked_player_id: blockedPlayerId });
@@ -1426,6 +1440,127 @@ async function getActiveAnnouncements(location = 'home') {
     .or(`show_until.is.null,show_until.gte.${nowIso}`)
     .in('display_location', [location, 'both'])
     .order('show_from', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+// ---- app settings (tournament unlock gate, withdrawal config) --------------
+
+async function getAppSetting(key) {
+  assertConfigured();
+  const { data, error } = await supabase.from('app_settings').select('value').eq('key', key).maybeSingle();
+  if (error) throw error;
+  return data ? data.value : null;
+}
+
+async function getAppSettings(keys) {
+  assertConfigured();
+  const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+  if (error) throw error;
+  const out = {};
+  (data || []).forEach((row) => { out[row.key] = row.value; });
+  return out;
+}
+
+async function getTotalPlayerCount() {
+  assertConfigured();
+  const { count, error } = await supabase.from('players').select('id', { count: 'exact', head: true });
+  if (error) throw error;
+  return count || 0;
+}
+
+async function setAppSetting(key, value) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('app_settings')
+    .upsert({ key, value, updated_at: new Date().toISOString() })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// ---- referral / affiliate tracking ------------------------------------------
+
+async function getReferralPartnerByCode(code) {
+  assertConfigured();
+  const { data, error } = await supabase.from('referral_partners').select('*').eq('referral_code', code).eq('status', 'active').maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function recordReferralClick({ partnerId, landingPath, ipHash, userAgent }) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('referral_clicks')
+    .insert({ partner_id: partnerId, landing_path: landingPath || null, ip_hash: ipHash || null, user_agent: userAgent || null })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function createReferralConversion({ partnerId, playerId, clickId }) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('referral_conversions')
+    .insert({ partner_id: partnerId, player_id: playerId, click_id: clickId || null })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// ---- withdrawal requests (tournament prize cash-out) ------------------------
+
+async function createWithdrawalRequest({ playerId, amountCoins, amountUsd, cryptoCurrency, walletAddress }) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('withdrawal_requests')
+    .insert({
+      player_id: playerId,
+      amount_coins: amountCoins,
+      amount_usd: amountUsd,
+      crypto_currency: cryptoCurrency,
+      wallet_address: walletAddress,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function listPlayerWithdrawals(playerId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('withdrawal_requests')
+    .select('*')
+    .eq('player_id', playerId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+// ---- support tickets ---------------------------------------------------------
+
+async function createSupportTicket({ playerId, subject, message }) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('support_tickets')
+    .insert({ player_id: playerId || null, subject, message })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function listPlayerSupportTickets(playerId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('support_tickets')
+    .select('*')
+    .eq('player_id', playerId)
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
 }
@@ -1533,10 +1668,22 @@ module.exports = {
   blockPlayer,
   unblockPlayer,
   listBlockedPlayers,
+  rateTrader,
   getCardPlayStats,
   getTodayLoss,
   getLifetimeMatchPnl,
   getActiveAnnouncements,
+  getAppSetting,
+  getAppSettings,
+  setAppSetting,
+  getTotalPlayerCount,
+  getReferralPartnerByCode,
+  recordReferralClick,
+  createReferralConversion,
+  createWithdrawalRequest,
+  listPlayerWithdrawals,
+  createSupportTicket,
+  listPlayerSupportTickets,
   getActivePromoPopup,
   getPeriodLeaderboard,
   deletePlayer,

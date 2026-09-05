@@ -32,7 +32,17 @@
   <div id="twNav" data-active="tournaments"></div>
 
   <div class="tw-container">
-    <div class="panel">
+    <div class="panel" id="tComingSoonPanel" style="display:none;text-align:center;padding:48px 24px;">
+      <div style="font-size:48px;">🏆</div>
+      <h2>Tournaments — Coming Soon</h2>
+      <p class="text-secondary" style="max-width:480px;margin:0 auto 18px;">We're unlocking tournaments once enough traders join the arena. Keep playing War matches to help push us over the line.</p>
+      <div style="max-width:360px;margin:0 auto;">
+        <div class="text-secondary" style="font-size:12px;margin-bottom:4px;" id="tUnlockProgressLabel"></div>
+        <div style="height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden;"><div id="tUnlockProgressFill" style="height:100%;width:0%;background:var(--gradient-gold, var(--gold));transition:width 0.6s ease;"></div></div>
+      </div>
+    </div>
+
+    <div class="panel" id="tMainPanel" style="display:none;">
       <h2>🏆 Tournaments</h2>
       <div class="t-create-row">
         <div class="field">
@@ -116,7 +126,30 @@
       }
     });
 
-    load();
+    async function checkGateAndLoad() {
+      try {
+        const status = await fetch('/api/tournaments/status').then((r) => r.json());
+        if (!status.enabled) {
+          document.getElementById('tComingSoonPanel').style.display = 'block';
+          document.getElementById('tMainPanel').style.display = 'none';
+          const pct = Math.min(100, Math.round((status.currentPlayers / status.targetPlayers) * 100));
+          document.getElementById('tUnlockProgressLabel').textContent = `${status.currentPlayers} / ${status.targetPlayers} traders joined`;
+          document.getElementById('tUnlockProgressFill').style.width = `${pct}%`;
+          return;
+        }
+        document.getElementById('tComingSoonPanel').style.display = 'none';
+        document.getElementById('tMainPanel').style.display = 'block';
+        load();
+      } catch (e) {
+        // If the status check itself fails, fail open to the working
+        // tournament list rather than locking players out over a bug.
+        document.getElementById('tComingSoonPanel').style.display = 'none';
+        document.getElementById('tMainPanel').style.display = 'block';
+        load();
+      }
+    }
+
+    checkGateAndLoad();
   </script>
   <footer class="legal-footer">
     <div class="legal-footer-content">
@@ -129,5 +162,6 @@
       <p class="legal-support">For support: <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a></p>
     </div>
   </footer>
+  <script src="js/support-widget.js"></script>
 </body>
 </html>

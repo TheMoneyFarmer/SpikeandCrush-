@@ -15,6 +15,7 @@ const multer = require('multer');
 const QRCode = require('qrcode');
 const { Server } = require('socket.io');
 const Stripe = require('stripe');
+const Anthropic = require('@anthropic-ai/sdk');
 
 const db = require('./database');
 const { createGameEngine, tierForRating, TIERS } = require('./gameEngine');
@@ -54,6 +55,9 @@ const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABAS
 });
 const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== 'your_value');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
+
+const anthropicConfigured = Boolean(process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your_value');
+const anthropic = anthropicConfigured ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
 // ALLOWED_ORIGIN restricts CORS to the real domain(s) in production - unset
 // (dev/local) falls back to wide-open, since local testing hits this from
@@ -254,6 +258,17 @@ function clientIp(req) {
   return (forwarded ? forwarded.split(',')[0].trim() : null) || req.socket.remoteAddress || 'unknown';
 }
 
+// No cookie-parser middleware is installed anywhere in this server (only
+// req.headers.cookie is available) - this just reads the one cookie the
+// referral system needs. Setting a cookie still works fine via Express's
+// built-in res.cookie(), which doesn't require cookie-parser at all.
+function getCookie(req, name) {
+  const header = req.headers.cookie;
+  if (!header) return null;
+  const match = header.split(';').map((c) => c.trim()).find((c) => c.startsWith(name + '='));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
 function requireDb(req, res, next) {
   if (!db.isConfigured) {
     return res.status(503).json({ error: 'Database not configured - add SUPABASE_SERVICE_KEY to .env' });
@@ -352,6 +367,27 @@ app.get('/profile/:username', (req, res) => res.sendFile(path.join(CLIENT_DIR, '
 app.get('/auth-callback', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'auth-callback.html')));
 app.get('/reset-password', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'reset-password.html')));
 
+// Broker/prop-firm referral links: /r/CODE logs the click, drops a 30-day
+// ref_code cookie, then bounces straight to the home page. The cookie is
+// read back once, at registration, to attribute the new player to the
+// partner (see /api/auth/register below) - it never needs to be read again.
+app.get('/r/:code', async (req, res) => {
+  const code = req.params.code;
+  try {
+    if (db.isConfigured) {
+      const partner = await db.getReferralPartnerByCode(code);
+      if (partner) {
+        const ipHash = crypto.createHash('sha256').update(clientIp(req)).digest('hex').slice(0, 16);
+        await db.recordReferralClick({ partnerId: partner.id, landingPath: '/', ipHash, userAgent: req.headers['user-agent'] });
+        res.cookie('ref_code', code, { maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
+      }
+    }
+  } catch (e) {
+    console.error('[referral redirect]', e);
+  }
+  res.redirect('/');
+});
+
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 app.use('/api', apiLimiter);
@@ -359,7 +395,7 @@ app.use('/api', apiLimiter);
 // Internal-only bridge for the separate admin panel (port 3003) - secret +
 // localhost-gated inside the router itself, see server/internalAdmin.js.
 const { createInternalAdminRouter } = require('./internalAdmin');
-app.use('/internal/admin', createInternalAdminRouter({ gameEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors }));
+app.use('/internal/admin', createInternalAdminRouter({ gameEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }));
 
 // ---- auth -----------------------------------------------------------------
 
@@ -398,6 +434,21 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
       // permanently-unusable (email now "taken") Supabase account behind.
       await supabaseAdmin.auth.admin.deleteUser(created.user.id).catch(() => {});
       throw e;
+    }
+
+    // Referral attribution: if this browser arrived via a partner's /r/:code
+    // link, that route already logged the click and dropped a ref_code
+    // cookie - this is the one point a player ID exists to attach it to.
+    // Never fatal to registration - a broken/expired code just means no
+    // conversion gets recorded, not a failed signup.
+    const refCode = getCookie(req, 'ref_code');
+    if (refCode && db.isConfigured) {
+      try {
+        const partner = await db.getReferralPartnerByCode(refCode);
+        if (partner) await db.createReferralConversion({ partnerId: partner.id, playerId: player.id });
+      } catch (e) {
+        console.error('[register] referral conversion failed:', e.message);
+      }
     }
 
     const session = await db.createSession({ playerId: player.id, userAgent: req.headers['user-agent'], ip: clientIp(req) });
@@ -1211,6 +1262,26 @@ app.post('/api/friends/request', requireDb, authenticate, async (req, res) => {
   }
 });
 
+// Lightweight post-match "good sportsmanship" signal from the results
+// screen - not exposed anywhere else (no public like/dislike counts, no
+// leaderboard), just a thumbs up/down tied to a specific match. Personas
+// excluded same as friend requests - rating a bot isn't a real signal.
+app.post('/api/players/rate', requireDb, authenticate, async (req, res) => {
+  try {
+    const raterId = req.tokenPlayer.id;
+    const { targetId, matchId, rating } = req.body || {};
+    if (!targetId || targetId === raterId) return res.status(400).json({ error: 'Invalid target' });
+    if (rating !== 'like' && rating !== 'dislike') return res.status(400).json({ error: 'rating must be "like" or "dislike"' });
+    const targetPlayer = await db.getPlayerById(targetId);
+    if (!targetPlayer || targetPlayer.is_persona) return res.status(404).json({ error: 'Player not found' });
+    await db.rateTrader(raterId, targetId, matchId || null, rating);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[players/rate]', e);
+    res.status(500).json({ error: 'Could not submit rating' });
+  }
+});
+
 app.post('/api/friends/:requestId/accept', requireDb, authenticate, async (req, res) => {
   try {
     const row = await db.acceptFriendRequest(req.params.requestId, req.tokenPlayer.id);
@@ -1649,6 +1720,30 @@ app.post('/api/clip/:id/share', requireDb, authenticate, async (req, res) => {
   }
 });
 
+// ---- tournament unlock gate -------------------------------------------------------
+// The tournament system below (create/list/register/play) is fully working
+// and pre-dates this gate - this just lets an admin show a "Coming Soon"
+// state in front of it (client/tournaments.html) until a target player count
+// or a manual toggle turns it on. Public (no auth) since the client checks
+// this before it even knows if the visitor is logged in.
+
+app.get('/api/tournaments/status', async (req, res) => {
+  try {
+    if (!db.isConfigured) return res.json({ enabled: true, unlockAt: null, currentPlayers: 0, targetPlayers: 500 });
+    const settings = await db.getAppSettings(['tournaments_enabled', 'tournaments_unlock_at', 'tournaments_unlock_player_target']);
+    const currentPlayers = await db.getTotalPlayerCount();
+    res.json({
+      enabled: Boolean(settings.tournaments_enabled),
+      unlockAt: settings.tournaments_unlock_at || null,
+      currentPlayers,
+      targetPlayers: Number(settings.tournaments_unlock_player_target) || 500,
+    });
+  } catch (e) {
+    console.error('[tournaments status]', e);
+    res.json({ enabled: true, unlockAt: null, currentPlayers: 0, targetPlayers: 500 });
+  }
+});
+
 // ---- tournaments ----------------------------------------------------------------
 
 function tournamentSummary(t, registrationCount) {
@@ -2072,6 +2167,147 @@ app.patch('/api/wallet/daily-limit', requireDb, authenticate, async (req, res) =
   } catch (e) {
     console.error('[daily limit]', e);
     res.status(500).json({ error: 'Could not update daily loss limit' });
+  }
+});
+
+// ---- withdrawals (tournament prize cash-out) ---------------------------------------
+// Ordinary coins have no cash value (see the wallet page's own purchase
+// disclaimer) - this exists solely for the carve-out already stated there:
+// prizes distributed through tournaments. It debits from the same coins
+// balance/ledger everything else uses, then queues a request for an admin
+// to actually pay out via crypto (admin/routes/withdrawals.js).
+
+app.get('/api/withdrawals/mine', requireDb, authenticate, async (req, res) => {
+  try {
+    const withdrawals = await db.listPlayerWithdrawals(req.tokenPlayer.id);
+    res.json({ withdrawals });
+  } catch (e) {
+    console.error('[withdrawals mine]', e);
+    res.status(500).json({ error: 'Could not load withdrawal history' });
+  }
+});
+
+app.post('/api/withdrawals/request', requireDb, authenticate, async (req, res) => {
+  try {
+    const { amountCoins, cryptoCurrency, walletAddress } = req.body || {};
+    const amount = Number(amountCoins);
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'amountCoins must be a positive whole number' });
+    }
+    if (!cryptoCurrency || !walletAddress) {
+      return res.status(400).json({ error: 'cryptoCurrency and walletAddress are required' });
+    }
+
+    const settings = await db.getAppSettings(['min_withdrawal_usd', 'supported_crypto']);
+    const supportedCrypto = settings.supported_crypto || ['USDT', 'BTC', 'ETH'];
+    if (!supportedCrypto.includes(cryptoCurrency)) {
+      return res.status(400).json({ error: `Unsupported currency - choose one of ${supportedCrypto.join(', ')}` });
+    }
+
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    if (player.coins < amount) return res.status(400).json({ error: 'Insufficient coin balance' });
+
+    // Fixed platform rate matching the cheapest coin package's price-per-coin
+    // (wallet.html: $24.99 / 5000 coins) - the only place a coin<->USD
+    // exchange rate is defined anywhere in this codebase.
+    const COIN_TO_USD = 0.005;
+    const amountUsd = Math.round(amount * COIN_TO_USD * 100) / 100;
+    const minUsd = Number(settings.min_withdrawal_usd) || 20;
+    if (amountUsd < minUsd) {
+      return res.status(400).json({ error: `Minimum withdrawal is $${minUsd} (${Math.ceil(minUsd / COIN_TO_USD)} coins)` });
+    }
+
+    await db.debitCoins(player.id, amount, { type: 'withdrawal_request' });
+    const request = await db.createWithdrawalRequest({
+      playerId: player.id,
+      amountCoins: amount,
+      amountUsd,
+      cryptoCurrency,
+      walletAddress,
+    });
+    res.json({ success: true, request });
+  } catch (e) {
+    console.error('[withdrawal request]', e);
+    res.status(500).json({ error: 'Could not submit withdrawal request' });
+  }
+});
+
+// ---- support: AI chat + tickets ----------------------------------------------------
+
+const SUPPORT_SYSTEM_PROMPT = `You are the support assistant for Spike & Crush, a skill-based competitive trading game (not real trading - simulated accounts, historical market data, entertainment only).
+
+Real game facts you can rely on:
+- Starting capital per match: $10,000 simulated. Max position size: 10 lots. Max open positions: 10.
+- A player is eliminated from a match if their loss reaches 50% of starting capital.
+- Match modes: Quick War (10 coins entry, ~10 min), Blitz War (5 coins, ~3 min), Grand War (25 coins, ~20 min), Private War (free, host-controlled), Solo Ranked (free, vs AI), Tournament War (bracket-based, entry set per tournament).
+- War Rating tiers: Recruit (0-999), Trader (1000-1499), Broker (1500-1999), Analyst (2000-2499), Veteran (2500-2999), Elite (3000-3499), War Lord (3500+).
+- Coins are virtual currency with no cash value, except coins won specifically from tournament prize distribution, which can be withdrawn via the Wallet page (crypto payout, processed by an admin).
+- Coin purchases are final and non-refundable.
+
+Answer player questions about game mechanics, coins, wallet, tournaments, and account issues concisely and accurately using only the facts above. For anything account-specific (billing disputes, bans, bugs) or anything you're not sure about, tell the player to submit a support ticket instead of guessing.`;
+
+app.post('/api/support/chat', async (req, res) => {
+  if (!anthropicConfigured) return res.status(503).json({ error: 'Support chat is not configured' });
+  try {
+    const { message, history } = req.body || {};
+    if (!message || typeof message !== 'string') return res.status(400).json({ error: 'message is required' });
+
+    const messages = Array.isArray(history)
+      ? history.slice(-8).filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+      : [];
+    messages.push({ role: 'user', content: message.slice(0, 2000) });
+
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      system: SUPPORT_SYSTEM_PROMPT,
+      messages,
+    });
+    const reply = response.content.find((block) => block.type === 'text')?.text || "Sorry, I couldn't come up with a reply - please try again or submit a support ticket.";
+    res.json({ reply });
+  } catch (e) {
+    console.error('[support chat]', e);
+    res.status(500).json({ error: 'Support chat is temporarily unavailable' });
+  }
+});
+
+app.get('/api/support/tickets/mine', requireDb, authenticate, async (req, res) => {
+  try {
+    const tickets = await db.listPlayerSupportTickets(req.tokenPlayer.id);
+    res.json({ tickets });
+  } catch (e) {
+    console.error('[support tickets mine]', e);
+    res.status(500).json({ error: 'Could not load your tickets' });
+  }
+});
+
+// Works for both logged-in players (authenticate is best-effort here, not
+// required) and logged-out visitors on public pages that carry the support
+// widget - a ticket with no player_id is still visible/actionable in admin.
+app.post('/api/support/ticket', requireDb, async (req, res) => {
+  try {
+    const { subject, message } = req.body || {};
+    if (!subject || !message) return res.status(400).json({ error: 'subject and message are required' });
+
+    let playerId = null;
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    if (token) {
+      try {
+        const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+        if (user) {
+          const player = await db.getPlayerBySupabaseUserId(user.id);
+          if (player) playerId = player.id;
+        }
+      } catch (e) { /* anonymous ticket is fine */ }
+    }
+
+    const ticket = await db.createSupportTicket({ playerId, subject: subject.slice(0, 200), message: message.slice(0, 4000) });
+    res.json({ success: true, ticket });
+  } catch (e) {
+    console.error('[support ticket]', e);
+    res.status(500).json({ error: 'Could not submit ticket' });
   }
 });
 

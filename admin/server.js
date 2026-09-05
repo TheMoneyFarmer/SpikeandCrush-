@@ -138,6 +138,8 @@ app.use('/api/branding', require('./routes/branding')());
 app.use('/api/communications', require('./routes/communications')());
 app.use('/api/system', require('./routes/system')());
 app.use('/api/admins', require('./routes/adminUsers')());
+app.use('/api/partners', require('./routes/partners')());
+app.use('/api/support', require('./routes/support')());
 
 // ---- live socket relay --------------------------------------------------------
 // Polls the game server's internal bridge every 5s and re-emits real data to

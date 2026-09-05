@@ -1026,8 +1026,42 @@ window.TW = window.TW || {};
       }</strong> → ${r.newRating}</span>
           ${r.coinsAwarded ? `<span>🪙 +${r.coinsAwarded}</span>` : ''}
         </div>
+        ${
+          r.playerId !== lastState?.you
+            ? `<div class="rr-actions">
+                <button class="rr-rate-btn" data-rate="like" data-target="${r.playerId}" title="Good trader">👍</button>
+                <button class="rr-rate-btn" data-rate="dislike" data-target="${r.playerId}" title="Poor sportsmanship">👎</button>
+                <button class="rr-friend-btn" data-friend-target="${r.playerId}" data-friend-name="${TW.escapeHtml(r.username)}">+ Add Friend</button>
+                <a class="rr-profile-btn" href="/profile/${encodeURIComponent(r.username)}">Profile</a>
+              </div>`
+            : ''
+        }
       `;
       rankings.appendChild(row);
+
+      if (r.playerId !== lastState?.you) {
+        row.querySelectorAll('.rr-rate-btn').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const rating = btn.dataset.rate;
+            const targetId = btn.dataset.target;
+            const result = await TW.api('/api/players/rate', { method: 'POST', body: { targetId, matchId, rating } }).catch((e) => ({ error: e.message }));
+            if (result?.error) return TW.toast(result.error, 'danger');
+            row.querySelectorAll('.rr-rate-btn').forEach((b) => { b.disabled = true; });
+            btn.classList.add('active');
+          });
+        });
+        const friendBtn = row.querySelector('.rr-friend-btn');
+        friendBtn?.addEventListener('click', async () => {
+          friendBtn.disabled = true;
+          try {
+            await TW.api('/api/friends/request', { method: 'POST', body: { targetId: friendBtn.dataset.friendTarget } });
+            friendBtn.textContent = 'Pending';
+          } catch (e) {
+            friendBtn.disabled = false;
+            TW.toast(e.message || 'Could not send request', 'danger');
+          }
+        });
+      }
 
       if (r.rank === 1) {
         setTimeout(() => {

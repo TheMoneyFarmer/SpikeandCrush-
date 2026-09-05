@@ -152,7 +152,49 @@
       },
       withdrawals: async () => {
         const d = await Admin.api('/monetisation/withdrawals');
-        document.getElementById('withdrawalsPanel').innerHTML = `<div class="empty-state"><div class="icon">💸</div>${Admin.escapeHtml(d.message)}</div>`;
+        if (!d.rows.length) {
+          document.getElementById('withdrawalsPanel').innerHTML = '<div class="empty-state"><div class="icon">💸</div>No withdrawal requests yet.</div>';
+          return;
+        }
+        const wrap = document.getElementById('withdrawalsPanel');
+        wrap.innerHTML = '';
+        Admin.createTable({
+          container: wrap, rows: d.rows, rowKey: 'id', searchFields: ['wallet_address'],
+          columns: [
+            { key: 'created_at', label: 'Date', render: (w) => Admin.formatDate(w.created_at) },
+            { key: 'player', label: 'Player', render: (w) => Admin.escapeHtml(w.player?.username || '—') },
+            { key: 'amount_usd', label: 'Amount', render: (w) => Admin.formatMoney(w.amount_usd) },
+            { key: 'crypto_currency', label: 'Currency' },
+            { key: 'wallet_address', label: 'Wallet Address', render: (w) => `<span class="mono" style="font-size:11px;">${Admin.escapeHtml(w.wallet_address)}</span>` },
+            { key: 'status', label: 'Status', render: (w) => `<span class="status-pill ${w.status === 'paid' ? 'status-good' : w.status === 'rejected' ? 'status-bad' : 'status-warn'}">${w.status}</span>` },
+            { key: 'tx_hash', label: 'TX Hash', render: (w) => w.tx_hash ? `<span class="mono" style="font-size:11px;">${Admin.escapeHtml(w.tx_hash)}</span>` : '—' },
+            { key: 'actions', label: '', render: (w) => {
+              if (w.status === 'pending') return `<button class="btn btn-sm" data-processing="${w.id}">Start Processing</button> <button class="btn btn-sm btn-danger" data-reject="${w.id}">Reject</button>`;
+              if (w.status === 'processing') return `<button class="btn btn-sm btn-primary" data-paid="${w.id}">Mark Paid</button>`;
+              return '—';
+            } },
+          ],
+        });
+        wrap.addEventListener('click', async (e) => {
+          const processingId = e.target.dataset.processing;
+          const paidId = e.target.dataset.paid;
+          const rejectId = e.target.dataset.reject;
+          try {
+            if (processingId) await Admin.api(`/monetisation/withdrawals/${processingId}/processing`, { method: 'POST' });
+            if (paidId) {
+              const txHash = prompt('Transaction hash:');
+              if (!txHash) return;
+              await Admin.api(`/monetisation/withdrawals/${paidId}/paid`, { method: 'POST', body: { txHash } });
+            }
+            if (rejectId) {
+              const reason = prompt('Rejection reason (coins will be refunded):') || '';
+              await Admin.api(`/monetisation/withdrawals/${rejectId}/reject`, { method: 'POST', body: { reason } });
+            }
+            if (processingId || paidId || rejectId) { loaded.withdrawals = false; loaders.withdrawals(); }
+          } catch (err) {
+            Admin.toast(err.message, 'danger');
+          }
+        });
       },
       brokers: async () => {
         const rows = await Admin.api('/monetisation/brokers');
