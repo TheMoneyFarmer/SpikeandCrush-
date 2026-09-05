@@ -102,6 +102,7 @@
         const redirect = TW.consumePostLoginRedirect ? TW.consumePostLoginRedirect() : null;
         window.location.href = redirect || '/trading-floor';
       } catch (e) {
+        console.error('[auth-callback]', e);
         fail('Something went wrong.');
       }
     })();
