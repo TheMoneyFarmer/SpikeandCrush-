@@ -57,6 +57,17 @@ window.TW = window.TW || {};
     return div.innerHTML;
   };
 
+  // /api/discord/connect is a plain navigation, not a fetch(), so it can't
+  // carry an Authorization header - the token rides along as a query param
+  // instead (see the matching comment on that route in server/index.js).
+  TW.connectDiscord = () => {
+    if (!TW.getToken()) {
+      TW.requireAuth();
+      return;
+    }
+    window.location.href = '/api/discord/connect?token=' + encodeURIComponent(TW.getToken());
+  };
+
   // ---- theme (Default War Room / Midnight / Combat / Light) -----------------
   // The <head> of every page runs a tiny inline script (before any CSS
   // paints) that reads this same localStorage key and stamps data-theme on

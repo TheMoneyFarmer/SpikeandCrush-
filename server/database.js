@@ -1195,6 +1195,25 @@ async function getCoinsBreakdown(playerId) {
   return { fromMatches, fromPurchases };
 }
 
+// FIX: the home page's "Matches Today" used to come from gameEngine's
+// in-memory `matches` Map, which prunes each match a few minutes after it
+// ends (see the cleanup setTimeout in endMatch) - so the count quietly
+// dropped back down/reset to 0 shortly after someone actually finished a
+// match, even though it was correctly persisted here all along. This counts
+// the real, permanent `matches` table instead, which only grows through
+// the day.
+async function getMatchesToday() {
+  assertConfigured();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const { count, error } = await supabase
+    .from('matches')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', todayStart.toISOString());
+  if (error) throw error;
+  return count || 0;
+}
+
 async function getCoinsWonToday() {
   assertConfigured();
   const todayStart = new Date();
@@ -1499,6 +1518,7 @@ module.exports = {
   getCoinTransactions,
   getCoinsWonToday,
   getCoinsBreakdown,
+  getMatchesToday,
   getLargestWinToday,
   getTotalPrizesDistributed,
   createSession,

@@ -2146,3 +2146,23 @@ h1, h2, h3, h4, .title {
 .tw-promo-btn:hover {
   filter: brightness(1.06);
 }
+
+/* ---- Discord connect (Settings -> Profile, tutorial final step) --------- */
+
+.btn-discord {
+  background: #5865f2;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 10px 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-discord:hover {
+  background: #4752c4;
+  transform: translateY(-1px);
+}

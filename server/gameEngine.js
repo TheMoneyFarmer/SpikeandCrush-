@@ -286,6 +286,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   const matches = new Map();
   const roomCodeIndex = new Map(); // roomCode -> matchId
   const socketSessions = new Map(); // socketId -> { matchId, playerId }
+  const disconnectTimers = new Map(); // "matchId:playerId" -> Timeout, while a grace period is counting down
+  const RECONNECT_GRACE_MS = 60000;
 
   function roomName(matchId) {
     return `match:${matchId}`;
@@ -554,10 +556,25 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     try {
       const history = {};
       for (const symbol of match.instruments) {
-        history[symbol] = instruments.getPreMatchHistory(matchId, symbol);
+        let symbolHistory = instruments.getPreMatchHistory(matchId, symbol);
+        // Self-heal rather than hand the client a null: createMatch() assigns
+        // every instrument's window up front, so this should never actually
+        // be missing, but a client fetching this before that finishes (or
+        // any other timing edge case) shouldn't leave that one chart
+        // permanently blank for the rest of the match - just assign it now.
+        if (!symbolHistory) {
+          console.warn(`[gameEngine] pre-match window missing for ${symbol} in match ${matchId} - assigning it now`);
+          // Same seed rule as createMatch() - async needs every player to see
+          // an identical window, keyed off today's UTC date, not per-match.
+          const seed = match.mode === 'async' ? new Date().toISOString().slice(0, 10) : null;
+          instruments.assignMatchWindow(matchId, symbol, seed);
+          symbolHistory = instruments.getPreMatchHistory(matchId, symbol);
+        }
+        history[symbol] = symbolHistory;
       }
       return history;
     } catch (e) {
+      console.warn('[gameEngine] getPreMatchHistory failed:', e.message);
       return null;
     }
   }
@@ -1894,11 +1911,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     const player = match.players[playerId];
     if (!player) return { success: false, error: 'Join the match via the API before connecting' };
 
+    const wasDisconnected = clearDisconnectGrace(matchId, playerId);
     player.socketId = socket.id;
     socket.join(roomName(matchId));
     socketSessions.set(socket.id, { matchId, playerId });
 
     io.to(socket.id).emit('match:state', buildMatchStatePayloadFor(match, playerId));
+    if (wasDisconnected) {
+      pushFeed(match, `${player.username} reconnected`, { type: 'system' });
+      emitToAll(match, 'match:player_reconnected', { playerId, username: player.username });
+    }
     return { success: true };
   }
 
@@ -1918,17 +1940,30 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     return { success: true };
   }
 
-  function getHomeStats() {
+  // activePlayers is deliberately still live/in-memory (it means "in a match
+  // right now", which only the live matches Map can answer), but matchesToday
+  // now reads the persistent matches table - see db.getMatchesToday for why
+  // the in-memory version this used to use quietly reset toward 0 shortly
+  // after each match actually finished.
+  async function getHomeStats() {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    let matchesToday = 0;
     const activePlayerIds = new Set();
+    let inMemoryMatchesToday = 0;
     for (const match of matches.values()) {
-      if (match.createdAt >= todayStart.getTime()) matchesToday += 1;
+      if (match.createdAt >= todayStart.getTime()) inMemoryMatchesToday += 1;
       if (match.status === 'active' || match.status === 'countdown') {
         for (const p of Object.values(match.players)) {
           if (!p.isAI) activePlayerIds.add(p.id);
         }
+      }
+    }
+    let matchesToday = inMemoryMatchesToday;
+    if (db.isConfigured) {
+      try {
+        matchesToday = await db.getMatchesToday();
+      } catch (e) {
+        console.warn('[gameEngine] getMatchesToday failed, falling back to in-memory count:', e.message);
       }
     }
     return { matchesToday, activePlayers: activePlayerIds.size };
@@ -1986,12 +2021,58 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     return { success: true };
   }
 
+  // A human who disconnects mid-match (closed the tab, lost wifi) gets 60s to
+  // reconnect (bindSocket below clears this on a successful rejoin) before
+  // being treated as a voluntary leave - reuses leaveMatch's existing
+  // force-close-positions/last-place/rating-penalty logic rather than
+  // duplicating it. AI never disconnects, and a waiting/finished match has
+  // no clock running for anyone to lose out on, so only active/countdown
+  // matches start a timer at all.
+  function startDisconnectGrace(match, playerId) {
+    const key = `${match.id}:${playerId}`;
+    if (disconnectTimers.has(key)) return;
+    const player = match.players[playerId];
+    if (!player) return;
+
+    pushFeed(match, `${player.username} lost connection - 60s to reconnect`, { type: 'system' });
+    emitToAll(match, 'match:player_disconnected', { playerId, username: player.username, graceSeconds: RECONNECT_GRACE_MS / 1000 });
+
+    const timer = setTimeout(() => {
+      disconnectTimers.delete(key);
+      const stillMatch = matches.get(match.id);
+      const stillPlayer = stillMatch?.players[playerId];
+      // Only forfeit if they genuinely never reconnected - a bound socket
+      // means bindSocket already cleared this timer, but the closure could
+      // still fire on the old timer in a narrow race, so check again here.
+      if (stillPlayer && !stillPlayer.socketId) {
+        leaveMatch(match.id, playerId).catch((e) => console.error('[gameEngine] disconnect forfeit failed:', e.message));
+      }
+    }, RECONNECT_GRACE_MS);
+    disconnectTimers.set(key, timer);
+  }
+
+  // Returns true if a grace period was actually pending (i.e. this is a
+  // genuine reconnect, not just a first-time join) - callers use that to
+  // decide whether a "player reconnected" notice is warranted.
+  function clearDisconnectGrace(matchId, playerId) {
+    const key = `${matchId}:${playerId}`;
+    const timer = disconnectTimers.get(key);
+    if (!timer) return false;
+    clearTimeout(timer);
+    disconnectTimers.delete(key);
+    return true;
+  }
+
   function handleDisconnect(socketId) {
     const session = socketSessions.get(socketId);
     if (!session) return;
     const match = matches.get(session.matchId);
-    if (match && match.players[session.playerId]) {
-      match.players[session.playerId].socketId = null;
+    const player = match?.players[session.playerId];
+    if (player) {
+      player.socketId = null;
+      if (!player.isAI && (match.status === 'active' || match.status === 'countdown')) {
+        startDisconnectGrace(match, session.playerId);
+      }
     }
     socketSessions.delete(socketId);
   }

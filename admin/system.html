@@ -22,6 +22,8 @@
           <button class="admin-tab" data-tab="api">API Usage</button>
           <button class="admin-tab" data-tab="errors">Error Logs</button>
           <button class="admin-tab" data-tab="db">Database Stats</button>
+          <button class="admin-tab" data-tab="adminusers">Admin Users</button>
+          <button class="admin-tab" data-tab="activitylog">Activity Log</button>
         </div>
 
         <div class="admin-tab-panel" id="tab-health">
@@ -70,6 +72,43 @@
             <h3>Backups</h3>
             <div id="backupInfo" class="text-secondary" style="font-size:12px;"></div>
           </div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-adminusers">
+          <div class="admin-table-toolbar">
+            <button class="btn btn-primary" id="inviteAdminBtn">+ Invite New Admin</button>
+          </div>
+          <div class="panel hidden" id="inviteAdminPanel" style="max-width:420px;margin-bottom:16px;">
+            <h3>Invite New Admin</h3>
+            <div class="field"><label>Name</label><input id="invName" /></div>
+            <div class="field"><label>Email</label><input id="invEmail" type="email" /></div>
+            <div class="field"><label>Role</label>
+              <select id="invRole">
+                <option value="admin">Admin</option>
+                <option value="moderator">Moderator</option>
+                <option value="super_admin">Super Admin</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" id="sendInviteBtn">Send Invite</button>
+          </div>
+          <div id="adminUsersTableWrap"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div class="admin-tab-panel" id="tab-activitylog">
+          <div class="admin-table-toolbar" style="gap:8px;flex-wrap:wrap;">
+            <select id="alAdminFilter"><option value="">All admins</option></select>
+            <select id="alActionFilter">
+              <option value="">All actions</option>
+              <option value="LOGIN">Login</option>
+              <option value="INVITE_ADMIN">Invite Admin</option>
+              <option value="DEACTIVATE_ADMIN">Deactivate Admin</option>
+            </select>
+            <input type="date" id="alFromDate" />
+            <input type="date" id="alToDate" />
+            <button class="btn btn-sm" id="alFilterBtn">Filter</button>
+            <button class="btn btn-sm" id="alExportBtn">Export to CSV</button>
+          </div>
+          <div id="activityLogTableWrap"><div class="empty-state">Loading…</div></div>
         </div>
 
       </div>
@@ -158,8 +197,121 @@
           document.getElementById('backupInfo').textContent = `Managed by: ${d.backups.managedBy}. ${d.backups.note}`;
         } catch (e) { Admin.toast(e.message, 'danger'); }
       },
+      adminusers: async () => {
+        try {
+          const rows = await Admin.api('/admins');
+          document.getElementById('adminUsersTableWrap').innerHTML = rows.length ? `
+            <div class="admin-table-wrap"><table class="admin-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last Login</th><th>Invited By</th><th>Status</th><th></th></tr></thead>
+              <tbody>${rows.map((a) => `
+                <tr>
+                  <td>${a.is_master ? '👑 ' : ''}${Admin.escapeHtml(a.name)}</td>
+                  <td>${Admin.escapeHtml(a.email)}</td>
+                  <td>${Admin.escapeHtml(a.role)}</td>
+                  <td>${a.last_login ? Admin.formatDate(a.last_login) : 'Never'}</td>
+                  <td>${a.invited_by_email ? Admin.escapeHtml(a.invited_by_email) : '—'}</td>
+                  <td>${a.is_active ? '✅ Active' : '❌ Deactivated'}</td>
+                  <td>${a.is_master ? '' : `
+                    <button class="btn btn-outline" data-reset-admin="${a.id}" style="font-size:11px;padding:4px 10px;">Reset Password</button>
+                    <button class="btn btn-outline" data-deactivate-admin="${a.id}" style="font-size:11px;padding:4px 10px;">Deactivate</button>
+                  `}</td>
+                </tr>
+              `).join('')}</tbody>
+            </table></div>
+          ` : '<div class="empty-state">No admins found.</div>';
+
+          document.querySelectorAll('[data-deactivate-admin]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              if (!confirm('Deactivate this admin? They will no longer be able to log in.')) return;
+              try {
+                await Admin.api(`/admins/${btn.dataset.deactivateAdmin}`, { method: 'DELETE' });
+                Admin.toast('Admin deactivated', 'success');
+                loaders.adminusers();
+              } catch (e) { Admin.toast(e.message, 'danger'); }
+            });
+          });
+
+          document.querySelectorAll('[data-reset-admin]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              if (!confirm("Reset this admin's password? Their current password will stop working immediately.")) return;
+              try {
+                const res = await Admin.api(`/admins/${btn.dataset.resetAdmin}/reset-password`, { method: 'POST' });
+                alert(`Password reset.\n\nTemp password: ${res.tempPassword}\n\nShare this with them securely - it will not be shown again.`);
+              } catch (e) { Admin.toast(e.message, 'danger'); }
+            });
+          });
+
+          const alFilter = document.getElementById('alAdminFilter');
+          const current = new Set(Array.from(alFilter.options).map((o) => o.value));
+          rows.forEach((a) => {
+            if (!current.has(a.email)) {
+              const opt = document.createElement('option');
+              opt.value = a.email;
+              opt.textContent = a.email;
+              alFilter.appendChild(opt);
+            }
+          });
+        } catch (e) { Admin.toast(e.message, 'danger'); }
+      },
+      activitylog: async () => {
+        try {
+          const params = new URLSearchParams();
+          if (alAdminFilter.value) params.set('adminEmail', alAdminFilter.value);
+          if (alActionFilter.value) params.set('action', alActionFilter.value);
+          if (alFromDate.value) params.set('from', new Date(alFromDate.value).toISOString());
+          if (alToDate.value) params.set('to', new Date(alToDate.value + 'T23:59:59').toISOString());
+          const rows = await Admin.api(`/admins/activity-log?${params.toString()}`);
+          lastActivityLogRows = rows;
+          document.getElementById('activityLogTableWrap').innerHTML = rows.length ? `
+            <div class="admin-table-wrap"><table class="admin-table">
+              <thead><tr><th>Admin</th><th>Action</th><th>Target</th><th>Details</th><th>Time</th></tr></thead>
+              <tbody>${rows.map((r) => `
+                <tr>
+                  <td>${Admin.escapeHtml(r.admin_email || '—')}</td>
+                  <td>${Admin.escapeHtml(r.action)}</td>
+                  <td>${r.target_table ? `${Admin.escapeHtml(r.target_table)}${r.target_id ? ' · ' + Admin.escapeHtml(r.target_id) : ''}` : '—'}</td>
+                  <td style="font-size:11px;font-family:var(--mono);">${r.details ? Admin.escapeHtml(JSON.stringify(r.details)) : ''}</td>
+                  <td class="mono" style="white-space:nowrap;">${Admin.formatDate(r.created_at)}</td>
+                </tr>
+              `).join('')}</tbody>
+            </table></div>
+          ` : '<div class="empty-state">No activity logged yet.</div>';
+        } catch (e) { Admin.toast(e.message, 'danger'); }
+      },
     };
     document.getElementById('refreshErrorsBtn').addEventListener('click', () => loaders.errors());
+
+    let lastActivityLogRows = [];
+    document.getElementById('inviteAdminBtn').addEventListener('click', () => {
+      document.getElementById('inviteAdminPanel').classList.toggle('hidden');
+    });
+    document.getElementById('sendInviteBtn').addEventListener('click', async () => {
+      try {
+        const res = await Admin.api('/admins/invite', { method: 'POST', body: {
+          email: invEmail.value, name: invName.value, role: invRole.value,
+        }});
+        alert(`Admin invited.\n\nTemp password: ${res.tempPassword}\n\nShare this with them securely - it will not be shown again.`);
+        invName.value = ''; invEmail.value = '';
+        document.getElementById('inviteAdminPanel').classList.add('hidden');
+        loaders.adminusers();
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
+    document.getElementById('alFilterBtn').addEventListener('click', () => loaders.activitylog());
+    document.getElementById('alExportBtn').addEventListener('click', () => {
+      if (!lastActivityLogRows.length) { Admin.toast('Nothing to export', 'warning'); return; }
+      const header = ['admin_email', 'action', 'target_table', 'target_id', 'details', 'created_at'];
+      const csvRows = lastActivityLogRows.map((r) => header.map((h) => {
+        const v = h === 'details' ? JSON.stringify(r[h] || {}) : (r[h] ?? '');
+        return `"${String(v).replace(/"/g, '""')}"`;
+      }).join(','));
+      const csv = [header.join(','), ...csvRows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `admin-activity-log-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    });
 
     activateTab(new URLSearchParams(location.search).get('tab') || 'health');
   </script>

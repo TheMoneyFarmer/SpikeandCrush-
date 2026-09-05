@@ -15,7 +15,7 @@
       <div id="loginError" class="admin-login-error"></div>
       <form id="loginForm">
         <div class="field">
-          <label>Username</label>
+          <label>Username or Email</label>
           <input type="text" id="username" autocomplete="username" required />
         </div>
         <div class="field">
@@ -24,6 +24,7 @@
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="loginBtn">Log In</button>
       </form>
+      <div class="text-secondary" style="font-size:12px;text-align:center;margin-top:14px;">Contact Thando for admin access</div>
     </div>
   </div>
   <script>
@@ -46,7 +47,7 @@
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Login failed');
-        localStorage.setItem('admin_me', JSON.stringify({ username: json.username, lastLogin: json.lastLogin }));
+        localStorage.setItem('admin_me', JSON.stringify({ username: json.username, lastLogin: json.lastLogin, ...json.admin }));
         window.location.href = '/dashboard.html';
       } catch (err) {
         errorEl.textContent = err.message;

@@ -119,6 +119,7 @@ window.TW = window.TW || {};
           <h3 class="tutorial-title"></h3>
           <p class="tutorial-body"></p>
           <div class="tutorial-tip" style="display:none"></div>
+          <button class="btn-discord tutorial-discord-btn" style="margin-top:10px;width:100%;display:none;">Join our Discord Community</button>
           <div class="tutorial-footer">
             <div class="tutorial-dots"></div>
             <div class="tutorial-buttons">
@@ -133,6 +134,7 @@ window.TW = window.TW || {};
       this.card = this.overlay.querySelector('.tutorial-card');
       this.card.querySelector('.btn-tutorial-skip').addEventListener('click', () => this.skip());
       this.card.querySelector('.btn-tutorial-next').addEventListener('click', () => this.next());
+      this.card.querySelector('.tutorial-discord-btn').addEventListener('click', () => TW.connectDiscord());
 
       this._reposition = () => {
         const step = this.steps[this.currentStep];
@@ -160,6 +162,8 @@ window.TW = window.TW || {};
       const tipEl = this.card.querySelector('.tutorial-tip');
       if (step.tip) { tipEl.textContent = step.tip; tipEl.style.display = 'block'; }
       else tipEl.style.display = 'none';
+
+      this.card.querySelector('.tutorial-discord-btn').style.display = step.finalStep ? 'block' : 'none';
 
       this.card.querySelector('.btn-tutorial-next').textContent = isLast ? 'Start Playing!' : 'Next →';
 

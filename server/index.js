@@ -570,6 +570,107 @@ app.post('/api/auth/oauth-callback', requireDb, async (req, res) => {
   }
 });
 
+// ---- discord -------------------------------------------------------------------
+//
+// /api/discord/connect is reached via a plain browser navigation
+// (window.location.href from the Connect Discord button), not a fetch() call,
+// so it can't carry an Authorization header the way the rest of the API does -
+// the token travels as a query param instead and is verified the exact same
+// way authenticate() verifies it, just for this one entry point. The real
+// authenticate() middleware is intentionally left header-only everywhere else.
+app.get('/api/discord/connect', requireDb, async (req, res) => {
+  try {
+    const token = req.query.token;
+    if (!token) return res.redirect('/settings?discord=error');
+    const {
+      data: { user },
+      error,
+    } = await supabaseAdmin.auth.getUser(token);
+    if (error || !user) return res.redirect('/settings?discord=error');
+    const player = await db.getPlayerBySupabaseUserId(user.id);
+    if (!player) return res.redirect('/settings?discord=error');
+
+    const params = new URLSearchParams({
+      client_id: process.env.DISCORD_CLIENT_ID,
+      redirect_uri: process.env.SITE_URL + '/api/discord/callback',
+      response_type: 'code',
+      scope: 'identify guilds.join',
+      state: player.id,
+    });
+    res.redirect('https://discord.com/oauth2/authorize?' + params.toString());
+  } catch (e) {
+    console.error('[discord connect]', e);
+    res.redirect('/settings?discord=error');
+  }
+});
+
+app.get('/api/discord/callback', requireDb, async (req, res) => {
+  const { code, state: playerId } = req.query;
+  if (!code) return res.redirect('/settings?discord=error');
+
+  try {
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: process.env.SITE_URL + '/api/discord/callback',
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    const accessToken = tokenData.access_token;
+    if (!accessToken) throw new Error('No access token returned: ' + JSON.stringify(tokenData));
+
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: 'Bearer ' + accessToken },
+    });
+    const discordUser = await userRes.json();
+    if (!discordUser.id) throw new Error('No Discord user id returned: ' + JSON.stringify(discordUser));
+
+    // Adds them to the guild with the Member role pre-set. If they're
+    // already a member, Discord's API leaves existing roles untouched here,
+    // so the follow-up PUT below re-applies the role explicitly either way.
+    const joinRes = await fetch(
+      `https://discord.com/api/guilds/${process.env.DISCORD_SERVER_ID}/members/${discordUser.id}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: 'Bot ' + process.env.DISCORD_BOT_TOKEN,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ access_token: accessToken, roles: [process.env.DISCORD_MEMBER_ROLE_ID] }),
+      }
+    );
+    if (!joinRes.ok && joinRes.status !== 204) {
+      console.warn('[discord callback] guild join responded', joinRes.status, await joinRes.text().catch(() => ''));
+    }
+
+    const roleRes = await fetch(
+      `https://discord.com/api/guilds/${process.env.DISCORD_SERVER_ID}/members/${discordUser.id}/roles/${process.env.DISCORD_MEMBER_ROLE_ID}`,
+      { method: 'PUT', headers: { Authorization: 'Bot ' + process.env.DISCORD_BOT_TOKEN } }
+    );
+    if (!roleRes.ok && roleRes.status !== 204) {
+      console.warn('[discord callback] role assign responded', roleRes.status, await roleRes.text().catch(() => ''));
+    }
+
+    if (playerId) {
+      await db.updatePlayer(playerId, {
+        discord_id: discordUser.id,
+        discord_username: discordUser.username,
+        discord_joined: true,
+      });
+    }
+
+    res.redirect('/settings?discord=connected&username=' + encodeURIComponent(discordUser.username || ''));
+  } catch (err) {
+    console.error('[discord callback]', err.message);
+    res.redirect('/settings?discord=error');
+  }
+});
+
 // ---- match ------------------------------------------------------------------
 
 const MATCHMAKING_BY_MODE = {
@@ -1996,7 +2097,7 @@ app.get('/api/config/public', (req, res) => {
 
 app.get('/api/stats/home', async (req, res) => {
   try {
-    const live = gameEngine.getHomeStats();
+    const live = await gameEngine.getHomeStats();
     if (!db.isConfigured) return res.json({ ...live, largestWinToday: 0, coinsWonToday: 0 });
     const [largestWinToday, coinsWonToday] = await Promise.all([db.getLargestWinToday(), db.getCoinsWonToday()]);
     res.json({ ...live, largestWinToday, coinsWonToday });
@@ -2015,7 +2116,7 @@ app.get('/api/stats/home', async (req, res) => {
 app.get('/api/stats/live', async (req, res) => {
   try {
     const activePlayers = playerSockets.size;
-    const { matchesToday } = gameEngine.getHomeStats();
+    const { matchesToday } = await gameEngine.getHomeStats();
     if (!db.isConfigured) {
       return res.json({ activePlayers, matchesToday, largestWinToday: 0, totalPrizesDistributed: 0 });
     }

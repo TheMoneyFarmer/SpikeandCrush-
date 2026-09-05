@@ -88,10 +88,12 @@ window.Admin = window.Admin || {};
       <div class="admin-sidebar-footer">
         <div class="admin-username" id="admSidebarUsername">—</div>
         <div id="admSidebarLastLogin">Last login: —</div>
+        <button class="admin-logout-btn" id="admChangePasswordBtn" style="margin-bottom:6px;">Change Password</button>
         <button class="admin-logout-btn" id="admLogoutBtn">Log out</button>
       </div>
     `;
     mount.querySelector('#admLogoutBtn').addEventListener('click', Admin.logout);
+    mount.querySelector('#admChangePasswordBtn').addEventListener('click', Admin.openChangePasswordModal);
 
     const me = Admin.getMe();
     if (me) {

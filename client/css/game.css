@@ -1701,3 +1701,61 @@
   color: var(--sell);
   border-color: var(--sell);
 }
+
+/* ---- FIX: disconnect reconnect overlay ---------------------------------------- */
+
+.reconnect-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  z-index: 9700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: tw-fade-in 0.3s ease;
+}
+
+.reconnect-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+}
+
+.reconnect-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.reconnect-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.reconnect-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 18px;
+}
+
+.reconnect-countdown {
+  font-family: var(--mono);
+  font-size: 40px;
+  font-weight: 900;
+  color: var(--accent);
+  margin-bottom: 18px;
+}
+
+.reconnect-forfeited .reconnect-countdown { color: var(--sell); }
+
+.reconnect-warning {
+  font-size: 11px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
+  margin-bottom: 4px;
+}

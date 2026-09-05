@@ -1203,7 +1203,90 @@ window.TW = window.TW || {};
 
   socket.on('connect', async () => {
     const result = await TW.emitAck('player:join', { matchId });
-    if (!result.success) TW.toast(result.error || 'Could not join match', 'danger');
+    if (result.success) {
+      dismissReconnectOverlay();
+    } else if (document.getElementById('reconnectOverlay')) {
+      // We were mid-grace-period and the server has already forfeited us
+      // (or something else is wrong) - a plain toast would leave the player
+      // staring at a frozen board with no way out, so show a terminal state.
+      showForfeitedOverlay(result.error);
+    } else {
+      TW.toast(result.error || 'Could not join match', 'danger');
+    }
+  });
+
+  // ---- disconnect grace period ----------------------------------------------------
+  // Server gives a disconnected human 60s to reconnect (gameEngine.js
+  // startDisconnectGrace) before treating it as a forfeit. Socket.io's client
+  // already retries automatically with backoff (see socket.js), so this is
+  // purely the visible countdown - the server's own timer is authoritative.
+
+  let reconnectCountdownTimer = null;
+
+  function showReconnectOverlay() {
+    if (document.getElementById('reconnectOverlay')) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'reconnect-overlay';
+    overlay.id = 'reconnectOverlay';
+    overlay.innerHTML = `
+      <div class="reconnect-card">
+        <div class="reconnect-icon">📡</div>
+        <div class="reconnect-title">Connection Lost</div>
+        <div class="reconnect-body">Reconnecting to your match…</div>
+        <div class="reconnect-countdown" id="reconnectCountdown">60</div>
+        <div class="reconnect-warning">If you don't reconnect in time you'll receive last place.</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    let seconds = 60;
+    reconnectCountdownTimer = setInterval(() => {
+      seconds -= 1;
+      const el = document.getElementById('reconnectCountdown');
+      if (el) el.textContent = Math.max(0, seconds);
+      if (seconds <= 0) {
+        clearInterval(reconnectCountdownTimer);
+        reconnectCountdownTimer = null;
+      }
+    }, 1000);
+  }
+
+  function dismissReconnectOverlay() {
+    if (reconnectCountdownTimer) {
+      clearInterval(reconnectCountdownTimer);
+      reconnectCountdownTimer = null;
+    }
+    document.getElementById('reconnectOverlay')?.remove();
+  }
+
+  function showForfeitedOverlay(reason) {
+    if (reconnectCountdownTimer) {
+      clearInterval(reconnectCountdownTimer);
+      reconnectCountdownTimer = null;
+    }
+    const overlay = document.getElementById('reconnectOverlay') || document.body.appendChild(Object.assign(document.createElement('div'), { className: 'reconnect-overlay', id: 'reconnectOverlay' }));
+    overlay.classList.add('reconnect-forfeited');
+    overlay.innerHTML = `
+      <div class="reconnect-card">
+        <div class="reconnect-icon">💀</div>
+        <div class="reconnect-title">Match Forfeited</div>
+        <div class="reconnect-body">${TW.escapeHtml(reason && reason !== 'Join the match via the API before connecting' ? reason : 'You were disconnected too long. Last place recorded.')}</div>
+        <button class="btn-rules-ready" onclick="window.location='/trading-floor'">Return Home</button>
+      </div>
+    `;
+  }
+
+  socket.on('disconnect', () => {
+    if (!matchId || (lastState && lastState.status === 'finished')) return;
+    showReconnectOverlay();
+  });
+
+  socket.on('match:player_disconnected', (data) => {
+    TW.toast(`📡 ${data.username} lost connection — ${data.graceSeconds}s to reconnect`, 'warning');
+  });
+
+  socket.on('match:player_reconnected', (data) => {
+    TW.toast(`✅ ${data.username} reconnected`, 'info');
   });
 
   socket.on('match:state', (state) => {

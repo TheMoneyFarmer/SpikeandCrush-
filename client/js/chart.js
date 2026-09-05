@@ -253,8 +253,19 @@ TW.Chart = (function () {
   // call once per match load; a second call for the same symbol is a no-op so
   // reconnects/re-renders don't duplicate the prefix.
   function loadPreMatchHistory(historyBySymbol) {
+    // FIX: one instrument occasionally has no pre-match window ready yet
+    // server-side (see gameEngine.getPreMatchHistory) and comes back as
+    // null. `ticks.map()` on that null used to throw INSIDE this forEach -
+    // since a thrown exception aborts the whole loop, every symbol after
+    // the bad one in object-key order silently never got its history,
+    // leaving their charts blank for the rest of the match even though
+    // live ticks kept streaming in fine. Skip just the bad one instead.
     Object.entries(historyBySymbol || {}).forEach(([symbol, ticks]) => {
       if (preMatchLoaded[symbol]) return;
+      if (!Array.isArray(ticks)) {
+        console.warn(`[chart] no pre-match history available for ${symbol} - live ticks will still populate the chart`);
+        return;
+      }
       if (!rawTicks[symbol]) rawTicks[symbol] = [];
       const preTicks = ticks.map((p) => ({ t: p.t, mid: p.mid }));
       rawTicks[symbol] = preTicks.concat(rawTicks[symbol]);
