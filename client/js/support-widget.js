@@ -26,12 +26,12 @@
     .tw-sw-msg.system { align-self: center; font-size: 11px; opacity: 0.6; }
     .tw-sw-footer { border-top: 1px solid var(--border, #2a2a3a); padding: 8px; }
     .tw-sw-input-row { display: flex; gap: 6px; }
-    .tw-sw-input-row input { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border, #2a2a3a); background: var(--surface-2, #1a1a2a); color: inherit; font-size: 13px; }
+    .tw-sw-input-row input { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border, #2a2a3a); background: var(--surface-2, #1a1a2a); color: var(--text, #eee); font-size: 13px; }
     .tw-sw-input-row button { padding: 8px 12px; border-radius: 8px; border: none; background: var(--accent, #00a87c); color: #fff; cursor: pointer; font-size: 13px; }
     .tw-sw-ticket-link { display: block; text-align: center; font-size: 11px; opacity: 0.7; margin-top: 6px; cursor: pointer; text-decoration: underline; }
     .tw-sw-ticket-form { padding: 10px; display: none; flex-direction: column; gap: 8px; }
     .tw-sw-ticket-form.open { display: flex; }
-    .tw-sw-ticket-form input, .tw-sw-ticket-form textarea { padding: 8px; border-radius: 8px; border: 1px solid var(--border, #2a2a3a); background: var(--surface-2, #1a1a2a); color: inherit; font-size: 13px; font-family: inherit; }
+    .tw-sw-ticket-form input, .tw-sw-ticket-form textarea { padding: 8px; border-radius: 8px; border: 1px solid var(--border, #2a2a3a); background: var(--surface-2, #1a1a2a); color: var(--text, #eee); font-size: 13px; font-family: inherit; }
     .tw-sw-ticket-form textarea { resize: vertical; min-height: 70px; }
   `;
   document.head.appendChild(style);
