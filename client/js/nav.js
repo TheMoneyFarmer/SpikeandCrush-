@@ -367,7 +367,7 @@ window.TW = window.TW || {};
   let notifInitDone = false;
   function initNotifications() {
     if (notifInitDone) return;
-    if (!window.TW || !TW.getToken || !TW.getToken()) return;
+    if (!window.TW || !TW.isLoggedIn || !TW.isLoggedIn()) return;
     if (!TW.connectSocket) return;
     notifInitDone = true;
     loadNotificationHistory();

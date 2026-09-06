@@ -40,9 +40,37 @@ window.TW = window.TW || {};
   TW.clearSession = () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(PLAYER_KEY);
+    // Without this, the Supabase SDK's own independently-persisted session
+    // (separate localStorage keys auth.js's client manages) stays alive and
+    // its background token-refresh (auth.js's onAuthStateChange, every 50
+    // min) silently writes a fresh sc_token straight back to localStorage -
+    // resurrecting a logged-in-looking token with no matching sc_player
+    // after every logout, which is exactly the half-session state that made
+    // pages look logged-in-but-not (see TW.isLoggedIn).
+    try {
+      window.supabaseClient?.auth.signOut();
+    } catch (e) {}
+  };
+  // The one place every other "am I logged in" check in the app should go
+  // through. A token with no matching cached player (or vice versa) is a
+  // half-session - a stale/partial write can leave one key behind without
+  // the other, and every page here trusted TW.getToken() alone, so a bare
+  // leftover token made pages act logged-in (notifications fetch and show
+  // real data for that account) while TW.updateHeader() - which reads
+  // TW.getPlayer() - correctly showed the logged-out nav icon. Treating a
+  // half-session as logged out and clearing it fixes both symptoms and
+  // forces a clean re-login instead of a permanently inconsistent UI.
+  TW.isLoggedIn = () => {
+    const hasToken = Boolean(TW.getToken());
+    const hasPlayer = Boolean(TW.getPlayer());
+    if (hasToken !== hasPlayer) {
+      TW.clearSession();
+      return false;
+    }
+    return hasToken;
   };
   TW.requireAuth = () => {
-    if (!TW.getToken()) {
+    if (!TW.isLoggedIn()) {
       try {
         localStorage.setItem('tw_redirect_after_login', window.location.href);
       } catch (e) {}
@@ -315,7 +343,11 @@ window.TW = window.TW || {};
   };
 
   TW.updateHeader = () => {
-    const player = TW.getPlayer();
+    // Calling isLoggedIn() first self-heals a half-session (token with no
+    // cached player, or vice versa) before reading getPlayer() below, so
+    // the header never shows the logged-out icon while other token-gated
+    // UI elsewhere still thinks it's logged in.
+    const player = TW.isLoggedIn() ? TW.getPlayer() : null;
     const coinWrap = document.getElementById('headerCoinWrap');
     const coinBalance = document.getElementById('headerCoinBalance');
     const ratingEl = document.getElementById('headerRating');
@@ -364,7 +396,7 @@ window.TW = window.TW || {};
   // round trip to know "is this a new promo?".
   const PROMO_DISMISS_KEY = 'sc_promo_dismissed';
   async function checkPromoPopup() {
-    if (!TW.getToken || !TW.getToken()) return;
+    if (!TW.isLoggedIn || !TW.isLoggedIn()) return;
     let popup;
     try {
       popup = await TW.api('/api/promo/active');
@@ -430,7 +462,7 @@ window.TW = window.TW || {};
     // immediately instead of index.html rendering its own separate login
     // screen. Preserve the exact URL they were trying to reach (e.g. a
     // ?join=123456 invite link) the same way TW.requireAuth() does.
-    if (!TW.getToken()) {
+    if (!TW.isLoggedIn()) {
       try {
         localStorage.setItem('tw_redirect_after_login', window.location.href);
       } catch (e) {}
@@ -439,7 +471,7 @@ window.TW = window.TW || {};
     }
 
     function refreshVisibility() {
-      const logged = Boolean(TW.getPlayer());
+      const logged = TW.isLoggedIn();
       if (hubHero) hubHero.classList.toggle('hidden', !logged);
       if (mainMenu) mainMenu.classList.toggle('hidden', !logged);
       if (marketTickerWrap) marketTickerWrap.classList.toggle('hidden', !logged);
