@@ -1181,11 +1181,11 @@ async function completeCoinPurchase(stripeSessionId) {
     .eq('stripe_session_id', stripeSessionId)
     .maybeSingle();
   if (findErr) throw findErr;
-  if (!purchase || purchase.status === 'completed') return purchase;
+  if (!purchase || purchase.status === 'completed') return purchase ? { ...purchase, alreadyCompleted: true } : null;
 
   await supabase.from('coin_purchases').update({ status: 'completed' }).eq('id', purchase.id);
   await creditCoins(purchase.player_id, purchase.package_coins, { type: 'coin_purchase' });
-  return purchase;
+  return { ...purchase, alreadyCompleted: false };
 }
 
 async function getCoinTransactions(playerId, limit = 50) {

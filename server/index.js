@@ -18,6 +18,7 @@ const Stripe = require('stripe');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const db = require('./database');
+const { sendEmail } = require('../admin/lib/email');
 const { createGameEngine, tierForRating, TIERS } = require('./gameEngine');
 const matchmaking = require('./matchmaking');
 const totp = require('./totp');
@@ -320,10 +321,11 @@ app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), async
       }
     } else {
       try {
-        await db.completeCoinPurchase(session.id);
+        const purchase = await db.completeCoinPurchase(session.id);
         if (session.metadata?.playerId) {
           notifyPlayer(session.metadata.playerId, 'coin_purchase', `${session.metadata.coins || ''} coins added to your wallet!`);
         }
+        if (purchase && !purchase.alreadyCompleted) await sendReceiptEmail(purchase);
       } catch (e) {
         console.error('[stripe webhook] failed to complete purchase:', e.message);
       }
@@ -399,6 +401,64 @@ app.use('/internal/admin', createInternalAdminRouter({ gameEngine, io, db, instr
 
 // ---- auth -----------------------------------------------------------------
 
+// Fire-and-forget by design - never awaited by a caller, and sendEmail()
+// itself already swallows its own errors (just no-ops with a console.warn
+// if RESEND_API_KEY isn't set) - a flaky email provider must never fail or
+// delay account creation.
+function sendWelcomeEmail(player) {
+  if (!player.email) return;
+  sendEmail({
+    to: player.email,
+    subject: `Welcome to Spike & Crush, ${player.username}!`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0a0e14;color:#fff;">
+        <div style="font-size:22px;font-weight:800;margin-bottom:24px;">
+          <span style="color:#008F6A;">S</span><span style="color:#00A87C;">P</span><span style="color:#00C896;">I</span><span style="color:#00E0AA;">K</span><span style="color:#00FF88;">E</span>
+          <span style="color:#fff;">&amp;</span>
+          <span style="color:#FF4444;">C</span><span style="color:#EE3333;">R</span><span style="color:#DD2222;">U</span><span style="color:#CC1111;">S</span><span style="color:#BB0000;">H</span>
+        </div>
+        <h2 style="margin:0 0 12px;">Welcome, ${player.username}!</h2>
+        <p style="color:rgba(255,255,255,.7);line-height:1.6;">
+          Your account is live with <strong style="color:#00C896;">${player.coins.toLocaleString()} coins</strong> to start trading.
+          Jump into a Quick War, size up the leaderboard, and see how far you can push your War Rating.
+        </p>
+        <a href="https://www.spikeandcrush.com/trading-floor" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#00C896;color:#000;font-weight:700;text-decoration:none;border-radius:8px;">
+          Enter the Trading Floor
+        </a>
+        <p style="color:rgba(255,255,255,.35);font-size:12px;margin-top:32px;">
+          Spike &amp; Crush is a skill-based competitive trading game using simulated accounts and historical market data. No real money is traded. Not financial advice.
+        </p>
+      </div>
+    `,
+  }).catch((e) => console.error('[welcome email]', e.message));
+}
+
+async function sendReceiptEmail(purchase) {
+  try {
+    const player = await db.getPlayerById(purchase.player_id);
+    if (!player?.email) return;
+    await sendEmail({
+      to: player.email,
+      subject: `Receipt: ${purchase.package_coins.toLocaleString()} coins - Spike & Crush`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0a0e14;color:#fff;">
+          <h2 style="margin:0 0 20px;">Purchase confirmed</h2>
+          <table style="width:100%;border-collapse:collapse;color:rgba(255,255,255,.85);">
+            <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">Coins</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);text-align:right;font-weight:700;">${purchase.package_coins.toLocaleString()}</td></tr>
+            <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">Amount charged</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);text-align:right;font-weight:700;">$${Number(purchase.amount_usd).toFixed(2)}</td></tr>
+            <tr><td style="padding:8px 0;">New balance</td><td style="padding:8px 0;text-align:right;font-weight:700;color:#00C896;">${player.coins.toLocaleString()} coins</td></tr>
+          </table>
+          <p style="color:rgba(255,255,255,.35);font-size:12px;margin-top:32px;">
+            Coins are used for entry fees in Spike &amp; Crush's simulated trading matches. Not a real-money financial product.
+          </p>
+        </div>
+      `,
+    });
+  } catch (e) {
+    console.error('[receipt email]', e.message);
+  }
+}
+
 app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
   try {
     const { username, email, password } = req.body || {};
@@ -454,6 +514,7 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
     const session = await db.createSession({ playerId: player.id, userAgent: req.headers['user-agent'], ip: clientIp(req) });
     await db.recordLoginEvent({ playerId: player.id, ip: clientIp(req), userAgent: req.headers['user-agent'] });
     await db.recordCoinTransaction({ playerId: player.id, type: 'welcome_bonus', amount: player.coins, balanceAfter: player.coins });
+    sendWelcomeEmail(player);
 
     const { data: signIn, error: signInErr } = await supabaseAdmin.auth.signInWithPassword({ email, password });
     if (signInErr || !signIn.session) {
@@ -613,6 +674,7 @@ app.post('/api/auth/oauth-callback', requireDb, async (req, res) => {
     const session = await db.createSession({ playerId: player.id, userAgent: req.headers['user-agent'], ip: clientIp(req) });
     await db.recordLoginEvent({ playerId: player.id, ip: clientIp(req), userAgent: req.headers['user-agent'] });
     await db.recordCoinTransaction({ playerId: player.id, type: 'welcome_bonus', amount: player.coins, balanceAfter: player.coins });
+    sendWelcomeEmail(player);
 
     res.json({ player: await withEquippedCosmetics(player), isNew: true, sessionId: session.id });
   } catch (e) {
@@ -2671,6 +2733,7 @@ app.post('/api/coins/verify-session', requireDb, authenticate, async (req, res) 
 
     const purchase = await db.completeCoinPurchase(session.id);
     const player = await db.getPlayerById(req.tokenPlayer.id);
+    if (purchase && !purchase.alreadyCompleted) await sendReceiptEmail(purchase);
     res.json({ status: 'paid', credited: true, coins: purchase?.package_coins ?? null, player });
   } catch (e) {
     console.error('[coins/verify-session]', e);
