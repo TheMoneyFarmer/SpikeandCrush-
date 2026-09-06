@@ -1493,6 +1493,15 @@ function scrollToPartners(){
   document.getElementById('partnersStrip').scrollIntoView({behavior:'smooth'});
 }
 
+// A page that requires login (TW.requireAuth(), or index.html when
+// logged out) redirects here with ?login=required - open the login panel
+// right away instead of leaving the visitor to find "Play Now" themselves.
+if(new URLSearchParams(window.location.search).get('login')==='required'){
+  openPanel();
+  const errEl=document.getElementById('lpLoginError');
+  if(errEl)errEl.textContent='Please log in to continue.';
+}
+
 // ── AUTH: LOGIN / REGISTER ──
 // Reuses the same TW.api / TW.establishSession primitives index.html's own
 // login form uses (see js/main.js + js/auth.js) - but with this page's own
@@ -1513,7 +1522,7 @@ async function handleLpLogin(e){
     const data=await TW.api('/api/auth/login',{method:'POST',body:{username,password}});
     await TW.establishSession(data.token,data.refresh_token,data.player);
     closePanel();
-    window.location.href='/play';
+    window.location.href=TW.consumePostLoginRedirect()||'/play';
   }catch(err){
     errEl.textContent=err.message||'Could not log in.';
     btn.disabled=false;
@@ -1534,7 +1543,7 @@ async function handleLpRegister(e){
     const data=await TW.api('/api/auth/register',{method:'POST',body:{username,email,password}});
     await TW.establishSession(data.token,data.refresh_token,data.player);
     closePanel();
-    window.location.href='/play';
+    window.location.href=TW.consumePostLoginRedirect()||'/play';
   }catch(err){
     errEl.textContent=err.message||'Could not create account.';
     btn.disabled=false;
