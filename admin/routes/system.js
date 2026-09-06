@@ -54,7 +54,7 @@ function router() {
       supabase: { configured: isConfigured, tableCount: REAL_TABLES.length, rowCounts: {} },
       stripe: { configured: stripeConfigured },
       llmApis: {
-        note: 'This product does not call any LLM API (OpenAI, Anthropic, or otherwise) - AI opponents are rule-based, not model-driven. An ANTHROPIC_API_KEY exists in .env but is unused (see server/.env comment). ElevenLabs is not integrated either. Nothing to meter here.',
+        note: 'AI trading opponents are rule-based, not model-driven - no LLM involved there. The support chat widget (/api/support/chat) does call Anthropic\'s Claude API when ANTHROPIC_API_KEY is set - real usage/cost accrues per message once configured. ElevenLabs is not integrated.',
       },
     };
     if (isConfigured) {
