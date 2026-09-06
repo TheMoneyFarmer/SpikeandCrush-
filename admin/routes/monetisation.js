@@ -4,7 +4,7 @@ const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const { logAdminAction, clientIp } = require('../lib/auth');
 const internal = require('../lib/internalGameServer');
-const { sendEmail } = require('../lib/email');
+const { sendEmail, renderTemplate } = require('../lib/email');
 
 const BATTLE_PASS_PRICE_USD = 4.99; // server/index.js Stripe checkout unit_amount: 499
 
@@ -218,15 +218,27 @@ function router() {
       if (data.player_id) {
         internal.notifyPlayer(data.player_id, 'prize_claim_paid', `Your ${data.tournaments?.name || 'tournament'} prize (${formatMoney(data.prize_usd)}) has been paid out.`, { data: { reference } }).catch(() => {});
         if (data.player?.email) {
-          sendEmail({
-            to: data.player.email,
-            subject: 'Your Spike & Crush tournament prize is on its way',
-            html: `<p>Hi ${escapeHtml(data.player.username)},</p>` +
+          (async () => {
+            const { data: tpl } = isConfigured ? await supabase.from('message_templates').select('subject, body_html').eq('id', 'prize_winner').maybeSingle() : { data: null };
+            const tplData = {
+              username: data.player.username,
+              tournament: data.tournaments?.name || 'your tournament win',
+              prize: formatMoney(data.prize_usd),
+              coins: String(data.prize_coins),
+              method: data.payout_method === 'crypto' ? 'crypto' : 'bank transfer',
+              reference,
+            };
+            const defaultHtml = `<p>Hi ${escapeHtml(data.player.username)},</p>` +
               `<p>Your prize from <strong>${escapeHtml(data.tournaments?.name || 'your tournament win')}</strong> has been processed and paid out via ${data.payout_method === 'crypto' ? 'crypto' : 'bank transfer'}.</p>` +
               `<p><strong>Amount:</strong> ${formatMoney(data.prize_usd)} (${data.prize_coins} coins)<br>` +
               `<strong>Reference:</strong> ${escapeHtml(reference)}</p>` +
-              `<p>Funds are on their way. Thanks for playing Spike &amp; Crush.</p>`,
-          }).catch(() => {});
+              `<p>Funds are on their way. Thanks for playing Spike &amp; Crush.</p>`;
+            await sendEmail({
+              to: data.player.email,
+              subject: renderTemplate(tpl?.subject || 'Your Spike & Crush tournament prize is on its way', tplData),
+              html: tpl?.body_html ? renderTemplate(tpl.body_html, tplData) : defaultHtml,
+            });
+          })().catch(() => {});
         }
       }
       await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'prize_claim_paid', targetType: 'prize_claim', targetId: req.params.id, details: { reference }, ip: clientIp(req) });

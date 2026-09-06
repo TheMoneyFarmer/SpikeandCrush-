@@ -1367,6 +1367,16 @@ async function rateTrader(raterId, targetId, matchId, rating) {
   return data;
 }
 
+// Admin-customizable email content (admin panel's Branding > Email Templates
+// tab writes here) - returns null if nothing's been saved for this id yet,
+// so callers fall back to their own hardcoded default copy.
+async function getEmailTemplate(id) {
+  assertConfigured();
+  const { data, error } = await supabase.from('message_templates').select('subject, body_html').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 async function blockPlayer(playerId, blockedPlayerId) {
   assertConfigured();
   const { error } = await supabase.from('player_blocks').insert({ player_id: playerId, blocked_player_id: blockedPlayerId });
@@ -1724,6 +1734,7 @@ module.exports = {
   getLoginHistory,
   getCardDeck,
   saveCardDeck,
+  getEmailTemplate,
   blockPlayer,
   unblockPlayer,
   listBlockedPlayers,

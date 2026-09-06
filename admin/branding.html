@@ -177,9 +177,16 @@
     loadUiText().catch(() => {});
 
     // ---- email templates ----
+    // password_reset, tournament_announce, and weekly_summary are editable/
+    // previewable here but nothing sends them yet - password reset goes
+    // through Supabase Auth's own mailer (a separate system entirely), and
+    // the other two have no trigger built. welcome, coin_purchase, and
+    // prize_winner are real - editing and saving those actually changes
+    // what gets sent.
     const DEFAULT_TEMPLATES = [
-      { id: 'welcome', name: 'Welcome Email' }, { id: 'password_reset', name: 'Password Reset' },
-      { id: 'tournament_announce', name: 'Tournament Announcement' }, { id: 'prize_winner', name: 'Prize Winner' }, { id: 'weekly_summary', name: 'Weekly Summary' },
+      { id: 'welcome', name: 'Welcome Email' }, { id: 'coin_purchase', name: 'Coin Purchase Receipt' }, { id: 'prize_winner', name: 'Prize Winner' },
+      { id: 'password_reset', name: 'Password Reset (not wired - see Supabase SMTP)' },
+      { id: 'tournament_announce', name: 'Tournament Announcement (not wired)' }, { id: 'weekly_summary', name: 'Weekly Summary (not wired)' },
     ];
     let activeTplId = null;
     async function loadTemplates() {
@@ -202,10 +209,19 @@
       Admin.toast('Template saved', 'success');
     });
     document.getElementById('testSendBtn').addEventListener('click', async () => {
+      const note = document.getElementById('tplNote');
+      note.style.color = '';
+      note.textContent = 'Sending...';
       try {
-        await Admin.api(`/branding/email-templates/${activeTplId}/test-send`, { method: 'POST' });
+        const res = await Admin.api(`/branding/email-templates/${activeTplId}/test-send`, {
+          method: 'POST',
+          body: { subject: tplSubject.value, bodyHtml: tplBody.value },
+        });
+        note.textContent = `Sent to ${res.sentTo} (unsaved edits included - save separately to keep them).`;
+        note.style.color = 'var(--success, #2ecc71)';
       } catch (e) {
-        document.getElementById('tplNote').textContent = e.message;
+        note.textContent = e.message;
+        note.style.color = 'var(--danger, #ff5c5c)';
       }
     });
     loadTemplates().catch((e) => Admin.toast(e.message, 'danger'));

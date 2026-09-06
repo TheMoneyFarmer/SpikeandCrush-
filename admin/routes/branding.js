@@ -3,6 +3,13 @@
 const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const { logAdminAction, clientIp } = require('../lib/auth');
+const { sendEmail, renderTemplate } = require('../lib/email');
+
+// Sample values so an admin can preview a template with realistic-looking
+// {{placeholder}} substitution before it ever reaches a real player.
+const SAMPLE_TEMPLATE_DATA = {
+  username: 'TestTrader', coins: '1,500', amount: '9.99', tier: 'Elite', rating: '1850', prize: '2,000',
+};
 
 // The live brand values as they actually exist in client/css/main.css today -
 // shown as the starting point / "reset to current" baseline in the colour
@@ -87,12 +94,23 @@ function router() {
     }
   });
 
-  // No outbound email provider is configured in this project (no SendGrid/
-  // Resend/SMTP dependency, no API key in .env - Supabase Auth only sends its
-  // own built-in auth emails like password reset). Honest response instead of
-  // a fake "sent!" toast.
-  r.post('/email-templates/:id/test-send', (req, res) => {
-    res.status(501).json({ error: 'No outbound email provider is configured for this project - template preview/storage works, but nothing can actually send yet. Add SENDGRID_API_KEY (or similar) and wire a sender to enable this.' });
+  // Sends the saved (or currently unsaved-but-posted) template to the
+  // logged-in admin's own email via admin/lib/email.js's Resend integration
+  // - the same sender used for prize-claim emails, now wired up here too.
+  r.post('/email-templates/:id/test-send', async (req, res) => {
+    const to = req.admin.email || req.body?.to;
+    if (!to) return res.status(400).json({ error: 'No admin email on file to send the test to - pass { to } in the request body.' });
+    try {
+      const { data: saved } = isConfigured ? await supabase.from('message_templates').select('*').eq('id', req.params.id).maybeSingle() : { data: null };
+      const subject = req.body?.subject ?? saved?.subject ?? '(no subject)';
+      const bodyHtml = req.body?.bodyHtml ?? saved?.body_html ?? '';
+      const result = await sendEmail({ to, subject: `[TEST] ${renderTemplate(subject, SAMPLE_TEMPLATE_DATA)}`, html: renderTemplate(bodyHtml, SAMPLE_TEMPLATE_DATA) });
+      if (result.skipped) return res.status(503).json({ error: 'RESEND_API_KEY is not set - nothing can actually send yet.' });
+      if (result.error) return res.status(502).json({ error: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) });
+      res.json({ success: true, sentTo: to });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   return r;

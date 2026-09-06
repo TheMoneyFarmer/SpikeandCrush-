@@ -35,4 +35,12 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
-module.exports = { sendEmail };
+// Shared {{placeholder}} substitution for admin-editable templates
+// (message_templates table) - an unrecognized {{key}} is left as-is rather
+// than silently dropped, so a typo'd placeholder in the admin editor is
+// obvious in the sent email instead of just vanishing.
+function renderTemplate(text, data = {}) {
+  return String(text || '').replace(/\{\{(\w+)\}\}/g, (m, key) => (key in data ? data[key] : m));
+}
+
+module.exports = { sendEmail, renderTemplate };

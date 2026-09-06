@@ -18,7 +18,7 @@ const Stripe = require('stripe');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const db = require('./database');
-const { sendEmail } = require('../admin/lib/email');
+const { sendEmail, renderTemplate } = require('../admin/lib/email');
 const { createGameEngine, tierForRating, TIERS } = require('./gameEngine');
 const matchmaking = require('./matchmaking');
 const totp = require('./totp');
@@ -401,58 +401,76 @@ app.use('/internal/admin', createInternalAdminRouter({ gameEngine, io, db, instr
 
 // ---- auth -----------------------------------------------------------------
 
-// Fire-and-forget by design - never awaited by a caller, and sendEmail()
-// itself already swallows its own errors (just no-ops with a console.warn
-// if RESEND_API_KEY isn't set) - a flaky email provider must never fail or
-// delay account creation.
-function sendWelcomeEmail(player) {
+const DEFAULT_WELCOME_EMAIL_HTML = `
+  <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0a0e14;color:#fff;">
+    <div style="font-size:22px;font-weight:800;margin-bottom:24px;">
+      <span style="color:#008F6A;">S</span><span style="color:#00A87C;">P</span><span style="color:#00C896;">I</span><span style="color:#00E0AA;">K</span><span style="color:#00FF88;">E</span>
+      <span style="color:#fff;">&amp;</span>
+      <span style="color:#FF4444;">C</span><span style="color:#EE3333;">R</span><span style="color:#DD2222;">U</span><span style="color:#CC1111;">S</span><span style="color:#BB0000;">H</span>
+    </div>
+    <h2 style="margin:0 0 12px;">Welcome, {{username}}!</h2>
+    <p style="color:rgba(255,255,255,.7);line-height:1.6;">
+      Your account is live with <strong style="color:#00C896;">{{coins}} coins</strong> to start trading.
+      Jump into a Quick War, size up the leaderboard, and see how far you can push your War Rating.
+    </p>
+    <a href="https://www.spikeandcrush.com/trading-floor" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#00C896;color:#000;font-weight:700;text-decoration:none;border-radius:8px;">
+      Enter the Trading Floor
+    </a>
+    <p style="color:rgba(255,255,255,.35);font-size:12px;margin-top:32px;">
+      Spike &amp; Crush is a skill-based competitive trading game using simulated accounts and historical market data. No real money is traded. Not financial advice.
+    </p>
+  </div>
+`;
+
+const DEFAULT_RECEIPT_EMAIL_HTML = `
+  <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0a0e14;color:#fff;">
+    <h2 style="margin:0 0 20px;">Purchase confirmed</h2>
+    <table style="width:100%;border-collapse:collapse;color:rgba(255,255,255,.85);">
+      <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">Coins</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);text-align:right;font-weight:700;">{{coins}}</td></tr>
+      <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">Amount charged</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);text-align:right;font-weight:700;">${'$'}{{amount}}</td></tr>
+      <tr><td style="padding:8px 0;">New balance</td><td style="padding:8px 0;text-align:right;font-weight:700;color:#00C896;">{{balance}} coins</td></tr>
+    </table>
+    <p style="color:rgba(255,255,255,.35);font-size:12px;margin-top:32px;">
+      Coins are used for entry fees in Spike &amp; Crush's simulated trading matches. Not a real-money financial product.
+    </p>
+  </div>
+`;
+
+// Both templates are admin-customizable (Branding > Email Templates in the
+// admin panel, ids "welcome" and "coin_purchase") - falls back to the
+// hardcoded copy above if nothing's been saved there yet. Fire-and-forget by
+// design (never awaited by a caller) and every failure is caught internally
+// - a flaky email provider or a broken admin-edited template must never
+// fail or delay account creation/purchase confirmation.
+async function sendWelcomeEmail(player) {
   if (!player.email) return;
-  sendEmail({
-    to: player.email,
-    subject: `Welcome to Spike & Crush, ${player.username}!`,
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0a0e14;color:#fff;">
-        <div style="font-size:22px;font-weight:800;margin-bottom:24px;">
-          <span style="color:#008F6A;">S</span><span style="color:#00A87C;">P</span><span style="color:#00C896;">I</span><span style="color:#00E0AA;">K</span><span style="color:#00FF88;">E</span>
-          <span style="color:#fff;">&amp;</span>
-          <span style="color:#FF4444;">C</span><span style="color:#EE3333;">R</span><span style="color:#DD2222;">U</span><span style="color:#CC1111;">S</span><span style="color:#BB0000;">H</span>
-        </div>
-        <h2 style="margin:0 0 12px;">Welcome, ${player.username}!</h2>
-        <p style="color:rgba(255,255,255,.7);line-height:1.6;">
-          Your account is live with <strong style="color:#00C896;">${player.coins.toLocaleString()} coins</strong> to start trading.
-          Jump into a Quick War, size up the leaderboard, and see how far you can push your War Rating.
-        </p>
-        <a href="https://www.spikeandcrush.com/trading-floor" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#00C896;color:#000;font-weight:700;text-decoration:none;border-radius:8px;">
-          Enter the Trading Floor
-        </a>
-        <p style="color:rgba(255,255,255,.35);font-size:12px;margin-top:32px;">
-          Spike &amp; Crush is a skill-based competitive trading game using simulated accounts and historical market data. No real money is traded. Not financial advice.
-        </p>
-      </div>
-    `,
-  }).catch((e) => console.error('[welcome email]', e.message));
+  try {
+    const tpl = await db.getEmailTemplate('welcome').catch(() => null);
+    const data = { username: player.username, coins: player.coins.toLocaleString() };
+    await sendEmail({
+      to: player.email,
+      subject: renderTemplate(tpl?.subject || 'Welcome to Spike & Crush, {{username}}!', data),
+      html: renderTemplate(tpl?.body_html || DEFAULT_WELCOME_EMAIL_HTML, data),
+    });
+  } catch (e) {
+    console.error('[welcome email]', e.message);
+  }
 }
 
 async function sendReceiptEmail(purchase) {
   try {
     const player = await db.getPlayerById(purchase.player_id);
     if (!player?.email) return;
+    const tpl = await db.getEmailTemplate('coin_purchase').catch(() => null);
+    const data = {
+      coins: purchase.package_coins.toLocaleString(),
+      amount: Number(purchase.amount_usd).toFixed(2),
+      balance: player.coins.toLocaleString(),
+    };
     await sendEmail({
       to: player.email,
-      subject: `Receipt: ${purchase.package_coins.toLocaleString()} coins - Spike & Crush`,
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0a0e14;color:#fff;">
-          <h2 style="margin:0 0 20px;">Purchase confirmed</h2>
-          <table style="width:100%;border-collapse:collapse;color:rgba(255,255,255,.85);">
-            <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">Coins</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);text-align:right;font-weight:700;">${purchase.package_coins.toLocaleString()}</td></tr>
-            <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">Amount charged</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);text-align:right;font-weight:700;">$${Number(purchase.amount_usd).toFixed(2)}</td></tr>
-            <tr><td style="padding:8px 0;">New balance</td><td style="padding:8px 0;text-align:right;font-weight:700;color:#00C896;">${player.coins.toLocaleString()} coins</td></tr>
-          </table>
-          <p style="color:rgba(255,255,255,.35);font-size:12px;margin-top:32px;">
-            Coins are used for entry fees in Spike &amp; Crush's simulated trading matches. Not a real-money financial product.
-          </p>
-        </div>
-      `,
+      subject: renderTemplate(tpl?.subject || 'Receipt: {{coins}} coins - Spike & Crush', data),
+      html: renderTemplate(tpl?.body_html || DEFAULT_RECEIPT_EMAIL_HTML, data),
     });
   } catch (e) {
     console.error('[receipt email]', e.message);
