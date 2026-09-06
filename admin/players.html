@@ -38,6 +38,11 @@
               <option value="email">Email</option>
               <option value="oauth">OAuth</option>
             </select>
+            <select id="playerTypeFilter">
+              <option value="">All players + bots</option>
+              <option value="real">Real players only</option>
+              <option value="bot">AI bots only</option>
+            </select>
             <button class="btn btn-sm" id="exportBtn">Export CSV</button>
           </div>
           <div class="bulk-actions-bar hidden" id="bulkBar">
@@ -98,7 +103,7 @@
           searchFields: ['username', 'email'],
           onRowClick: (row) => { window.location.href = `player-detail.html?id=${row.id}`; },
           columns: [
-            { key: 'username', label: 'Player', render: (r) => `<span class="avatar-circle">${Admin.escapeHtml((r.username || '?')[0].toUpperCase())}</span> ${Admin.escapeHtml(r.username)}` },
+            { key: 'username', label: 'Player', render: (r) => `<span class="avatar-circle">${Admin.escapeHtml((r.username || '?')[0].toUpperCase())}</span> ${Admin.escapeHtml(r.username)}${r.is_persona ? ' <span class="badge badge-flagged" title="AI-controlled account that fills empty match slots - not a real signup">🤖 BOT</span>' : ''}` },
             { key: 'email', label: 'Email' },
             { key: 'tier', label: 'Tier', render: (r) => `<span class="badge badge-tier">${Admin.escapeHtml(r.tier)}</span>` },
             { key: 'war_rating', label: 'Rating' },
@@ -119,6 +124,7 @@
         document.getElementById('tierFilter').addEventListener('change', (e) => table.setFilter('tier', e.target.value));
         document.getElementById('statusFilter').addEventListener('change', (e) => table.setFilter('status', e.target.value));
         document.getElementById('methodFilter').addEventListener('change', (e) => table.setFilter('registrationMethod', e.target.value));
+        document.getElementById('playerTypeFilter').addEventListener('change', (e) => table.setFilter('playerType', e.target.value));
       } catch (e) {
         Admin.toast(e.message, 'danger');
       }

@@ -51,8 +51,8 @@ function router() {
         supabase.from('coin_purchases').select('amount_usd').eq('status', 'completed').gte('created_at', todayStart),
         supabase.from('coin_purchases').select('amount_usd').eq('status', 'completed').gte('created_at', yesterdayStart).lt('created_at', todayStart),
         supabase.from('battle_pass_subscriptions').select('id').eq('is_premium', true).gte('started_at', todayStart),
-        supabase.from('players').select('id, supabase_user_id').gte('created_at', todayStart),
-        supabase.from('players').select('id').gte('created_at', yesterdayStart).lt('created_at', todayStart),
+        supabase.from('players').select('id, supabase_user_id').eq('is_persona', false).gte('created_at', todayStart),
+        supabase.from('players').select('id').eq('is_persona', false).gte('created_at', yesterdayStart).lt('created_at', todayStart),
         supabase.from('tournaments').select('id, name, status, starts_at').in('status', ['signup', 'active']),
         internal.getLiveState().catch(() => null),
       ]);
@@ -151,12 +151,17 @@ function router() {
       // (players, first match via match_players, week-2 retention via
       // login_events spaced 7+ days apart), estimated where it doesn't
       // (site visits aren't logged anywhere - no analytics/pageview table exists).
-      const [totalPlayers, playersWithMatch, playersWithPurchase] = await Promise.all([
-        supabase.from('players').select('id', { count: 'exact', head: true }),
+      const [totalPlayers, personaIdsRes, playersWithMatch, playersWithPurchase] = await Promise.all([
+        supabase.from('players').select('id', { count: 'exact', head: true }).eq('is_persona', false),
+        supabase.from('players').select('id').eq('is_persona', true),
         supabase.from('match_players').select('player_id'),
         supabase.from('coin_purchases').select('player_id').eq('status', 'completed'),
       ]);
-      const uniqueWithMatch = new Set((playersWithMatch.data || []).map((r) => r.player_id)).size;
+      // match_players has no is_persona column of its own (that lives on
+      // players) - exclude bot ids from the unique-player count by hand
+      // instead of joining, since the persona roster is tiny.
+      const personaIds = new Set((personaIdsRes.data || []).map((p) => p.id));
+      const uniqueWithMatch = new Set((playersWithMatch.data || []).map((r) => r.player_id).filter((id) => !personaIds.has(id))).size;
       const uniqueWithPurchase = new Set((playersWithPurchase.data || []).map((r) => r.player_id)).size;
 
       res.json({
@@ -180,7 +185,7 @@ function router() {
     try {
       const limit = 30;
       const [regs, matchesEnded, purchases, bans] = await Promise.all([
-        supabase.from('players').select('id, username, created_at, supabase_user_id, country').order('created_at', { ascending: false }).limit(limit),
+        supabase.from('players').select('id, username, created_at, supabase_user_id, country').eq('is_persona', false).order('created_at', { ascending: false }).limit(limit),
         supabase.from('matches').select('id, mode, end_time, winner_id, players:match_players(count)').eq('status', 'finished').order('end_time', { ascending: false }).limit(limit),
         supabase.from('coin_purchases').select('id, amount_usd, package_coins, created_at, player_id').eq('status', 'completed').order('created_at', { ascending: false }).limit(limit),
         supabase.from('player_moderation_actions').select('id, action_type, reason, created_at, player_id').in('action_type', ['temp_ban', 'perm_ban']).order('created_at', { ascending: false }).limit(limit),

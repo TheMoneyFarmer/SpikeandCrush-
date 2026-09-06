@@ -6,7 +6,7 @@ const { logAdminAction, clientIp } = require('../lib/auth');
 const internal = require('../lib/internalGameServer');
 
 const PLAYER_LIST_FIELDS =
-  'id, username, email, avatar_url, tier, war_rating, coins, coins_earned_total, total_matches, wins, losses, draws, created_at, country, is_banned, banned_until, ban_reason, flagged, supabase_user_id';
+  'id, username, email, avatar_url, tier, war_rating, coins, coins_earned_total, total_matches, wins, losses, draws, created_at, country, is_banned, banned_until, ban_reason, flagged, supabase_user_id, is_persona';
 
 async function computeRevenueByPlayer(playerIds) {
   if (!playerIds.length) return {};
@@ -47,6 +47,7 @@ function router() {
           winRate: totalDecided > 0 ? Math.round((p.wins / totalDecided) * 1000) / 10 : 0,
           revenue: Math.round((revenueByPlayer[p.id] || 0) * 100) / 100,
           registrationMethod: p.supabase_user_id ? 'oauth' : 'email',
+          playerType: p.is_persona ? 'bot' : 'real',
         };
       });
       res.json(rows);
