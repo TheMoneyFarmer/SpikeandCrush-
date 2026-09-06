@@ -136,9 +136,19 @@ async function seedMasterAdmin() {
   const password = process.env.MASTER_ADMIN_PASSWORD || 'SpikeAndCrush2026!';
   try {
     const hash = await bcrypt.hash(password, 12);
-    const { data: existing } = await supabase.from('admin_users').select('id, is_master').eq('email', MASTER_ADMIN_EMAIL).maybeSingle();
+    const { data: existing, error: selectErr } = await supabase.from('admin_users').select('id, is_master').eq('email', MASTER_ADMIN_EMAIL).maybeSingle();
+    if (selectErr) {
+      // Logged separately from the catch below - a Postgres/RLS error here
+      // (e.g. "permission denied for table admin_users") means the service
+      // is connecting fine but effectively can't see the table, which reads
+      // identically to "no admin exists yet" if this error is ignored - the
+      // insert attempt just below would then either fail loudly on the
+      // email UNIQUE constraint (a real row exists, just invisible to this
+      // key) or, worse, silently no-op under the same restriction.
+      console.error('[admin] master admin SELECT failed:', selectErr.message, selectErr.code || '', selectErr.hint || '');
+    }
     if (!existing) {
-      await supabase.from('admin_users').insert({
+      const { error: insertErr } = await supabase.from('admin_users').insert({
         email: MASTER_ADMIN_EMAIL,
         name: 'Thando — Master Admin',
         password_hash: hash,
@@ -146,12 +156,20 @@ async function seedMasterAdmin() {
         is_master: true,
         is_active: true,
       });
-      console.log('[admin] master admin seeded:', MASTER_ADMIN_EMAIL);
+      if (insertErr) {
+        console.error('[admin] master admin INSERT failed:', insertErr.message, insertErr.code || '', insertErr.hint || '');
+      } else {
+        console.log('[admin] master admin seeded:', MASTER_ADMIN_EMAIL);
+      }
     } else {
       const updates = { password_hash: hash };
       if (!existing.is_master) Object.assign(updates, { role: 'super_admin', is_master: true, is_active: true });
-      await supabase.from('admin_users').update(updates).eq('id', existing.id);
-      console.log('[admin] master admin password synced from MASTER_ADMIN_PASSWORD:', MASTER_ADMIN_EMAIL);
+      const { error: updateErr } = await supabase.from('admin_users').update(updates).eq('id', existing.id);
+      if (updateErr) {
+        console.error('[admin] master admin UPDATE failed:', updateErr.message, updateErr.code || '', updateErr.hint || '');
+      } else {
+        console.log('[admin] master admin password synced from MASTER_ADMIN_PASSWORD:', MASTER_ADMIN_EMAIL);
+      }
     }
   } catch (e) {
     console.error('[admin] master admin seed error:', e.message);

@@ -67,7 +67,14 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   let dbValid = false;
 
   if (!legacyValid && isConfigured) {
-    const { data } = await supabase.from('admin_users').select('*').eq('email', identifier.toLowerCase()).eq('is_active', true).maybeSingle();
+    const { data, error: lookupErr } = await supabase.from('admin_users').select('*').eq('email', identifier.toLowerCase()).eq('is_active', true).maybeSingle();
+    // A Postgres/RLS error here (e.g. permission denied) previously looked
+    // identical to "no such admin" - both just fall through to "Invalid
+    // credentials" below with zero clue why. Logging it doesn't change the
+    // response (still must not leak whether an email exists), just makes a
+    // real connectivity/permissions problem visible in the server logs
+    // instead of indistinguishable from a wrong password.
+    if (lookupErr) console.error('[admin login] admin_users lookup failed:', lookupErr.message, lookupErr.code || '', lookupErr.hint || '');
     if (data) {
       dbValid = await bcrypt.compare(password, data.password_hash);
       if (dbValid) adminUser = data;
