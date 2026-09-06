@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0A0C14">
 <script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <title>Signing in… — Spike & Crush</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
@@ -10,6 +14,7 @@
 <link rel="stylesheet" href="css/themes.css" />
 <link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/premium.css" />
+<link rel="stylesheet" href="/css/mobile.css">
 <style>
   .callback-wrap {
     min-height: 80vh;
@@ -99,6 +104,7 @@
         }
 
         await TW.establishSession(session.access_token, session.refresh_token, json.player);
+        window.initOrientationLock?.();
         statusEl.textContent = `Welcome, ${json.player.username}!`;
         const redirect = TW.consumePostLoginRedirect ? TW.consumePostLoginRedirect() : null;
         window.location.href = redirect || '/trading-floor';
@@ -120,5 +126,5 @@
     </div>
   </footer>
   <script src="js/support-widget.js"></script>
-</body>
+  <script src="/js/orientation.js"></script></body>
 </html>

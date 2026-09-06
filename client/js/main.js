@@ -518,6 +518,7 @@ window.TW = window.TW || {};
       try {
         const data = await TW.api('/api/auth/login', { method: 'POST', body: { username, password, totpCode } });
         await TW.establishSession(data.token, data.refresh_token, data.player);
+        window.initOrientationLock?.();
         const redirect = TW.consumePostLoginRedirect();
         if (redirect) {
           window.location.href = redirect;
@@ -550,6 +551,7 @@ window.TW = window.TW || {};
       try {
         const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password } });
         await TW.establishSession(data.token, data.refresh_token, data.player);
+        window.initOrientationLock?.();
         const redirect = TW.consumePostLoginRedirect();
         if (redirect) {
           window.location.href = redirect;

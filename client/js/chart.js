@@ -136,8 +136,13 @@ TW.Chart = (function () {
     // hardcoded above.
     settings.bullColor = ct.up;
     settings.bearColor = ct.down;
+    // autoSize:true already makes the chart track its container's real
+    // pixel size via a ResizeObserver - portrait<->landscape just needs the
+    // container's CSS size to change (see the landscape rules in
+    // css/mobile.css), no manual width/height/resize wiring needed here.
+    const isMobile = window.innerWidth <= 768;
     chart = LightweightCharts.createChart(container, {
-      layout: { background: { color: ct.bg }, textColor: ct.text },
+      layout: { background: { color: ct.bg }, textColor: ct.text, fontSize: isMobile ? 10 : 12 },
       grid: { vertLines: { color: ct.grid }, horzLines: { color: ct.grid } },
       timeScale: {
         timeVisible: true,
@@ -149,9 +154,9 @@ TW.Chart = (function () {
         // rendering as giant blocks - the same fixed spacing then naturally shows more
         // bars as the match progresses, with shiftVisibleRangeOnNewBar (on by default)
         // auto-scrolling to keep the latest candle in view.
-        barSpacing: 8,
+        barSpacing: isMobile ? 6 : 8,
         minBarSpacing: 4,
-        rightOffset: 5,
+        rightOffset: isMobile ? 3 : 5,
         lockVisibleTimeRangeOnResize: true,
         fixLeftEdge: false,
         fixRightEdge: false,
@@ -159,8 +164,17 @@ TW.Chart = (function () {
       localization: {
         timeFormatter: (time) => formatElapsedClock(time),
       },
-      rightPriceScale: { borderColor: ct.border },
-      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+      rightPriceScale: { borderColor: ct.border, width: isMobile ? 52 : undefined },
+      // Magnet snaps the crosshair to the nearest candle, which is much
+      // easier to hit with a fingertip than Normal's free-floating crosshair.
+      crosshair: { mode: isMobile ? LightweightCharts.CrosshairMode.Magnet : LightweightCharts.CrosshairMode.Normal },
+      // vertTouchDrag off so a vertical swipe over the chart can't be
+      // mistaken for panning the price scale - this app's game screen
+      // doesn't scroll vertically at all, so there's nothing to free up,
+      // but it avoids an accidental price-scale drag when a finger lands
+      // slightly off a button near the chart's edge.
+      handleScroll: { horzTouchDrag: true, vertTouchDrag: false },
+      handleScale: { pinch: true, axisPressedMouseMove: !isMobile },
       autoSize: true,
     });
     series = chart.addCandlestickSeries({

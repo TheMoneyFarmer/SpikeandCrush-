@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0A0C14">
 <title>Spike & Crush — Up. Then not.</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap');
@@ -814,6 +818,7 @@ nav{
   .fm-right{text-align:left;}
 }
 </style>
+  <link rel="stylesheet" href="/css/mobile.css">
 </head>
 <body>
 
@@ -1521,6 +1526,7 @@ async function handleLpLogin(e){
   try{
     const data=await TW.api('/api/auth/login',{method:'POST',body:{username,password}});
     await TW.establishSession(data.token,data.refresh_token,data.player);
+    window.initOrientationLock?.();
     closePanel();
     window.location.href=TW.consumePostLoginRedirect()||'/play';
   }catch(err){
@@ -1542,6 +1548,7 @@ async function handleLpRegister(e){
   try{
     const data=await TW.api('/api/auth/register',{method:'POST',body:{username,email,password}});
     await TW.establishSession(data.token,data.refresh_token,data.player);
+    window.initOrientationLock?.();
     closePanel();
     window.location.href=TW.consumePostLoginRedirect()||'/play';
   }catch(err){
@@ -1631,6 +1638,5 @@ setTimeout(loadLiveStats,600);
   loop();
 })();
 </script>
-  <script src="js/support-widget.js"></script>
-</body>
+  <script src="js/support-widget.js"></script></body>
 </html>

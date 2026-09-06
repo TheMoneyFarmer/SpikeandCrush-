@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0A0C14">
 <script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -11,6 +15,7 @@
 <link rel="stylesheet" href="/css/main.css" />
 <link rel="stylesheet" href="/css/themes.css" />
 <link rel="stylesheet" href="/css/premium.css" />
+<link rel="stylesheet" href="/css/mobile.css">
 <style>
   .t-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
   .t-cta-banner { background: linear-gradient(135deg, rgba(0,200,150,0.15), rgba(0,150,200,0.1)); border: 1px solid var(--accent); border-radius: var(--radius); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
@@ -172,5 +177,7 @@
     </div>
   </footer>
   <script src="js/support-widget.js"></script>
+  <script src="/js/orientation.js"></script>
+  <script src="/js/bottom-nav.js"></script>
 </body>
 </html>
