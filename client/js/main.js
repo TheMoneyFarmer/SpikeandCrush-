@@ -551,7 +551,10 @@ window.TW = window.TW || {};
     document.getElementById('modeGrandBtn')?.addEventListener('click', () => withModeTutorial('grandwar', () => startMatch('grand')));
     document.getElementById('modeSoloBtn')?.addEventListener('click', () => withModeTutorial('solo', () => startMatch('solo')));
     document.getElementById('modeAsyncBtn')?.addEventListener('click', () => withModeTutorial('async', () => { window.location.href = '/async'; }));
-    document.getElementById('modePrivateBtn')?.addEventListener('click', () => startMatch('private'));
+    document.getElementById('modePrivateBtn')?.addEventListener('click', () => {
+      if (!confirm('Hosting a Private War costs 1 coin, charged when the match starts. Friends you invite play free. Continue?')) return;
+      startMatch('private');
+    });
     document.getElementById('modeTournamentBtn')?.addEventListener('click', () => { window.location.href = '/tournaments'; });
 
     document.getElementById('joinPrivateBtn')?.addEventListener('click', () => {

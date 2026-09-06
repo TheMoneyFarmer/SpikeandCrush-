@@ -539,6 +539,28 @@ async function markNotificationsRead(playerId, ids) {
   if (error) throw error;
 }
 
+// Marks the acceptor's own 'friend_request' notification read the moment
+// they act on it - previously it only ever got marked read incidentally
+// (opening the bell used to mark everything read on every open), so an
+// accept via the Friends panel directly, bypassing the bell's own Accept
+// button, left it sitting unread indefinitely.
+async function markFriendRequestNotificationRead(playerId, requestId) {
+  assertConfigured();
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('player_id', playerId)
+    .eq('type', 'friend_request')
+    .contains('data', { requestId });
+  if (error) throw error;
+}
+
+async function deleteAllNotifications(playerId) {
+  assertConfigured();
+  const { error } = await supabase.from('notifications').delete().eq('player_id', playerId);
+  if (error) throw error;
+}
+
 // ---- presence (best-effort persistence - the in-memory Map in index.js is
 // the live authoritative source; this table just survives restarts/audits) --
 
@@ -1444,7 +1466,7 @@ async function getActiveAnnouncements(location = 'home') {
   return data;
 }
 
-// ---- app settings (tournament unlock gate, withdrawal config) --------------
+// ---- app settings (tournament unlock gate) --------------
 
 async function getAppSetting(key) {
   assertConfigured();
@@ -1511,18 +1533,53 @@ async function createReferralConversion({ partnerId, playerId, clickId }) {
   return data;
 }
 
-// ---- withdrawal requests (tournament prize cash-out) ------------------------
+// ---- prize claims (tournament winnings cash-out) -----------------------------
+//
+// Only a tournament win pays out coins that can ever leave the closed-loop
+// coin economy (see gameEngine.js crediting coins with type 'tournament_prize'
+// when a bracket completes) - regular match winnings, purchased coins, and
+// welcome-bonus coins can never be claimed here. One claim per player per
+// tournament (enforced by the table's UNIQUE constraint) - a win can't be
+// cashed out twice.
 
-async function createWithdrawalRequest({ playerId, amountCoins, amountUsd, cryptoCurrency, walletAddress }) {
+async function getUnclaimedTournamentWins(playerId) {
+  assertConfigured();
+  const { data: wins, error } = await supabase
+    .from('tournament_registrations')
+    .select('tournament_id, tournaments!inner(id, name, prize_pool_coins, status)')
+    .eq('player_id', playerId)
+    .eq('final_rank', 1)
+    .eq('tournaments.status', 'completed');
+  if (error) throw error;
+  if (!wins.length) return [];
+
+  const { data: claims, error: claimsErr } = await supabase
+    .from('prize_claims')
+    .select('tournament_id')
+    .eq('player_id', playerId);
+  if (claimsErr) throw claimsErr;
+  const claimedIds = new Set(claims.map((c) => c.tournament_id));
+
+  return wins
+    .filter((w) => !claimedIds.has(w.tournament_id))
+    .map((w) => ({
+      tournamentId: w.tournaments.id,
+      tournamentName: w.tournaments.name,
+      prizeCoins: w.tournaments.prize_pool_coins,
+    }));
+}
+
+async function createPrizeClaim({ playerId, tournamentId, prizeCoins, prizeUsd, payoutMethod, payoutDetails }) {
   assertConfigured();
   const { data, error } = await supabase
-    .from('withdrawal_requests')
+    .from('prize_claims')
     .insert({
       player_id: playerId,
-      amount_coins: amountCoins,
-      amount_usd: amountUsd,
-      crypto_currency: cryptoCurrency,
-      wallet_address: walletAddress,
+      tournament_id: tournamentId,
+      prize_coins: prizeCoins,
+      prize_usd: prizeUsd,
+      payout_method: payoutMethod,
+      payout_details: payoutDetails,
     })
     .select()
     .single();
@@ -1530,11 +1587,11 @@ async function createWithdrawalRequest({ playerId, amountCoins, amountUsd, crypt
   return data;
 }
 
-async function listPlayerWithdrawals(playerId) {
+async function listPlayerPrizeClaims(playerId) {
   assertConfigured();
   const { data, error } = await supabase
-    .from('withdrawal_requests')
-    .select('*')
+    .from('prize_claims')
+    .select('*, tournaments(name)')
     .eq('player_id', playerId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -1610,6 +1667,8 @@ module.exports = {
   listNotifications,
   countUnreadNotifications,
   markNotificationsRead,
+  markFriendRequestNotificationRead,
+  deleteAllNotifications,
   upsertPresence,
   createReplay,
   getReplay,
@@ -1680,8 +1739,9 @@ module.exports = {
   getReferralPartnerByCode,
   recordReferralClick,
   createReferralConversion,
-  createWithdrawalRequest,
-  listPlayerWithdrawals,
+  getUnclaimedTournamentWins,
+  createPrizeClaim,
+  listPlayerPrizeClaims,
   createSupportTicket,
   listPlayerSupportTickets,
   getActivePromoPopup,

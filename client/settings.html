@@ -78,6 +78,20 @@
   }
   /* .btn-discord itself lives in css/premium.css - shared with the
      tutorial's final-step Discord button on index.html. */
+
+  .country-selector { position: relative; width: 100%; max-width: 320px; }
+  .cs-selected { display: flex; align-items: center; gap: 10px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 10px; padding: 10px 14px; cursor: pointer; transition: border-color 0.2s; }
+  .cs-selected:hover { border-color: var(--gold); }
+  #cs-flag { font-size: 20px; }
+  #cs-selected-text { flex: 1; color: var(--text-primary); font-size: 14px; }
+  .cs-arrow { color: var(--text-muted); font-size: 12px; }
+  .cs-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg-surface-2); border: 1px solid var(--border-normal); border-radius: 10px; z-index: 500; box-shadow: var(--shadow-lg); max-height: 280px; display: flex; flex-direction: column; overflow: hidden; }
+  .cs-search { padding: 10px 14px; background: transparent; border: none; border-bottom: 1px solid var(--border-subtle, var(--border)); color: var(--text-primary); font-size: 13px; outline: none; width: 100%; flex-shrink: 0; }
+  .cs-list { overflow-y: auto; flex: 1; }
+  .cs-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background 0.15s; }
+  .cs-item:hover { background: var(--surface-2); }
+  .cs-item-flag { font-size: 18px; }
+  .cs-item-name { font-size: 13px; color: var(--text-primary); }
 </style>
 </head>
 <body data-page="settings">
@@ -121,27 +135,28 @@
           </div>
         </div>
 
-        <div style="margin-bottom:8px;">
-          <label>Country</label>
-          <select id="pCountry">
-            <option value="">Select country...</option>
-            <option>United States</option><option>United Kingdom</option><option>South Africa</option>
-            <option>Nigeria</option><option>India</option><option>Canada</option><option>Australia</option>
-            <option>Germany</option><option>Other</option>
-          </select>
-        </div>
-        <div style="margin-bottom:8px;">
-          <label>Trading Experience</label>
-          <select id="pExperience">
-            <option>Beginner</option><option>Intermediate</option><option>Professional</option><option>Expert</option>
-          </select>
-        </div>
         <div style="margin-bottom:14px;">
-          <label>Preferred Instruments</label><br />
-          <label style="display:inline-flex;align-items:center;gap:6px;margin-right:16px;"><input type="checkbox" id="instrEurusd" value="EURUSD" /> EURUSD</label>
-          <label style="display:inline-flex;align-items:center;gap:6px;"><input type="checkbox" id="instrXauusd" value="XAUUSD" /> XAUUSD</label>
+          <label>Country</label>
+          <div class="country-selector" id="country-selector">
+            <div class="cs-selected" id="csSelected">
+              <span id="cs-flag">🌍</span>
+              <span id="cs-selected-text">Select your country</span>
+              <span class="cs-arrow">▾</span>
+            </div>
+            <div class="cs-dropdown" id="cs-dropdown" style="display:none;">
+              <input class="cs-search" id="cs-search" type="text" placeholder="Search countries..." />
+              <div class="cs-list" id="cs-list"></div>
+            </div>
+          </div>
         </div>
-        <button type="button" class="btn btn-outline" id="saveTradingPrefsBtn">Save Trading Preferences</button>
+
+        <div class="experience-display" style="margin-bottom:14px;">
+          <label>Trading Experience</label>
+          <div class="exp-value" id="exp-value" style="font-weight:700;font-size:15px;">-</div>
+          <div class="exp-matches text-secondary" id="exp-matches" style="font-size:12px;"></div>
+        </div>
+
+        <button type="button" class="btn btn-outline" id="saveTradingPrefsBtn">Save Country</button>
 
         <h3 style="margin-top:28px;">Account &amp; Security</h3>
         <p class="text-secondary" style="font-size:12px;">Changing your username, email, or password requires your current password.</p>
@@ -334,6 +349,7 @@
     <script src="/socket.io/socket.io.js"></script>
 <script src="js/socket.js"></script>
   <script src="js/friends-panel.js"></script>
+  <script src="js/country-selector.js"></script>
   <script src="js/lottie.js"></script>
   <script src="js/tutorial.js"></script>
   <script src="js/mode-cards.js"></script>
@@ -396,10 +412,9 @@
       try {
         const data = await TW.api('/api/player/settings');
         document.getElementById('avatarPreview').src = avatarSrc(data.avatarUrl);
-        document.getElementById('pCountry').value = data.country || '';
-        document.getElementById('pExperience').value = data.experienceLevel || 'Beginner';
-        document.getElementById('instrEurusd').checked = data.preferredInstruments.includes('EURUSD');
-        document.getElementById('instrXauusd').checked = data.preferredInstruments.includes('XAUUSD');
+        TW.CountrySelector.init(data.country || '');
+        document.getElementById('exp-value').textContent = data.experienceLevel || 'Beginner';
+        document.getElementById('exp-matches').textContent = `Based on ${player.total_matches || 0} matches played`;
         currentSettings = data.settings || {};
 
         document.getElementById('gAutoClose').checked = currentSettings.autoClose !== false;
@@ -474,16 +489,11 @@
     });
 
     document.getElementById('saveTradingPrefsBtn').addEventListener('click', async () => {
-      const instruments = [];
-      if (document.getElementById('instrEurusd').checked) instruments.push('EURUSD');
-      if (document.getElementById('instrXauusd').checked) instruments.push('XAUUSD');
       try {
         await TW.api('/api/player/settings', {
           method: 'PATCH',
           body: {
-            country: document.getElementById('pCountry').value,
-            experienceLevel: document.getElementById('pExperience').value,
-            preferredInstruments: instruments,
+            country: TW.CountrySelector.getValue(),
           },
         });
         TW.toast('Saved ✓', 'info');

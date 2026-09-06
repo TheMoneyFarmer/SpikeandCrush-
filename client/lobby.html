@@ -202,7 +202,12 @@
       document.getElementById('matchModeValue').textContent = state.modeLabel || (state.mode === 'quick' ? 'Quick War' : 'Private War');
       document.getElementById('matchInstrumentsValue').textContent = state.instruments.join(' / ');
       document.getElementById('matchDurationValue').textContent = `${Math.floor(state.durationSeconds / 60)} min`;
-      document.getElementById('matchEntryValue').textContent = state.entryCoins > 0 ? `🪙 ${state.entryCoins} coins` : 'Free';
+      // Private War's 1-coin hosting fee is charged only to the room creator
+      // at match start, not tracked as a per-player entryCoins value (that
+      // stays 0 so friends who join are never charged) - shown as a special
+      // case here rather than through the generic entryCoins field.
+      document.getElementById('matchEntryValue').textContent =
+        state.mode === 'private' ? '🪙 1 coin (host only) · free for friends' : state.entryCoins > 0 ? `🪙 ${state.entryCoins} coins` : 'Free';
       renderPlayers(state);
       updateLobbyTimer(state);
       updateStartNowButton(state);

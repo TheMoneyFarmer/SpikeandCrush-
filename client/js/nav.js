@@ -28,11 +28,24 @@ window.TW = window.TW || {};
     coaching_booked: '🎓',
     tournament_advance: '⚔️',
     tournament_eliminated: '💀',
+    tournament_draw: '🤝',
+    friend_request: '👥',
+    friend_accepted: '✅',
+    friend_won_match: '🏆',
+    match_kicked: '🚫',
+    match_voided: '⚠️',
+    match_summary: '⚔️',
+    invite_declined: '❌',
+    invite_expired: '⏰',
+    system: '📢',
     tournament_champion: '🏆',
+    prize_claim_processing: '💰',
+    prize_claim_paid: '💸',
+    prize_claim_rejected: '⚠️',
   };
 
   const notifications = [];
-  let unreadCount = 0;
+  let currentNotifTab = 'new';
 
   function renderNav() {
     const container = document.getElementById('twNav');
@@ -110,15 +123,31 @@ window.TW = window.TW || {};
     initNotifications();
   }
 
+  function unreadCount() {
+    return notifications.filter((n) => !n.read).length;
+  }
+
   function updateBadge() {
     const badge = document.getElementById('twNotifBadge');
     if (!badge) return;
-    if (unreadCount > 0) {
-      badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+    const count = unreadCount();
+    if (count > 0) {
+      badge.textContent = count > 9 ? '9+' : String(count);
       badge.classList.remove('hidden');
     } else {
       badge.classList.add('hidden');
     }
+  }
+
+  function timeAgo(at) {
+    if (!at) return '';
+    const diffMs = Date.now() - new Date(at).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   }
 
   function notifItemHtml(n) {
@@ -136,30 +165,105 @@ window.TW = window.TW || {};
     } else if (n.type === 'friend_accepted' && n.fromPlayerId) {
       actionsHtml = `<a href="/profile/${encodeURIComponent(n.data?.username || '')}" style="font-size:11px;">View Profile</a>`;
     }
-    return `<div class="notif-item" data-notif-type="${n.type}">${icon} ${TW.escapeHtml ? TW.escapeHtml(n.message) : n.message}${actionsHtml}</div>`;
+    return `
+      <div class="notif-item ${n.read ? '' : 'unread'}" data-notif-type="${n.type}" data-id="${n.id}">
+        ${icon} ${TW.escapeHtml ? TW.escapeHtml(n.message) : n.message}
+        ${actionsHtml}
+        <div class="notif-item-time">${timeAgo(n.at)}</div>
+      </div>
+    `;
+  }
+
+  function renderNotifList() {
+    const list = document.getElementById('twNotifList');
+    if (!list) return;
+    const filtered = currentNotifTab === 'new' ? notifications.filter((n) => !n.read) : notifications;
+    list.innerHTML = filtered.length
+      ? filtered.map(notifItemHtml).join('')
+      : `<div class="notif-empty">${currentNotifTab === 'new' ? '✅ All caught up!' : 'No notifications yet'}</div>`;
+
+    const count = unreadCount();
+    const countEl = document.getElementById('twNotifNewCount');
+    if (countEl) {
+      countEl.textContent = count;
+      countEl.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+    wireNotifPanelActions(list);
+  }
+
+  function switchNotifTab(tab) {
+    currentNotifTab = tab;
+    document.querySelectorAll('.tw-notif-panel .notif-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === tab));
+    renderNotifList();
+  }
+
+  async function markOneRead(id) {
+    const n = notifications.find((x) => x.id === id);
+    if (!n || n.read) return;
+    n.read = true;
+    renderNotifList();
+    updateBadge();
+    // Synthetic ids (live socket pushes not yet reconciled against the DB
+    // row's real id) have nothing to mark server-side - the next full
+    // history load will pick up their real read state.
+    if (typeof id === 'string' && id.startsWith('live-')) return;
+    try {
+      await TW.api('/api/notifications/read', { method: 'POST', body: { ids: [id] } });
+    } catch (e) { /* local state already updated - not fatal */ }
+  }
+
+  async function markAllRead() {
+    notifications.forEach((n) => { n.read = true; });
+    renderNotifList();
+    updateBadge();
+    try {
+      await TW.api('/api/notifications/read', { method: 'POST', body: {} });
+    } catch (e) { /* local state already updated - not fatal */ }
+  }
+
+  async function clearAllNotifications() {
+    notifications.length = 0;
+    renderNotifList();
+    updateBadge();
+    try {
+      await TW.api('/api/notifications', { method: 'DELETE' });
+    } catch (e) {
+      TW.toast(e.message, 'danger');
+    }
   }
 
   function wireNotifPanelActions(panel) {
     panel.querySelectorAll('[data-accept-req]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         try {
           await TW.api(`/api/friends/${btn.dataset.acceptReq}/accept`, { method: 'POST' });
           TW.toast('Friend added!', 'info');
-          btn.closest('.notif-item').remove();
+          btn.closest('.notif-item')?.remove();
           if (window.TW && TW.FriendsPanel) TW.FriendsPanel.refresh();
-        } catch (e) {
-          TW.toast(e.message, 'danger');
+        } catch (e2) {
+          TW.toast(e2.message, 'danger');
         }
       });
     });
     panel.querySelectorAll('[data-decline-req]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         try {
           await TW.api(`/api/friends/${btn.dataset.declineReq}/decline`, { method: 'POST' });
-          btn.closest('.notif-item').remove();
-        } catch (e) {
-          TW.toast(e.message, 'danger');
+          btn.closest('.notif-item')?.remove();
+        } catch (e2) {
+          TW.toast(e2.message, 'danger');
         }
+      });
+    });
+    // Clicking anywhere else on an item (not a button/link inside it) just
+    // marks it read - there's no per-type navigation target for most
+    // notification kinds in this app beyond the explicit links above.
+    panel.querySelectorAll('.notif-item').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('button') || e.target.closest('a')) return;
+        markOneRead(el.dataset.id);
       });
     });
   }
@@ -200,22 +304,44 @@ window.TW = window.TW || {};
     setTimeout(dismiss, 15000);
   }
 
+  // Opening the bell used to immediately mark everything read (a blanket
+  // "all:true" call) - that made a New/All split meaningless, since by the
+  // time you could look at "New" it was already empty. Reading now happens
+  // per-item (click a notification, or Mark all read) instead.
   function toggleNotifPanel() {
     const existing = document.getElementById('twNotifPanel');
     if (existing) {
       existing.remove();
       return;
     }
-    unreadCount = 0;
-    updateBadge();
-    if (window.TW && TW.api) TW.api('/api/notifications/read', { method: 'POST', body: { all: true } }).catch(() => {});
 
     const panel = document.createElement('div');
     panel.id = 'twNotifPanel';
     panel.className = 'tw-notif-panel';
-    panel.innerHTML = notifications.length ? notifications.map(notifItemHtml).join('') : '<div class="notif-empty">No notifications yet</div>';
+    panel.innerHTML = `
+      <div class="notif-header">
+        <span class="notif-header-title">Notifications</span>
+        <div class="notif-header-actions">
+          <button type="button" id="twNotifMarkAllBtn">Mark all read</button>
+          <button type="button" id="twNotifClearAllBtn">Clear all</button>
+        </div>
+      </div>
+      <div class="notif-tabs">
+        <button type="button" class="notif-tab active" data-tab="new">New <span class="notif-tab-count" id="twNotifNewCount">0</span></button>
+        <button type="button" class="notif-tab" data-tab="all">All</button>
+      </div>
+      <div class="notif-list" id="twNotifList"></div>
+    `;
     document.body.appendChild(panel);
-    wireNotifPanelActions(panel);
+    currentNotifTab = 'new';
+    renderNotifList();
+
+    panel.querySelectorAll('.notif-tab').forEach((tab) => tab.addEventListener('click', (e) => { e.stopPropagation(); switchNotifTab(tab.dataset.tab); }));
+    document.getElementById('twNotifMarkAllBtn').addEventListener('click', (e) => { e.stopPropagation(); markAllRead(); });
+    document.getElementById('twNotifClearAllBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('Clear all notifications? This cannot be undone.')) clearAllNotifications();
+    });
 
     const close = (e) => {
       if (!panel.contains(e.target) && e.target.id !== 'twNotifBtn') {
@@ -230,11 +356,9 @@ window.TW = window.TW || {};
     try {
       const data = await TW.api('/api/notifications');
       notifications.length = 0;
-      // Normalize to the same shape the live 'notification' socket event uses
-      // (type/message/at/fromPlayerId/data) so notifItemHtml renders both alike.
-      data.notifications.forEach((n) => notifications.push({ type: n.type, message: n.data?.message || '', at: n.createdAt, fromPlayerId: n.fromPlayerId, data: n.data }));
-      unreadCount = data.unreadCount;
+      data.notifications.forEach((n) => notifications.push({ id: n.id, type: n.type, message: n.data?.message || '', at: n.createdAt, fromPlayerId: n.fromPlayerId, data: n.data, read: n.read }));
       updateBadge();
+      if (document.getElementById('twNotifPanel')) renderNotifList();
     } catch (e) {
       // Not fatal - bell just starts empty until a live notification arrives.
     }
@@ -249,10 +373,10 @@ window.TW = window.TW || {};
     loadNotificationHistory();
     const socket = TW.connectSocket();
     socket.on('notification', (payload) => {
-      notifications.unshift(payload);
+      notifications.unshift({ ...payload, id: `live-${Date.now()}-${Math.random().toString(36).slice(2)}`, read: false });
       if (notifications.length > 20) notifications.length = 20;
-      unreadCount += 1;
       updateBadge();
+      if (document.getElementById('twNotifPanel')) renderNotifList();
       // FIX: match summary gets its own rich bottom-right toast (rank/P&L/
       // winner/rating) on top of the normal bell entry - reaches the player
       // wherever they are, including a match they've already re-joined,

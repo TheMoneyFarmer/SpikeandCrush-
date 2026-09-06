@@ -139,6 +139,7 @@
         <div class="stat-card"><div class="label">Losses</div><div class="value text-sell" id="statLosses">0</div></div>
         <div class="stat-card"><div class="label">Win Rate</div><div class="value" id="statWinRate">0%</div></div>
         <div class="stat-card"><div class="label">Matches</div><div class="value" id="statMatches">0</div></div>
+        <div class="stat-card"><div class="label">Trading Experience</div><div class="value" id="statExperience">-</div></div>
         <div class="stat-card"><div class="label">Favourite Pair</div><div class="value" id="statFavourite">-</div></div>
         <div class="stat-card"><div class="label">Best Match</div><div class="value" id="statBest">$0.00</div></div>
         <div class="stat-card"><div class="label">Coin Balance</div><div class="value pill-gold" id="statCoins">0</div></div>
@@ -182,7 +183,7 @@
 
     <div class="panel hidden" id="buyCoinsSection" style="margin-top:20px;">
       <h3>🪙 Buy Coins</h3>
-      <p>Quick War entry costs 10 coins. Private Wars are always free.</p>
+      <p>Quick War entry costs 10 coins. Private War costs 1 coin to host - free for the friends you invite.</p>
       <div class="coin-packages">
         <div class="coin-package" data-pkg="100"><div class="amount">100</div><div class="price">$0.99</div></div>
         <div class="coin-package" data-pkg="500"><div class="amount">500</div><div class="price">$3.99</div></div>
@@ -251,6 +252,7 @@
         document.getElementById('statLosses').textContent = p.losses;
         document.getElementById('statWinRate').textContent = `${data.winRate}%`;
         document.getElementById('statMatches').textContent = p.total_matches;
+        document.getElementById('statExperience').textContent = p.experience_level || 'Beginner';
         document.getElementById('statFavourite').textContent = data.favouriteInstrument || '-';
         document.getElementById('statBest').textContent = TW.formatMoney(data.bestMatchPnl);
         document.getElementById('statCoins').textContent = p.coins;

@@ -24,14 +24,41 @@
   .shop-item .owned-badge { position: absolute; top: 8px; right: 8px; background: var(--accent); color: #06251d; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 999px; }
   .shop-item button { width: 100%; }
   .shop-item button.equipped { background: var(--surface); border: 1px solid var(--accent); color: var(--accent); }
+
+  .coin-packages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+  @media (max-width: 768px) { .coin-packages { grid-template-columns: repeat(2, 1fr); } }
+  .coin-package { position: relative; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .coin-package:hover { border-color: var(--gold); transform: translateY(-2px); box-shadow: var(--shadow-gold); }
+  .coin-package.popular { border-color: rgba(245,197,66,0.4); background: rgba(245,197,66,0.05); }
+  .coin-package.best-value { border-color: rgba(0,200,150,0.4); background: rgba(0,200,150,0.05); }
+  .coin-package .amount { font-size: 20px; font-weight: 800; color: var(--gold); }
+  .coin-package .price { color: var(--text-secondary); margin-top: 4px; }
+  .coin-package .per-coin { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+  .best-value-badge, .popular-badge { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); padding: 3px 12px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+  .popular-badge { background: #F5C542; color: #000; }
+  .best-value-badge { background: #00C896; color: #000; }
+  .low-balance-prompt { border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 </style>
 </head>
 <body data-page="shop">
   <div id="twNav" data-active="shop"></div>
 
   <div class="tw-container">
-    <div class="panel">
-      <h2>🛒 Shop <span style="float:right;font-size:14px;font-weight:400;" id="coinBalanceLabel"></span></h2>
+    <div id="lowBalanceWrap"></div>
+
+    <div class="panel" id="coins-section">
+      <h2>🪙 Buy Coins <span style="float:right;font-size:14px;font-weight:400;" id="coinBalanceLabel"></span></h2>
+      <p class="text-secondary" style="font-size:13px;">Coins are used to enter matches and buy cosmetics below.</p>
+      <div class="coin-packages">
+        <div class="coin-package" data-pkg="100"><div class="amount">100</div><div class="price">$0.99</div><div class="per-coin">10 Quick War entries</div></div>
+        <div class="coin-package popular" data-pkg="500"><div class="popular-badge">Most Popular</div><div class="amount">500</div><div class="price">$3.99</div><div class="per-coin">50 Quick War entries</div></div>
+        <div class="coin-package" data-pkg="1500"><div class="amount">1,500</div><div class="price">$9.99</div><div class="per-coin">150 Quick War entries</div></div>
+        <div class="coin-package best-value" data-pkg="5000"><div class="best-value-badge">Best Value</div><div class="amount">5,000</div><div class="price">$24.99</div><div class="per-coin">500 Quick War entries</div></div>
+      </div>
+    </div>
+
+    <div class="panel" id="cosmetics-section">
+      <h2>✨ Cosmetics</h2>
       <div class="shop-tabs" id="shopTabs">
         <button data-tab="cardVariants" class="active">Card Variants</button>
         <button data-tab="avatarFrames">Avatar Frames</button>
@@ -129,10 +156,56 @@
         catalogData = await TW.api('/api/shop/catalog');
         document.getElementById('coinBalanceLabel').textContent = `🪙 ${catalogData.coins} coins`;
         render();
+        checkCoinBalance(catalogData.coins);
       } catch (e) {
         TW.toast(e.message, 'danger');
       }
     }
+
+    function checkCoinBalance(coins) {
+      const wrap = document.getElementById('lowBalanceWrap');
+      const ZERO_THRESHOLD = 10;
+      const LOW_THRESHOLD = 20;
+      wrap.innerHTML = '';
+      if (coins <= ZERO_THRESHOLD) {
+        wrap.innerHTML = `
+          <div class="low-balance-prompt" style="background:rgba(255,61,92,0.1);border:1px solid rgba(255,61,92,0.3);">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="font-size:24px;">⚠️</div>
+              <div>
+                <div style="font-weight:700;color:#FF3D5C;margin-bottom:2px;">Almost out of coins</div>
+                <div style="font-size:13px;color:var(--text-secondary);">You have ${coins} coins left. Top up to keep playing.</div>
+              </div>
+            </div>
+            <button class="btn" style="background:#FF3D5C;border:none;color:#fff;" onclick="document.getElementById('coins-section').scrollIntoView({behavior:'smooth'})">Top Up Now</button>
+          </div>
+        `;
+      } else if (coins <= LOW_THRESHOLD) {
+        wrap.innerHTML = `
+          <div class="low-balance-prompt" style="background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.2);">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="font-size:20px;">🪙</div>
+              <div>
+                <div style="font-weight:700;color:var(--gold);margin-bottom:2px;">Low coin balance</div>
+                <div style="font-size:13px;color:var(--text-secondary);">${coins} coins — enough for ${Math.floor(coins / 10)} more Quick War matches.</div>
+              </div>
+            </div>
+            <button class="btn btn-outline" onclick="document.getElementById('coins-section').scrollIntoView({behavior:'smooth'})">Buy Coins</button>
+          </div>
+        `;
+      }
+    }
+
+    document.querySelectorAll('.coin-package').forEach((el) => {
+      el.addEventListener('click', async () => {
+        try {
+          const data = await TW.api('/api/coins/purchase', { method: 'POST', body: { packageId: el.dataset.pkg } });
+          window.location.href = data.url;
+        } catch (err) {
+          TW.toast(err.message, 'danger');
+        }
+      });
+    });
 
     async function purchase(itemId) {
       const catalog = [...catalogData.catalog.cardVariants, ...catalogData.catalog.avatarFrames, ...catalogData.catalog.profileBackgrounds, ...catalogData.catalog.nameplateEffects];

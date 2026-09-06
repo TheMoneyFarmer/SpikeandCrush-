@@ -33,8 +33,10 @@
   table.tx { width: 100%; border-collapse: collapse; font-size: 13px; }
   table.tx th { text-align: left; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; padding: 8px; }
   table.tx td { padding: 8px; border-top: 1px solid var(--border); }
-  .loss-bar-track { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 10px 0; }
-  .loss-bar-fill { height: 100%; background: var(--gradient-danger); transition: width 0.3s ease; }
+  .game-rule-info { display: flex; align-items: flex-start; gap: 14px; }
+  .game-rule-info .rule-icon { font-size: 22px; flex-shrink: 0; }
+  .game-rule-info .rule-title { font-weight: 700; margin-bottom: 4px; }
+  .game-rule-info .rule-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
 </style>
 </head>
 <body data-page="wallet">
@@ -52,21 +54,22 @@
     </div>
 
     <div class="panel" style="margin-top: 20px;">
-      <h3>Daily Loss Limit</h3>
-      <p>A practice-discipline tracker for your simulated trading P&amp;L across matches - not related to your coin balance.</p>
-      <div id="lossLimitLabel" class="text-secondary">Spike & Crush loading...</div>
-      <div class="loss-bar-track"><div class="loss-bar-fill" id="lossBarFill" style="width:0%"></div></div>
-      <div id="resetCountdown" class="text-secondary" style="font-size: 13px;"></div>
-      <div class="field" style="margin-top: 14px; max-width: 260px;">
-        <label>Set your personal limit (max $2000)</label>
-        <input type="number" id="limitInput" min="1" max="2000" />
+      <div class="game-rule-info">
+        <div class="rule-icon">⚠️</div>
+        <div class="rule-content">
+          <div class="rule-title">Loss Limit — Fixed Game Rule</div>
+          <div class="rule-desc">
+            If you lose 50% of your starting capital ($5,000 of $10,000) during any match, all positions close
+            automatically and trading is blocked for that match. This rule cannot be changed. It keeps the game
+            fair for everyone.
+          </div>
+        </div>
       </div>
-      <button class="btn btn-outline" id="saveLimitBtn">Save Limit</button>
     </div>
 
     <div class="panel" style="margin-top: 20px;">
       <h3>Buy Coins</h3>
-      <p>Quick War entry costs 10 coins. Private Wars are always free.</p>
+      <p>Quick War entry costs 10 coins. Private War costs 1 coin to host - free for the friends you invite.</p>
       <div class="wallet-disclaimer">
         <span class="disclaimer-icon">ℹ️</span>
         <span>Coins are virtual in-game currency for entertainment use only. Coin purchases are final and non-refundable. Coins have no real-world cash value outside of tournament prize distributions governed by our <a href="/terms">Terms of Service</a>.</span>
@@ -93,18 +96,15 @@
       <button class="btn btn-outline" id="devAddCoinsBtn">+1000 Test Coins</button>
     </div>
 
-    <div class="panel" style="margin-top: 20px;">
-      <h3>Request Prize Withdrawal</h3>
-      <p class="text-secondary" style="font-size:13px;">Only coins won from tournament prize distribution can be cashed out (see our <a href="/terms">Terms of Service</a>) - this converts coins to a real crypto payout, processed by an admin.</p>
-      <div class="field-row" style="display:flex;gap:10px;flex-wrap:wrap;">
-        <div class="field"><label>Amount (coins)</label><input type="number" id="wdAmount" min="1" style="width:140px;" /></div>
-        <div class="field"><label>Crypto</label>
-          <select id="wdCrypto"><option value="USDT">USDT</option><option value="BTC">BTC</option><option value="ETH">ETH</option></select>
-        </div>
-        <div class="field" style="flex:1;min-width:220px;"><label>Wallet Address</label><input type="text" id="wdAddress" placeholder="Your crypto wallet address" style="width:100%;" /></div>
-      </div>
-      <button class="btn btn-outline" id="wdSubmitBtn" style="margin-top:8px;">Request Withdrawal</button>
-      <div id="wdHistoryWrap" style="margin-top:14px;"></div>
+    <div class="panel" id="prizeClaimPanel" style="margin-top: 20px; display:none;">
+      <h3>🏆 Claim Your Prize</h3>
+      <p class="text-secondary" style="font-size:13px;">Only coins won by finishing 1st in a Tournament War can be cashed out (see our <a href="/terms">Terms of Service</a>). An admin processes each request manually - you'll get a notification and email once funds are on the way.</p>
+      <div id="eligibleWinsWrap"></div>
+    </div>
+
+    <div class="panel" id="prizeClaimHistoryPanel" style="margin-top: 20px; display:none;">
+      <h3>Prize Claim History</h3>
+      <div id="prizeClaimHistoryWrap"></div>
     </div>
 
     <div class="panel" style="margin-top: 20px;">
@@ -139,8 +139,9 @@
       prize_won: 'Prize Won',
       coin_purchase: 'Coin Purchase',
       welcome_bonus: 'Welcome Bonus',
-      withdrawal_request: 'Withdrawal Requested',
-      withdrawal_refund: 'Withdrawal Refunded',
+      tournament_prize: 'Tournament Prize',
+      prize_claimed: 'Prize Claimed (Cashed Out)',
+      prize_claim_refund: 'Prize Claim Refunded',
     };
 
     let lastTransactions = [];
@@ -156,44 +157,120 @@
         const lifetimeEl = document.getElementById('ovLifetime');
         lifetimeEl.textContent = TW.formatMoney(data.lifetimeMatchPnl);
         lifetimeEl.className = 'value ' + (data.lifetimeMatchPnl >= 0 ? 'text-buy' : 'text-sell');
-
-        const pct = Math.min(100, Math.round((data.todayLossUsd / data.dailyLossLimitUsd) * 100));
-        document.getElementById('lossLimitLabel').textContent = `Current daily loss: ${TW.formatMoney(
-          data.todayLossUsd
-        )} of ${TW.formatMoney(data.dailyLossLimitUsd)} limit`;
-        document.getElementById('lossBarFill').style.width = `${pct}%`;
-        document.getElementById('limitInput').value = data.dailyLossLimitUsd;
-        startCountdown(data.resetsAtIso);
       } catch (err) {
         TW.toast(err.message, 'danger');
       }
     }
 
-    let countdownTimer = null;
-    function startCountdown(resetsAtIso) {
-      clearInterval(countdownTimer);
-      const resetsAt = new Date(resetsAtIso).getTime();
-      function tick() {
-        const remaining = Math.max(0, resetsAt - Date.now());
-        const h = Math.floor(remaining / 3600000);
-        const m = Math.floor((remaining % 3600000) / 60000);
-        const s = Math.floor((remaining % 60000) / 1000);
-        document.getElementById('resetCountdown').textContent = `Resets in ${h}h ${m}m ${s}s`;
-      }
-      tick();
-      countdownTimer = setInterval(tick, 1000);
-    }
+    const PAYOUT_FIELDS_HTML = {
+      bank_transfer: `
+        <div class="field-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+          <div class="field" style="flex:1;min-width:160px;"><label>Account Holder Name</label><input type="text" class="pc-bank-name" style="width:100%;" /></div>
+          <div class="field" style="flex:1;min-width:160px;"><label>Bank Name</label><input type="text" class="pc-bank-bank" style="width:100%;" /></div>
+          <div class="field" style="flex:1;min-width:160px;"><label>Account Number / IBAN</label><input type="text" class="pc-bank-account" style="width:100%;" /></div>
+        </div>`,
+      crypto: `
+        <div class="field-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+          <div class="field"><label>Currency</label>
+            <select class="pc-crypto-currency"><option value="USDT">USDT</option><option value="BTC">BTC</option><option value="ETH">ETH</option></select>
+          </div>
+          <div class="field" style="flex:1;min-width:220px;"><label>Wallet Address</label><input type="text" class="pc-crypto-address" placeholder="Your crypto wallet address" style="width:100%;" /></div>
+        </div>`,
+    };
 
-    document.getElementById('saveLimitBtn').addEventListener('click', async () => {
+    async function loadEligibleWins() {
+      const panel = document.getElementById('prizeClaimPanel');
+      const wrap = document.getElementById('eligibleWinsWrap');
       try {
-        const limitUsd = Number(document.getElementById('limitInput').value);
-        await TW.api('/api/wallet/daily-limit', { method: 'PATCH', body: { limitUsd } });
-        TW.toast('Daily loss limit updated', 'info');
-        loadWallet();
+        const data = await TW.api('/api/prize-claims/eligible');
+        if (!data.wins.length) { panel.style.display = 'none'; return; }
+        panel.style.display = 'block';
+        wrap.innerHTML = data.wins.map((w) => `
+          <div class="panel" style="margin-top:10px;background:var(--surface-2);" data-tournament-id="${TW.escapeHtml(w.tournamentId)}">
+            <div style="font-weight:700;">🏆 ${TW.escapeHtml(w.tournamentName)} — 🪙 ${w.prizeCoins} (${TW.formatMoney(w.prizeUsd)})</div>
+            <div class="field" style="margin-top:8px;"><label>Payout Method</label>
+              <select class="pc-method"><option value="bank_transfer">Bank Transfer</option><option value="crypto">Crypto</option></select>
+            </div>
+            <div class="pc-fields">${PAYOUT_FIELDS_HTML.bank_transfer}</div>
+            <button class="btn btn-primary pc-claim-btn" style="margin-top:8px;">Claim Prize</button>
+          </div>
+        `).join('');
+
+        wrap.querySelectorAll('.pc-method').forEach((sel) => {
+          sel.addEventListener('change', () => {
+            sel.closest('.panel').querySelector('.pc-fields').innerHTML = PAYOUT_FIELDS_HTML[sel.value];
+          });
+        });
+
+        wrap.querySelectorAll('.pc-claim-btn').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const card = btn.closest('.panel');
+            const tournamentId = card.dataset.tournamentId;
+            const payoutMethod = card.querySelector('.pc-method').value;
+            let payoutDetails;
+            if (payoutMethod === 'bank_transfer') {
+              payoutDetails = {
+                accountName: card.querySelector('.pc-bank-name').value.trim(),
+                bankName: card.querySelector('.pc-bank-bank').value.trim(),
+                accountNumber: card.querySelector('.pc-bank-account').value.trim(),
+              };
+              if (!payoutDetails.accountName || !payoutDetails.bankName || !payoutDetails.accountNumber) {
+                TW.toast('Fill in all bank transfer details', 'warning');
+                return;
+              }
+            } else {
+              payoutDetails = {
+                currency: card.querySelector('.pc-crypto-currency').value,
+                walletAddress: card.querySelector('.pc-crypto-address').value.trim(),
+              };
+              if (!payoutDetails.walletAddress) {
+                TW.toast('Enter a wallet address', 'warning');
+                return;
+              }
+            }
+            btn.disabled = true;
+            try {
+              await TW.api('/api/prize-claims', { method: 'POST', body: { tournamentId, payoutMethod, payoutDetails } });
+              TW.toast('Prize claim submitted - an admin will process it shortly', 'info');
+              loadWallet();
+              loadEligibleWins();
+              loadPrizeClaimHistory();
+            } catch (err) {
+              TW.toast(err.message, 'danger');
+              btn.disabled = false;
+            }
+          });
+        });
       } catch (err) {
-        TW.toast(err.message, 'danger');
+        panel.style.display = 'none';
       }
-    });
+    }
+
+    const PC_STATUS_LABEL = { pending: 'Pending', processing: 'Processing', paid: 'Paid', rejected: 'Rejected' };
+
+    async function loadPrizeClaimHistory() {
+      const panel = document.getElementById('prizeClaimHistoryPanel');
+      const wrap = document.getElementById('prizeClaimHistoryWrap');
+      try {
+        const data = await TW.api('/api/prize-claims/mine');
+        if (!data.claims.length) { panel.style.display = 'none'; return; }
+        panel.style.display = 'block';
+        wrap.innerHTML = `
+          <table class="tx"><thead><tr><th>Date</th><th>Tournament</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
+          <tbody>${data.claims.map((c) => `
+            <tr>
+              <td>${new Date(c.created_at).toLocaleString()}</td>
+              <td>${TW.escapeHtml(c.tournaments?.name || '—')}</td>
+              <td>${TW.formatMoney(c.prize_usd)} (${c.prize_coins} 🪙)</td>
+              <td>${c.payout_method === 'bank_transfer' ? 'Bank Transfer' : 'Crypto'}</td>
+              <td>${PC_STATUS_LABEL[c.status] || c.status}</td>
+            </tr>
+          `).join('')}</tbody></table>
+        `;
+      } catch (err) {
+        panel.style.display = 'none';
+      }
+    }
 
     document.querySelectorAll('.coin-package').forEach((el) => {
       el.addEventListener('click', async () => {
@@ -278,50 +355,10 @@
       URL.revokeObjectURL(url);
     });
 
-    const WD_STATUS_LABEL = { pending: 'Pending', processing: 'Processing', paid: 'Paid', rejected: 'Rejected' };
-
-    async function loadWithdrawals() {
-      const wrap = document.getElementById('wdHistoryWrap');
-      try {
-        const data = await TW.api('/api/withdrawals/mine');
-        if (!data.withdrawals.length) { wrap.innerHTML = ''; return; }
-        wrap.innerHTML = `
-          <table class="tx"><thead><tr><th>Date</th><th>Amount</th><th>Crypto</th><th>Status</th><th>TX Hash</th></tr></thead>
-          <tbody>${data.withdrawals.map((w) => `
-            <tr>
-              <td>${new Date(w.created_at).toLocaleString()}</td>
-              <td>${TW.formatMoney(w.amount_usd)} (${w.amount_coins} 🪙)</td>
-              <td>${w.crypto_currency}</td>
-              <td>${WD_STATUS_LABEL[w.status] || w.status}</td>
-              <td class="mono" style="font-size:11px;">${w.tx_hash ? TW.escapeHtml(w.tx_hash) : '—'}</td>
-            </tr>
-          `).join('')}</tbody></table>
-        `;
-      } catch (err) {
-        wrap.innerHTML = '';
-      }
-    }
-
-    document.getElementById('wdSubmitBtn').addEventListener('click', async () => {
-      const amountCoins = Number(document.getElementById('wdAmount').value);
-      const cryptoCurrency = document.getElementById('wdCrypto').value;
-      const walletAddress = document.getElementById('wdAddress').value.trim();
-      if (!amountCoins || !walletAddress) { TW.toast('Enter an amount and wallet address', 'warning'); return; }
-      try {
-        await TW.api('/api/withdrawals/request', { method: 'POST', body: { amountCoins, cryptoCurrency, walletAddress } });
-        TW.toast('Withdrawal request submitted', 'info');
-        document.getElementById('wdAmount').value = '';
-        document.getElementById('wdAddress').value = '';
-        loadWallet();
-        loadWithdrawals();
-      } catch (err) {
-        TW.toast(err.message, 'danger');
-      }
-    });
-
     loadWallet();
     loadTransactions();
-    loadWithdrawals();
+    loadEligibleWins();
+    loadPrizeClaimHistory();
   </script>
   <footer class="legal-footer">
     <div class="legal-footer-content">

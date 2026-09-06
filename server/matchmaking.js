@@ -46,6 +46,7 @@ async function soloPlay(gameEngine, playerInfo, favouriteInstruments) {
 
 async function createPrivateWar(gameEngine, playerInfo) {
   const match = await gameEngine.createMatch('private');
+  match.hostId = playerInfo.id; // charged the 1-coin hosting fee once the match actually starts - see gameEngine.activateMatch
   const result = gameEngine.joinMatch(match, playerInfo);
   if (!result.success) return result;
   return { success: true, matchId: match.id, roomCode: match.roomCode };

@@ -26,7 +26,7 @@ window.TW = window.TW || {};
       target: '#modeQuickBtn',
       title: 'Enter the War',
       body: 'Click Quick War to jump into a match immediately. It costs 10 coins. You start with 500 coins - enough for 50 free matches. AI opponents fill any empty slots so you never wait long.',
-      tip: 'Private War is free - create a room and invite friends with a 6-digit code.',
+      tip: 'Private War costs 1 coin to host - create a room and invite friends with a 6-digit code for free.',
     },
     {
       target: null,

@@ -738,11 +738,18 @@ app.post('/api/match/create', requireDb, authenticate, async (req, res) => {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
     const mode = MATCHMAKING_BY_MODE[req.body?.mode] ? req.body.mode : 'private';
-    const modeConfig = gameEngine.MATCH_MODES[mode]; // undefined for 'private', which is free and has no shared config entry
+    const modeConfig = gameEngine.MATCH_MODES[mode];
     const entryCoins = modeConfig ? modeConfig.entryCoins : 0;
 
     if (entryCoins > 0 && player.coins < entryCoins) {
       return res.status(400).json({ error: `Not enough coins - ${modeConfig.label} costs ${entryCoins} coins` });
+    }
+    // Private War's 1-coin hosting fee isn't part of modeConfig.entryCoins
+    // (that stays 0 so joining friends are never charged) - it's checked
+    // here so a coinless player can't open a room they can't pay to start,
+    // but actually charged later at match start (see gameEngine.activateMatch).
+    if (mode === 'private' && player.coins < gameEngine.PRIVATE_WAR_HOST_FEE) {
+      return res.status(400).json({ error: `Not enough coins - hosting a Private War costs ${gameEngine.PRIVATE_WAR_HOST_FEE} coin` });
     }
 
     if (mode === 'solo' && req.body?.instruments) {
@@ -942,8 +949,7 @@ app.get('/api/player/settings', requireDb, authenticate, async (req, res) => {
       settings: player.settings || {},
       avatarUrl: player.avatar_url,
       country: player.country,
-      experienceLevel: player.experience_level,
-      preferredInstruments: player.preferred_instruments || [],
+      experienceLevel: player.experience_level || gameEngine.getExperienceLevel(player.total_matches),
     });
   } catch (e) {
     console.error('[settings get]', e);
@@ -951,27 +957,26 @@ app.get('/api/player/settings', requireDb, authenticate, async (req, res) => {
   }
 });
 
+// experienceLevel and preferredInstruments are no longer accepted here -
+// trading experience is a computed stat based on total_matches (see
+// gameEngine.updateExperienceLevel, updated after every match) and the
+// preferred-instruments picker was removed from Settings entirely.
 app.patch('/api/player/settings', requireDb, authenticate, async (req, res) => {
   try {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
-    const { settings, country, experienceLevel, preferredInstruments } = req.body || {};
+    const { settings, country } = req.body || {};
     const updates = {};
     if (settings && typeof settings === 'object') updates.settings = { ...player.settings, ...settings };
     if (country !== undefined) updates.country = country;
-    if (experienceLevel && ['Beginner', 'Intermediate', 'Professional', 'Expert'].includes(experienceLevel)) {
-      updates.experience_level = experienceLevel;
-    }
-    if (Array.isArray(preferredInstruments)) updates.preferred_instruments = preferredInstruments;
 
     const updated = await db.updatePlayer(player.id, updates);
     res.json({
       settings: updated.settings,
       avatarUrl: updated.avatar_url,
       country: updated.country,
-      experienceLevel: updated.experience_level,
-      preferredInstruments: updated.preferred_instruments || [],
+      experienceLevel: updated.experience_level || gameEngine.getExperienceLevel(updated.total_matches),
     });
   } catch (e) {
     console.error('[settings patch]', e);
@@ -1286,6 +1291,10 @@ app.post('/api/friends/:requestId/accept', requireDb, authenticate, async (req, 
   try {
     const row = await db.acceptFriendRequest(req.params.requestId, req.tokenPlayer.id);
     const accepter = await db.getPlayerById(req.tokenPlayer.id);
+    // The acceptor's own 'friend_request' notification for this request is
+    // done being actionable - mark it read regardless of whether they
+    // accepted from the bell's inline button or the Friends panel directly.
+    db.markFriendRequestNotificationRead(req.tokenPlayer.id, req.params.requestId).catch((e) => console.error('[friend accept] could not mark notification read:', e.message));
     notifyPlayer(row.requester_id, 'friend_accepted', `${accepter.username} accepted your friend request`, {
       fromPlayerId: req.tokenPlayer.id,
       data: { username: accepter.username },
@@ -1364,6 +1373,16 @@ app.post('/api/notifications/read', requireDb, authenticate, async (req, res) =>
   } catch (e) {
     console.error('[notifications read]', e);
     res.status(500).json({ error: 'Could not mark notifications read' });
+  }
+});
+
+app.delete('/api/notifications', requireDb, authenticate, async (req, res) => {
+  try {
+    await db.deleteAllNotifications(req.tokenPlayer.id);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[notifications clear]', e);
+    res.status(500).json({ error: 'Could not clear notifications' });
   }
 });
 
@@ -2155,81 +2174,79 @@ app.get('/api/wallet/transactions', requireDb, authenticate, async (req, res) =>
   }
 });
 
-app.patch('/api/wallet/daily-limit', requireDb, authenticate, async (req, res) => {
+// ---- prize claims (tournament winnings cash-out) -----------------------------
+// Ordinary coins have no cash value and can never be claimed here (see
+// help.html's own Withdrawals section) - only coins actually credited by a
+// completed tournament win (gameEngine.js's 'tournament_prize' coin_transaction)
+// are eligible, and only once per tournament per player.
+
+// Same coin<->USD rate as the cheapest coin package (wallet.html: $24.99 /
+// 5000 coins) - the only place this conversion is defined anywhere.
+const COIN_TO_USD = 0.005;
+
+app.get('/api/prize-claims/eligible', requireDb, authenticate, async (req, res) => {
   try {
-    const PLATFORM_MAX = 2000;
-    const val = Number(req.body?.limitUsd);
-    if (!Number.isFinite(val) || val <= 0 || val > PLATFORM_MAX) {
-      return res.status(400).json({ error: `Limit must be between 0 and ${PLATFORM_MAX}` });
-    }
-    const updated = await db.updatePlayer(req.tokenPlayer.id, { daily_loss_limit_usd: val });
-    res.json({ dailyLossLimitUsd: updated.daily_loss_limit_usd });
+    const wins = await db.getUnclaimedTournamentWins(req.tokenPlayer.id);
+    res.json({ wins: wins.map((w) => ({ ...w, prizeUsd: Math.round(w.prizeCoins * COIN_TO_USD * 100) / 100 })) });
   } catch (e) {
-    console.error('[daily limit]', e);
-    res.status(500).json({ error: 'Could not update daily loss limit' });
+    console.error('[prize-claims eligible]', e);
+    res.status(500).json({ error: 'Could not load eligible prizes' });
   }
 });
 
-// ---- withdrawals (tournament prize cash-out) ---------------------------------------
-// Ordinary coins have no cash value (see the wallet page's own purchase
-// disclaimer) - this exists solely for the carve-out already stated there:
-// prizes distributed through tournaments. It debits from the same coins
-// balance/ledger everything else uses, then queues a request for an admin
-// to actually pay out via crypto (admin/routes/withdrawals.js).
-
-app.get('/api/withdrawals/mine', requireDb, authenticate, async (req, res) => {
+app.get('/api/prize-claims/mine', requireDb, authenticate, async (req, res) => {
   try {
-    const withdrawals = await db.listPlayerWithdrawals(req.tokenPlayer.id);
-    res.json({ withdrawals });
+    const claims = await db.listPlayerPrizeClaims(req.tokenPlayer.id);
+    res.json({ claims });
   } catch (e) {
-    console.error('[withdrawals mine]', e);
-    res.status(500).json({ error: 'Could not load withdrawal history' });
+    console.error('[prize-claims mine]', e);
+    res.status(500).json({ error: 'Could not load claim history' });
   }
 });
 
-app.post('/api/withdrawals/request', requireDb, authenticate, async (req, res) => {
+app.post('/api/prize-claims', requireDb, authenticate, async (req, res) => {
   try {
-    const { amountCoins, cryptoCurrency, walletAddress } = req.body || {};
-    const amount = Number(amountCoins);
-    if (!Number.isInteger(amount) || amount <= 0) {
-      return res.status(400).json({ error: 'amountCoins must be a positive whole number' });
+    const { tournamentId, payoutMethod, payoutDetails } = req.body || {};
+    if (!tournamentId) return res.status(400).json({ error: 'tournamentId is required' });
+    if (payoutMethod !== 'bank_transfer' && payoutMethod !== 'crypto') {
+      return res.status(400).json({ error: 'payoutMethod must be bank_transfer or crypto' });
     }
-    if (!cryptoCurrency || !walletAddress) {
-      return res.status(400).json({ error: 'cryptoCurrency and walletAddress are required' });
+    if (payoutMethod === 'bank_transfer') {
+      const { accountName, bankName, accountNumber } = payoutDetails || {};
+      if (!accountName || !bankName || !accountNumber) {
+        return res.status(400).json({ error: 'accountName, bankName, and accountNumber are required for a bank transfer' });
+      }
+    } else {
+      const { currency, walletAddress } = payoutDetails || {};
+      if (!currency || !walletAddress) {
+        return res.status(400).json({ error: 'currency and walletAddress are required for a crypto payout' });
+      }
     }
 
-    const settings = await db.getAppSettings(['min_withdrawal_usd', 'supported_crypto']);
-    const supportedCrypto = settings.supported_crypto || ['USDT', 'BTC', 'ETH'];
-    if (!supportedCrypto.includes(cryptoCurrency)) {
-      return res.status(400).json({ error: `Unsupported currency - choose one of ${supportedCrypto.join(', ')}` });
-    }
+    const wins = await db.getUnclaimedTournamentWins(req.tokenPlayer.id);
+    const win = wins.find((w) => w.tournamentId === tournamentId);
+    if (!win) return res.status(400).json({ error: 'No unclaimed tournament win found for that tournament' });
 
     const player = await db.getPlayerById(req.tokenPlayer.id);
-    if (!player) return res.status(404).json({ error: 'Player not found' });
-    if (player.coins < amount) return res.status(400).json({ error: 'Insufficient coin balance' });
-
-    // Fixed platform rate matching the cheapest coin package's price-per-coin
-    // (wallet.html: $24.99 / 5000 coins) - the only place a coin<->USD
-    // exchange rate is defined anywhere in this codebase.
-    const COIN_TO_USD = 0.005;
-    const amountUsd = Math.round(amount * COIN_TO_USD * 100) / 100;
-    const minUsd = Number(settings.min_withdrawal_usd) || 20;
-    if (amountUsd < minUsd) {
-      return res.status(400).json({ error: `Minimum withdrawal is $${minUsd} (${Math.ceil(minUsd / COIN_TO_USD)} coins)` });
+    if (!player || player.coins < win.prizeCoins) {
+      return res.status(400).json({ error: 'Insufficient coin balance to claim this prize - has it already been spent?' });
     }
 
-    await db.debitCoins(player.id, amount, { type: 'withdrawal_request' });
-    const request = await db.createWithdrawalRequest({
+    const prizeUsd = Math.round(win.prizeCoins * COIN_TO_USD * 100) / 100;
+    await db.debitCoins(player.id, win.prizeCoins, { type: 'prize_claimed' });
+    const claim = await db.createPrizeClaim({
       playerId: player.id,
-      amountCoins: amount,
-      amountUsd,
-      cryptoCurrency,
-      walletAddress,
+      tournamentId,
+      prizeCoins: win.prizeCoins,
+      prizeUsd,
+      payoutMethod,
+      payoutDetails,
     });
-    res.json({ success: true, request });
+    res.json({ success: true, claim });
   } catch (e) {
-    console.error('[withdrawal request]', e);
-    res.status(500).json({ error: 'Could not submit withdrawal request' });
+    if (e.code === '23505') return res.status(400).json({ error: 'This tournament prize has already been claimed' });
+    console.error('[prize-claims create]', e);
+    res.status(500).json({ error: 'Could not submit prize claim' });
   }
 });
 
@@ -2240,9 +2257,9 @@ const SUPPORT_SYSTEM_PROMPT = `You are the support assistant for Spike & Crush, 
 Real game facts you can rely on:
 - Starting capital per match: $10,000 simulated. Max position size: 10 lots. Max open positions: 10.
 - A player is eliminated from a match if their loss reaches 50% of starting capital.
-- Match modes: Quick War (10 coins entry, ~10 min), Blitz War (5 coins, ~3 min), Grand War (25 coins, ~20 min), Private War (free, host-controlled), Solo Ranked (free, vs AI), Tournament War (bracket-based, entry set per tournament).
+- Match modes: Quick War (10 coins entry, ~10 min), Blitz War (5 coins, ~3 min), Grand War (25 coins, ~20 min), Private War (1 coin to host, charged only to the room creator when the match starts - free for invited friends), Solo Ranked (free, vs AI), Tournament War (bracket-based, entry set per tournament).
 - War Rating tiers: Recruit (0-999), Trader (1000-1499), Broker (1500-1999), Analyst (2000-2499), Veteran (2500-2999), Elite (3000-3499), War Lord (3500+).
-- Coins are virtual currency with no cash value, except coins won specifically from tournament prize distribution, which can be withdrawn via the Wallet page (crypto payout, processed by an admin).
+- Coins are virtual in-game currency for entertainment use only. They have no real-world cash value and cannot be withdrawn, redeemed, or converted back to real money - they exist only to be spent on match entries, cosmetics, and other in-game purchases. The one exception: coins won specifically by finishing 1st in a Tournament War can be claimed for a real payout (bank transfer or crypto) from the Wallet page, processed manually by an admin.
 - Coin purchases are final and non-refundable.
 
 Answer player questions about game mechanics, coins, wallet, tournaments, and account issues concisely and accurately using only the facts above. For anything account-specific (billing disputes, bans, bugs) or anything you're not sure about, tell the player to submit a support ticket instead of guessing.`;
@@ -2859,6 +2876,7 @@ io.on('connection', (socket) => {
       const accepterId = socket.data.player.id;
       const row = await db.acceptFriendRequest(requestId, accepterId);
       const accepter = await db.getPlayerById(accepterId);
+      db.markFriendRequestNotificationRead(accepterId, requestId).catch((e) => console.error('[friend:accept] could not mark notification read:', e.message));
       notifyPlayer(row.requester_id, 'friend_accepted', `${accepter.username} accepted your friend request`, {
         fromPlayerId: accepterId,
         data: { username: accepter.username },

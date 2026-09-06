@@ -120,6 +120,14 @@ async function logAdminActivity({ adminId = null, adminEmail, action, targetTabl
 // Seeds (or re-promotes) the permanent master admin on every server start.
 // This email can never be deleted or demoted - see the admin_users routes'
 // own guard against MASTER_ADMIN_EMAIL for the enforcement side of that.
+//
+// The password is *always* forced to match MASTER_ADMIN_PASSWORD on every
+// restart, not just seeded once at creation - by design, this one account's
+// credential is controlled by whoever manages the deployment's env vars, not
+// by the panel's own self-service /change-password form. (Trade-off: if the
+// master admin changes their password through that form, it silently reverts
+// to the env var on the next restart/redeploy - documented here since it's
+// the one account this applies to.)
 async function seedMasterAdmin() {
   if (!isConfigured) {
     console.warn('[admin] Supabase not configured - skipping master admin seed');
@@ -127,9 +135,9 @@ async function seedMasterAdmin() {
   }
   const password = process.env.MASTER_ADMIN_PASSWORD || 'SpikeAndCrush2026!';
   try {
+    const hash = await bcrypt.hash(password, 12);
     const { data: existing } = await supabase.from('admin_users').select('id, is_master').eq('email', MASTER_ADMIN_EMAIL).maybeSingle();
     if (!existing) {
-      const hash = await bcrypt.hash(password, 12);
       await supabase.from('admin_users').insert({
         email: MASTER_ADMIN_EMAIL,
         name: 'Thando — Master Admin',
@@ -139,9 +147,11 @@ async function seedMasterAdmin() {
         is_active: true,
       });
       console.log('[admin] master admin seeded:', MASTER_ADMIN_EMAIL);
-    } else if (!existing.is_master) {
-      await supabase.from('admin_users').update({ role: 'super_admin', is_master: true, is_active: true }).eq('id', existing.id);
-      console.log('[admin] master admin re-promoted:', MASTER_ADMIN_EMAIL);
+    } else {
+      const updates = { password_hash: hash };
+      if (!existing.is_master) Object.assign(updates, { role: 'super_admin', is_master: true, is_active: true });
+      await supabase.from('admin_users').update(updates).eq('id', existing.id);
+      console.log('[admin] master admin password synced from MASTER_ADMIN_PASSWORD:', MASTER_ADMIN_EMAIL);
     }
   } catch (e) {
     console.error('[admin] master admin seed error:', e.message);

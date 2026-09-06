@@ -18,6 +18,29 @@ const SOFT_LOSS_PCT = 0.2; // 20% of starting capital lost within the current wi
 const HARD_LOSS_PCT = 0.5; // 50% of starting capital lost overall -> eliminated for the rest of the match
 const ALLOWED_CHAT_MESSAGES = ['GL HF', "Let's go", 'May the best trader win', 'Ready to war'];
 
+// Private War stays free to join for invited friends - MATCH_MODES.private's
+// own entryCoins deliberately stays 0 so the shared per-player entry/prize-pool
+// machinery (join charges, prize splits) never touches private matches. This
+// is a separate one-time hosting fee charged only to whoever created the
+// room, only once the match actually activates - see activateMatch().
+const PRIVATE_WAR_HOST_FEE = 1;
+
+const EXPERIENCE_LEVELS = [
+  { min: 0, max: 4, label: 'Beginner' },
+  { min: 5, max: 14, label: 'Developing' },
+  { min: 15, max: 29, label: 'Intermediate' },
+  { min: 30, max: 49, label: 'Experienced' },
+  { min: 50, max: 99, label: 'Advanced' },
+  { min: 100, max: 199, label: 'Expert' },
+  { min: 200, max: 499, label: 'Professional' },
+  { min: 500, max: Infinity, label: 'Master Trader' },
+];
+
+function getExperienceLevel(totalMatches) {
+  const n = totalMatches || 0;
+  return (EXPERIENCE_LEVELS.find((l) => n >= l.min && n <= l.max) || EXPERIENCE_LEVELS[0]).label;
+}
+
 // Per-mode lobby/match rules. `ratingKey` names which field on the player
 // record this mode's result affects (war_rating for Quick/Blitz/Private,
 // grand_war_rating / solo_rating for their own separate leaderboards, null
@@ -757,6 +780,27 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     if (!match) return;
     match.status = 'active';
     match.startedAt = Date.now();
+
+    // Private War's 1-coin hosting fee: charged to the room creator only,
+    // only now that the match has actually started - not at room creation,
+    // so a host isn't charged if nobody ever joins. /api/match/create
+    // already pre-checked the host could afford this before letting them
+    // open the room; this re-checks defensively rather than trusting time
+    // hasn't passed, but never blocks a match that's already starting for
+    // real people over a 1-coin shortfall.
+    if (match.mode === 'private' && match.hostId && !match.hostFeeCharged && db.isConfigured) {
+      match.hostFeeCharged = true;
+      try {
+        const host = await db.getPlayerById(match.hostId);
+        if (host && host.coins >= PRIVATE_WAR_HOST_FEE) {
+          await db.debitCoins(match.hostId, PRIVATE_WAR_HOST_FEE, { type: 'match_entry', matchId: match.dbMatchId });
+        } else {
+          notifyPlayer?.(match.hostId, 'system', `Could not charge the ${PRIVATE_WAR_HOST_FEE}-coin Private War hosting fee - insufficient coins.`);
+        }
+      } catch (e) {
+        console.error('[activateMatch] private war host fee charge failed:', e.message);
+      }
+    }
 
     if (db.isConfigured && match.dbMatchId) {
       db.updateMatch(match.dbMatchId, { status: 'active', start_time: new Date(match.startedAt).toISOString() }).catch(() => {});
@@ -1710,6 +1754,19 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     }
   }
 
+  // Trading experience is a computed read-only stat (not player-editable -
+  // see /api/player/settings), so this is the one place it changes: every
+  // time total_matches goes up, whether the match finished normally
+  // (endMatch) or the player forfeited by leaving early (leaveMatch).
+  async function updateExperienceLevel(playerId, oldTotalMatches, newTotalMatches, isAI) {
+    if (isAI) return null;
+    const oldLevel = getExperienceLevel(oldTotalMatches);
+    const newLevel = getExperienceLevel(newTotalMatches);
+    if (newLevel === oldLevel) return newLevel;
+    notifyPlayer?.(playerId, 'system', `📈 Experience Level Up! You are now: ${newLevel}`);
+    return newLevel;
+  }
+
   async function endMatch(match) {
     if (match.status === 'resolving' || match.status === 'finished') return;
     match.status = 'resolving';
@@ -1731,12 +1788,17 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
         try {
           const existing = await db.getPlayerById(r.playerId);
           const won = r.rank === 1 && !r.isDraw;
+          const oldTotalMatches = existing?.total_matches || 0;
+          const newTotalMatches = oldTotalMatches + 1;
           const updateFields = {
             wins: (existing?.wins || 0) + (won ? 1 : 0),
             losses: (existing?.losses || 0) + (!won && !r.isDraw ? 1 : 0),
             draws: (existing?.draws || 0) + (r.isDraw ? 1 : 0),
-            total_matches: (existing?.total_matches || 0) + 1,
+            total_matches: newTotalMatches,
           };
+          if (!r.isAI) {
+            updateFields.experience_level = await updateExperienceLevel(r.playerId, oldTotalMatches, newTotalMatches, r.isAI);
+          }
           if (match.config.ranked) {
             updateFields[ratingField] = r.newRating;
             if (ratingField === 'war_rating') updateFields.tier = p.tier;
@@ -2191,9 +2253,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     if (db.isConfigured) {
       try {
         const existing = await db.getPlayerById(playerId);
+        const oldTotalMatches = existing?.total_matches || 0;
+        const newTotalMatches = oldTotalMatches + 1;
         const updateFields = {
           losses: (existing?.losses || 0) + 1,
-          total_matches: (existing?.total_matches || 0) + 1,
+          total_matches: newTotalMatches,
+          experience_level: await updateExperienceLevel(playerId, oldTotalMatches, newTotalMatches, false),
         };
         if (match.config.ranked) {
           updateFields[ratingField] = newRating;
@@ -2259,6 +2324,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     MIN_PLAYERS,
     MATCH_MODES,
     STARTING_CAPITAL,
+    PRIVATE_WAR_HOST_FEE,
     createMatch,
     getMatch,
     getMatchByRoomCode,
@@ -2301,4 +2367,4 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   };
 }
 
-module.exports = { createGameEngine, tierForRating, TIERS, computeMatchResults, groupByTiedPnl, samePnl };
+module.exports = { createGameEngine, tierForRating, TIERS, computeMatchResults, groupByTiedPnl, samePnl, getExperienceLevel, EXPERIENCE_LEVELS, PRIVATE_WAR_HOST_FEE };

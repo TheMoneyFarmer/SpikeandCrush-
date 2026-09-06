@@ -22,7 +22,7 @@
           <button class="admin-tab" data-tab="transactions">Coin Transactions</button>
           <button class="admin-tab" data-tab="battlepass">Battle Pass</button>
           <button class="admin-tab" data-tab="shop">Cosmetic Shop</button>
-          <button class="admin-tab" data-tab="withdrawals">Withdrawals</button>
+          <button class="admin-tab" data-tab="withdrawals">Prize Claims</button>
           <button class="admin-tab" data-tab="brokers">Broker Partners</button>
           <button class="admin-tab" data-tab="coaching">Coaching Sessions</button>
         </div>
@@ -151,26 +151,33 @@
         ` : '<div class="empty-state">No shop purchases yet.</div>';
       },
       withdrawals: async () => {
-        const d = await Admin.api('/monetisation/withdrawals');
+        const d = await Admin.api('/monetisation/prize-claims');
+        const wrap = document.getElementById('withdrawalsPanel');
         if (!d.rows.length) {
-          document.getElementById('withdrawalsPanel').innerHTML = '<div class="empty-state"><div class="icon">💸</div>No withdrawal requests yet.</div>';
+          wrap.innerHTML = '<div class="empty-state"><div class="icon">🏆</div>No prize claims yet - these only appear once a player wins a Tournament War and claims the payout from their Wallet page.</div>';
           return;
         }
-        const wrap = document.getElementById('withdrawalsPanel');
         wrap.innerHTML = '';
         Admin.createTable({
-          container: wrap, rows: d.rows, rowKey: 'id', searchFields: ['wallet_address'],
+          container: wrap, rows: d.rows, rowKey: 'id', searchFields: ['payout_details'],
           columns: [
-            { key: 'created_at', label: 'Date', render: (w) => Admin.formatDate(w.created_at) },
-            { key: 'player', label: 'Player', render: (w) => Admin.escapeHtml(w.player?.username || '—') },
-            { key: 'amount_usd', label: 'Amount', render: (w) => Admin.formatMoney(w.amount_usd) },
-            { key: 'crypto_currency', label: 'Currency' },
-            { key: 'wallet_address', label: 'Wallet Address', render: (w) => `<span class="mono" style="font-size:11px;">${Admin.escapeHtml(w.wallet_address)}</span>` },
-            { key: 'status', label: 'Status', render: (w) => `<span class="status-pill ${w.status === 'paid' ? 'status-good' : w.status === 'rejected' ? 'status-bad' : 'status-warn'}">${w.status}</span>` },
-            { key: 'tx_hash', label: 'TX Hash', render: (w) => w.tx_hash ? `<span class="mono" style="font-size:11px;">${Admin.escapeHtml(w.tx_hash)}</span>` : '—' },
-            { key: 'actions', label: '', render: (w) => {
-              if (w.status === 'pending') return `<button class="btn btn-sm" data-processing="${w.id}">Start Processing</button> <button class="btn btn-sm btn-danger" data-reject="${w.id}">Reject</button>`;
-              if (w.status === 'processing') return `<button class="btn btn-sm btn-primary" data-paid="${w.id}">Mark Paid</button>`;
+            { key: 'created_at', label: 'Date', render: (c) => Admin.formatDate(c.created_at) },
+            { key: 'player', label: 'Player', render: (c) => Admin.escapeHtml(c.player?.username || '—') },
+            { key: 'tournament', label: 'Tournament', render: (c) => Admin.escapeHtml(c.tournaments?.name || '—') },
+            { key: 'prize_usd', label: 'Amount', render: (c) => `${Admin.formatMoney(c.prize_usd)} (${c.prize_coins} 🪙)` },
+            { key: 'payout_method', label: 'Method', render: (c) => (c.payout_method === 'crypto' ? 'Crypto' : 'Bank Transfer') },
+            { key: 'payout_details', label: 'Details', render: (c) => {
+              const d2 = c.payout_details || {};
+              const text = c.payout_method === 'crypto'
+                ? `${Admin.escapeHtml(d2.currency || '')} · ${Admin.escapeHtml(d2.walletAddress || '')}`
+                : `${Admin.escapeHtml(d2.accountName || '')} · ${Admin.escapeHtml(d2.bankName || '')} · ${Admin.escapeHtml(d2.accountNumber || '')}`;
+              return `<span class="mono" style="font-size:11px;">${text}</span>`;
+            } },
+            { key: 'status', label: 'Status', render: (c) => `<span class="status-pill ${c.status === 'paid' ? 'status-good' : c.status === 'rejected' ? 'status-bad' : 'status-warn'}">${c.status}</span>` },
+            { key: 'payout_reference', label: 'Reference', render: (c) => c.payout_reference ? `<span class="mono" style="font-size:11px;">${Admin.escapeHtml(c.payout_reference)}</span>` : '—' },
+            { key: 'actions', label: '', render: (c) => {
+              if (c.status === 'pending') return `<button class="btn btn-sm" data-processing="${c.id}">Start Processing</button> <button class="btn btn-sm btn-danger" data-reject="${c.id}">Reject</button>`;
+              if (c.status === 'processing') return `<button class="btn btn-sm btn-primary" data-paid="${c.id}">Mark Paid</button>`;
               return '—';
             } },
           ],
@@ -180,15 +187,15 @@
           const paidId = e.target.dataset.paid;
           const rejectId = e.target.dataset.reject;
           try {
-            if (processingId) await Admin.api(`/monetisation/withdrawals/${processingId}/processing`, { method: 'POST' });
+            if (processingId) await Admin.api(`/monetisation/prize-claims/${processingId}/processing`, { method: 'POST' });
             if (paidId) {
-              const txHash = prompt('Transaction hash:');
-              if (!txHash) return;
-              await Admin.api(`/monetisation/withdrawals/${paidId}/paid`, { method: 'POST', body: { txHash } });
+              const reference = prompt('Payout reference (crypto tx hash, or a bank transfer confirmation note):');
+              if (!reference) return;
+              await Admin.api(`/monetisation/prize-claims/${paidId}/paid`, { method: 'POST', body: { reference } });
             }
             if (rejectId) {
-              const reason = prompt('Rejection reason (coins will be refunded):') || '';
-              await Admin.api(`/monetisation/withdrawals/${rejectId}/reject`, { method: 'POST', body: { reason } });
+              const reason = prompt('Rejection reason (coins will be refunded to the player):') || '';
+              await Admin.api(`/monetisation/prize-claims/${rejectId}/reject`, { method: 'POST', body: { reason } });
             }
             if (processingId || paidId || rejectId) { loaded.withdrawals = false; loaders.withdrawals(); }
           } catch (err) {

@@ -530,6 +530,30 @@ window.TW = window.TW || {};
   }
   TW.renderAnnouncement = renderAnnouncement;
 
+  // Trading Floor-only nudge (not shown on every page like the shop/wallet
+  // low-balance banners) - a small floating notice under the nav coin
+  // balance, auto-hides itself rather than sitting there permanently.
+  function checkTradingFloorBalance() {
+    const player = TW.getPlayer && TW.getPlayer();
+    if (!player || player.coins > 10) return;
+    const coinEl = document.getElementById('headerCoinWrap');
+    if (!coinEl || coinEl.querySelector('.tw-low-coin-notice')) return;
+
+    const notice = document.createElement('div');
+    notice.className = 'tw-low-coin-notice';
+    notice.style.cssText = `
+      position: absolute; top: 100%; right: 0; margin-top: 4px;
+      background: rgba(255,61,92,0.12); border: 1px solid rgba(255,61,92,0.3);
+      border-radius: 8px; padding: 6px 12px; font-size: 11px; color: #FF3D5C;
+      font-weight: 600; white-space: nowrap; z-index: 100; cursor: pointer;
+    `;
+    notice.textContent = '⚠️ Low coins — Top up';
+    notice.addEventListener('click', () => { window.location.href = '/shop'; });
+    coinEl.style.position = 'relative';
+    coinEl.appendChild(notice);
+    setTimeout(() => notice.remove(), 8000);
+  }
+
   // Exposed so main.js's login handler can populate the hub cards
   // immediately after login, without needing a full page reload.
   TW.refreshHubData = () => {
@@ -538,6 +562,7 @@ window.TW = window.TW || {};
     loadBattlePassCard();
     loadShopCard();
     loadDailyChallengeCard();
+    checkTradingFloorBalance();
   };
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -564,6 +589,7 @@ window.TW = window.TW || {};
     loadDailyChallengeCard();
     loadHubActivityTicker();
     setInterval(loadHubActivityTicker, 60000);
+    checkTradingFloorBalance();
     document.getElementById('twHubStartBtn')?.addEventListener('click', () => {
       document.getElementById('modeQuickBtn')?.click();
     });

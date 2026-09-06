@@ -4,6 +4,7 @@ const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const { logAdminAction, clientIp } = require('../lib/auth');
 const internal = require('../lib/internalGameServer');
+const { sendEmail } = require('../lib/email');
 
 const BATTLE_PASS_PRICE_USD = 4.99; // server/index.js Stripe checkout unit_amount: 499
 
@@ -14,6 +15,17 @@ function startOfDayIso(daysAgo = 0) {
   return d.toISOString();
 }
 function monthKey(iso) { return iso.slice(0, 7); }
+
+// Plain-text-safe interpolation into the HTML email body below - not for
+// rendering to a browser, just for not letting a tournament/username string
+// break out of its tag if it happens to contain '<' or '&'.
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function formatMoney(n) {
+  const num = Number(n) || 0;
+  return `$${num.toFixed(2)}`;
+}
 
 function router() {
   const r = express.Router();
@@ -154,87 +166,104 @@ function router() {
     }
   });
 
-  // Real cash-out requests for tournament prize coins specifically (see the
-  // wallet page's own disclaimer carve-out) - server/index.js's
-  // /api/withdrawals/request debits the coins and inserts here; this is
-  // where an admin actually pays the crypto out and marks it done.
-  r.get('/withdrawals', async (req, res) => {
+  // Ordinary coins have no cash value and cannot be withdrawn (see
+  // client/help.html's own Withdrawals section) - this is exclusively for
+  // coins credited by a completed Tournament War win. server/index.js's
+  // /api/prize-claims debits the coins and inserts here; this is where an
+  // admin actually pays out (bank transfer or crypto) and marks it done.
+  r.get('/prize-claims', async (req, res) => {
     if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
     try {
       let query = supabase
-        .from('withdrawal_requests')
-        .select('*, player:players(username, email)')
+        .from('prize_claims')
+        .select('*, player:players(username, email), tournaments(name)')
         .order('created_at', { ascending: false })
         .limit(1000);
       if (req.query.status) query = query.eq('status', req.query.status);
       const { data, error } = await query;
       if (error) throw error;
-      res.json({ implemented: true, rows: data });
+      res.json({ rows: data });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
   });
 
-  r.post('/withdrawals/:id/processing', async (req, res) => {
-    try {
-      const { data, error } = await supabase.from('withdrawal_requests').update({ status: 'processing' }).eq('id', req.params.id).select('*, player:players(username)').single();
-      if (error) throw error;
-      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'withdrawal_processing', targetType: 'withdrawal_request', targetId: req.params.id, ip: clientIp(req) });
-      res.json(data);
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  r.post('/withdrawals/:id/paid', async (req, res) => {
-    const { txHash } = req.body || {};
-    if (!txHash) return res.status(400).json({ error: 'txHash is required' });
+  r.post('/prize-claims/:id/processing', async (req, res) => {
     try {
       const { data, error } = await supabase
-        .from('withdrawal_requests')
-        .update({ status: 'paid', tx_hash: txHash, processed_at: new Date().toISOString() })
+        .from('prize_claims')
+        .update({ status: 'processing' })
         .eq('id', req.params.id)
         .select('*, player:players(username)')
         .single();
       if (error) throw error;
-      if (data.player_id) {
-        internal.notifyPlayer(data.player_id, 'withdrawal_paid', `Your withdrawal of $${data.amount_usd} has been paid out.`, { data: { txHash } }).catch(() => {});
-      }
-      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'withdrawal_paid', targetType: 'withdrawal_request', targetId: req.params.id, details: { txHash }, ip: clientIp(req) });
+      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'prize_claim_processing', targetType: 'prize_claim', targetId: req.params.id, ip: clientIp(req) });
       res.json(data);
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
   });
 
-  // Rejecting refunds the coins back to the player - a rejected withdrawal
+  r.post('/prize-claims/:id/paid', async (req, res) => {
+    const { reference } = req.body || {};
+    if (!reference) return res.status(400).json({ error: 'reference is required (tx hash for crypto, bank reference note otherwise)' });
+    try {
+      const { data, error } = await supabase
+        .from('prize_claims')
+        .update({ status: 'paid', payout_reference: reference, processed_at: new Date().toISOString() })
+        .eq('id', req.params.id)
+        .select('*, player:players(username, email), tournaments(name)')
+        .single();
+      if (error) throw error;
+      if (data.player_id) {
+        internal.notifyPlayer(data.player_id, 'prize_claim_paid', `Your ${data.tournaments?.name || 'tournament'} prize (${formatMoney(data.prize_usd)}) has been paid out.`, { data: { reference } }).catch(() => {});
+        if (data.player?.email) {
+          sendEmail({
+            to: data.player.email,
+            subject: 'Your Spike & Crush tournament prize is on its way',
+            html: `<p>Hi ${escapeHtml(data.player.username)},</p>` +
+              `<p>Your prize from <strong>${escapeHtml(data.tournaments?.name || 'your tournament win')}</strong> has been processed and paid out via ${data.payout_method === 'crypto' ? 'crypto' : 'bank transfer'}.</p>` +
+              `<p><strong>Amount:</strong> ${formatMoney(data.prize_usd)} (${data.prize_coins} coins)<br>` +
+              `<strong>Reference:</strong> ${escapeHtml(reference)}</p>` +
+              `<p>Funds are on their way. Thanks for playing Spike &amp; Crush.</p>`,
+          }).catch(() => {});
+        }
+      }
+      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'prize_claim_paid', targetType: 'prize_claim', targetId: req.params.id, details: { reference }, ip: clientIp(req) });
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Rejecting refunds the coins back to the player - a rejected claim
   // shouldn't just vanish the coins the earlier debitCoins() already took.
-  r.post('/withdrawals/:id/reject', async (req, res) => {
+  r.post('/prize-claims/:id/reject', async (req, res) => {
     const { reason } = req.body || {};
     try {
-      const { data: request, error: findErr } = await supabase.from('withdrawal_requests').select('*').eq('id', req.params.id).maybeSingle();
+      const { data: claim, error: findErr } = await supabase.from('prize_claims').select('*').eq('id', req.params.id).maybeSingle();
       if (findErr) throw findErr;
-      if (!request) return res.status(404).json({ error: 'Withdrawal request not found' });
-      if (request.status !== 'pending') return res.status(400).json({ error: 'Only pending requests can be rejected' });
+      if (!claim) return res.status(404).json({ error: 'Prize claim not found' });
+      if (claim.status !== 'pending') return res.status(400).json({ error: 'Only pending claims can be rejected' });
 
-      const { data: player } = await supabase.from('players').select('coins').eq('id', request.player_id).single();
+      const { data: player } = await supabase.from('players').select('coins').eq('id', claim.player_id).single();
       if (player) {
-        const newBalance = player.coins + request.amount_coins;
-        await supabase.from('players').update({ coins: newBalance }).eq('id', request.player_id);
-        await supabase.from('coin_transactions').insert({ player_id: request.player_id, type: 'withdrawal_refund', amount: request.amount_coins, balance_after: newBalance });
+        const newBalance = player.coins + claim.prize_coins;
+        await supabase.from('players').update({ coins: newBalance }).eq('id', claim.player_id);
+        await supabase.from('coin_transactions').insert({ player_id: claim.player_id, type: 'prize_claim_refund', amount: claim.prize_coins, balance_after: newBalance });
       }
 
       const { data, error } = await supabase
-        .from('withdrawal_requests')
+        .from('prize_claims')
         .update({ status: 'rejected', admin_notes: reason || null, processed_at: new Date().toISOString() })
         .eq('id', req.params.id)
         .select()
         .single();
       if (error) throw error;
-      if (request.player_id) {
-        internal.notifyPlayer(request.player_id, 'withdrawal_rejected', `Your withdrawal request was rejected and ${request.amount_coins} coins were refunded.`, { data: { reason } }).catch(() => {});
+      if (claim.player_id) {
+        internal.notifyPlayer(claim.player_id, 'prize_claim_rejected', `Your prize claim was rejected and ${claim.prize_coins} coins were refunded to your balance.`, { data: { reason } }).catch(() => {});
       }
-      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'withdrawal_rejected', targetType: 'withdrawal_request', targetId: req.params.id, details: { reason }, ip: clientIp(req) });
+      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'prize_claim_rejected', targetType: 'prize_claim', targetId: req.params.id, details: { reason }, ip: clientIp(req) });
       res.json(data);
     } catch (e) {
       res.status(500).json({ error: e.message });
