@@ -841,10 +841,10 @@ nav{
     <span class="nl nl10">S</span><span class="nl nl11">H</span>
   </div>
   <div class="nav-links">
-    <a href="#">How it works</a>
-    <a href="#">Leaderboard</a>
-    <a href="#">Tournaments</a>
-    <a href="#">Brokers</a>
+    <a href="#" onclick="scrollToPreview();return false;">How it works</a>
+    <a href="/leaderboard">Leaderboard</a>
+    <a href="/tournaments">Tournaments</a>
+    <a href="#" onclick="scrollToPartners();return false;">Partners</a>
   </div>
   <button class="nav-cta" onclick="openPanel()">Play Now</button>
 </nav>
@@ -1404,26 +1404,51 @@ async function loadPartners(){
 loadPartners();
 
 // ── TICKER ──
+// Pulls the same live feed the logged-in Trading Floor ticker uses
+// (/api/stats/ticker) instead of a hardcoded, never-changing price list -
+// falls back to that static list only if the fetch fails (e.g. API down).
+// The scroll animation itself is pure CSS (@keyframes ts) and only needs
+// the track rebuilt once with doubled content - rebuilding it on every
+// refresh restarts the animation from position 0, which is what looked
+// like the ticker "breaking"/jumping, so a fixed instance is built once
+// and just has its price/pct text patched in place afterwards.
 (function(){
-  const ticks=[
-    {sym:'EURUSD',p:'1.0856',c:'+0.21%',up:true},
-    {sym:'XAUUSD',p:'1,952.30',c:'-0.12%',up:false},
-    {sym:'BTCUSD',p:'43,250',c:'+2.01%',up:true},
-    {sym:'NAS100',p:'16,842',c:'+0.87%',up:true},
-    {sym:'GBPUSD',p:'1.2634',c:'-0.09%',up:false},
-    {sym:'USOIL',p:'78.42',c:'+1.23%',up:true},
-    {sym:'ETHUSD',p:'2,340',c:'+3.15%',up:true},
-    {sym:'USDJPY',p:'149.82',c:'-0.34%',up:false},
-    {sym:'US30',p:'38,124',c:'+0.56%',up:true},
-    {sym:'BRENT',p:'82.10',c:'+0.98%',up:true},
-    {sym:'XAGUSD',p:'23.45',c:'+0.77%',up:true},
-    {sym:'AAPL',p:'189.30',c:'+0.43%',up:true},
+  const FALLBACK_TICKS=[
+    {symbol:'EURUSD',price:'1.0856',changePct:0.21},
+    {symbol:'XAUUSD',price:'1,952.30',changePct:-0.12},
+    {symbol:'BTCUSD',price:'43,250',changePct:2.01},
+    {symbol:'NAS100',price:'16,842',changePct:0.87},
+    {symbol:'GBPUSD',price:'1.2634',changePct:-0.09},
+    {symbol:'USOIL',price:'78.42',changePct:1.23},
+    {symbol:'ETHUSD',price:'2,340',changePct:3.15},
+    {symbol:'USDJPY',price:'149.82',changePct:-0.34},
+    {symbol:'US30',price:'38,124',changePct:0.56},
+    {symbol:'BRENT',price:'82.10',changePct:0.98},
+    {symbol:'XAGUSD',price:'23.45',changePct:0.77},
+    {symbol:'AAPL',price:'189.30',changePct:0.43},
   ];
-  const ti=document.getElementById('tickInner');
-  const doubled=[...ticks,...ticks];
-  ti.innerHTML=doubled.map(t=>
-    `<div class="tick-item"><span class="sym">${t.sym}</span>${t.p}<span class="${t.up?'up':'dn'}">${t.c}</span></div>`
-  ).join('');
+
+  function render(ticks){
+    const ti=document.getElementById('tickInner');
+    if(!ti||!ticks.length)return;
+    const doubled=[...ticks,...ticks];
+    ti.innerHTML=doubled.map(t=>{
+      const up=Number(t.changePct)>=0;
+      const pct=Math.abs(Number(t.changePct)).toFixed(2);
+      return `<div class="tick-item"><span class="sym">${t.symbol}</span>${t.price}<span class="${up?'up':'dn'}">${up?'+':'-'}${pct}%</span></div>`;
+    }).join('');
+  }
+
+  async function load(){
+    try{
+      const res=await fetch('/api/stats/ticker');
+      const data=await res.json();
+      render(data.rows&&data.rows.length?data.rows:FALLBACK_TICKS);
+    }catch(e){
+      render(FALLBACK_TICKS);
+    }
+  }
+  load();
 })();
 
 // ── FLOATING CANDLESTICK PARTICLES ──
@@ -1463,6 +1488,9 @@ function toggleForm(){
 }
 function scrollToPreview(){
   document.getElementById('preview').scrollIntoView({behavior:'smooth'});
+}
+function scrollToPartners(){
+  document.getElementById('partnersStrip').scrollIntoView({behavior:'smooth'});
 }
 
 // ── AUTH: LOGIN / REGISTER ──
