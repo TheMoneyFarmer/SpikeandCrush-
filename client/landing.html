@@ -620,11 +620,11 @@ nav{
   display:flex;align-items:center;gap:12px;padding:10px 20px;
   border-radius:12px;text-decoration:none;color:#fff;
   transition:all .2s;min-width:170px;
-  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  background:#0c0f14;border:1.5px solid rgba(255,255,255,.25);
   cursor:pointer;
 }
 .download-btn:hover{
-  background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.25);
+  background:#161b23;border-color:rgba(255,255,255,.4);
   transform:translateY(-2px);
 }
 .dl-btn-text{display:flex;flex-direction:column;}
@@ -979,6 +979,19 @@ nav{
   <div class="partner-inner" id="partnerInner"></div>
 </div>
 
+<div class="mobile-download-section" style="padding:20px 0;">
+  <div class="download-buttons">
+    <a href="https://spikeandcrush.com" class="download-btn apple" target="_blank" rel="noopener noreferrer">
+      <svg width="20" height="20" viewBox="0 0 814 1000" fill="white"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105.7-57.2-155.5-127.4C46 790.7 0 663 0 541.8c0-207.8 135.4-317.9 268.8-317.9 71 0 130.2 46.8 174.7 46.8 42.7 0 109.3-49.5 189.5-49.5 30.4 0 108.2 2.6 168.6 71.9zm-174.7-186.7c31.6-37.9 54.4-90.7 54.4-143.5 0-7.1-.6-14.3-1.9-20.7-51.6 1.9-112.3 34.8-149.1 78.3-28.4 32.9-55.1 85.7-55.1 139.2 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 136.2-72.7z"/></svg>
+      <div class="dl-btn-text"><div class="dl-sub">Download on the</div><div class="dl-main">App Store</div></div>
+    </a>
+    <a href="https://spikeandcrush.com" class="download-btn google" target="_blank" rel="noopener noreferrer">
+      <svg width="20" height="22" viewBox="0 0 512 512" fill="white"><path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l2.6 1.6 246.9-246.9v-5.8L47 0zm327.2 325.8l-82.1-82.1 82.1-82.1 23.1 13.3c16.5 9.5 16.5 35.2 0 44.7l-23.1 13.3zm-85.8 47.9L47 511.7l2.6 1.6c13 7.5 28.4 7.4 41.2 0l286.5-164.8-88.7-88.7z"/></svg>
+      <div class="dl-btn-text"><div class="dl-sub">Get it on</div><div class="dl-main">Google Play</div></div>
+    </a>
+  </div>
+</div>
+
 <!-- GAME PREVIEW -->
 <section class="preview-section" id="preview">
   <div class="section-label">Game Modes</div>
@@ -1169,18 +1182,6 @@ nav{
 </div>
 
 <!-- FOOTER -->
-<div class="mobile-download-section" style="padding-bottom:8px;">
-  <div class="download-buttons">
-    <a href="https://spikeandcrush.com" class="download-btn apple" target="_blank" rel="noopener noreferrer">
-      <svg width="20" height="20" viewBox="0 0 814 1000" fill="white"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105.7-57.2-155.5-127.4C46 790.7 0 663 0 541.8c0-207.8 135.4-317.9 268.8-317.9 71 0 130.2 46.8 174.7 46.8 42.7 0 109.3-49.5 189.5-49.5 30.4 0 108.2 2.6 168.6 71.9zm-174.7-186.7c31.6-37.9 54.4-90.7 54.4-143.5 0-7.1-.6-14.3-1.9-20.7-51.6 1.9-112.3 34.8-149.1 78.3-28.4 32.9-55.1 85.7-55.1 139.2 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 136.2-72.7z"/></svg>
-      <div class="dl-btn-text"><div class="dl-sub">Download on the</div><div class="dl-main">App Store</div></div>
-    </a>
-    <a href="https://spikeandcrush.com" class="download-btn google" target="_blank" rel="noopener noreferrer">
-      <svg width="20" height="22" viewBox="0 0 512 512" fill="white"><path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l2.6 1.6 246.9-246.9v-5.8L47 0zm327.2 325.8l-82.1-82.1 82.1-82.1 23.1 13.3c16.5 9.5 16.5 35.2 0 44.7l-23.1 13.3zm-85.8 47.9L47 511.7l2.6 1.6c13 7.5 28.4 7.4 41.2 0l286.5-164.8-88.7-88.7z"/></svg>
-      <div class="dl-btn-text"><div class="dl-sub">Get it on</div><div class="dl-main">Google Play</div></div>
-    </a>
-  </div>
-</div>
 <div class="footer-mid">
   <div class="fm-left">
     <h3>Spike &amp; Crush</h3>
