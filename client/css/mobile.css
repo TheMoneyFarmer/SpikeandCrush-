@@ -110,6 +110,22 @@ button,
   color: #F5C542;
 }
 
+.rotate-continue-btn {
+  margin-top: 20px;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 999px;
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.rotate-continue-btn:active {
+  background: rgba(255,255,255,0.08);
+}
+
 /* ───────────────────────────────────────────────────────────────────────
    PART 3 — LANDING PAGE (client/landing.html)
 ─────────────────────────────────────────────────────────────────────── */

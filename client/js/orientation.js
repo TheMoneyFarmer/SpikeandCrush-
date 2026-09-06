@@ -39,6 +39,16 @@ function isPortrait() {
   return window.innerHeight > window.innerWidth;
 }
 
+// Set once the visitor taps through despite being in portrait - some mobile
+// browsers (notably iOS Safari in certain webviews) don't fire
+// orientationchange/resize reliably right after a physical rotation, which
+// left the overlay stuck up with no way past it even after actually
+// rotating. This is a per-load escape hatch, not a permanent dismissal - it
+// resets the moment the page is left, and checkOrientation() below clears
+// it again the instant a real landscape reading comes in, so it never masks
+// a genuine still-portrait state on the next visit.
+let dismissedThisLoad = false;
+
 function ensureRotateOverlay() {
   let overlay = document.getElementById('rotate-overlay');
   if (overlay) return overlay;
@@ -50,8 +60,13 @@ function ensureRotateOverlay() {
     <div class="rotate-title">Rotate your device</div>
     <div class="rotate-sub">Spike &amp; Crush is best played in landscape mode. Please rotate your phone to continue.</div>
     <div class="rotate-logo">SPIKE &amp; CRUSH</div>
+    <button type="button" class="rotate-continue-btn" id="rotate-continue-btn">Continue anyway</button>
   `;
   document.body.appendChild(overlay);
+  document.getElementById('rotate-continue-btn').addEventListener('click', () => {
+    dismissedThisLoad = true;
+    checkOrientation();
+  });
   return overlay;
 }
 
@@ -62,8 +77,11 @@ function checkOrientation() {
   }
 
   const overlay = ensureRotateOverlay();
+  const portrait = isPortrait();
 
-  if (isPortrait()) {
+  if (!portrait) dismissedThisLoad = false;
+
+  if (portrait && !dismissedThisLoad) {
     overlay.classList.add('show');
     document.body.style.overflow = 'hidden';
   } else {
@@ -96,6 +114,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if (isLoggedIn() && isMobile() && isGamePage()) {
     tryLockOrientation();
     checkOrientation();
+    // Belt-and-braces: some mobile browsers don't fire resize/orientationchange
+    // reliably right after a physical rotation, which is exactly what left the
+    // overlay stuck showing after an actual rotate. A cheap poll catches the
+    // real orientation regardless of whether either event fired.
+    setInterval(checkOrientation, 1000);
   }
 });
 
