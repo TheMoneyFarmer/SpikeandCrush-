@@ -36,6 +36,18 @@ button,
   min-height: 44px;
 }
 
+/* .help-btn is a 16x16px inline "?" info icon (tutorial.css), not a
+   primary action - the 44px rule above blew it up into a huge oval that
+   broke every tight row it sits in (bid/ask/spread, lot size, SL/TP). A
+   supplementary info affordance doesn't need a 44px touch target the way
+   a button you're meant to tap to act does. .help-btn's class selector
+   already outranks the bare `button` type selector above on specificity,
+   so this wins regardless of source order. */
+.help-btn {
+  min-height: 16px;
+  min-width: 16px;
+}
+
 /* Safe area padding for notch devices */
 .bottom-tab-bar {
   padding-bottom: env(safe-area-inset-bottom);
@@ -763,6 +775,22 @@ button,
     padding-bottom: 44vh;
   }
 
+  /* .news-ticker is position:absolute; bottom:0 (game.css) inside
+     .chart-section, which is now a full-height box (100% of .game-main) -
+     bottom:0 there lands at the very bottom of the screen, on top of the
+     fixed trade panel's Buy/Sell buttons. Anchor it to the top of the
+     chart area (just under the fixed header stack) instead - a sabotage
+     alert banner reads fine there and it's the one place nothing else is
+     fixed to. */
+  .news-ticker {
+    position: fixed;
+    top: calc(152px + env(safe-area-inset-top, 0px));
+    bottom: auto;
+    left: 0;
+    right: 0;
+    z-index: 97;
+  }
+
   /* ── LIVE RANKS, floating top-left over the chart ── */
 
   .leaderboard-panel {
@@ -782,8 +810,37 @@ button,
     border-right: none;
   }
 
+  /* table-layout:fixed + explicit rank/P&L widths so a long username
+     (leaderboard.js's 2nd <td>) truncates with an ellipsis instead of
+     pushing the P&L column (3rd <td>) out past the panel's 140px width -
+     it was rendering as literally cut off before this. Trades (4th <td>)
+     isn't worth the width it costs here. */
   .leaderboard-table {
     font-size: 10px;
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .leaderboard-table th:nth-child(1),
+  .leaderboard-table td:nth-child(1) {
+    width: 14px;
+  }
+
+  .leaderboard-table th:nth-child(3),
+  .leaderboard-table td:nth-child(3) {
+    width: 42px;
+    text-align: right;
+  }
+
+  .leaderboard-table td:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .leaderboard-table th:nth-child(4),
+  .leaderboard-table td:nth-child(4) {
+    display: none;
   }
 
   .leaderboard-table th,
@@ -1008,6 +1065,44 @@ button,
 }
 
 /* ───────────────────────────────────────────────────────────────────────
+   PART 5C — MATCH RULES OVERLAY (client/game.html, shown once as a match
+   starts). Not gated to portrait/900px like Part 5B - a short viewport
+   (small phone, or landscape with little height) is the actual constraint
+   here, not width. .match-rules-overlay centers its card with no scroll
+   escape hatch, so on a phone the card's natural height (title + countdown
+   + rules grid + reminder + ready button + disclaimer) can exceed the
+   viewport with no way to reach whatever's cut off top or bottom - reported
+   as "can't even see the rules properly."
+─────────────────────────────────────────────────────────────────────── */
+
+@media (max-height: 750px) {
+  .match-rules-overlay {
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .match-rules-card {
+    padding: 20px;
+  }
+
+  .rules-title {
+    font-size: 18px;
+    margin-bottom: 14px;
+  }
+
+  .rules-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .rule-item {
+    padding: 8px 12px;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────────
    PART 6 — LOBBY (client/lobby.html)
 ─────────────────────────────────────────────────────────────────────── */
 
@@ -1219,5 +1314,14 @@ button,
 
   .tw-sw-body {
     max-height: none !important;
+  }
+
+  /* The game screen has no bottom tab bar - it has a persistent 44vh trade
+     panel instead (Part 5B), which bottom:80px lands well inside, right on
+     top of the Stop Loss/Take Profit row. You shouldn't be starting a
+     support chat mid-trade anyway - hide the launcher entirely in a match
+     rather than trying to find it a clear spot over that panel. */
+  body[data-page="game"] .tw-sw-launcher {
+    display: none !important;
   }
 }
