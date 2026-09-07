@@ -538,8 +538,14 @@ TW.Chart = (function () {
       }
     }
 
+    // 8px suits a precise mouse cursor but is a near-impossible touch target -
+    // a fingertip is nowhere near that accurate, which is why dragging SL/TP
+    // lines could look completely unresponsive on mobile even though the same
+    // gesture worked fine with a mouse on desktop.
+    const isMobileDrag = window.Device && Device.isMobile();
+
     function findLineNear(y) {
-      const threshold = 8;
+      const threshold = isMobileDrag ? 22 : 8;
       for (const [id, data] of positionData) {
         if (data.symbol !== activeSymbol) continue;
         if (data.stopLoss) {
@@ -749,7 +755,7 @@ TW.Chart = (function () {
         if (!dragging) {
           if (longPressTimer && touchStartY !== null) {
             const { y } = touchPoint(e);
-            if (Math.abs(y - touchStartY) > 10) {
+            if (Math.abs(y - touchStartY) > (isMobileDrag ? 16 : 10)) {
               clearTimeout(longPressTimer);
               longPressTimer = null;
             }
