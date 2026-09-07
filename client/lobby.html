@@ -226,14 +226,15 @@
         readyBtn.disabled = me.ready;
       }
 
-      // Waiting-lobby modes (quick/blitz/grand/private) no longer auto-start
-      // the instant the lobby fills or everyone's readied up - that raced
-      // pending friend invites. The host gets a Start War button instead,
-      // pressed once everyone they're expecting has joined; non-hosts just
-      // see the Ready status button as before.
+      // No mode auto-starts the instant the lobby fills or everyone's
+      // readied up anymore - that raced pending friend invites. The host
+      // gets a Start War button instead, pressed once everyone they're
+      // expecting has joined (this includes Solo Ranked, where the lone
+      // human is their own host); non-hosts just see the Ready status
+      // button as before.
       const startWarBtn = document.getElementById('startWarBtn');
       const isHost = !!(state.hostId && state.you === state.hostId);
-      if (isHost && state.canManualStart && state.status === 'waiting') {
+      if (isHost && state.status === 'waiting') {
         readyBtn.classList.add('hidden');
         startWarBtn.classList.remove('hidden');
         const enough = state.players.length >= (state.minPlayers || 2);

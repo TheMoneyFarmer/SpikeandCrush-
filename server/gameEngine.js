@@ -374,13 +374,6 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       minPlayers: match.config.minPlayers,
       lobbyTargetSize: match.config.idealPlayers,
       hostId: match.hostId || null,
-      // Waiting-lobby modes (quick/blitz/grand/private - anything with a
-      // lobbyTimeoutMs) wait for the host to press Start War instead of
-      // instant-filling the moment the lobby reaches idealPlayers, so a
-      // pending friend invite doesn't get raced by an AI fill. Instant-start
-      // modes (solo/tournament/async, lobbyTimeoutMs 0) have no host UI and
-      // keep starting the moment they're ready.
-      canManualStart: match.config.lobbyTimeoutMs > 0,
       cardsPerPlayer: match.config.cardsPerPlayer,
       entryCoins: match.config.entryCoins,
       cardCatalog: sabotage.getCardCatalog(),
@@ -680,14 +673,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     emitMatchStateToAll(match);
     updatePresence?.(playerInfo.id, { status: 'in_lobby', lobbyId: match.id, matchId: null, mode: match.config.label || match.mode });
 
-    const currentCount = Object.keys(match.players).length;
-    // Waiting-lobby modes stop auto-starting once idealPlayers is reached -
-    // the host presses Start War instead, so a friend invite that's still
-    // pending accept doesn't get raced by an instant AI fill. They still
-    // auto-start once truly maxPlayers-full since there's nothing left to
-    // wait for. Instant-start modes (lobbyTimeoutMs 0) keep the old behavior.
-    const hasManualStart = match.config.lobbyTimeoutMs > 0;
-    if (currentCount >= match.config.maxPlayers || (!hasManualStart && currentCount >= match.config.idealPlayers)) {
+    // No mode auto-starts just because it reached idealPlayers anymore - the
+    // host presses Start War instead, so a friend invite that's still
+    // pending accept doesn't get raced by an instant AI fill. The one
+    // exception is hitting literal maxPlayers, where there's nothing left to
+    // wait for (this is also how Tournament War and Async, whose idealPlayers
+    // equals maxPlayers, still start the instant both/the one seat fills).
+    if (Object.keys(match.players).length >= match.config.maxPlayers) {
       tryStartLobby(match.id, false);
     }
     return { success: true, match };
@@ -760,9 +752,11 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     });
   }
 
-  // Explicit "Start War" - the host closing a waiting-lobby match once
-  // everyone they're expecting has joined, instead of the lobby racing a
-  // pending friend invite by auto-filling with AI the moment it's full.
+  // Explicit "Start War" - the host closes any waiting match once everyone
+  // they're expecting has joined, instead of the lobby racing a pending
+  // friend invite by auto-filling with AI the moment it's full. Applies
+  // uniformly across every mode, including Solo Ranked (the lone human is
+  // their own host and clicks it to begin against AI).
   function hostStartMatch(matchId, playerId) {
     const match = matches.get(matchId);
     if (!match) return { success: false, error: 'Match not found' };
@@ -775,6 +769,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     return { success: true };
   }
 
+  // Marks a player ready. No mode auto-starts off of this anymore (see
+  // hostStartMatch) - it's purely the READY/WAITING badge other players see.
   function setReady(matchId, playerId) {
     const match = matches.get(matchId);
     if (!match) return { success: false, error: 'Match not found' };
@@ -782,17 +778,6 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     if (!p) return { success: false, error: 'Player not in match' };
     p.ready = true;
     emitMatchStateToAll(match);
-
-    // Waiting-lobby modes no longer auto-start off of everyone being ready -
-    // that's exactly what raced pending friend invites (host + whoever's
-    // already in ready up while a friend's invite is still awaiting accept).
-    // Only instant-start modes (lobbyTimeoutMs 0) keep this shortcut.
-    if (match.config.lobbyTimeoutMs > 0) return { success: true };
-
-    const humanPlayers = Object.values(match.players).filter((p2) => !p2.isAI);
-    if (humanPlayers.length > 0 && humanPlayers.every((p2) => p2.ready) && Object.keys(match.players).length >= match.config.minPlayers) {
-      tryStartLobby(match.id, false);
-    }
     return { success: true };
   }
 
