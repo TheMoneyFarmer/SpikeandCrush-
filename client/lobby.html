@@ -207,7 +207,14 @@
       currentState = state;
       document.getElementById('roomCodeValue').textContent = state.roomCode;
       document.getElementById('matchModeValue').textContent = state.modeLabel || (state.mode === 'quick' ? 'Quick War' : 'Private War');
-      document.getElementById('matchInstrumentsValue').textContent = state.instruments.join(' / ');
+      const instrumentsValueEl = document.getElementById('matchInstrumentsValue');
+      // Mobile shows each instrument as its own chip (matches the reference
+      // mockup); desktop keeps the plain "/"-joined text unchanged.
+      if (window.Device && Device.isMobile()) {
+        instrumentsValueEl.innerHTML = state.instruments.map((sym) => `<span class="instrument-chip">${TW.escapeHtml(sym)}</span>`).join('');
+      } else {
+        instrumentsValueEl.textContent = state.instruments.join(' / ');
+      }
       document.getElementById('matchDurationValue').textContent = `${Math.floor(state.durationSeconds / 60)} min`;
       // Private War's 1-coin hosting fee is charged only to the room creator
       // at match start, not tracked as a per-player entryCoins value (that

@@ -619,39 +619,54 @@ button,
 
 /* ───────────────────────────────────────────────────────────────────────
    PART 5B — GAME SCREEN PORTRAIT, MT5-STYLE (client/game.html)
-   Now that js/orientation.js no longer forces a rotation, portrait is the
-   default mobile experience (this block only matches phones NOT in
-   landscape, so it never fights Part 5 above). Modelled on MT5's mobile
-   app: Buy/Sell stays reachable even with the trade sheet collapsed
-   (instead of just a drag handle), and sabotage cards / leaderboard share
-   one tabbed strip instead of stacking full-width and eating chart height.
-   Loads after game.css so these win the cascade without needing !important.
+   Rebuilt to match a reference mockup: a stacked fixed header (top HUD,
+   instrument tabs, bid/ask+timeframe), chart filling the middle with a
+   floating LIVE RANKS card top-left and sabotage cards floating in a
+   vertical stack on the right, and a persistent (no expand/collapse) trade
+   panel at the bottom - Buy/Sell, Open Positions, Lot Size, then Stop
+   Loss/Take Profit. Replaces the previous collapsible-sheet + tabbed
+   cards/leaderboard design. Loads after game.css so these win the cascade
+   without needing !important.
+
+   Fixed-bar stacking (top to bottom), heights used in the offsets below:
+     .game-topbar        48px
+     .instrument-tabs     40px
+     .chart-quotes        ~64px (bid/ask/spread row + wrapped timeframe row)
+   Total header offset: 152px + env(safe-area-inset-top).
 ─────────────────────────────────────────────────────────────────────── */
 
 @media (max-width: 900px) and (orientation: portrait) {
 
+  /* ── fixed header stack ── */
+
   .game-topbar {
-    padding: 8px 12px;
-    gap: 8px;
+    position: fixed;
+    top: env(safe-area-inset-top, 0px);
+    left: 0;
+    right: 0;
+    height: 48px;
+    padding: 0 12px;
+    gap: 10px;
+    flex-wrap: nowrap;
+    z-index: 200;
+  }
+
+  .topbar-pnl-block {
+    flex: 1;
   }
 
   .topbar-timer {
-    font-size: 18px;
+    font-size: 20px;
     min-width: auto;
   }
 
-  .topbar-pnl-value {
-    font-size: 16px;
-  }
-
+  .topbar-pnl-label,
   .topbar-equity {
     display: none;
   }
 
-  .instrument-tab {
-    padding: 6px 10px;
-    min-height: 32px;
-    font-size: 12px;
+  .topbar-pnl-value {
+    font-size: 16px;
   }
 
   .leave-match-btn {
@@ -660,66 +675,283 @@ button,
     min-height: 32px;
   }
 
-  /* Overrides game.css's own long-standing plain (non-orientation)
-     max-width:900px rule, which sets height:46vh here - that pre-dates this
-     block and was the actual, still-live cause of the dead gap even after
-     removing this block's own now-deleted 52vh override. .chart-section is
-     the only in-flow grid item of .game-main now that .trading-panel is
-     position:fixed, so 100% correctly fills the grid row's full stretched
-     height instead of leaving space unfilled below the chart. */
-  .chart-section {
-    height: 100%;
+  .instrument-tabs {
+    position: fixed;
+    top: calc(48px + env(safe-area-inset-top, 0px));
+    left: 0;
+    right: 0;
+    height: 40px;
+    margin: 0;
+    padding: 4px 8px;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    z-index: 195;
   }
 
+  .instrument-tab {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    min-height: 32px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* height is pinned (not left to auto-size from content) because
+     .chart-section's padding-top and the floating panels' top offset below
+     both hard-code 152px/160px as "topbar + instrument-tabs + this" - an
+     auto height that ends up taller than the 64px assumed there would
+     recreate exactly the kind of stale-offset overlap already fixed once
+     in this file (the trading-panel/.game-bottom bug). overflow:hidden
+     enforces the assumption instead of silently drifting from it. */
+  .chart-quotes {
+    position: fixed;
+    top: calc(88px + env(safe-area-inset-top, 0px));
+    left: 0;
+    right: 0;
+    height: 64px;
+    overflow: hidden;
+    padding: 6px 12px;
+    gap: 14px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    z-index: 190;
+  }
+
+  /* Push the timeframe row onto its own line under bid/ask/spread inside
+     the same fixed box, instead of squeezing quotes + timeframes +
+     indicator/settings dropdowns into one crowded row - that crowding was
+     the direct cause of the "overlapping, broken-looking" header reported
+     on a real device. */
+  .timeframe-selector {
+    flex-basis: 100%;
+    order: 3;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-left: 0;
+    padding-top: 4px;
+    gap: 4px;
+  }
+
+  .timeframe-selector button {
+    flex-shrink: 0;
+  }
+
+  /* Indicators/chart-settings dropdowns need more width than this header
+     has on a phone - same call already made for the drawing toolbar. */
+  .chart-toolbar-actions,
   .chart-drawing-toolbar {
     display: none;
   }
 
-  .chart-quotes {
-    padding: 6px 10px;
-    font-size: 12px;
-    gap: 10px;
+  /* Reserve space below the 3 fixed bars above so the chart canvas starts
+     below them instead of underneath them, and above the fixed trade panel
+     (also 44vh, see below) so the chart isn't rendered behind that either.
+     .chart-quotes moved out of this element's normal flow into position:
+     fixed above, so nothing but this padding accounts for its height
+     anymore. The chart resizes itself automatically (autoSize:true in
+     chart.js tracks the container's real size via ResizeObserver) once
+     this padding changes that size - no JS changes needed here. */
+  .chart-section {
+    height: 100%;
+    padding-top: calc(152px + env(safe-area-inset-top, 0px));
+    padding-bottom: 44vh;
   }
 
-  .timeframe-selector {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    max-width: 100%;
+  /* ── LIVE RANKS, floating top-left over the chart ── */
+
+  .leaderboard-panel {
+    position: fixed;
+    top: calc(160px + env(safe-area-inset-top, 0px));
+    left: 8px;
+    width: 140px;
+    max-height: 160px;
+    background: rgba(10,12,20,0.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px;
+    z-index: 95;
+    overflow-y: auto;
+    border-right: none;
   }
 
-  /* Persistent Buy/Sell bar - the collapsed sheet now peeks enough to keep
-     trading one tap away, instead of hiding both buttons behind the handle.
-     bottom must clear the .game-bottom cards/ranks strip below (156px, set
-     further down this block), not game.css's base 34px - that value is
-     .match-feed's desktop height, and .match-feed is display:none on
-     portrait mobile (also below), so 34px is stale here. Left at 34px, the
-     peeking BUY/SELL buttons render almost entirely on top of the cards/
-     ranks tab strip instead of above it. */
-  .trading-panel {
-    bottom: 156px;
-    max-height: 58vh;
-    transform: translateY(calc(100% - 110px));
-    padding: 12px;
-    gap: 12px;
-  }
-
-  .trading-panel-handle {
-    height: 22px;
+  .leaderboard-table {
     font-size: 10px;
   }
 
+  .leaderboard-table th,
+  .leaderboard-table td {
+    padding: 3px 4px;
+  }
+
+  /* ── sabotage cards, floating vertical stack on the right ── */
+
+  .sabotage-panel {
+    position: fixed;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    width: auto;
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: visible;
+    z-index: 96;
+    padding: 0;
+    border-right: none;
+    background: transparent;
+  }
+
+  /* The "SABOTAGE CARDS"/"LIVE LEADERBOARD" labels are redundant once both
+     panels are floating, self-evident overlays - reclaim the space. */
+  .sabotage-panel > div:first-child,
+  .leaderboard-panel > div:first-child {
+    display: none;
+  }
+
+  .card-slots {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    gap: 8px;
+  }
+
+  .sabotage-card {
+    width: 58px;
+    min-width: 58px;
+    min-height: 64px;
+    flex-shrink: 0;
+    padding: 6px 4px;
+    background: rgba(26,30,42,0.95);
+  }
+
+  .sabotage-card .desc,
+  .sabotage-card .category-tag {
+    display: none;
+  }
+
+  .sabotage-card .icon,
+  .sabotage-card .name {
+    text-align: center;
+  }
+
+  .sabotage-card .name {
+    font-size: 9px;
+  }
+
+  .sabotage-card .icon {
+    font-size: 18px;
+  }
+
+  .target-picker {
+    position: fixed;
+    bottom: 44vh;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 97;
+    max-width: 80vw;
+  }
+
+  /* Both floating panels' content used to live in .game-bottom's shared
+     tabbed strip - nothing left to reserve height for now that they float
+     independently over the chart instead. */
+  .game-bottom {
+    height: 0;
+    border-top: none;
+    overflow: visible;
+  }
+
+  .game-bottom-tabs {
+    display: none;
+  }
+
+  .match-feed {
+    display: none;
+  }
+
+  /* ── persistent trade panel, bottom - always visible, no expand/collapse
+     handle. Reordered (via the flex `order` property, matching game.html's
+     un-classed wrapper <div>s by the control they contain rather than
+     adding CSS-only hook classes) to Buy/Sell, then Open Positions, then
+     Lot Size, then Stop Loss/Take Profit, per the reference design. Height
+     is fixed (not max-height) so it always matches .chart-section's
+     padding-bottom above exactly - content beyond it scrolls internally
+     instead of growing the panel and creating a gap or overlap. ── */
+  .trading-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 44vh;
+    max-height: 44vh;
+    transform: none;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 10px 14px;
+    gap: 10px;
+    border-radius: 16px 16px 0 0;
+    z-index: 150;
+  }
+
+  .trading-panel-handle {
+    display: none;
+  }
+
+  .trade-buttons {
+    order: 1;
+  }
+
   .trade-buttons .btn {
-    min-height: 52px;
-    font-size: 16px;
+    min-height: 48px;
+    font-size: 15px;
+  }
+
+  .trading-panel > div:has(#positionsList) {
+    order: 2;
   }
 
   .positions-list {
-    max-height: 30vh;
+    max-height: 18vh;
   }
 
-  .lot-chip.custom-chip {
-    gap: 6px;
+  /* LOT SIZE - hide the preset chips so the existing mobile-only stepper
+     (game.js's setupLotStepper, "− value +" either side of #customLotInput)
+     is the only lot control, matching the reference design's single
+     stepper row instead of a row of preset chips plus a separate custom
+     one. */
+  .trading-panel > div:has(#lotSelector) {
+    order: 3;
+  }
+
+  .lot-chip[data-lot] {
+    display: none;
+  }
+
+  .lot-selector {
+    gap: 0;
+  }
+
+  #customLotChip {
+    flex: 1;
+    justify-content: center;
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.06);
+  }
+
+  #customLotInput {
+    flex: 1;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    background: transparent;
+    border: none;
   }
 
   .lot-step-btn {
@@ -742,87 +974,36 @@ button,
     background: rgba(255,255,255,0.16);
   }
 
-  /* Sabotage cards + leaderboard share one tabbed strip so neither eats
-     chart height when the other isn't in view - toggled by the inline
-     script next to .game-bottom in game.html. */
-  .game-bottom {
-    display: flex;
-    flex-direction: column;
-    height: 156px;
+  /* STOP LOSS / TAKE PROFIT */
+  .trading-panel > div:has(.sltp-header) {
+    order: 4;
+  }
+
+  .pretrade-sltp-row input {
+    width: auto;
+    flex: 1;
+  }
+
+  /* ACCOUNT SUMMARY - kept but compact; it's the only balance/equity
+     display left on mobile now that .topbar-equity is hidden above. */
+  .account-summary {
+    order: 5;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding-top: 8px;
     border-top: 1px solid var(--border);
   }
 
-  /* The "SABOTAGE CARDS"/"LIVE LEADERBOARD" labels are redundant once the
-     tab buttons above already say Cards/Ranks, and every pixel here is
-     scarce - reclaim it instead of clipping the cards themselves. */
-  .sabotage-panel > div:first-child,
-  .leaderboard-panel > div:first-child {
-    display: none;
-  }
-
-  .game-bottom-tabs {
-    display: flex;
-    flex-shrink: 0;
-    gap: 6px;
-    padding: 6px 10px 0;
-  }
-
-  .game-bottom-tab {
+  .account-summary .stat {
     flex: 1;
-    text-align: center;
-    padding: 6px 0;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: rgba(255,255,255,0.4);
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 8px;
-    cursor: pointer;
   }
 
-  .game-bottom-tab.active {
-    color: #0A0C14;
-    background: #F5C542;
-    border-color: #F5C542;
+  .account-summary .label {
+    font-size: 9px;
   }
 
-  .sabotage-panel,
-  .leaderboard-panel {
-    display: none;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    border-right: none;
-    padding: 8px 10px 10px;
-  }
-
-  .game-bottom[data-tab="cards"] .sabotage-panel,
-  .game-bottom[data-tab="ranks"] .leaderboard-panel {
-    display: block;
-  }
-
-  .card-slots {
-    display: flex;
-    grid-template-columns: none;
-    gap: 8px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .sabotage-card {
-    min-width: 84px;
-    min-height: 72px;
-    flex-shrink: 0;
-  }
-
-  .sabotage-card .desc {
-    display: none;
-  }
-
-  .match-feed {
-    display: none;
+  .account-summary .value {
+    font-size: 12px;
   }
 }
 
@@ -847,6 +1028,33 @@ button,
   .chat-presets {
     flex-wrap: wrap !important;
     gap: 6px !important;
+  }
+
+  /* Instruments row - label above a wrapped row of chips (built by
+     lobby.html's handleState(), mobile-only) instead of inline "/"-joined
+     text, matching the reference mockup. Targeted by :has() since it
+     shares .tw-prematch-match-row with the plain label:value rows
+     (Duration/Entry/Starting Capital) that should stay as they are. */
+  .tw-prematch-match-row:has(#matchInstrumentsValue) {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  #matchInstrumentsValue {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    color: inherit !important;
+  }
+
+  .instrument-chip {
+    padding: 4px 10px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
   }
 }
 

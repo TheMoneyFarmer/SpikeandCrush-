@@ -567,6 +567,12 @@ window.TW = window.TW || {};
   // stepper there would just be redundant clutter next to a mouse-friendly
   // number input.
   function setupLotStepper(customInput) {
+    // The preset chips (0.1/0.5/1.0 etc.) are CSS-hidden on mobile portrait
+    // (see css/mobile.css Part 5B) so this stepper's input is the only lot
+    // control left - give it a starting value instead of showing the empty
+    // placeholder until the first +/- tap.
+    if (!customInput.value) customInput.value = selectedLot.toFixed(2);
+
     const chip = document.getElementById('customLotChip');
     const dec = document.createElement('button');
     dec.type = 'button';
