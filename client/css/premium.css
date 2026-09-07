@@ -1643,6 +1643,12 @@ h1, h2, h3, h4, .title {
 @media (max-width: 900px) {
   .tw-friends-panel { width: 85vw; max-width: 320px; transform: translateX(100%); }
   .tw-friends-panel:not(.collapsed) { transform: translateX(0); }
+  /* The base .tw-friends-panel.collapsed rule above shifts by a fixed 260px
+     (the desktop panel's own width) - at the mobile 85vw/320px width that
+     only pushes the panel partway off, leaving a sliver of it visible at the
+     right edge. translateX(100%) instead always matches the panel's own
+     current width, whatever that is. */
+  .tw-friends-panel.collapsed { transform: translateX(100%); }
 }
 
 /* ---- add friend search modal ----------------------------------------------------- */
