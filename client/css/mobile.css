@@ -689,9 +689,15 @@ button,
   }
 
   /* Persistent Buy/Sell bar - the collapsed sheet now peeks enough to keep
-     trading one tap away, instead of hiding both buttons behind the handle. */
+     trading one tap away, instead of hiding both buttons behind the handle.
+     bottom must clear the .game-bottom cards/ranks strip below (156px, set
+     further down this block), not game.css's base 34px - that value is
+     .match-feed's desktop height, and .match-feed is display:none on
+     portrait mobile (also below), so 34px is stale here. Left at 34px, the
+     peeking BUY/SELL buttons render almost entirely on top of the cards/
+     ranks tab strip instead of above it. */
   .trading-panel {
-    bottom: 34px;
+    bottom: 156px;
     max-height: 58vh;
     transform: translateY(calc(100% - 110px));
     padding: 12px;
