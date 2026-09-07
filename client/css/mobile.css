@@ -630,6 +630,16 @@ button,
 
 @media (max-width: 900px) and (orientation: portrait) {
 
+  /* Without this the legal footer sitting after .game-shell in the DOM
+     makes the whole document taller than 100vh, so the page itself scrolls
+     - the top HUD scrolls out of view while the fixed trade panel stays put,
+     which is what made the screen look broken rather than just "not styled
+     like MT5 yet". */
+  body[data-page="game"] {
+    height: 100vh;
+    overflow: hidden;
+  }
+
   .game-topbar {
     padding: 8px 12px;
     gap: 8px;
@@ -660,9 +670,11 @@ button,
     min-height: 32px;
   }
 
-  .chart-section {
-    height: 52vh;
-  }
+  /* No explicit height here - .chart-section is the only in-flow grid item
+     of .game-main now that .trading-panel is position:fixed, and a grid's
+     single auto row already stretches to fill 100% of its container by
+     default. Giving it a fixed vh value fought that and left a dead gap
+     between the chart and the tab strip below it. */
 
   .chart-drawing-toolbar {
     display: none;
@@ -672,6 +684,13 @@ button,
     padding: 6px 10px;
     font-size: 12px;
     gap: 10px;
+  }
+
+  .timeframe-selector {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
   }
 
   /* Persistent Buy/Sell bar - the collapsed sheet now peeks enough to keep
@@ -728,8 +747,16 @@ button,
   .game-bottom {
     display: flex;
     flex-direction: column;
-    height: 138px;
+    height: 156px;
     border-top: 1px solid var(--border);
+  }
+
+  /* The "SABOTAGE CARDS"/"LIVE LEADERBOARD" labels are redundant once the
+     tab buttons above already say Cards/Ranks, and every pixel here is
+     scarce - reclaim it instead of clipping the cards themselves. */
+  .sabotage-panel > div:first-child,
+  .leaderboard-panel > div:first-child {
+    display: none;
   }
 
   .game-bottom-tabs {
