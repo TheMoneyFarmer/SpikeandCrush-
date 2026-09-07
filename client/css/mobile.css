@@ -698,6 +698,30 @@ button,
     max-height: 30vh;
   }
 
+  .lot-chip.custom-chip {
+    gap: 6px;
+  }
+
+  .lot-step-btn {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .lot-step-btn:active {
+    background: rgba(255,255,255,0.16);
+  }
+
   /* Sabotage cards + leaderboard share one tabbed strip so neither eats
      chart height when the other isn't in view - toggled by the inline
      script next to .game-bottom in game.html. */

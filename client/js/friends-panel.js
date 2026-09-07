@@ -344,7 +344,12 @@ TW.FriendsPanel = (function () {
     // Friends button), not a permanent layout column. Only reopens
     // automatically if the user themselves left it open last time.
     try {
-      collapsed = localStorage.getItem('tw_friends_panel_collapsed') !== '0';
+      // Mobile never restores a remembered "left open" state - a full-screen
+      // 85vw tray popping open unprompted right after page load (see the
+      // max-width:900px rule in css/premium.css) would look exactly like the
+      // panel "auto-showing" even though desktop's remember-last-state is
+      // intentional there.
+      collapsed = (window.Device && Device.isMobile()) || localStorage.getItem('tw_friends_panel_collapsed') !== '0';
     } catch (e) {
       collapsed = true;
     }

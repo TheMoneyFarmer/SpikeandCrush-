@@ -558,6 +558,36 @@ window.TW = window.TW || {};
         updateRiskCalc();
       }
     });
+
+    if (window.Device && Device.isMobile()) setupLotStepper(customInput);
+  }
+
+  // MT4/MT5-style +/- either side of the custom lot input - mobile only,
+  // since the preset chips already cover quick selection on desktop and a
+  // stepper there would just be redundant clutter next to a mouse-friendly
+  // number input.
+  function setupLotStepper(customInput) {
+    const chip = document.getElementById('customLotChip');
+    const dec = document.createElement('button');
+    dec.type = 'button';
+    dec.className = 'lot-step-btn lot-step-dec';
+    dec.textContent = '−';
+    const inc = document.createElement('button');
+    inc.type = 'button';
+    inc.className = 'lot-step-btn lot-step-inc';
+    inc.textContent = '+';
+
+    const step = (delta) => {
+      const current = selectedLot || 0.1;
+      const next = Math.min(10, Math.max(0.01, Math.round((current + delta) * 100) / 100));
+      customInput.value = next.toFixed(2);
+      customInput.dispatchEvent(new Event('input'));
+    };
+    dec.addEventListener('click', () => step(-0.1));
+    inc.addEventListener('click', () => step(0.1));
+
+    chip.insertBefore(dec, customInput);
+    chip.appendChild(inc);
   }
 
   function pipValueForLots(symbol, lots) {
