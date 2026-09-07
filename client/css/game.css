@@ -1,3 +1,15 @@
+/* This page is a fixed, non-scrolling app shell - .game-shell below already
+   assumed that, but html/body themselves were never constrained, so the
+   legal footer sitting after .game-shell in the DOM (see game.html) made the
+   real document taller than 100vh and the page scrolled anyway. iOS Safari
+   in particular won't reliably respect overflow:hidden on body alone for
+   this - html needs it too, or it still rubber-bands/scrolls. game.css only
+   ever loads on this page, so this is safely scoped without a selector. */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
 .game-shell {
   display: flex;
   flex-direction: column;

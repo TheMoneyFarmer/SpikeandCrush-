@@ -630,16 +630,6 @@ button,
 
 @media (max-width: 900px) and (orientation: portrait) {
 
-  /* Without this the legal footer sitting after .game-shell in the DOM
-     makes the whole document taller than 100vh, so the page itself scrolls
-     - the top HUD scrolls out of view while the fixed trade panel stays put,
-     which is what made the screen look broken rather than just "not styled
-     like MT5 yet". */
-  body[data-page="game"] {
-    height: 100vh;
-    overflow: hidden;
-  }
-
   .game-topbar {
     padding: 8px 12px;
     gap: 8px;
@@ -670,11 +660,16 @@ button,
     min-height: 32px;
   }
 
-  /* No explicit height here - .chart-section is the only in-flow grid item
-     of .game-main now that .trading-panel is position:fixed, and a grid's
-     single auto row already stretches to fill 100% of its container by
-     default. Giving it a fixed vh value fought that and left a dead gap
-     between the chart and the tab strip below it. */
+  /* Overrides game.css's own long-standing plain (non-orientation)
+     max-width:900px rule, which sets height:46vh here - that pre-dates this
+     block and was the actual, still-live cause of the dead gap even after
+     removing this block's own now-deleted 52vh override. .chart-section is
+     the only in-flow grid item of .game-main now that .trading-panel is
+     position:fixed, so 100% correctly fills the grid row's full stretched
+     height instead of leaving space unfilled below the chart. */
+  .chart-section {
+    height: 100%;
+  }
 
   .chart-drawing-toolbar {
     display: none;
