@@ -400,6 +400,7 @@ TW.FriendsPanel = (function () {
   return {
     setCurrentLobby: (lobbyId) => { currentLobbyId = lobbyId; },
     getOnlineFriends: () => friends.filter((f) => f.status !== 'offline'),
+    getAllFriends: () => friends.slice(),
     refresh: loadFriends,
     sendInvite,
   };

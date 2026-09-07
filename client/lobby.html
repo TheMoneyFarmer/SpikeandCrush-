@@ -66,6 +66,7 @@
             <button id="loadoutBtn" class="btn btn-outline" style="flex:1;">⚙️ Trade Setup</button>
             <button id="inviteFriendsBtn" class="btn btn-outline" style="flex:1;">👥 Invite Friends</button>
           </div>
+          <button id="startWarBtn" class="btn btn-primary btn-block hidden" style="margin-top: 10px">🚀 Start War</button>
           <button id="readyBtn" class="btn btn-primary btn-block" style="margin-top: 10px">Ready</button>
         </div>
       </div>
@@ -225,6 +226,26 @@
         readyBtn.disabled = me.ready;
       }
 
+      // Waiting-lobby modes (quick/blitz/grand/private) no longer auto-start
+      // the instant the lobby fills or everyone's readied up - that raced
+      // pending friend invites. The host gets a Start War button instead,
+      // pressed once everyone they're expecting has joined; non-hosts just
+      // see the Ready status button as before.
+      const startWarBtn = document.getElementById('startWarBtn');
+      const isHost = !!(state.hostId && state.you === state.hostId);
+      if (isHost && state.canManualStart && state.status === 'waiting') {
+        readyBtn.classList.add('hidden');
+        startWarBtn.classList.remove('hidden');
+        const enough = state.players.length >= (state.minPlayers || 2);
+        startWarBtn.disabled = !enough;
+        startWarBtn.textContent = enough
+          ? `🚀 Start War (${state.players.length} joined)`
+          : `Waiting for ${Math.max(0, (state.minPlayers || 2) - state.players.length)} more player(s)...`;
+      } else {
+        startWarBtn.classList.add('hidden');
+        readyBtn.classList.remove('hidden');
+      }
+
       if (state.status === 'countdown') document.getElementById('countdownOverlay').classList.remove('hidden');
       // Instant-start modes (Async Daily Challenge, sometimes Solo Ranked) can
       // finish their countdown before this socket even binds, so the one-shot
@@ -270,6 +291,15 @@
       if (!result.success) TW.toast(result.error, 'danger');
     });
 
+    document.getElementById('startWarBtn').addEventListener('click', async () => {
+      document.getElementById('startWarBtn').disabled = true;
+      const result = await TW.emitAck('lobby:start_war', {});
+      if (!result.success) {
+        TW.toast(result.error || 'Could not start the war', 'danger');
+        document.getElementById('startWarBtn').disabled = false;
+      }
+    });
+
     document.getElementById('startNowBtn').addEventListener('click', async () => {
       document.getElementById('startNowBtn').disabled = true;
       const result = await TW.emitAck('player:forceStart', {});
@@ -310,8 +340,27 @@
 
     // ---- invite friends modal (Part C) -----------------------------------------------
 
-    document.getElementById('inviteFriendsBtn').addEventListener('click', () => {
-      const online = (window.TW && TW.FriendsPanel) ? TW.FriendsPanel.getOnlineFriends() : [];
+    function inviteFriendStatusLabel(f) {
+      if (f.status === 'online') return 'Online';
+      if (f.status === 'in_lobby') return 'In a lobby';
+      if (f.status === 'in_match') return 'In a match';
+      return 'Offline';
+    }
+
+    document.getElementById('inviteFriendsBtn').addEventListener('click', async () => {
+      // Refresh first (rather than trusting whatever the panel loaded on page
+      // load) so the list can't miss a friend whose status changed - or who
+      // simply hadn't loaded yet - since this page opened.
+      if (window.TW && TW.FriendsPanel) await TW.FriendsPanel.refresh();
+      const all = (window.TW && TW.FriendsPanel) ? TW.FriendsPanel.getAllFriends() : [];
+      // Show every friend, not just whoever's online right now - only gate
+      // the actual invite action on being reachable (online or in a lobby).
+      const invitable = new Set(['online', 'in_lobby']);
+      const sorted = all.slice().sort((a, b) => {
+        const aInvitable = invitable.has(a.status) ? 0 : 1;
+        const bInvitable = invitable.has(b.status) ? 0 : 1;
+        return aInvitable - bInvitable || a.username.localeCompare(b.username);
+      });
       const backdrop = document.createElement('div');
       backdrop.className = 'tw-search-modal-backdrop';
       backdrop.innerHTML = `
@@ -319,18 +368,20 @@
           <h3 style="margin-top:0;">Invite Friends</h3>
           <div class="tw-invite-friends-list" id="inviteFriendsList">
             ${
-              online.length
-                ? online
-                    .map(
-                      (f) => `
-                        <label class="tw-invite-friend-row">
-                          <input type="checkbox" value="${f.id}" />
+              sorted.length
+                ? sorted
+                    .map((f) => {
+                      const canInvite = invitable.has(f.status);
+                      return `
+                        <label class="tw-invite-friend-row${canInvite ? '' : ' disabled'}">
+                          <input type="checkbox" value="${f.id}" ${canInvite ? '' : 'disabled'} />
                           <span>${TW.escapeHtml(f.username)} <span class="text-secondary" style="font-size:11px;">(${TW.escapeHtml(f.tier)})</span></span>
+                          <span class="text-secondary" style="font-size:11px;margin-left:auto;">${inviteFriendStatusLabel(f)}</span>
                         </label>
-                      `
-                    )
+                      `;
+                    })
                     .join('')
-                : '<div class="tw-friends-empty">No friends online right now.</div>'
+                : '<div class="tw-friends-empty">No friends yet - add some from the Friends panel.</div>'
             }
           </div>
           <div style="display:flex;gap:8px;margin-top:14px;">

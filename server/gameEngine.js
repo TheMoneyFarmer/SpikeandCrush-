@@ -371,7 +371,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       durationSeconds: match.config.durationSeconds,
       lobbyDeadline: match.status === 'waiting' ? match.lobbyDeadline : null,
       maxPlayers: match.config.maxPlayers,
+      minPlayers: match.config.minPlayers,
       lobbyTargetSize: match.config.idealPlayers,
+      hostId: match.hostId || null,
+      // Waiting-lobby modes (quick/blitz/grand/private - anything with a
+      // lobbyTimeoutMs) wait for the host to press Start War instead of
+      // instant-filling the moment the lobby reaches idealPlayers, so a
+      // pending friend invite doesn't get raced by an AI fill. Instant-start
+      // modes (solo/tournament/async, lobbyTimeoutMs 0) have no host UI and
+      // keep starting the moment they're ready.
+      canManualStart: match.config.lobbyTimeoutMs > 0,
       cardsPerPlayer: match.config.cardsPerPlayer,
       entryCoins: match.config.entryCoins,
       cardCatalog: sabotage.getCardCatalog(),
@@ -541,6 +550,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       dbMatchId: null,
       timers: {},
       pnlSnapshots: {}, // playerId -> [{second, pnl}] - one entry per elapsed second, for the replay's equity curves
+      hostId: null, // first human to join (or the creator, for Private War) - the only one who can press Start War
     };
     matches.set(matchId, match);
     roomCodeIndex.set(roomCode, matchId);
@@ -651,6 +661,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     }
     if (Object.keys(match.players).length >= match.config.maxPlayers) return { success: false, error: 'Match is full' };
 
+    if (!match.hostId) match.hostId = playerInfo.id;
+
     const player = createPlayerState(playerInfo, socketId, false, null, match.config);
     match.players[playerInfo.id] = player;
     match.playerOrder.push(playerInfo.id);
@@ -664,7 +676,14 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     emitMatchStateToAll(match);
     updatePresence?.(playerInfo.id, { status: 'in_lobby', lobbyId: match.id, matchId: null, mode: match.config.label || match.mode });
 
-    if (Object.keys(match.players).length >= match.config.idealPlayers || Object.keys(match.players).length >= match.config.maxPlayers) {
+    const currentCount = Object.keys(match.players).length;
+    // Waiting-lobby modes stop auto-starting once idealPlayers is reached -
+    // the host presses Start War instead, so a friend invite that's still
+    // pending accept doesn't get raced by an instant AI fill. They still
+    // auto-start once truly maxPlayers-full since there's nothing left to
+    // wait for. Instant-start modes (lobbyTimeoutMs 0) keep the old behavior.
+    const hasManualStart = match.config.lobbyTimeoutMs > 0;
+    if (currentCount >= match.config.maxPlayers || (!hasManualStart && currentCount >= match.config.idealPlayers)) {
       tryStartLobby(match.id, false);
     }
     return { success: true, match };
@@ -737,6 +756,21 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     });
   }
 
+  // Explicit "Start War" - the host closing a waiting-lobby match once
+  // everyone they're expecting has joined, instead of the lobby racing a
+  // pending friend invite by auto-filling with AI the moment it's full.
+  function hostStartMatch(matchId, playerId) {
+    const match = matches.get(matchId);
+    if (!match) return { success: false, error: 'Match not found' };
+    if (match.status !== 'waiting') return { success: false, error: 'Match already started' };
+    if (match.hostId && match.hostId !== playerId) return { success: false, error: 'Only the host can start the match' };
+    if (Object.keys(match.players).length < match.config.minPlayers) {
+      return { success: false, error: `Need at least ${match.config.minPlayers} players to start` };
+    }
+    tryStartLobby(matchId, true);
+    return { success: true };
+  }
+
   function setReady(matchId, playerId) {
     const match = matches.get(matchId);
     if (!match) return { success: false, error: 'Match not found' };
@@ -744,6 +778,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     if (!p) return { success: false, error: 'Player not in match' };
     p.ready = true;
     emitMatchStateToAll(match);
+
+    // Waiting-lobby modes no longer auto-start off of everyone being ready -
+    // that's exactly what raced pending friend invites (host + whoever's
+    // already in ready up while a friend's invite is still awaiting accept).
+    // Only instant-start modes (lobbyTimeoutMs 0) keep this shortcut.
+    if (match.config.lobbyTimeoutMs > 0) return { success: true };
 
     const humanPlayers = Object.values(match.players).filter((p2) => !p2.isAI);
     if (humanPlayers.length > 0 && humanPlayers.every((p2) => p2.ready) && Object.keys(match.players).length >= match.config.minPlayers) {
@@ -2333,6 +2373,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     listWaitingMatchesByMode,
     joinMatch,
     setReady,
+    hostStartMatch,
     forceStartLobby: (matchId) => tryStartLobby(matchId, true),
     openTrade,
     closeTrade,

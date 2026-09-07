@@ -1815,6 +1815,7 @@ h1, h2, h3, h4, .title {
 .tw-invite-friends-list { max-height: 320px; overflow-y: auto; }
 .tw-invite-friend-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--border); }
 .tw-invite-friend-row:last-child { border-bottom: none; }
+.tw-invite-friend-row.disabled { opacity: 0.5; }
 
 /* ============================================================
    Cosmetics: avatar frames, nameplate effects, profile backgrounds

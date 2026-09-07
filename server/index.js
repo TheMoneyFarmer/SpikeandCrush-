@@ -2831,6 +2831,17 @@ io.on('connection', (socket) => {
     if (typeof ack === 'function') ack(result);
   });
 
+  // Host-only "Start War" - closes a waiting-lobby match (quick/blitz/grand/
+  // private) once everyone the host is expecting has joined, filling any
+  // remaining seats with AI. See gameEngine.hostStartMatch.
+  socket.on('lobby:start_war', (_data, ack) => {
+    const session = gameEngine.getSession(socket.id);
+    const result = session
+      ? gameEngine.hostStartMatch(session.matchId, session.playerId)
+      : { success: false, error: 'Not joined to a match' };
+    if (typeof ack === 'function') ack(result);
+  });
+
   // "Start now with AI" - lets any player in a waiting lobby stop waiting for
   // more humans and fill the rest with AI immediately instead of riding out
   // the full lobby timer (see the Smart Queue Display in the lobby UI).
