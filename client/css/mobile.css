@@ -55,78 +55,6 @@ button,
 }
 
 /* ───────────────────────────────────────────────────────────────────────
-   LANDSCAPE LOCK OVERLAY (built by js/orientation.js)
-─────────────────────────────────────────────────────────────────────── */
-
-#rotate-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: #0A0C14;
-  z-index: 99999;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  padding: 40px;
-  text-align: center;
-}
-
-#rotate-overlay.show {
-  display: flex;
-}
-
-.rotate-icon {
-  font-size: 64px;
-  animation: rotatePhone 2s ease-in-out infinite;
-}
-
-@keyframes rotatePhone {
-  0%  { transform: rotate(0deg); }
-  25% { transform: rotate(-90deg); }
-  75% { transform: rotate(-90deg); }
-  100%{ transform: rotate(0deg); }
-}
-
-.rotate-title {
-  font-size: 22px;
-  font-weight: 800;
-  color: #fff;
-}
-
-.rotate-sub {
-  font-size: 14px;
-  color: rgba(255,255,255,0.45);
-  max-width: 260px;
-  line-height: 1.6;
-}
-
-.rotate-logo {
-  margin-top: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: #F5C542;
-}
-
-.rotate-continue-btn {
-  margin-top: 20px;
-  background: none;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 999px;
-  color: rgba(255,255,255,0.5);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 10px 20px;
-  cursor: pointer;
-}
-
-.rotate-continue-btn:active {
-  background: rgba(255,255,255,0.08);
-}
-
-/* ───────────────────────────────────────────────────────────────────────
    PART 3 — LANDING PAGE (client/landing.html)
 ─────────────────────────────────────────────────────────────────────── */
 
@@ -686,6 +614,163 @@ button,
 
   .match-feed {
     display: none !important;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────────
+   PART 5B — GAME SCREEN PORTRAIT, MT5-STYLE (client/game.html)
+   Now that js/orientation.js no longer forces a rotation, portrait is the
+   default mobile experience (this block only matches phones NOT in
+   landscape, so it never fights Part 5 above). Modelled on MT5's mobile
+   app: Buy/Sell stays reachable even with the trade sheet collapsed
+   (instead of just a drag handle), and sabotage cards / leaderboard share
+   one tabbed strip instead of stacking full-width and eating chart height.
+   Loads after game.css so these win the cascade without needing !important.
+─────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) and (orientation: portrait) {
+
+  .game-topbar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .topbar-timer {
+    font-size: 18px;
+    min-width: auto;
+  }
+
+  .topbar-pnl-value {
+    font-size: 16px;
+  }
+
+  .topbar-equity {
+    display: none;
+  }
+
+  .instrument-tab {
+    padding: 6px 10px;
+    min-height: 32px;
+    font-size: 12px;
+  }
+
+  .leave-match-btn {
+    font-size: 11px;
+    padding: 6px 10px;
+    min-height: 32px;
+  }
+
+  .chart-section {
+    height: 52vh;
+  }
+
+  .chart-drawing-toolbar {
+    display: none;
+  }
+
+  .chart-quotes {
+    padding: 6px 10px;
+    font-size: 12px;
+    gap: 10px;
+  }
+
+  /* Persistent Buy/Sell bar - the collapsed sheet now peeks enough to keep
+     trading one tap away, instead of hiding both buttons behind the handle. */
+  .trading-panel {
+    bottom: 34px;
+    max-height: 58vh;
+    transform: translateY(calc(100% - 110px));
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .trading-panel-handle {
+    height: 22px;
+    font-size: 10px;
+  }
+
+  .trade-buttons .btn {
+    min-height: 52px;
+    font-size: 16px;
+  }
+
+  .positions-list {
+    max-height: 30vh;
+  }
+
+  /* Sabotage cards + leaderboard share one tabbed strip so neither eats
+     chart height when the other isn't in view - toggled by the inline
+     script next to .game-bottom in game.html. */
+  .game-bottom {
+    display: flex;
+    flex-direction: column;
+    height: 138px;
+    border-top: 1px solid var(--border);
+  }
+
+  .game-bottom-tabs {
+    display: flex;
+    flex-shrink: 0;
+    gap: 6px;
+    padding: 6px 10px 0;
+  }
+
+  .game-bottom-tab {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: rgba(255,255,255,0.4);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .game-bottom-tab.active {
+    color: #0A0C14;
+    background: #F5C542;
+    border-color: #F5C542;
+  }
+
+  .sabotage-panel,
+  .leaderboard-panel {
+    display: none;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    border-right: none;
+    padding: 8px 10px 10px;
+  }
+
+  .game-bottom[data-tab="cards"] .sabotage-panel,
+  .game-bottom[data-tab="ranks"] .leaderboard-panel {
+    display: block;
+  }
+
+  .card-slots {
+    display: flex;
+    grid-template-columns: none;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sabotage-card {
+    min-width: 84px;
+    min-height: 72px;
+    flex-shrink: 0;
+  }
+
+  .sabotage-card .desc {
+    display: none;
+  }
+
+  .match-feed {
+    display: none;
   }
 }
 

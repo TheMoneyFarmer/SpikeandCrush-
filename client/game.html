@@ -176,7 +176,11 @@
       </div>
     </div>
 
-    <div class="game-bottom">
+    <div class="game-bottom" id="gameBottom" data-tab="cards">
+      <div class="game-bottom-tabs">
+        <button type="button" class="game-bottom-tab active" data-tab-target="cards">🃏 Cards</button>
+        <button type="button" class="game-bottom-tab" data-tab-target="ranks">🏆 Ranks</button>
+      </div>
       <div class="sabotage-panel">
         <div class="text-secondary" style="font-size:12px;margin-bottom:8px;">SABOTAGE CARDS</div>
         <div class="card-slots" id="cardSlots"></div>
@@ -192,6 +196,17 @@
         </table>
       </div>
     </div>
+    <script>
+      // Portrait-only tab strip (see css/mobile.css Part 5B) - harmless on
+      // desktop/landscape since .game-bottom-tabs stays display:none there.
+      document.querySelectorAll('.game-bottom-tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.game-bottom-tab').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById('gameBottom').dataset.tab = btn.dataset.tabTarget;
+        });
+      });
+    </script>
 
     <div class="match-feed">
       <div class="match-feed-track" id="feedTrack"></div>
