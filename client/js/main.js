@@ -257,6 +257,25 @@ window.TW = window.TW || {};
     );
   };
 
+  // Last-line safety net: every route is supposed to hand back a friendly
+  // error string, but this codebase has many hands in it and it's easy for
+  // a raw "X not configured", a leaked ENV_VAR_NAME, or a raw Postgres/JS
+  // exception message to slip through uncaught. Never show that verbatim to
+  // a player - swap it for a generic message instead. Deliberately broad
+  // (a few false positives caught here cost nothing) rather than narrow.
+  const DEV_ERROR_PHRASES = /not configured|\.env\b|violates|constraint|undefined is not|cannot read propert|is not a function|internal server error/i;
+  // Deliberately no /i here - this one only means to catch genuine
+  // SCREAMING_SNAKE_CASE env-var names (STRIPE_SECRET_KEY etc.), and case-
+  // insensitive would also match ordinary lowercase_words like
+  // "bank_transfer" in an otherwise perfectly friendly message.
+  const DEV_ERROR_ENV_VAR = /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+){1,}\b/;
+  function sanitizeErrorMessage(message) {
+    if (!message || typeof message !== 'string') return 'Something went wrong. Please try again.';
+    if (DEV_ERROR_PHRASES.test(message) || DEV_ERROR_ENV_VAR.test(message)) return 'This isn\'t available right now. Please try again shortly.';
+    return message;
+  }
+  TW.sanitizeErrorMessage = sanitizeErrorMessage;
+
   async function api(path, options = {}) {
     const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
     const token = TW.getToken();
@@ -273,7 +292,7 @@ window.TW = window.TW || {};
       data = null;
     }
     if (!res.ok) {
-      const err = new Error((data && data.error) || `Request failed (${res.status})`);
+      const err = new Error(sanitizeErrorMessage((data && data.error) || `Request failed (${res.status})`));
       if (data) Object.assign(err, data); // e.g. requiresTotp, so callers can react without re-parsing
       throw err;
     }

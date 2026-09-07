@@ -29,7 +29,13 @@ window.TW = window.TW || {};
         resolve({ success: false, error: 'Not connected to server' });
         return;
       }
-      TW.socket.emit(event, data, (result) => resolve(result || { success: false, error: 'No response from server' }));
+      TW.socket.emit(event, data, (result) => {
+        const r = result || { success: false, error: 'No response from server' };
+        // Same last-line safety net as TW.api - never surface a raw dev-side
+        // error string from a game-action ack.
+        if (r.error && TW.sanitizeErrorMessage) r.error = TW.sanitizeErrorMessage(r.error);
+        resolve(r);
+      });
     });
   };
 })();

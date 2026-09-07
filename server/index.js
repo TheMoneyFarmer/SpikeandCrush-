@@ -272,7 +272,8 @@ function getCookie(req, name) {
 
 function requireDb(req, res, next) {
   if (!db.isConfigured) {
-    return res.status(503).json({ error: 'Database not configured - add SUPABASE_SERVICE_KEY to .env' });
+    console.error('[requireDb] blocked a request - SUPABASE_SERVICE_KEY is not set');
+    return res.status(503).json({ error: 'This feature is temporarily unavailable. Please try again shortly.' });
   }
   next();
 }
@@ -1667,7 +1668,7 @@ app.get('/api/battlepass/status', requireDb, authenticate, async (req, res) => {
 app.post('/api/battlepass/subscribe', requireDb, authenticate, async (req, res) => {
   try {
     if (!stripeConfigured) {
-      return res.status(503).json({ error: 'Stripe is not configured - add STRIPE_SECRET_KEY to .env' });
+      return res.status(503).json({ error: 'Payments are temporarily unavailable. Please try again later.' });
     }
     const season = battlepass.currentSeason();
     const player = await db.getPlayerById(req.tokenPlayer.id);
@@ -2116,7 +2117,7 @@ app.post('/api/coaching/profile', requireDb, authenticate, async (req, res) => {
 app.post('/api/coaching/book', requireDb, authenticate, async (req, res) => {
   try {
     if (!stripeConfigured) {
-      return res.status(503).json({ error: 'Stripe is not configured - add STRIPE_SECRET_KEY to .env' });
+      return res.status(503).json({ error: 'Payments are temporarily unavailable. Please try again later.' });
     }
     const { coachId, sessionType, scheduledAt } = req.body || {};
     const sessionTypeDef = coaching.SESSION_TYPES[sessionType];
@@ -2345,7 +2346,7 @@ Real game facts you can rely on:
 Answer player questions about game mechanics, coins, wallet, tournaments, and account issues concisely and accurately using only the facts above. For anything account-specific (billing disputes, bans, bugs) or anything you're not sure about, tell the player to submit a support ticket instead of guessing.`;
 
 app.post('/api/support/chat', async (req, res) => {
-  if (!anthropicConfigured) return res.status(503).json({ error: 'Support chat is not configured' });
+  if (!anthropicConfigured) return res.status(503).json({ error: 'Support chat is unavailable right now - try submitting a ticket instead.' });
   try {
     const { message, history } = req.body || {};
     if (!message || typeof message !== 'string') return res.status(400).json({ error: 'message is required' });
@@ -2658,7 +2659,7 @@ app.post('/api/coins/purchase', requireDb, authenticate, async (req, res) => {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
     if (!stripeConfigured) {
-      return res.status(503).json({ error: 'Stripe is not configured - add STRIPE_SECRET_KEY to .env' });
+      return res.status(503).json({ error: 'Payments are temporarily unavailable. Please try again later.' });
     }
 
     const origin = req.headers.origin || `http://localhost:${PORT}`;
@@ -2736,7 +2737,7 @@ app.post('/api/dev/add-coins', requireDb, authenticate, async (req, res) => {
 app.post('/api/coins/verify-session', requireDb, authenticate, async (req, res) => {
   try {
     if (!stripeConfigured) {
-      return res.status(503).json({ error: 'Stripe is not configured - add STRIPE_SECRET_KEY to .env' });
+      return res.status(503).json({ error: 'Payments are temporarily unavailable. Please try again later.' });
     }
     const sessionId = req.body?.sessionId;
     if (!sessionId) return res.status(400).json({ error: 'sessionId is required' });
@@ -3120,7 +3121,12 @@ io.on('connection', (socket) => {
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error('[unhandled route error]', err);
-  res.status(err.status || 400).json({ error: err.message || 'Request failed' });
+  // err.message is never forwarded raw here - this is the catch-all for
+  // whatever wasn't already given its own friendly message by the route
+  // that threw it, so it could be anything from a raw Postgres constraint
+  // violation to a Multer upload error. err.status (e.g. Multer's 413 for
+  // "file too large") is still safe to pass through - it's just a code.
+  res.status(err.status || 400).json({ error: 'Something went wrong. Please try again.' });
 });
 
 const instrumentReport = instrumentsRegistry.preloadAll();
