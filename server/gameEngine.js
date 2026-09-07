@@ -564,9 +564,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       }
     }
 
-    if (match.config.lobbyTimeoutMs > 0) {
-      match.timers.lobbyTimeout = setTimeout(() => tryStartLobby(matchId, true), match.config.lobbyTimeoutMs);
-    }
+    // lobbyTimeoutMs > 0 marks a waiting-lobby mode (quick/blitz/grand/
+    // private) - those no longer auto-start on a timer at all, since that
+    // was firing mid-invite just like the idealPlayers/all-ready triggers
+    // did (Blitz War's 20s timeout in particular was short enough to fire
+    // before a host even hit Ready). The host's Start War button, or any
+    // player's "Start Now" escape hatch, are the only ways these start now.
+    // lobbyDeadline is kept purely as display metadata for the lobby screen.
     return match;
   }
 
