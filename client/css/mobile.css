@@ -383,6 +383,12 @@ button,
    and reuses the same .expanded toggle rather than building a second one.
 ─────────────────────────────────────────────────────────────────────── */
 
+/* Portrait-only Chart/Trade switch (Part 5B) - hidden here so landscape
+   and desktop never see it (game.css's own layouts don't need it). */
+.game-mobile-tabs {
+  display: none;
+}
+
 @media (max-width: 1024px) and (orientation: landscape) {
 
   body[data-page="game"] {
@@ -630,26 +636,36 @@ button,
 }
 
 /* ───────────────────────────────────────────────────────────────────────
-   PART 5B — GAME SCREEN PORTRAIT, MT5-STYLE (client/game.html)
-   Rebuilt to match a reference mockup: a stacked fixed header (top HUD,
-   instrument tabs, bid/ask+timeframe), chart filling the middle with a
-   floating LIVE RANKS card top-left and sabotage cards floating in a
-   vertical stack on the right, and a persistent (no expand/collapse) trade
-   panel at the bottom - Buy/Sell, Open Positions, Lot Size, then Stop
-   Loss/Take Profit. Replaces the previous collapsible-sheet + tabbed
-   cards/leaderboard design. Loads after game.css so these win the cascade
-   without needing !important.
+   PART 5B — GAME SCREEN PORTRAIT, TWO-TAB (client/game.html)
+   Replaces the single-screen design (chart + floating leaderboard/cards
+   over it + a persistent 44vh trade panel) - too much competing for one
+   screen at once, and cramped the chart down to just over half the
+   viewport. Now split into two views, switched by .game-mobile-tabs at
+   the very bottom (default view is "chart", set in game.html's
+   .game-shell[data-mobile-view] attribute and flipped by the inline
+   script next to .game-mobile-tabs):
+     - Chart tab: full-height chart, nothing floating over it, a slim
+       persistent Buy/Sell bar so trading stays one tap away.
+     - Trade tab: chart hidden, full width for Open Positions, Lot Size,
+       Stop Loss/Take Profit, Sabotage Cards and Live Ranks, each with
+       real spacing instead of being squeezed into a corner or a fixed
+       44vh sheet.
+   Loads after game.css so these win the cascade without needing
+   !important.
 
-   Fixed-bar stacking (top to bottom), heights used in the offsets below:
+   Fixed header stack (shared by both tabs), heights used in the offsets
+   below:
      .game-topbar        48px
      .instrument-tabs     40px
      .chart-quotes        ~64px (bid/ask/spread row + wrapped timeframe row)
    Total header offset: 152px + env(safe-area-inset-top).
+   .game-mobile-tabs (shared bottom bar, both tabs): 54px +
+   env(safe-area-inset-bottom).
 ─────────────────────────────────────────────────────────────────────── */
 
 @media (max-width: 900px) and (orientation: portrait) {
 
-  /* ── fixed header stack ── */
+  /* ── fixed header stack (both tabs) ── */
 
   .game-topbar {
     position: fixed;
@@ -714,12 +730,11 @@ button,
   }
 
   /* height is pinned (not left to auto-size from content) because
-     .chart-section's padding-top and the floating panels' top offset below
-     both hard-code 152px/160px as "topbar + instrument-tabs + this" - an
-     auto height that ends up taller than the 64px assumed there would
-     recreate exactly the kind of stale-offset overlap already fixed once
-     in this file (the trading-panel/.game-bottom bug). overflow:hidden
-     enforces the assumption instead of silently drifting from it. */
+     .game-shell's padding-top below hard-codes 152px as "topbar +
+     instrument-tabs + this" - an auto height that ends up taller than the
+     64px assumed there would recreate exactly the kind of stale-offset
+     overlap already fixed once in this file. overflow:hidden enforces the
+     assumption instead of silently drifting from it. */
   .chart-quotes {
     position: fixed;
     top: calc(88px + env(safe-area-inset-top, 0px));
@@ -737,7 +752,7 @@ button,
   /* Push the timeframe row onto its own line under bid/ask/spread inside
      the same fixed box, instead of squeezing quotes + timeframes +
      indicator/settings dropdowns into one crowded row - that crowding was
-     the direct cause of the "overlapping, broken-looking" header reported
+     the direct cause of an "overlapping, broken-looking" header reported
      on a real device. */
   .timeframe-selector {
     flex-basis: 100%;
@@ -761,27 +776,19 @@ button,
     display: none;
   }
 
-  /* Reserve space below the 3 fixed bars above so the chart canvas starts
-     below them instead of underneath them, and above the fixed trade panel
-     (also 44vh, see below) so the chart isn't rendered behind that either.
-     .chart-quotes moved out of this element's normal flow into position:
-     fixed above, so nothing but this padding accounts for its height
-     anymore. The chart resizes itself automatically (autoSize:true in
-     chart.js tracks the container's real size via ResizeObserver) once
-     this padding changes that size - no JS changes needed here. */
+  .game-shell {
+    padding-top: calc(152px + env(safe-area-inset-top, 0px));
+  }
+
   .chart-section {
     height: 100%;
-    padding-top: calc(152px + env(safe-area-inset-top, 0px));
-    padding-bottom: 44vh;
   }
 
   /* .news-ticker is position:absolute; bottom:0 (game.css) inside
-     .chart-section, which is now a full-height box (100% of .game-main) -
-     bottom:0 there lands at the very bottom of the screen, on top of the
-     fixed trade panel's Buy/Sell buttons. Anchor it to the top of the
-     chart area (just under the fixed header stack) instead - a sabotage
-     alert banner reads fine there and it's the one place nothing else is
-     fixed to. */
+     .chart-section - anchor it under the fixed header stack instead so it
+     can never land on top of the Buy/Sell bar or the mobile tab bar,
+     wherever .chart-section's own height ends up. Only ever visible on
+     the Chart tab anyway (hidden with .chart-section on Trade, below). */
   .news-ticker {
     position: fixed;
     top: calc(152px + env(safe-area-inset-top, 0px));
@@ -791,44 +798,22 @@ button,
     z-index: 97;
   }
 
-  /* ── LIVE RANKS, floating top-left over the chart ── */
-
-  .leaderboard-panel {
-    position: fixed;
-    top: calc(160px + env(safe-area-inset-top, 0px));
-    left: 8px;
-    width: 140px;
-    max-height: 160px;
-    background: rgba(10,12,20,0.82);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 6px;
-    z-index: 95;
-    overflow-y: auto;
-    border-right: none;
-  }
-
   /* table-layout:fixed + explicit rank/P&L widths so a long username
      (leaderboard.js's 2nd <td>) truncates with an ellipsis instead of
-     pushing the P&L column (3rd <td>) out past the panel's 140px width -
-     it was rendering as literally cut off before this. Trades (4th <td>)
-     isn't worth the width it costs here. */
+     pushing the P&L column (3rd <td>) out of view. */
   .leaderboard-table {
-    font-size: 10px;
     table-layout: fixed;
     width: 100%;
   }
 
   .leaderboard-table th:nth-child(1),
   .leaderboard-table td:nth-child(1) {
-    width: 14px;
+    width: 20px;
   }
 
   .leaderboard-table th:nth-child(3),
   .leaderboard-table td:nth-child(3) {
-    width: 42px;
+    width: 64px;
     text-align: right;
   }
 
@@ -838,144 +823,202 @@ button,
     white-space: nowrap;
   }
 
-  .leaderboard-table th:nth-child(4),
-  .leaderboard-table td:nth-child(4) {
-    display: none;
-  }
+  /* ── shared bottom tab bar (Chart / Trade) ── */
 
-  .leaderboard-table th,
-  .leaderboard-table td {
-    padding: 3px 4px;
-  }
-
-  /* ── sabotage cards, floating vertical stack on the right ── */
-
-  .sabotage-panel {
-    position: fixed;
-    top: 50%;
-    right: 8px;
-    transform: translateY(-50%);
-    width: auto;
-    max-height: 70vh;
-    overflow-y: auto;
-    overflow-x: visible;
-    z-index: 96;
-    padding: 0;
-    border-right: none;
-    background: transparent;
-  }
-
-  /* The "SABOTAGE CARDS"/"LIVE LEADERBOARD" labels are redundant once both
-     panels are floating, self-evident overlays - reclaim the space. */
-  .sabotage-panel > div:first-child,
-  .leaderboard-panel > div:first-child {
-    display: none;
-  }
-
-  .card-slots {
+  .game-mobile-tabs {
     display: flex;
-    flex-direction: column;
-    grid-template-columns: none;
-    gap: 8px;
-  }
-
-  .sabotage-card {
-    width: 58px;
-    min-width: 58px;
-    min-height: 64px;
-    flex-shrink: 0;
-    padding: 6px 4px;
-    background: rgba(26,30,42,0.95);
-  }
-
-  .sabotage-card .desc,
-  .sabotage-card .category-tag {
-    display: none;
-  }
-
-  .sabotage-card .icon,
-  .sabotage-card .name {
-    text-align: center;
-  }
-
-  .sabotage-card .name {
-    font-size: 9px;
-  }
-
-  .sabotage-card .icon {
-    font-size: 18px;
-  }
-
-  .target-picker {
-    position: fixed;
-    bottom: 44vh;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 97;
-    max-width: 80vw;
-  }
-
-  /* Both floating panels' content used to live in .game-bottom's shared
-     tabbed strip - nothing left to reserve height for now that they float
-     independently over the chart instead. */
-  .game-bottom {
-    height: 0;
-    border-top: none;
-    overflow: visible;
-  }
-
-  .game-bottom-tabs {
-    display: none;
-  }
-
-  .match-feed {
-    display: none;
-  }
-
-  /* ── persistent trade panel, bottom - always visible, no expand/collapse
-     handle. Reordered (via the flex `order` property, matching game.html's
-     un-classed wrapper <div>s by the control they contain rather than
-     adding CSS-only hook classes) to Buy/Sell, then Open Positions, then
-     Lot Size, then Stop Loss/Take Profit, per the reference design. Height
-     is fixed (not max-height) so it always matches .chart-section's
-     padding-bottom above exactly - content beyond it scrolls internally
-     instead of growing the panel and creating a gap or overlap. ── */
-  .trading-panel {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
-    height: 44vh;
-    max-height: 44vh;
-    transform: none;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    padding: 10px 14px;
-    gap: 10px;
-    border-radius: 16px 16px 0 0;
-    z-index: 150;
+    height: 54px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(10,12,20,0.97);
+    border-top: 1px solid var(--border);
+    z-index: 210;
   }
 
-  .trading-panel-handle {
+  .game-mobile-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    position: relative;
+    cursor: pointer;
+  }
+
+  .game-mobile-tab.active {
+    color: var(--accent);
+  }
+
+  .game-mobile-tab.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 0 0 2px 2px;
+  }
+
+  .game-mobile-tab-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .game-mobile-tab-badge {
+    position: absolute;
+    top: 4px;
+    right: calc(50% - 18px);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 1.5px solid var(--bg);
+  }
+
+  /* ── CHART TAB: full-height chart, slim persistent Buy/Sell ── */
+
+  .game-shell[data-mobile-view="chart"] {
+    padding-bottom: calc(52px + 54px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .game-shell[data-mobile-view="chart"] .game-bottom {
     display: none;
   }
 
-  .trade-buttons {
-    order: 1;
+  .game-shell[data-mobile-view="chart"] .trading-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(54px + env(safe-area-inset-bottom, 0px));
+    height: 52px;
+    padding: 0;
+    display: flex;
+    border-radius: 0;
+    z-index: 150;
   }
 
-  .trade-buttons .btn {
-    min-height: 48px;
+  .game-shell[data-mobile-view="chart"] .trading-panel > *:not(.trade-buttons) {
+    display: none;
+  }
+
+  .game-shell[data-mobile-view="chart"] .trade-buttons {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .game-shell[data-mobile-view="chart"] .trade-buttons .btn {
+    border-radius: 0;
+    min-height: 52px;
     font-size: 15px;
   }
 
-  .trading-panel > div:has(#positionsList) {
+  /* ── TRADE TAB: chart hidden, everything else full-width with room ── */
+
+  .game-shell[data-mobile-view="trade"] {
+    padding-bottom: calc(54px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .game-shell[data-mobile-view="trade"] .chart-section,
+  .game-shell[data-mobile-view="trade"] .news-ticker {
+    display: none;
+  }
+
+  /* .game-main normally holds the desktop chart/trade-panel grid (see
+     game.css) - with .chart-section hidden here it becomes a plain
+     scrollable column for .trading-panel's full content. flex:1.2 vs.
+     .game-bottom's flex:1 below just gives trade details slightly more
+     room than cards/ranks; both get their own independent scroll
+     (min-height:0 is what makes overflow-y:auto work inside a flex
+     child - without it the child refuses to shrink below its content
+     size and never scrolls). */
+  .game-shell[data-mobile-view="trade"] .game-main {
+    display: block;
+    flex: 1.2;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .game-shell[data-mobile-view="trade"] .trading-panel {
+    position: static;
+    height: auto;
+    max-height: none;
+    transform: none;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 16px;
+  }
+
+  .game-shell[data-mobile-view="trade"] .trading-panel-handle,
+  .game-shell[data-mobile-view="trade"] .trade-buttons {
+    display: none;
+  }
+
+  /* Reordered (via the flex `order` property, matching game.html's
+     un-classed wrapper <div>s by the control they contain rather than
+     adding CSS-only hook classes) to Open Positions, then Lot Size, then
+     Stop Loss/Take Profit, per the reference design. */
+  .game-shell[data-mobile-view="trade"] .trading-panel > div:has(#positionsList) {
+    order: 1;
+  }
+
+  .game-shell[data-mobile-view="trade"] .trading-panel > div:has(#lotSelector) {
     order: 2;
   }
 
-  .positions-list {
-    max-height: 18vh;
+  .game-shell[data-mobile-view="trade"] .trading-panel > div:has(.sltp-header) {
+    order: 3;
+  }
+
+  .game-shell[data-mobile-view="trade"] .account-summary {
+    order: 4;
+  }
+
+  .game-shell[data-mobile-view="trade"] .game-bottom {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    overflow-y: auto;
+    gap: 18px;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .game-shell[data-mobile-view="trade"] .game-bottom-tabs {
+    display: none;
+  }
+
+  .game-shell[data-mobile-view="trade"] .sabotage-panel,
+  .game-shell[data-mobile-view="trade"] .leaderboard-panel {
+    display: block;
+    padding: 0;
+    border-right: none;
+    overflow: visible;
+  }
+
+  .game-shell[data-mobile-view="trade"] .card-slots {
+    display: flex;
+    grid-template-columns: none;
+    gap: 8px;
+  }
+
+  .game-shell[data-mobile-view="trade"] .sabotage-card {
+    flex: 1;
+    min-height: 84px;
   }
 
   /* LOT SIZE - hide the preset chips so the existing mobile-only stepper
@@ -983,10 +1026,6 @@ button,
      is the only lot control, matching the reference design's single
      stepper row instead of a row of preset chips plus a separate custom
      one. */
-  .trading-panel > div:has(#lotSelector) {
-    order: 3;
-  }
-
   .lot-chip[data-lot] {
     display: none;
   }
@@ -998,28 +1037,28 @@ button,
   #customLotChip {
     flex: 1;
     justify-content: center;
-    padding: 6px 10px;
+    padding: 8px 10px;
     background: rgba(255,255,255,0.06);
   }
 
   #customLotInput {
     flex: 1;
     text-align: center;
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 700;
     background: transparent;
     border: none;
   }
 
   .lot-step-btn {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     flex-shrink: 0;
     border-radius: 8px;
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.12);
     color: var(--text);
-    font-size: 16px;
+    font-size: 18px;
     line-height: 1;
     display: flex;
     align-items: center;
@@ -1031,11 +1070,6 @@ button,
     background: rgba(255,255,255,0.16);
   }
 
-  /* STOP LOSS / TAKE PROFIT */
-  .trading-panel > div:has(.sltp-header) {
-    order: 4;
-  }
-
   .pretrade-sltp-row input {
     width: auto;
     flex: 1;
@@ -1044,11 +1078,9 @@ button,
   /* ACCOUNT SUMMARY - kept but compact; it's the only balance/equity
      display left on mobile now that .topbar-equity is hidden above. */
   .account-summary {
-    order: 5;
     flex-wrap: nowrap;
     gap: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
+    padding-top: 4px;
   }
 
   .account-summary .stat {

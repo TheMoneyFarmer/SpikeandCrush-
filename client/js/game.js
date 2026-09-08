@@ -446,6 +446,13 @@ window.TW = window.TW || {};
     const positions = myAccount.positions;
     TW.Chart.setPositionLines(positions);
 
+    // Mobile Chart/Trade tab bar (css/mobile.css Part 5B) - a dot on the
+    // Trade tab so an open position isn't easy to forget about while
+    // parked on the Chart tab. No-op (element doesn't exist) on desktop/
+    // landscape pages that never render the mobile tab bar.
+    const tradeBadge = document.getElementById('gameMobileTradeBadge');
+    if (tradeBadge) tradeBadge.classList.toggle('hidden', positions.length === 0);
+
     if (positions.length === 0) {
       positionRowElements.clear();
       list.innerHTML = '<div class="text-secondary" style="font-size:13px;">No open positions</div>';

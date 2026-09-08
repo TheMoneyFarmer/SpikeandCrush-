@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="/css/mobile.css">
 </head>
 <body data-page="game">
-  <div class="game-shell">
+  <div class="game-shell" data-mobile-view="chart">
     <div class="game-topbar">
       <div class="topbar-timer" id="topbarTimer">10:00</div>
       <div class="topbar-pnl-block">
@@ -176,11 +176,7 @@
       </div>
     </div>
 
-    <div class="game-bottom" id="gameBottom" data-tab="cards">
-      <div class="game-bottom-tabs">
-        <button type="button" class="game-bottom-tab active" data-tab-target="cards">🃏 Cards</button>
-        <button type="button" class="game-bottom-tab" data-tab-target="ranks">🏆 Ranks</button>
-      </div>
+    <div class="game-bottom" id="gameBottom">
       <div class="sabotage-panel">
         <div class="text-secondary" style="font-size:12px;margin-bottom:8px;">SABOTAGE CARDS</div>
         <div class="card-slots" id="cardSlots"></div>
@@ -196,21 +192,37 @@
         </table>
       </div>
     </div>
-    <script>
-      // Portrait-only tab strip (see css/mobile.css Part 5B) - harmless on
-      // desktop/landscape since .game-bottom-tabs stays display:none there.
-      document.querySelectorAll('.game-bottom-tab').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.game-bottom-tab').forEach((b) => b.classList.remove('active'));
-          btn.classList.add('active');
-          document.getElementById('gameBottom').dataset.tab = btn.dataset.tabTarget;
-        });
-      });
-    </script>
 
     <div class="match-feed">
       <div class="match-feed-track" id="feedTrack"></div>
     </div>
+
+    <!-- Mobile portrait only (see css/mobile.css Part 5B) - switches between
+         a full-screen Chart view (chart + a slim persistent Buy/Sell bar)
+         and a Trade view (positions, lot size, SL/TP, cards, ranks, with
+         real room to breathe) instead of cramming both into one screen.
+         Harmless on desktop/landscape since .game-mobile-tabs stays
+         display:none there. -->
+    <div class="game-mobile-tabs" id="gameMobileTabs">
+      <button type="button" class="game-mobile-tab active" data-view="chart">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 3 5-6"/></svg>
+        <span class="game-mobile-tab-label">Chart</span>
+      </button>
+      <button type="button" class="game-mobile-tab" data-view="trade">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v18l6-4 6 4V3"/></svg>
+        <span class="game-mobile-tab-label">Trade</span>
+        <span class="game-mobile-tab-badge hidden" id="gameMobileTradeBadge"></span>
+      </button>
+    </div>
+    <script>
+      document.querySelectorAll('.game-mobile-tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.game-mobile-tab').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          document.querySelector('.game-shell').dataset.mobileView = btn.dataset.view;
+        });
+      });
+    </script>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
