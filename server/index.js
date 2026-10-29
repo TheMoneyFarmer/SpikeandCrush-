@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
+const compression = require('compression');
 const http = require('http');
 const cors = require('cors');
 const bcrypt = require('bcryptjs'); // still used for the legacy-account migration path in /api/auth/login
@@ -336,6 +337,9 @@ app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), async
 });
 
 app.use(cors({ origin: corsOrigin }));
+// Mostly for /api/match/:id/history, which carries several hundred KB of
+// price history per instrument - gzip cuts that ~5x on mobile connections.
+app.use(compression());
 app.use(express.json());
 // index:false - without it, static's default directory-index behavior would
 // serve client/index.html for a bare "/" request before the explicit
@@ -3217,8 +3221,8 @@ app.use((err, req, res, next) => {
 });
 
 const instrumentReport = instrumentsRegistry.preloadAll();
-const csvCount = instrumentReport.filter((r) => r.source === 'csv').length;
-console.log(`[instruments] loaded ${instrumentReport.length} instruments (${csvCount} from real CSV data, ${instrumentReport.length - csvCount} synthetic):`);
+const realCount = instrumentReport.filter((r) => r.source !== 'synthetic').length;
+console.log(`[instruments] loaded ${instrumentReport.length} instruments (${realCount} from real data, ${instrumentReport.length - realCount} synthetic):`);
 for (const r of instrumentReport) {
   console.log(`  ${r.symbol.padEnd(8)} ${r.source.padEnd(10)} ${r.points} one-minute data points`);
 }

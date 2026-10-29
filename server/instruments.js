@@ -4,6 +4,9 @@ const csvLoader = require('./csvLoader');
 
 // dataFile is a substring match against the actual filenames in
 // data/historical/ (which carry long date-stamped names) - see csvLoader.findFile.
+// dukascopy is the instrument id scripts/fetch-market-data.js downloads into
+// data/market/<SYMBOL>/ (m1/h1/d1) - when those files exist they take
+// precedence over both dataFile and the synthetic fallback.
 // EURUSD/XAUUSD keep dataFile: null and the exact basePrice/volatility/spread
 // the existing (pre-expansion) synthetic engine already used, so their behavior
 // is unchanged for players still in a plain Quick War.
@@ -12,95 +15,95 @@ const INSTRUMENTS = {
   EURUSD: {
     name: 'EUR/USD', category: 'forex', nickname: ['fiber', 'euro', 'eurusd'],
     pipSize: 0.0001, pipValue: 10, spread: 0.00015, contractSize: 100000,
-    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 1.08, volatility: 0.0002,
+    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 1.08, volatility: 0.0002, dukascopy: 'eurusd',
   },
   GBPUSD: {
     name: 'GBP/USD', category: 'forex', nickname: ['cable', 'pound', 'sterling'],
     pipSize: 0.0001, pipValue: 10, spread: 0.00020, contractSize: 100000,
-    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 1.27, volatility: 0.00025,
+    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 1.27, volatility: 0.00025, dukascopy: 'gbpusd',
   },
   USDJPY: {
     name: 'USD/JPY', category: 'forex', nickname: ['yen', 'dollar yen', 'usdjpy'],
     pipSize: 0.01, pipValue: 9.1, spread: 0.015, contractSize: 100000,
-    minLot: 0.01, maxLot: 100, decimals: 3, dataFile: null, basePrice: 149.5, volatility: 0.03,
+    minLot: 0.01, maxLot: 100, decimals: 3, dataFile: null, basePrice: 149.5, volatility: 0.03, dukascopy: 'usdjpy',
   },
   USDCHF: {
     name: 'USD/CHF', category: 'forex', nickname: ['swissy', 'swiss franc'],
     pipSize: 0.0001, pipValue: 10.9, spread: 0.00020, contractSize: 100000,
-    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 0.88, volatility: 0.00022,
+    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 0.88, volatility: 0.00022, dukascopy: 'usdchf',
   },
   AUDUSD: {
     name: 'AUD/USD', category: 'forex', nickname: ['aussie', 'australian'],
     pipSize: 0.0001, pipValue: 10, spread: 0.00018, contractSize: 100000,
-    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 0.66, volatility: 0.00022,
+    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 0.66, volatility: 0.00022, dukascopy: 'audusd',
   },
   USDCAD: {
     name: 'USD/CAD', category: 'forex', nickname: ['loonie', 'canadian'],
     pipSize: 0.0001, pipValue: 7.4, spread: 0.00022, contractSize: 100000,
-    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 1.36, volatility: 0.00022,
+    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 1.36, volatility: 0.00022, dukascopy: 'usdcad',
   },
   NZDUSD: {
     name: 'NZD/USD', category: 'forex', nickname: ['kiwi', 'new zealand'],
     pipSize: 0.0001, pipValue: 10, spread: 0.00025, contractSize: 100000,
-    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 0.61, volatility: 0.00025,
+    minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 0.61, volatility: 0.00025, dukascopy: 'nzdusd',
   },
 
   // ---- metals -----------------------------------------------------------------
   XAUUSD: {
     name: 'Gold', category: 'metals', nickname: ['gold', 'xauusd', 'yellow metal'],
     pipSize: 0.01, pipValue: 1, spread: 0.35, contractSize: 100,
-    minLot: 0.01, maxLot: 50, decimals: 2, dataFile: null, basePrice: 1950.0, volatility: 0.5,
+    minLot: 0.01, maxLot: 50, decimals: 2, dataFile: null, basePrice: 1950.0, volatility: 0.5, dukascopy: 'xauusd',
   },
   XAGUSD: {
     name: 'Silver', category: 'metals', nickname: ['silver', 'xagusd'],
     pipSize: 0.001, pipValue: 5, spread: 0.03, contractSize: 5000,
-    minLot: 0.01, maxLot: 50, decimals: 3, dataFile: null, basePrice: 23.5, volatility: 0.05,
+    minLot: 0.01, maxLot: 50, decimals: 3, dataFile: null, basePrice: 23.5, volatility: 0.05, dukascopy: 'xagusd',
   },
 
   // ---- indices ------------------------------------------------------------
   NAS100: {
     name: 'NASDAQ 100', category: 'indices', nickname: ['nasdaq', 'nas', 'tech index', 'hundred'],
     pipSize: 0.1, pipValue: 1, spread: 1.5, contractSize: 1,
-    minLot: 0.1, maxLot: 100, decimals: 2, dataFile: 'USATECH.IDX', basePrice: 14037, volatility: 8,
+    minLot: 0.1, maxLot: 100, decimals: 2, dataFile: 'USATECH.IDX', basePrice: 14037, volatility: 8, dukascopy: 'usatechidxusd',
   },
   US30: {
     name: 'Dow Jones', category: 'indices', nickname: ['dow', 'dow jones', 'usa30', 'thirty'],
     pipSize: 0.1, pipValue: 1, spread: 2.0, contractSize: 1,
-    minLot: 0.1, maxLot: 100, decimals: 2, dataFile: 'USA30.IDX', basePrice: 24731, volatility: 10,
+    minLot: 0.1, maxLot: 100, decimals: 2, dataFile: 'USA30.IDX', basePrice: 24731, volatility: 10, dukascopy: 'usa30idxusd',
   },
   UK100: {
     name: 'FTSE 100', category: 'indices', nickname: ['ftse', 'footsie', 'uk100'],
     pipSize: 0.1, pipValue: 1.27, spread: 2.0, contractSize: 1,
-    minLot: 0.1, maxLot: 100, decimals: 1, dataFile: null, basePrice: 7650, volatility: 8,
+    minLot: 0.1, maxLot: 100, decimals: 1, dataFile: null, basePrice: 7650, volatility: 8, dukascopy: 'gbridxgbp',
   },
   GER40: {
     name: 'DAX 40', category: 'indices', nickname: ['dax', 'german index', 'ger40'],
     pipSize: 0.1, pipValue: 1, spread: 1.5, contractSize: 1,
-    minLot: 0.1, maxLot: 100, decimals: 1, dataFile: null, basePrice: 16800, volatility: 15,
+    minLot: 0.1, maxLot: 100, decimals: 1, dataFile: null, basePrice: 16800, volatility: 15, dukascopy: 'deuidxeur',
   },
 
   // ---- commodities --------------------------------------------------------
   BRENT: {
     name: 'Brent Crude', category: 'commodities', nickname: ['brent', 'brent crude', 'uk oil'],
     pipSize: 0.01, pipValue: 10, spread: 0.05, contractSize: 1000,
-    minLot: 0.01, maxLot: 50, decimals: 3, dataFile: 'BRENT.CMD', basePrice: 46.8, volatility: 0.15,
+    minLot: 0.01, maxLot: 50, decimals: 3, dataFile: 'BRENT.CMD', basePrice: 46.8, volatility: 0.15, dukascopy: 'brentcmdusd',
   },
   USOIL: {
     name: 'WTI Crude', category: 'commodities', nickname: ['wti', 'crude', 'oil', 'usoil'],
     pipSize: 0.01, pipValue: 10, spread: 0.05, contractSize: 1000,
-    minLot: 0.01, maxLot: 50, decimals: 2, dataFile: null, basePrice: 78.5, volatility: 0.3,
+    minLot: 0.01, maxLot: 50, decimals: 2, dataFile: null, basePrice: 78.5, volatility: 0.3, dukascopy: 'lightcmdusd',
   },
 
   // ---- crypto ---------------------------------------------------------------
   BTCUSD: {
     name: 'Bitcoin', category: 'crypto', nickname: ['bitcoin', 'btc'],
     pipSize: 0.01, pipValue: 0.01, spread: 15.0, contractSize: 1,
-    minLot: 0.01, maxLot: 10, decimals: 1, dataFile: 'BTC-USD', basePrice: 9795, volatility: 15,
+    minLot: 0.01, maxLot: 10, decimals: 1, dataFile: 'BTC-USD', basePrice: 9795, volatility: 15, dukascopy: 'btcusd',
   },
   ETHUSD: {
     name: 'Ethereum', category: 'crypto', nickname: ['ethereum', 'eth'],
     pipSize: 0.01, pipValue: 0.01, spread: 1.0, contractSize: 1,
-    minLot: 0.01, maxLot: 50, decimals: 2, dataFile: 'ETH-USD', basePrice: 186.7, volatility: 0.3,
+    minLot: 0.01, maxLot: 50, decimals: 2, dataFile: 'ETH-USD', basePrice: 186.7, volatility: 0.3, dukascopy: 'ethusd',
   },
   // USTUSD's CSV is present but empty (0 data rows) - csvLoader falls back to
   // synthetic automatically. Treated as a low-volatility, ~$1 asset.
@@ -114,7 +117,7 @@ const INSTRUMENTS = {
   AAPL: {
     name: 'Apple Inc', category: 'stocks', nickname: ['apple', 'aapl'],
     pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1,
-    minLot: 1, maxLot: 1000, decimals: 2, dataFile: 'AAPL.US-USD', basePrice: 351.17, volatility: 0.5,
+    minLot: 1, maxLot: 1000, decimals: 2, dataFile: 'AAPL.US-USD', basePrice: 351.17, volatility: 0.5, dukascopy: 'aaplususd',
   },
 };
 
@@ -187,6 +190,10 @@ const PRE_MATCH_MINUTES = 120; // 2 hours of 1-minute bars shown as historical c
 const LIVE_MINUTES = 10; // the match itself
 const WINDOW_MINUTES = PRE_MATCH_MINUTES + LIVE_MINUTES;
 const TICKS_PER_MINUTE = 60; // live minutes get interpolated to 1-second ticks for the existing tick-driven engine
+// A 130-minute window may span at most this much more real time than 130
+// minutes (a few dropped no-trade minutes are fine, a weekend is not).
+const MAX_WINDOW_GAP_RATIO = 1.25;
+const MIN_HISTORY_BARS = 1440;
 
 // matchId -> { [symbol]: { preMatch: [{t,mid,bid,ask}], live: [{t,mid,bid,ask}] } }
 const MATCH_WINDOWS = new Map();
@@ -276,8 +283,22 @@ function assignMatchWindow(matchId, symbol, seed) {
 
   const dayBars = csvLoader.getInstrumentDayData(symbol, cfg);
   const maxStart = dayBars.length - WINDOW_MINUTES;
-  const rand = seed ? seededRandom(`${seed}:${symbol}`)() : Math.random();
-  const startIndex = maxStart > 0 ? Math.floor(rand * maxStart) : 0;
+  const rand = seed ? seededRandom(`${seed}:${symbol}`) : Math.random;
+  // Multi-day market data has weekend/overnight gaps (closed-market bars are
+  // dropped at download time) - a window spanning one would play a jump
+  // between sessions as if it were a single minute, so retry for a stretch
+  // that's (near-)continuous real time. Seeded runs stay deterministic since
+  // the same PRNG sequence is consumed in the same order.
+  // With market data, also skip the first ~day of bars so there's always
+  // 1-minute history before the window for the 1m-30m chart timeframes.
+  const minStart = csvLoader.getMarketSeries(symbol) ? Math.min(MIN_HISTORY_BARS, Math.floor(maxStart / 2)) : 0;
+  const pickStart = () => minStart + Math.floor(rand() * (maxStart - minStart));
+  let startIndex = maxStart > 0 ? pickStart() : 0;
+  for (let attempt = 0; attempt < 50 && maxStart > 0; attempt++) {
+    const span = dayBars[startIndex + WINDOW_MINUTES - 1].time - dayBars[startIndex].time;
+    if (span <= (WINDOW_MINUTES - 1) * 60 * MAX_WINDOW_GAP_RATIO) break;
+    startIndex = pickStart();
+  }
 
   const preMatchBars = dayBars.slice(startIndex, startIndex + PRE_MATCH_MINUTES);
   const liveBars = dayBars.slice(startIndex + PRE_MATCH_MINUTES, startIndex + WINDOW_MINUTES);
@@ -308,8 +329,54 @@ function assignMatchWindow(matchId, symbol, seed) {
     });
   });
 
-  match[symbol] = { preMatch, live };
+  match[symbol] = { preMatch, live, ...buildChartContext(symbol, preMatchBars) };
   return match[symbol];
+}
+
+const DAY_SECONDS = 86400;
+const CONTEXT_M1_DAYS = 2; // feeds 1m-30m candles beyond the 2h of pre-match ticks
+const CONTEXT_M1_MIN_BARS = 2880; // ...stretched further back for session-hours instruments (AAPL)
+const CONTEXT_H1_DAYS = 45; // feeds 1h/4h
+const CONTEXT_D1_BARS = 400; // feeds D1
+
+// Real bars from before the pre-match ticks, for browsing history on the
+// higher chart timeframes (1m..D1). Each resolution covers the stretch the
+// finer one doesn't, with no overlap or gap between them, so a client candle
+// spanning a handover still merges into correct OHLC. Times are seconds relative to match start (same
+// axis as the ticks, never real dates - a calendar date would let a player
+// look up what happens next), plus alignOffset = match start's seconds into
+// its UTC day, so the client can align H1/H4/D1 candles to real boundaries.
+function buildChartContext(symbol, preMatchBars) {
+  const market = csvLoader.getMarketSeries(symbol);
+  if (!market || !preMatchBars.length) return { context: null, alignOffset: 0 };
+
+  const anchor = preMatchBars[0].time; // real time of the first pre-match tick
+  const preMatchSeconds = PRE_MATCH_MINUTES * 60;
+  const rel = (time) => time - anchor - preMatchSeconds;
+  const dayFloor = (time) => Math.floor(time / DAY_SECONDS) * DAY_SECONDS;
+  const toRow = (b) => [rel(b.time), b.open, b.high, b.low, b.close];
+
+  // The m1 stretch starts on a whole hour (so an H1 candle never mixes h1 and
+  // m1 bars) and h1 hands over to d1 on a UTC midnight, likewise for D1.
+  const hourFloor = (time) => Math.floor(time / 3600) * 3600;
+  let m1Start = hourFloor(anchor - CONTEXT_M1_DAYS * DAY_SECONDS);
+  const anchorIndex = market.m1.findIndex((b) => b.time >= anchor);
+  const minBarsIndex = Math.max(0, (anchorIndex === -1 ? market.m1.length : anchorIndex) - CONTEXT_M1_MIN_BARS);
+  if (market.m1.length) m1Start = Math.min(m1Start, hourFloor(market.m1[minBarsIndex].time));
+  if (market.m1.length && market.m1[0].time > m1Start) m1Start = hourFloor(market.m1[0].time) + 3600;
+  m1Start = Math.min(m1Start, anchor);
+  const h1Start = dayFloor(m1Start - CONTEXT_H1_DAYS * DAY_SECONDS);
+
+  const m1 = market.m1.filter((b) => b.time >= m1Start && b.time < anchor);
+  const h1 = market.h1.filter((b) => b.time >= h1Start && b.time < m1Start);
+  const d1End = h1.length ? dayFloor(h1[0].time) : m1Start;
+  const d1 = market.d1.filter((b) => b.time < d1End).slice(-CONTEXT_D1_BARS);
+
+  const matchStart = anchor + preMatchSeconds;
+  return {
+    context: { m1: m1.map(toRow), h1: h1.map(toRow), d1: d1.map(toRow) },
+    alignOffset: ((matchStart % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS,
+  };
 }
 
 function getCurrentPrice(matchId, symbol, elapsedSeconds) {
@@ -324,6 +391,14 @@ function getPreMatchHistory(matchId, symbol) {
   const match = MATCH_WINDOWS.get(matchId);
   if (!match || !match[symbol]) return null;
   return match[symbol].preMatch;
+}
+
+// Higher-timeframe history for the chart (see buildChartContext) - null for
+// instruments with no downloaded market data, which then show ticks only.
+function getChartContext(matchId, symbol) {
+  const match = MATCH_WINDOWS.get(matchId);
+  if (!match || !match[symbol]) return null;
+  return { context: match[symbol].context, alignOffset: match[symbol].alignOffset };
 }
 
 function releaseMatchWindows(matchId) {
@@ -384,7 +459,7 @@ function preloadAll() {
     const bars = csvLoader.getInstrumentDayData(symbol, cfg);
     report.push({
       symbol,
-      source: cfg.dataFile && !csvLoader.isSynthetic(symbol) ? 'csv' : 'synthetic',
+      source: csvLoader.getMarketSeries(symbol) ? 'market' : cfg.dataFile && !csvLoader.isSynthetic(symbol) ? 'csv' : 'synthetic',
       points: bars.length,
     });
   }
@@ -401,6 +476,7 @@ module.exports = {
   assignMatchWindow,
   getCurrentPrice,
   getPreMatchHistory,
+  getChartContext,
   releaseMatchWindows,
   getFullLiveSeries,
   getSpread,

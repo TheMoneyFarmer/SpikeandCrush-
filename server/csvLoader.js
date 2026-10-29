@@ -2,9 +2,13 @@
 
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const { gaussianRandom } = require('../data/dataProcessor');
 
 const HISTORICAL_DIR = path.join(__dirname, '..', 'data', 'historical');
+// Multi-timeframe downloads from scripts/fetch-market-data.js (npm run data:fetch).
+const MARKET_DIR = path.join(__dirname, '..', 'data', 'market');
+const MARKET_TIMEFRAMES = ['m1', 'h1', 'd1'];
 
 // filenamePattern -> parsed bars (or null if the file is missing/empty), loaded
 // once and reused for the life of the process.
@@ -12,6 +16,8 @@ const csvCache = new Map();
 // instrument symbol -> a full "day" of 1-minute OHLCV bars (real CSV-backed or
 // synthetic), also loaded once.
 const dayDataCache = new Map();
+// instrument symbol -> { m1, h1, d1 } real bars, or null when not downloaded.
+const marketSeriesCache = new Map();
 
 function findFile(pattern) {
   if (!fs.existsSync(HISTORICAL_DIR)) return null;
@@ -62,6 +68,51 @@ function loadCSVFile(pattern) {
   console.log(`[csvLoader] loaded ${bars.length} bars from ${path.basename(filePath)} (pattern "${pattern}")`);
   csvCache.set(pattern, bars);
   return bars;
+}
+
+function loadMarketFile(filePath) {
+  let raw;
+  try {
+    raw = zlib.gunzipSync(fs.readFileSync(filePath)).toString('utf8').trim();
+  } catch (e) {
+    console.warn(`[csvLoader] could not read ${filePath}: ${e.message}`);
+    return null;
+  }
+  const lines = raw.split('\n');
+  const bars = [];
+  for (let i = 1; i < lines.length; i++) {
+    const [time, open, high, low, close] = lines[i].split(',').map(Number);
+    if (![time, open, high, low, close].every(Number.isFinite)) continue;
+    bars.push({ time, open, high, low, close, volume: 0 });
+  }
+  bars.sort((a, b) => a.time - b.time);
+  return bars;
+}
+
+// Real m1/h1/d1 history for one instrument (data/market/<SYMBOL>/*.csv.gz).
+// Only counts as available when the m1 file is long enough to cut a match
+// window from - h1/d1 are optional extras for the higher chart timeframes.
+function getMarketSeries(symbol) {
+  if (marketSeriesCache.has(symbol)) return marketSeriesCache.get(symbol);
+
+  let series = null;
+  const dir = path.join(MARKET_DIR, symbol);
+  if (fs.existsSync(path.join(dir, 'm1.csv.gz'))) {
+    series = {};
+    for (const tf of MARKET_TIMEFRAMES) {
+      const file = path.join(dir, `${tf}.csv.gz`);
+      series[tf] = fs.existsSync(file) ? loadMarketFile(file) || [] : [];
+    }
+    if (series.m1.length < 130) {
+      console.warn(`[csvLoader] ${symbol}: data/market m1 has only ${series.m1.length} bars - ignoring it`);
+      series = null;
+    } else {
+      console.log(`[csvLoader] ${symbol}: market data m1=${series.m1.length} h1=${series.h1.length} d1=${series.d1.length}`);
+    }
+  }
+
+  marketSeriesCache.set(symbol, series);
+  return series;
 }
 
 // Volatility isn't flat through a real trading day - busier at session opens,
@@ -120,11 +171,18 @@ function generateSyntheticDay(basePrice, volatility, decimals = 5) {
   return bars;
 }
 
-// Returns a full "day" of 1-minute bars for an instrument: real CSV data when
-// a usable file is present, otherwise a procedurally generated day. Cached per
+// Returns the 1-minute bars match windows are cut from: downloaded market
+// data (data/market, usually ~2 weeks) when present, else the older one-day
+// CSV in data/historical, else a procedurally generated day. Cached per
 // symbol so each instrument is only loaded/generated once per server run.
 function getInstrumentDayData(symbol, { dataFile, basePrice, volatility, decimals = 5 }) {
   if (dayDataCache.has(symbol)) return dayDataCache.get(symbol);
+
+  const market = getMarketSeries(symbol);
+  if (market) {
+    dayDataCache.set(symbol, market.m1);
+    return market.m1;
+  }
 
   let bars = null;
   if (dataFile) {
@@ -154,5 +212,6 @@ module.exports = {
   loadCSVFile,
   generateSyntheticDay,
   getInstrumentDayData,
+  getMarketSeries,
   isSynthetic,
 };

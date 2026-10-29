@@ -3,12 +3,20 @@
 window.TW = window.TW || {};
 
 TW.Chart = (function () {
-  // Seconds per candle. With 2 hours of pre-match history now loaded (see
-  // loadPreMatchHistory), the higher timeframes are meaningful for browsing
-  // history even though a 10-minute match itself never fills a complete H1/H4
-  // bar live - same as real MT5 showing a partial forming candle.
-  const TIMEFRAMES = [5, 10, 30, 60, 300, 900, 1800, 3600, 14400];
-  const TIMEFRAME_LABELS = { 5: '5s', 10: '10s', 30: '30s', 60: '1m', 300: '5m', 900: '15m', 1800: '30m', 3600: '1h', 14400: '4h' };
+  // Seconds per candle. Seconds timeframes are built from the 2 hours of
+  // pre-match ticks; 1m and up also get real bar history from the server
+  // (m1 ~2 days, h1 ~45 days, d1 ~400 days - see loadPreMatchHistory), so
+  // every timeframe has a full screen to browse even though a 10-minute
+  // match itself only ever adds to the forming H1/H4/D1 candle, like MT5.
+  const TIMEFRAMES = [5, 10, 30, 60, 300, 900, 1800, 3600, 14400, 86400];
+  const TIMEFRAME_LABELS = { 5: '5s', 10: '10s', 30: '30s', 60: '1m', 300: '5m', 900: '15m', 1800: '30m', 3600: '1h', 14400: '4h', 86400: 'D1' };
+  // Bar history resolution (seconds) -> the context series it comes from.
+  // A series only feeds timeframes at or above its own resolution.
+  const CONTEXT_RESOLUTIONS = [
+    ['d1', 86400],
+    ['h1', 3600],
+    ['m1', 60],
+  ];
   // Always auto-fit the same number of candles into view regardless of
   // timeframe (TradingView behaviour) - a fixed bar count here combined with
   // the chart's own fixed barSpacing is what keeps candles the same visual
@@ -29,6 +37,15 @@ TW.Chart = (function () {
   // every other instrument once match instrument rotation shipped).
   const rawTicks = {};
   const preMatchLoaded = {};
+  // symbol -> { m1, h1, d1 } rows of [t, open, high, low, close], all older
+  // than the first pre-match tick; absent for instruments with no real data.
+  const contextBars = {};
+  // symbol -> match start's seconds into its real UTC day, so H1/H4/D1
+  // buckets line up with real hour/day boundaries instead of match start.
+  const alignOffsets = {};
+  // symbol -> tf -> candles built from contextBars alone (immutable once
+  // loaded, so only rebuilt on load, not on every live tick).
+  const contextCandleCache = {};
   const candleUpdateSubscribers = [];
   const symbolChangeSubscribers = [];
 
@@ -99,6 +116,14 @@ TW.Chart = (function () {
     // same "00:00" label, so negatives get their own sign + hour-aware format.
     const negative = totalSeconds < 0;
     const s = Math.floor(Math.abs(totalSeconds));
+    // Days of bar history (H1/H4/D1) - relative days rather than a real
+    // date, which would let a player look up how the window plays out.
+    if (s >= 86400) {
+      const d = Math.floor(s / 86400);
+      const hh = Math.floor((s % 86400) / 3600);
+      const mm = Math.floor((s % 3600) / 60);
+      return `${negative ? '-' : ''}${d}d ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+    }
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     const sec = s % 60;
@@ -186,15 +211,53 @@ TW.Chart = (function () {
     });
   }
 
-  function buildCandles(symbol, tf) {
+  // Candles from the bar history alone, oldest resolution first (d1, then
+  // h1, then m1 - the server hands them over as consecutive, non-overlapping
+  // stretches). Seconds timeframes get none: a 1-minute bar can't be split.
+  function buildContextCandles(symbol, tf) {
+    const ctx = contextBars[symbol];
+    if (!ctx) return [];
+    const cache = (contextCandleCache[symbol] = contextCandleCache[symbol] || {});
+    if (cache[tf]) return cache[tf];
+
+    const off = alignOffsets[symbol] || 0;
     const candles = [];
+    for (const [key, resolution] of CONTEXT_RESOLUTIONS) {
+      if (tf < resolution) continue;
+      for (const [t, open, high, low, close] of ctx[key] || []) {
+        const bucket = Math.floor((t + off) / tf);
+        const last = candles[candles.length - 1];
+        if (last && last.bucket === bucket) {
+          last.high = Math.max(last.high, high);
+          last.low = Math.min(last.low, low);
+          last.close = close;
+          last.tickVolume += high - low;
+        } else {
+          candles.push({ bucket, time: bucket * tf - off, open, high, low, close, tickVolume: high - low, isPreMatch: true });
+        }
+      }
+    }
+    cache[tf] = candles;
+    return candles;
+  }
+
+  function buildCandles(symbol, tf) {
+    // Copy of the cached history, except the last candle is cloned since the
+    // first ticks may still extend it (same bucket).
+    const contextCandles = buildContextCandles(symbol, tf);
+    const candles = contextCandles.slice();
+    if (candles.length) candles[candles.length - 1] = { ...candles[candles.length - 1] };
+    // Bucket edges follow real time-of-day (alignOffsets). That offset is
+    // always a whole minute, so for tf <= 60 a bucket edge still falls exactly
+    // on t=0; on bigger timeframes the candle forming at match start can mix
+    // pre-match and live ticks, just like a real chart's current candle.
+    const off = alignOffsets[symbol] || 0;
     let prevMid = null;
     // rawTicks is sorted (pre-match history prepended once, then live ticks
-    // appended in order) so a single left-to-right bucketing pass is safe -
-    // bucket(-1, tf) is always -1 and bucket(0, tf) is always 0 for any tf,
-    // so a pre-match tick and a live tick never land in the same bucket.
+    // appended in order), and all bar history is older than the first tick,
+    // so a single left-to-right bucketing pass is safe.
     for (const { t, mid } of rawTicks[symbol] || []) {
-      const bucket = Math.floor(t / tf);
+      const bucket = Math.floor((t + off) / tf);
       let candle = candles[candles.length - 1];
       // No real order book exists in this simulated market, so "tick volume"
       // (cumulative tick-to-tick price movement) stands in for volume -
@@ -203,13 +266,13 @@ TW.Chart = (function () {
       if (!candle || candle.bucket !== bucket) {
         candle = {
           bucket,
-          time: bucket * tf,
+          time: bucket * tf - off,
           open: mid,
           high: mid,
           low: mid,
           close: mid,
           tickVolume: movement,
-          isPreMatch: bucket < 0,
+          isPreMatch: t < 0,
         };
         candles.push(candle);
       } else {
@@ -217,6 +280,7 @@ TW.Chart = (function () {
         candle.low = Math.min(candle.low, mid);
         candle.close = mid;
         candle.tickVolume += movement;
+        if (t >= 0) candle.isPreMatch = false;
       }
       prevMid = mid;
     }
@@ -263,9 +327,12 @@ TW.Chart = (function () {
     if (symbol === activeSymbol && !ghosted) refreshActiveSeries();
   }
 
-  // Seeds 2 hours of dimmed historical candles ahead of any live ticks. Safe to
-  // call once per match load; a second call for the same symbol is a no-op so
-  // reconnects/re-renders don't duplicate the prefix.
+  // Seeds dimmed historical candles ahead of any live ticks: 2 hours of ticks,
+  // plus bar history for 1m..D1 when the server has real data for the
+  // instrument. Each symbol's entry is { ticks, context, alignOffset } (or a
+  // bare ticks array from older servers). Safe to call once per match load; a
+  // second call for the same symbol is a no-op so reconnects/re-renders don't
+  // duplicate the prefix.
   function loadPreMatchHistory(historyBySymbol) {
     // FIX: one instrument occasionally has no pre-match window ready yet
     // server-side (see gameEngine.getPreMatchHistory) and comes back as
@@ -274,8 +341,9 @@ TW.Chart = (function () {
     // the bad one in object-key order silently never got its history,
     // leaving their charts blank for the rest of the match even though
     // live ticks kept streaming in fine. Skip just the bad one instead.
-    Object.entries(historyBySymbol || {}).forEach(([symbol, ticks]) => {
+    Object.entries(historyBySymbol || {}).forEach(([symbol, entry]) => {
       if (preMatchLoaded[symbol]) return;
+      const ticks = Array.isArray(entry) ? entry : entry && entry.ticks;
       if (!Array.isArray(ticks)) {
         console.warn(`[chart] no pre-match history available for ${symbol} - live ticks will still populate the chart`);
         return;
@@ -283,6 +351,11 @@ TW.Chart = (function () {
       if (!rawTicks[symbol]) rawTicks[symbol] = [];
       const preTicks = ticks.map((p) => ({ t: p.t, mid: p.mid }));
       rawTicks[symbol] = preTicks.concat(rawTicks[symbol]);
+      if (entry.context) {
+        contextBars[symbol] = entry.context;
+        alignOffsets[symbol] = entry.alignOffset || 0;
+        delete contextCandleCache[symbol];
+      }
       preMatchLoaded[symbol] = true;
     });
     if (!ghosted) refreshActiveSeries();
@@ -359,6 +432,7 @@ TW.Chart = (function () {
   function reset() {
     Object.keys(rawTicks).forEach((symbol) => delete rawTicks[symbol]);
     Object.keys(preMatchLoaded).forEach((symbol) => delete preMatchLoaded[symbol]);
+    [contextBars, alignOffsets, contextCandleCache].forEach((map) => Object.keys(map).forEach((symbol) => delete map[symbol]));
   }
 
   function onCandlesUpdated(fn) {

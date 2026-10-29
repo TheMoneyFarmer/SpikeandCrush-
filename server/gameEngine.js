@@ -600,7 +600,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
           instruments.assignMatchWindow(matchId, symbol, seed);
           symbolHistory = instruments.getPreMatchHistory(matchId, symbol);
         }
-        history[symbol] = symbolHistory;
+        history[symbol] = { ticks: symbolHistory, ...instruments.getChartContext(matchId, symbol) };
       }
       return history;
     } catch (e) {
