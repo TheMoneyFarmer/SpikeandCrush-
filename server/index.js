@@ -362,6 +362,7 @@ app.get('/replay', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'replay.html
 app.get('/clip', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'clip.html')));
 app.get('/tournaments', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'tournaments.html')));
 app.get('/tournament/:id', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'tournament.html')));
+app.get('/competitions', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'competitions.html')));
 app.get('/analytics', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'analytics.html')));
 app.get('/trading-floor', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 app.get('/leaderboard', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'leaderboard.html')));
@@ -1817,6 +1818,92 @@ app.post('/api/clip/:id/share', requireDb, authenticate, async (req, res) => {
   } catch (e) {
     console.error('[clip share]', e);
     res.status(500).json({ error: 'Could not record share' });
+  }
+});
+
+// ---- competition hub ---------------------------------------------------------------
+// Public listings for client/competitions.html: Spike & Crush native events,
+// prop-firm challenges (external - entered on the firm's own site) and
+// broker-sponsored tournaments. Status is derived from starts_at/ends_at on
+// every read so nothing has to flip it on a schedule.
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function competitionStatus(c, now = Date.now()) {
+  if (now < new Date(c.starts_at).getTime()) return 'upcoming';
+  if (now < new Date(c.ends_at).getTime()) return 'active';
+  return 'ended';
+}
+
+function competitionSummary(c) {
+  const { is_published, click_count, ...rest } = c;
+  return { ...rest, status: competitionStatus(c) };
+}
+
+// A malformed id would otherwise surface as a Postgres uuid cast error (500).
+function requireCompetitionId(req, res, next) {
+  if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Competition not found' });
+  next();
+}
+
+app.get('/api/competitions', requireDb, async (req, res) => {
+  try {
+    const rows = await db.listPublishedCompetitions();
+    res.json({ competitions: rows.map(competitionSummary) });
+  } catch (e) {
+    console.error('[competitions list]', e);
+    res.status(500).json({ error: 'Could not load competitions' });
+  }
+});
+
+app.get('/api/competitions/:id', requireDb, requireCompetitionId, async (req, res) => {
+  try {
+    const c = await db.getPublishedCompetition(req.params.id);
+    if (!c) return res.status(404).json({ error: 'Competition not found' });
+    res.json(competitionSummary(c));
+  } catch (e) {
+    console.error('[competition detail]', e);
+    res.status(500).json({ error: 'Could not load competition' });
+  }
+});
+
+// Fire-and-forget CTA click counter - never fails the caller.
+app.post('/api/competitions/:id/click', requireDb, requireCompetitionId, async (req, res) => {
+  try {
+    await db.incrementCompetitionClicks(req.params.id);
+  } catch (e) {
+    console.error('[competition click]', e.message);
+  }
+  res.json({ success: true });
+});
+
+app.post('/api/competitions/:id/enter', requireDb, requireCompetitionId, authenticate, async (req, res) => {
+  try {
+    const c = await db.getPublishedCompetition(req.params.id);
+    if (!c) return res.status(404).json({ error: 'Competition not found' });
+    if (c.type === 'external') return res.status(400).json({ error: "Enter this competition on the organizer's site" });
+    if (competitionStatus(c) === 'ended') return res.status(400).json({ error: 'This competition has ended' });
+
+    const playerId = req.tokenPlayer.id;
+    if (await db.hasEnteredCompetition(c.id, playerId)) return res.status(400).json({ error: 'Already entered' });
+
+    if (c.entry_fee_coins > 0) {
+      const player = await db.getPlayerById(playerId);
+      if (player.coins < c.entry_fee_coins) return res.status(400).json({ error: 'Not enough coins' });
+      await db.debitCoins(playerId, c.entry_fee_coins, { type: 'competition_entry' });
+    }
+    try {
+      await db.enterCompetition(c.id, playerId);
+    } catch (e) {
+      // Lost a double-click race on the primary key - give the coins back.
+      if (c.entry_fee_coins > 0) await db.creditCoins(playerId, c.entry_fee_coins, { type: 'competition_refund' });
+      if (e.code === '23505') return res.status(400).json({ error: 'Already entered' });
+      throw e;
+    }
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[competition enter]', e);
+    res.status(500).json({ error: 'Could not enter competition' });
   }
 });
 

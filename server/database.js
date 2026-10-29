@@ -705,6 +705,68 @@ async function updateTournamentRegistration(tournamentId, playerId, fields) {
   return data;
 }
 
+// ---- competitions (Competition Hub listings) ------------------------------------
+
+const COMPETITION_SELECT = '*, organizer:organizers(id, name, logo_url, website, is_verified), competition_entries(count)';
+
+function flattenCompetition(row) {
+  if (!row) return row;
+  const { competition_entries: entries, ...rest } = row;
+  return { ...rest, entry_count: entries?.[0]?.count || 0 };
+}
+
+// Ended competitions stay listed for 30 days so "Results" rows don't vanish
+// the moment a competition closes.
+async function listPublishedCompetitions() {
+  assertConfigured();
+  const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('competitions')
+    .select(COMPETITION_SELECT)
+    .eq('is_published', true)
+    .gte('ends_at', cutoff)
+    .order('starts_at', { ascending: true })
+    .limit(200);
+  if (error) throw error;
+  return data.map(flattenCompetition);
+}
+
+async function getPublishedCompetition(id) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('competitions')
+    .select(COMPETITION_SELECT)
+    .eq('id', id)
+    .eq('is_published', true)
+    .maybeSingle();
+  if (error) throw error;
+  return flattenCompetition(data);
+}
+
+async function hasEnteredCompetition(competitionId, playerId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('competition_entries')
+    .select('player_id')
+    .eq('competition_id', competitionId)
+    .eq('player_id', playerId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
+async function enterCompetition(competitionId, playerId) {
+  assertConfigured();
+  const { error } = await supabase.from('competition_entries').insert({ competition_id: competitionId, player_id: playerId });
+  if (error) throw error;
+}
+
+async function incrementCompetitionClicks(id) {
+  assertConfigured();
+  const { error } = await supabase.rpc('increment_competition_clicks', { comp_id: id });
+  if (error) throw error;
+}
+
 // ---- analytics (Battle Pass premium) -------------------------------------------
 
 async function getAnalyticsWinRateByInstrument(playerId) {
@@ -1692,6 +1754,11 @@ module.exports = {
   listTournamentRegistrations,
   registerForTournament,
   updateTournamentRegistration,
+  listPublishedCompetitions,
+  getPublishedCompetition,
+  hasEnteredCompetition,
+  enterCompetition,
+  incrementCompetitionClicks,
   getAnalyticsWinRateByInstrument,
   getAnalyticsPnlByMode,
   getAnalyticsTimeOfDayHeatmap,

@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A0C14">
+<title>Competition Hub — Spike &amp; Crush | Trading Competitions 2026</title>
+<meta name="description" content="Find and enter trading competitions. Daily, weekly and monthly prizes. Prop firm competitions, sponsored tournaments and Spike &amp; Crush native events all in one place.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8F%86%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/competitions.css">
+<link rel="stylesheet" href="/css/mobile.css">
+<script src="/js/device.js"></script>
+</head>
+<body class="comp-hub" data-page="competitions">
+
+<!-- TOP NAV -->
+<header class="ch-nav">
+  <a href="/" class="ch-nav-logo" aria-label="Spike &amp; Crush home">
+    <span class="logo-s">S</span><span class="logo-p">P</span><span class="logo-i">I</span><span class="logo-k">K</span><span class="logo-e">E</span><span class="logo-amp">&amp;</span><span class="logo-c">C</span><span class="logo-r">R</span><span class="logo-u">U</span><span class="logo-s2">S</span><span class="logo-h">H</span>
+  </a>
+
+  <nav class="ch-nav-links">
+    <a href="/competitions" class="ch-nav-link active">Competitions</a>
+    <a href="/leaderboard" class="ch-nav-link">Leaderboard</a>
+    <a href="/trading-floor" class="ch-nav-link">Play</a>
+    <a href="mailto:hello@spikeandcrush.com?subject=List%20a%20competition" class="ch-nav-link">For Firms</a>
+  </nav>
+
+  <div class="ch-nav-right">
+    <a href="mailto:hello@spikeandcrush.com?subject=List%20a%20competition" class="ch-nav-list-btn">List Competition →</a>
+    <a href="/trading-floor" class="ch-nav-play-btn">⚔️ Play Free</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="ch-hero">
+  <div class="ch-hero-inner">
+    <div class="ch-hero-text">
+      <div class="ch-hero-badge">
+        <span class="live-pulse"></span>
+        Live Data · Updated <span id="hero-updated">just now</span>
+      </div>
+      <h1>Trading Competition Hub</h1>
+      <p>
+        Every active trading competition in one place — Spike &amp; Crush
+        native events, prop firm challenges, and broker-sponsored
+        tournaments. Verified organizers are marked <span class="hero-check">✓</span>.
+      </p>
+    </div>
+    <div class="ch-hero-stats">
+      <div class="chs">
+        <div class="chs-v" id="hs-active">—</div>
+        <div class="chs-l">Active Competitions</div>
+      </div>
+      <div class="chs">
+        <div class="chs-v gold" id="hs-prize">—</div>
+        <div class="chs-l">Total Prize Pool</div>
+      </div>
+      <div class="chs">
+        <div class="chs-v" id="hs-entrants">—</div>
+        <div class="chs-l">Traders Competing</div>
+      </div>
+      <div class="chs">
+        <div class="chs-v" id="hs-firms">—</div>
+        <div class="chs-l">Firms Listed</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STICKY SUB-NAV TABS -->
+<div class="ch-subnav" id="ch-subnav">
+  <div class="ch-subnav-tabs">
+    <button class="ch-stab active" data-filter="all">All</button>
+    <button class="ch-stab" data-filter="active"><span class="pulse-r"></span>Live Now</button>
+    <button class="ch-stab" data-filter="native">⚔️ Spike &amp; Crush</button>
+    <button class="ch-stab" data-filter="external">🏢 Prop Firms</button>
+    <button class="ch-stab" data-filter="sponsored">🤝 Sponsored</button>
+    <button class="ch-stab" data-filter="upcoming">📅 Upcoming</button>
+  </div>
+  <div class="ch-subnav-right">
+    <a href="mailto:hello@spikeandcrush.com?subject=List%20a%20competition" class="ch-list-link">+ List Competition</a>
+  </div>
+</div>
+
+<!-- TABLE SECTION -->
+<section class="ch-table-section">
+
+  <div class="ch-table-toprow">
+    <div class="ch-live-badge">
+      <span class="live-dot-sm"></span>
+      Live Data &nbsp;·&nbsp; updated <span id="last-updated">just now</span>
+    </div>
+    <div class="ch-table-count">
+      <span id="table-count">—</span> competitions
+    </div>
+  </div>
+
+  <!-- DESKTOP TABLE -->
+  <div class="ch-table-wrap" id="ch-table-wrap">
+    <table class="ch-table" id="ch-table">
+      <thead>
+        <tr>
+          <th class="col-rank sortable active-sort" data-sort="rank">#<span class="sort-icon">↓</span></th>
+          <th class="col-comp">Competition / Organizer</th>
+          <th class="col-status">Status</th>
+          <th class="col-prize sortable" data-sort="prize">Prize Pool<span class="sort-icon">↕</span></th>
+          <th class="col-duration sortable" data-sort="duration">Duration<span class="sort-icon">↕</span></th>
+          <th class="col-instruments">Instruments</th>
+          <th class="col-entry sortable" data-sort="entry">Entry<span class="sort-icon">↕</span></th>
+          <th class="col-entrants sortable" data-sort="entrants">Entrants<span class="sort-icon">↕</span></th>
+          <th class="col-action">&nbsp;</th>
+        </tr>
+      </thead>
+      <tbody id="ch-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- MOBILE CARDS (table is too wide for phones) -->
+  <div class="ch-mobile-cards" id="ch-mobile-cards" style="display:none;"></div>
+
+  <!-- Empty state -->
+  <div class="ch-empty" id="ch-empty" style="display:none;">
+    <div class="ch-empty-icon">🏆</div>
+    <h3>No competitions here yet</h3>
+    <p id="ch-empty-sub">Check back soon.</p>
+    <a href="mailto:hello@spikeandcrush.com?subject=List%20a%20competition" class="ch-cta-btn native" id="ch-empty-cta" style="display:none;">List Your Competition →</a>
+  </div>
+
+  <!-- Load more -->
+  <div class="ch-load-more" id="ch-load-more" style="display:none;">
+    <button type="button" id="ch-load-more-btn">Load More</button>
+  </div>
+
+</section>
+
+<!-- BOTTOM CTA STRIP -->
+<section class="ch-bottom-cta">
+  <div class="ch-bottom-inner">
+    <div class="ch-bottom-text">
+      <h2>Are you a prop firm or broker?</h2>
+      <p>List your competition and reach thousands of active traders. Free to list. Pay only for results.</p>
+    </div>
+    <div class="ch-bottom-actions">
+      <a href="mailto:hello@spikeandcrush.com?subject=List%20a%20competition" class="ch-cta-btn native">List Your Competition →</a>
+      <a href="mailto:hello@spikeandcrush.com" class="ch-cta-btn ghost">Contact Us</a>
+    </div>
+  </div>
+</section>
+
+<!-- COMPETITION DETAIL MODAL -->
+<div class="comp-modal" id="comp-modal" style="display:none;">
+  <div class="comp-modal-overlay" data-close-modal></div>
+  <div class="comp-modal-card" id="comp-modal-card" role="dialog" aria-modal="true"></div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+// ── STATE ────────────────────────────────────
+let allComps      = [];
+let filtered      = [];
+let activeFilter  = 'all';
+let activeSortCol = 'rank';
+let activeSortDir = 'desc';
+const pageSize    = 20;
+let pageShown     = pageSize;
+let lastLoadedAt  = null;
+
+// TW.escapeHtml leaves quotes alone, and organizer-supplied values land
+// inside attributes here (logo src/alt, data-* ids) as well as text.
+const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ESC_MAP[ch]);
+
+const TYPE_COLOR = { native: '#00C896', external: '#8090F0', sponsored: '#F5C542' };
+const TYPE_LABEL = { native: '⚔️ Native', external: '🏢 Prop Firm', sponsored: '🤝 Sponsored' };
+const TYPE_LONG  = { native: '⚔️ Spike & Crush', external: '🏢 Prop Firm', sponsored: '🤝 Sponsored' };
+const TYPE_MODAL = {
+  native:    '⚔️ Spike & Crush native event',
+  external:  '🏢 Prop firm hosted challenge',
+  sponsored: '🤝 Broker sponsored tournament',
+};
+
+// Only http(s) links ever leave the site from a CTA - the DB enforces this
+// too, this just keeps a bad row from turning into a javascript: URL.
+function safeUrl(url) {
+  return /^https?:\/\//i.test(url || '') ? url : '';
+}
+
+// ── FORMATTERS ───────────────────────────────
+function formatPrize(prize, { compactFrom = 10000, empty = '—' } = {}) {
+  if (!(prize > 0)) return empty;
+  return prize >= compactFrom
+    ? '$' + Math.round(prize / 1000) + 'K'
+    : '$' + prize.toLocaleString();
+}
+
+function durationDays(c) {
+  return (new Date(c.ends_at) - new Date(c.starts_at)) / 86400000;
+}
+
+function formatDuration(c) {
+  const dur = Math.ceil(durationDays(c));
+  if (dur <= 1) return '1 Day';
+  if (dur <= 7) return dur + ' Days';
+  if (dur <= 31) return Math.round(dur / 7) + ' Wks';
+  return Math.round(dur / 30) + ' Mos';
+}
+
+// "2d 4h" left while live, "in 1d 23h" before it starts.
+function formatTimeLeft(c) {
+  const isLive = c.status === 'active';
+  const ms = Math.max(0, isLive
+    ? new Date(c.ends_at) - Date.now()
+    : new Date(c.starts_at) - Date.now());
+  const d = Math.floor(ms / 86400000);
+  const h = Math.floor((ms % 86400000) / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const span = d > 0 ? d + 'd ' + h + 'h' : h > 0 ? h + 'h' : m + 'm';
+  return isLive ? span : 'in ' + span;
+}
+
+function formatEntry(c, coinSep = ' ') {
+  return c.entry_fee_coins > 0 ? c.entry_fee_coins + coinSep + '🪙' : 'Free';
+}
+
+function ctaLabel(c, { short = false } = {}) {
+  const isExternal = c.type === 'external';
+  if (c.status === 'active') return isExternal ? 'Enter →' : 'Enter';
+  if (c.status === 'upcoming') {
+    if (short) return 'Details →';
+    return isExternal ? 'View →' : 'Register';
+  }
+  return 'Results';
+}
+
+function relativeTime(date) {
+  if (!date) return 'just now';
+  const s = Math.round((Date.now() - date) / 1000);
+  if (s < 30) return 'just now';
+  if (s < 90) return '1 min ago';
+  return Math.round(s / 60) + ' min ago';
+}
+
+function orgAvatar(c, cls, fallbackCls) {
+  const org = c.organizer;
+  const color = TYPE_COLOR[c.type] || '#fff';
+  if (org?.logo_url && safeUrl(org.logo_url)) {
+    return `<img src="${esc(org.logo_url)}" class="${cls}" alt="${esc(org.name)}">`;
+  }
+  return `<div class="${fallbackCls}" style="background:${color}22;color:${color};">${esc((org?.name || 'S')[0])}</div>`;
+}
+
+// ── LOAD ─────────────────────────────────────
+async function init() {
+  bindUi();
+  await loadComps();
+}
+
+async function loadComps() {
+  try {
+    const data = await TW.api('/api/competitions');
+    allComps = data.competitions || [];
+    lastLoadedAt = Date.now();
+    refreshUpdatedLabels();
+    updateHeroStats();
+    applyFilterAndSort();
+  } catch (err) {
+    console.error('Load error:', err);
+    showEmpty('Failed to load. Refresh to retry.');
+  }
+}
+
+function refreshUpdatedLabels() {
+  const label = relativeTime(lastLoadedAt);
+  set('last-updated', label);
+  set('hero-updated', label);
+}
+
+// ── STATS ────────────────────────────────────
+function updateHeroStats() {
+  const active = allComps.filter((c) => c.status === 'active');
+  const prize = allComps
+    .filter((c) => c.status !== 'ended')
+    .reduce((s, c) => s + parseFloat(c.prize_pool || 0), 0);
+  const entrants = active.reduce((s, c) => s + (c.entry_count || 0), 0);
+  const firms = new Set(allComps.filter((c) => c.organizer_id).map((c) => c.organizer_id)).size;
+
+  set('hs-active', active.length);
+  set('hs-prize', formatPrize(prize, { compactFrom: 1000, empty: '$0' }));
+  set('hs-entrants', entrants.toLocaleString());
+  set('hs-firms', firms || '—');
+}
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+// ── FILTER ───────────────────────────────────
+function setFilter(filter) {
+  activeFilter = filter;
+  pageShown = pageSize;
+  document.querySelectorAll('.ch-stab')
+    .forEach((t) => t.classList.toggle('active', t.dataset.filter === filter));
+  applyFilterAndSort();
+}
+
+function filterComps() {
+  if (activeFilter === 'all') return [...allComps];
+  if (activeFilter === 'active' || activeFilter === 'upcoming') {
+    return allComps.filter((c) => c.status === activeFilter);
+  }
+  return allComps.filter((c) => c.type === activeFilter);
+}
+
+// ── SORT ─────────────────────────────────────
+function sortBy(col) {
+  if (activeSortCol === col) {
+    activeSortDir = activeSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    activeSortCol = col;
+    activeSortDir = 'desc';
+  }
+
+  document.querySelectorAll('th.sortable').forEach((th) => {
+    const icon = th.querySelector('.sort-icon');
+    const on = th.dataset.sort === col;
+    th.classList.toggle('active-sort', on);
+    if (icon) icon.textContent = on ? (activeSortDir === 'desc' ? '↓' : '↑') : '↕';
+  });
+
+  applyFilterAndSort();
+}
+
+const SORT_VALUE = {
+  prize:    (c) => parseFloat(c.prize_pool || 0),
+  entry:    (c) => c.entry_fee_coins || 0,
+  entrants: (c) => c.entry_count || 0,
+  duration: (c) => durationDays(c),
+};
+
+function sortComps(list) {
+  const dir = activeSortDir === 'desc' ? -1 : 1;
+  return [...list].sort((a, b) => {
+    // Ended competitions always sink below open ones, whatever the sort.
+    const byEnded = (a.status === 'ended') - (b.status === 'ended');
+    if (byEnded) return byEnded;
+
+    if (activeSortCol === 'rank') {
+      // Featured first, then by prize
+      if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1;
+      return dir * (SORT_VALUE.prize(a) - SORT_VALUE.prize(b));
+    }
+    return dir * (SORT_VALUE[activeSortCol](a) - SORT_VALUE[activeSortCol](b));
+  });
+}
+
+// ── RENDER ───────────────────────────────────
+function applyFilterAndSort() {
+  filtered = sortComps(filterComps());
+  set('table-count', filtered.length);
+
+  if (filtered.length === 0) {
+    showEmpty(getEmptyMsg());
+    return;
+  }
+  hideEmpty();
+  renderPage();
+}
+
+function renderPage() {
+  const slice = filtered.slice(0, pageShown);
+  const loadMoreEl = document.getElementById('ch-load-more');
+  if (loadMoreEl) loadMoreEl.style.display = filtered.length > pageShown ? 'flex' : 'none';
+
+  if (Device.isMobile()) renderMobileCards(slice);
+  else renderTable(slice);
+}
+
+function getEmptyMsg() {
+  if (activeFilter === 'external') return 'Prop firm competitions coming soon. Are you a firm?';
+  if (activeFilter === 'active') return 'No live competitions right now. Check Upcoming.';
+  return 'No competitions in this category yet.';
+}
+
+function showEmpty(msg) {
+  document.getElementById('ch-table-wrap').style.display = 'none';
+  document.getElementById('ch-mobile-cards').style.display = 'none';
+  document.getElementById('ch-load-more').style.display = 'none';
+  document.getElementById('ch-empty').style.display = 'flex';
+  set('ch-empty-sub', msg);
+  document.getElementById('ch-empty-cta').style.display =
+    activeFilter === 'external' ? 'inline-flex' : 'none';
+}
+
+function hideEmpty() {
+  const mobile = Device.isMobile();
+  document.getElementById('ch-empty').style.display = 'none';
+  document.getElementById('ch-table-wrap').style.display = mobile ? 'none' : 'block';
+  document.getElementById('ch-mobile-cards').style.display = mobile ? 'flex' : 'none';
+}
+
+// ── DESKTOP TABLE ────────────────────────────
+function renderTable(comps) {
+  document.getElementById('ch-tbody').innerHTML =
+    comps.map((c, i) => buildTableRow(c, i + 1)).join('');
+}
+
+function ctaButton(c, cls, opts) {
+  const kind = c.type === 'external' ? 'ext' : 'native';
+  return `<button type="button" class="${cls} ${kind}" data-cta="${esc(c.id)}">${ctaLabel(c, opts)}</button>`;
+}
+
+function buildTableRow(c, rank) {
+  const org = c.organizer;
+  const isLive = c.status === 'active';
+  const typeColor = TYPE_COLOR[c.type] || '#fff';
+  const instruments = c.instruments || [];
+
+  const instrHtml = instruments.slice(0, 3)
+    .map((i) => `<span class="instr-pill">${esc(i)}</span>`).join('') +
+    (instruments.length > 3 ? `<span class="instr-more">+${instruments.length - 3}</span>` : '');
+
+  const statusHtml = isLive
+    ? `<div class="status-live"><span class="pulse-s"></span>LIVE · ${formatTimeLeft(c)}</div>`
+    : c.status === 'upcoming'
+      ? `<div class="status-upcoming">${formatTimeLeft(c)}</div>`
+      : `<div class="status-ended">Ended</div>`;
+
+  return `
+  <tr class="ch-row ${isLive ? 'row-live' : ''} ${c.is_featured ? 'row-featured' : ''} ${c.status === 'ended' ? 'row-ended' : ''}" data-open="${esc(c.id)}">
+    <td class="col-rank">${c.is_featured ? '<span class="feat-star" title="Featured">★</span>' : rank}</td>
+    <td class="col-comp">
+      <div class="row-comp-inner">
+        ${orgAvatar(c, 'row-org-logo', 'row-org-initials')}
+        <div class="row-comp-info">
+          <div class="row-comp-name">
+            <span class="row-comp-title">${esc(c.title)}</span>
+            ${c.is_featured ? '<span class="row-badge feat">Featured</span>' : ''}
+          </div>
+          <div class="row-comp-org">
+            ${esc(org?.name || 'Spike & Crush')}
+            ${org?.is_verified ? '<span class="row-verified" title="Verified organizer">✓ Verified</span>' : ''}
+            <span class="row-type" style="color:${typeColor};">${TYPE_LABEL[c.type] || esc(c.type)}</span>
+          </div>
+        </div>
+      </div>
+    </td>
+    <td class="col-status">${statusHtml}</td>
+    <td class="col-prize"><span class="prize-val" style="color:${typeColor};">${formatPrize(parseFloat(c.prize_pool || 0))}</span></td>
+    <td class="col-duration">${formatDuration(c)}</td>
+    <td class="col-instruments"><div class="instr-wrap">${instrHtml || '<span class="instr-none">—</span>'}</div></td>
+    <td class="col-entry"><span class="${c.entry_fee_coins > 0 ? 'entry-paid' : 'entry-free'}">${formatEntry(c)}</span></td>
+    <td class="col-entrants">${(c.entry_count || 0).toLocaleString()}</td>
+    <td class="col-action">${ctaButton(c, 'row-cta')}</td>
+  </tr>`;
+}
+
+// ── MOBILE CARDS ─────────────────────────────
+function renderMobileCards(comps) {
+  document.getElementById('ch-mobile-cards').innerHTML =
+    comps.map((c, i) => buildMobileCard(c, i + 1)).join('');
+}
+
+function buildMobileCard(c, rank) {
+  const org = c.organizer;
+  const isLive = c.status === 'active';
+  const typeColor = TYPE_COLOR[c.type] || '#fff';
+
+  const badge = isLive
+    ? '<div class="mc-live-badge"><span class="pulse-r"></span>LIVE</div>'
+    : c.status === 'upcoming'
+      ? '<div class="mc-upcoming-badge">Soon</div>'
+      : '<div class="mc-ended-badge">Ended</div>';
+
+  return `
+  <div class="mobile-comp-card ${isLive ? 'mc-live' : ''}" data-open="${esc(c.id)}">
+    <div class="mc-header">
+      <div class="mc-rank">${c.is_featured ? '<span class="feat-star">★</span>' : rank}</div>
+      ${orgAvatar(c, 'mc-logo', 'mc-logo-text')}
+      <div class="mc-info">
+        <div class="mc-title">${esc(c.title)}</div>
+        <div class="mc-org">
+          ${esc(org?.name || 'Spike & Crush')}
+          ${org?.is_verified ? '<span class="row-verified">✓</span>' : ''}
+        </div>
+      </div>
+      ${badge}
+    </div>
+
+    <div class="mc-stats">
+      <div class="mc-stat">
+        <div class="mc-sv" style="color:${typeColor};">${formatPrize(parseFloat(c.prize_pool || 0), { compactFrom: 1000, empty: 'TBA' })}</div>
+        <div class="mc-sl">Prize</div>
+      </div>
+      <div class="mc-stat">
+        <div class="mc-sv">${formatEntry(c, '')}</div>
+        <div class="mc-sl">Entry</div>
+      </div>
+      <div class="mc-stat">
+        <div class="mc-sv">${(c.entry_count || 0).toLocaleString()}</div>
+        <div class="mc-sl">Entered</div>
+      </div>
+      <div class="mc-stat">
+        <div class="mc-sv ${isLive ? 'live-t' : ''}">${c.status === 'ended' ? '—' : formatTimeLeft(c)}</div>
+        <div class="mc-sl">${isLive ? 'Remaining' : c.status === 'upcoming' ? 'Starts' : 'Ended'}</div>
+      </div>
+    </div>
+
+    <div class="mc-footer">
+      <div class="mc-type" style="color:${typeColor};">${TYPE_LONG[c.type] || ''}</div>
+      ${ctaButton(c, 'mc-cta', { short: true })}
+    </div>
+  </div>`;
+}
+
+// ── LOAD MORE ────────────────────────────────
+function loadMore() {
+  pageShown += pageSize;
+  renderPage();
+}
+
+// ── MODAL ────────────────────────────────────
+function formatDate(iso, withTime) {
+  const opts = { day: 'numeric', month: 'long', year: 'numeric' };
+  if (withTime) Object.assign(opts, { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleString('en-GB', opts);
+}
+
+async function openModal(compId) {
+  const modal = document.getElementById('comp-modal');
+  const card = document.getElementById('comp-modal-card');
+
+  modal.style.display = 'flex';
+  document.body.classList.add('modal-open');
+  card.innerHTML = '<div class="modal-loading">Loading...</div>';
+
+  let comp;
+  try {
+    comp = await TW.api('/api/competitions/' + encodeURIComponent(compId));
+  } catch (e) {
+    card.innerHTML = `<button type="button" class="modal-x" data-close-modal>✕</button>
+      <div class="modal-loading">${esc(e.message)}</div>`;
+    return;
+  }
+
+  const org = comp.organizer;
+  const isExternal = comp.type === 'external';
+  const prize = parseFloat(comp.prize_pool || 0);
+  const prizeDetails = comp.prize_details && typeof comp.prize_details === 'object'
+    ? Object.entries(comp.prize_details) : [];
+  const kind = isExternal ? 'ext' : 'native';
+
+  const ctaText = comp.status === 'active'
+    ? (isExternal ? 'Enter on ' + esc(comp.platform_name || org?.name || 'Platform') + ' →' : 'Enter Now')
+    : comp.status === 'upcoming'
+      ? (isExternal ? 'View on ' + esc(comp.platform_name || org?.name || 'Platform') + ' →' : 'Register')
+      : 'View Results';
+
+  card.innerHTML = `
+    <button type="button" class="modal-x" data-close-modal aria-label="Close">✕</button>
+
+    <div class="modal-hero">
+      ${org?.logo_url && safeUrl(org.logo_url)
+        ? `<img src="${esc(org.logo_url)}" class="modal-logo" alt="">`
+        : `<div class="modal-logo-text">${esc((org?.name || 'S')[0])}</div>`}
+      <div>
+        <div class="modal-org-name">
+          ${esc(org?.name || 'Spike & Crush')}
+          ${org?.is_verified ? '<span class="v-badge">✓ Verified</span>' : ''}
+        </div>
+        <div class="modal-org-type">${TYPE_MODAL[comp.type] || ''}</div>
+      </div>
+    </div>
+
+    <h2 class="modal-title">${esc(comp.title)}</h2>
+    ${comp.description ? `<p class="modal-desc">${esc(comp.description)}</p>` : ''}
+
+    <div class="modal-stats-row">
+      <div class="modal-stat">
+        <div class="msv gold">${formatPrize(prize, { compactFrom: 1000, empty: 'TBA' })}</div>
+        <div class="msl">Prize Pool</div>
+      </div>
+      <div class="modal-stat">
+        <div class="msv">${(comp.entry_count || 0).toLocaleString()}</div>
+        <div class="msl">Entered</div>
+      </div>
+      <div class="modal-stat">
+        <div class="msv">${formatEntry(comp)}</div>
+        <div class="msl">Entry Cost</div>
+      </div>
+    </div>
+
+    ${comp.rules ? `
+      <div class="modal-section">
+        <div class="modal-section-hd">Rules</div>
+        <div class="modal-rules-text">${esc(comp.rules)}</div>
+      </div>` : ''}
+
+    ${comp.instruments?.length ? `
+      <div class="modal-section">
+        <div class="modal-section-hd">Instruments</div>
+        <div class="modal-pills">${comp.instruments.map((i) => `<span class="modal-pill">${esc(i)}</span>`).join('')}</div>
+      </div>` : ''}
+
+    ${prizeDetails.length ? `
+      <div class="modal-section">
+        <div class="modal-section-hd">Prize Breakdown</div>
+        ${prizeDetails.map(([k, v]) => `<div class="modal-prize-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
+      </div>` : ''}
+
+    <div class="modal-section">
+      <div class="modal-section-hd">Schedule</div>
+      <div class="modal-schedule">
+        <div>
+          <div class="modal-sch-l">Start</div>
+          <div class="modal-sch-v">${formatDate(comp.starts_at, true)}</div>
+        </div>
+        <div>
+          <div class="modal-sch-l">End</div>
+          <div class="modal-sch-v">${formatDate(comp.ends_at, false)}</div>
+        </div>
+      </div>
+    </div>
+
+    ${isExternal ? `
+      <div class="modal-external-note">
+        This competition is hosted on ${esc(org?.name || 'the organizer')}'s own platform.
+        Clicking Enter will take you there.
+      </div>` : ''}
+
+    <button type="button" class="modal-cta ${kind}" data-cta="${esc(comp.id)}" ${comp.status === 'ended' && isExternal ? 'disabled' : ''}>
+      ${ctaText}
+    </button>
+  `;
+}
+
+function closeModal() {
+  document.getElementById('comp-modal').style.display = 'none';
+  document.body.classList.remove('modal-open');
+}
+
+// ── CTA HANDLER ──────────────────────────────
+async function handleCTA(compId, btn) {
+  const comp = allComps.find((c) => c.id === compId);
+  if (!comp) return;
+
+  // Track click - fire and forget
+  TW.api('/api/competitions/' + encodeURIComponent(compId) + '/click', { method: 'POST' }).catch(() => {});
+
+  if (comp.type === 'external') {
+    const url = safeUrl(comp.external_url);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    else TW.toast('This competition has no entry link yet', 'warning');
+    return;
+  }
+
+  if (comp.status === 'ended') {
+    openModal(compId);
+    return;
+  }
+
+  if (!TW.isLoggedIn()) {
+    TW.toast('Log in to enter competitions', 'info');
+    try { localStorage.setItem('tw_redirect_after_login', window.location.href); } catch (e) {}
+    setTimeout(() => { window.location.href = '/?login=required'; }, 900);
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  try {
+    await TW.api('/api/competitions/' + encodeURIComponent(compId) + '/enter', { method: 'POST' });
+    TW.toast('✅ Entered!', 'success');
+    closeModal();
+    loadComps();
+  } catch (e) {
+    TW.toast(e.message || 'Entry failed', 'danger');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ── EVENTS ───────────────────────────────────
+function bindUi() {
+  document.querySelectorAll('.ch-stab')
+    .forEach((t) => t.addEventListener('click', () => setFilter(t.dataset.filter)));
+  document.querySelectorAll('th.sortable')
+    .forEach((th) => th.addEventListener('click', () => sortBy(th.dataset.sort)));
+  document.getElementById('ch-load-more-btn').addEventListener('click', loadMore);
+
+  // One delegated listener covers table rows, mobile cards and the modal,
+  // all of which are re-rendered as innerHTML.
+  document.addEventListener('click', (e) => {
+    const cta = e.target.closest('[data-cta]');
+    if (cta) {
+      e.stopPropagation();
+      handleCTA(cta.dataset.cta, cta);
+      return;
+    }
+    if (e.target.closest('[data-close-modal]')) {
+      closeModal();
+      return;
+    }
+    const row = e.target.closest('[data-open]');
+    if (row) openModal(row.dataset.open);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+}
+
+// ── ORIENTATION AWARE ────────────────────────
+Device.onModeChange(() => {
+  if (filtered.length) {
+    hideEmpty();
+    renderPage();
+  }
+});
+
+// ── AUTO REFRESH ─────────────────────────────
+setInterval(loadComps, 120000);          // reload every 2 minutes
+setInterval(refreshUpdatedLabels, 30000); // keep "updated x min ago" honest
+
+// ── INIT ─────────────────────────────────────
+document.addEventListener('DOMContentLoaded', init);
+</script>
+<script src="/js/bottom-nav.js"></script>
+</body>
+</html>
