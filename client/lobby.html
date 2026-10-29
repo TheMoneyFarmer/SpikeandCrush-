@@ -282,7 +282,10 @@
     });
 
     socket.on('match:state', handleState);
-    socket.on('player:joined', (data) => appendChat(`${data.player.username} joined the lobby`, true));
+    socket.on('player:joined', (data) => {
+      appendChat(`${data.player.username} joined the lobby`, true);
+      TW.Sound.play('playerJoined');
+    });
     socket.on('lobby:chat', (data) => appendChat(`${data.username}: ${data.message}`, false));
     socket.on('match:countdown', (data) => {
       document.getElementById('countdownOverlay').classList.remove('hidden');

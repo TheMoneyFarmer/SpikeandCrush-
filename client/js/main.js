@@ -317,6 +317,9 @@ window.TW = window.TW || {};
     item.textContent = message;
     container.appendChild(item);
     setTimeout(() => item.remove(), 4500);
+    // Every failed action already surfaces as a danger toast - one hook here
+    // gives them all the same audible "rejected" cue.
+    if (type === 'danger' && TW.Sound) TW.Sound.play('error');
   };
 
   // In-match center-screen notifications (sabotage cards, margin warnings,

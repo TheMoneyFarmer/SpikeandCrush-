@@ -193,6 +193,26 @@
           <div class="meta"><div>Auto-close positions at match end</div><div class="note">Positions always auto-close at match end for fairness - this just controls whether you see a heads-up warning.</div></div>
           <label class="switch"><input type="checkbox" id="gAutoClose" checked /><span class="slider-toggle"></span></label>
         </div>
+        <div class="toggle-row">
+          <div class="meta"><div>🔊 Game Sounds</div><div class="note">Trading actions, match events, sabotage cards, notifications. Same switch as the mute button in the menu.</div></div>
+          <label class="switch"><input type="checkbox" id="soundEnabled" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <div id="soundVolumeControls">
+          <div class="range-row">
+            <label><span>Master Volume</span><span id="masterVolLabel">70%</span></label>
+            <input type="range" id="masterVolume" min="0" max="100" />
+          </div>
+          <div class="range-row" style="margin-bottom:6px;">
+            <label><span>Test Sounds</span></label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline" data-test-sound="tradeOpen">Trade</button>
+              <button type="button" class="btn btn-outline" data-test-sound="matchStart">Match Start</button>
+              <button type="button" class="btn btn-outline" data-test-sound="matchWin">Win</button>
+              <button type="button" class="btn btn-outline" data-test-sound="cardReceived">Card Hit</button>
+              <button type="button" class="btn btn-outline" data-test-sound="notification">Notif</button>
+            </div>
+          </div>
+        </div>
         <div class="range-row">
           <label><span>Sound Effects Volume</span><span id="effectsVolLabel">100%</span></label>
           <input type="range" id="effectsVolume" min="0" max="100" />
@@ -534,13 +554,39 @@
 
     // ---- game prefs / sound sliders (device-local via TW.Sound) -------------
 
+    function applySoundEnabledState(enabled) {
+      const controls = document.getElementById('soundVolumeControls');
+      controls.style.opacity = enabled ? '1' : '0.4';
+      controls.style.pointerEvents = enabled ? '' : 'none';
+    }
+
     function loadSoundSliders() {
       const s = TW.Sound.getSettings();
+      document.getElementById('soundEnabled').checked = !s.muted;
+      applySoundEnabledState(!s.muted);
+      document.getElementById('masterVolume').value = s.master;
+      document.getElementById('masterVolLabel').textContent = `${s.master}%`;
       document.getElementById('effectsVolume').value = s.effects;
       document.getElementById('musicVolume').value = s.music;
       document.getElementById('effectsVolLabel').textContent = `${s.effects}%`;
       document.getElementById('musicVolLabel').textContent = `${s.music}%`;
     }
+    document.getElementById('soundEnabled').addEventListener('change', (e) => {
+      TW.Sound.updateSettings({ muted: !e.target.checked });
+      applySoundEnabledState(e.target.checked);
+      if (e.target.checked) TW.Sound.play('success');
+    });
+    document.getElementById('masterVolume').addEventListener('input', (e) => {
+      TW.Sound.updateSettings({ master: Number(e.target.value) });
+      document.getElementById('masterVolLabel').textContent = `${e.target.value}%`;
+      TW.Sound.play('buttonClick');
+    });
+    document.querySelectorAll('[data-test-sound]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation(); // skip main.js's generic click blip so only the sample plays
+        TW.Sound.play(btn.dataset.testSound);
+      });
+    });
     document.getElementById('effectsVolume').addEventListener('input', (e) => {
       TW.Sound.updateSettings({ effects: Number(e.target.value) });
       document.getElementById('effectsVolLabel').textContent = `${e.target.value}%`;

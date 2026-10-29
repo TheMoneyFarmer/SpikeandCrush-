@@ -376,6 +376,7 @@ window.TW = window.TW || {};
       notifications.unshift({ ...payload, id: `live-${Date.now()}-${Math.random().toString(36).slice(2)}`, read: false });
       if (notifications.length > 20) notifications.length = 20;
       updateBadge();
+      if (TW.Sound) TW.Sound.play('notification');
       if (document.getElementById('twNotifPanel')) renderNotifList();
       // FIX: match summary gets its own rich bottom-right toast (rank/P&L/
       // winner/rating) on top of the normal bell entry - reaches the player

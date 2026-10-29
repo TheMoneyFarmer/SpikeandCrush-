@@ -1493,7 +1493,7 @@ window.TW = window.TW || {};
     renderTopbar();
   });
 
-  const SABOTAGE_SOUND_MAP = { news_bomb: 'newsBomb', force_close: 'forceClose', chart_ghost: 'chartGhost' };
+  const SABOTAGE_SOUND_MAP = { news_bomb: 'newsBomb', force_close: 'forceClose', chart_ghost: 'chartGhost', position_freeze: 'freeze', lockout: 'freeze' };
   socket.on('sabotage:incoming', (payload) => {
     TW.Sabotage.showIncoming(payload);
     applySabotageVisuals(payload);
@@ -1519,7 +1519,7 @@ window.TW = window.TW || {};
   socket.on('margin:warning', (payload) => {
     showMarginBanner(payload);
     if (payload.level === 'eliminated') {
-      TW.Sound.play('stopLossHit');
+      TW.Sound.play('lossLimit');
       showEliminationModal(payload);
     } else {
       TW.Sound.play('margin_alert');

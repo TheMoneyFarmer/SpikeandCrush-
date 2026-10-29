@@ -230,13 +230,24 @@ TW.Sound = (function () {
     },
     card_play: () => playFile('sabotage_play'),
     card_receive: () => playFile('sabotage_receive'),
+    // Big events get a cinematic low-end hit; everyday actions stay clean arcade blips.
     match_start: () => {
-      tone({ freq: 220, duration: 0.3, type: 'sine', gain: 0.24 });
-      tone({ freq: 330, duration: 0.3, type: 'sine', gain: 0.24, delay: 0.3 });
-      tone({ freq: 440, duration: 0.5, type: 'sine', gain: 0.24, delay: 0.6 });
+      tone({ freq: 60, duration: 0.4, type: 'sine', gain: 0.5 });
+      noise({ duration: 0.2, filterFreq: 200, gain: 0.3 });
+      tone({ freq: 200, freqEnd: 1400, duration: 0.4, type: 'sawtooth', gain: 0.07, delay: 0.15 });
+      tone({ freq: 110, duration: 0.5, type: 'sine', gain: 0.4, delay: 0.55 });
+      tone({ freq: 440, duration: 0.3, type: 'square', gain: 0.12, delay: 0.55 });
+      noise({ duration: 0.15, filterFreq: 3000, gain: 0.25, delay: 0.55 });
     },
-    match_end: () => tone({ freq: 440, freqEnd: 220, duration: 1.0, type: 'sine', gain: 0.22 }),
-    win_fanfare: () => playFile('win_fanfare'),
+    match_end: () => {
+      tone({ freq: 440, freqEnd: 220, duration: 1.0, type: 'sine', gain: 0.22 });
+      noise({ duration: 0.3, filterFreq: 300, gain: 0.15, delay: 0.2 });
+    },
+    win_fanfare: () => {
+      tone({ freq: 70, duration: 0.5, type: 'sine', gain: 0.45 });
+      noise({ duration: 0.2, filterFreq: 2500, gain: 0.2 });
+      playFile('win_fanfare');
+    },
     countdown: () => playFile('countdown'),
     coin: () => playFile('coin_earn'),
     card_slap: () => playFile('card_slap'),
@@ -282,6 +293,64 @@ TW.Sound = (function () {
     buttonClick: () => tone({ freq: 700, duration: 0.05, type: 'square', gain: 0.08, category: 'effects' }),
     tabSwitch: () => tone({ freq: 500, freqEnd: 700, duration: 0.12, type: 'sine', gain: 0.08 }),
     leaderboardChange: () => tone({ freq: 1200, duration: 0.08, type: 'sine', gain: 0.1 }),
+
+    // Margin elimination - three heavy warning pulses.
+    lossLimit: () => {
+      [0, 0.15, 0.3].forEach((delay) => {
+        tone({ freq: 150, duration: 0.12, type: 'sawtooth', gain: 0.3, delay });
+        noise({ duration: 0.08, filterFreq: 800, gain: 0.25, delay: delay + 0.02 });
+      });
+    },
+    // Position Freeze / Lockout - digital glitch.
+    freeze: () => {
+      for (let i = 0; i < 5; i++) tone({ freq: 800 + i * 200, duration: 0.04, type: 'square', gain: 0.1, delay: i * 0.03 });
+      noise({ duration: 0.1, filterFreq: 6000, gain: 0.15, delay: 0.05 });
+    },
+    tradeOpen: () => {
+      noise({ duration: 0.04, filterFreq: 5000, gain: 0.2 });
+      tone({ freq: 800, duration: 0.08, type: 'sine', gain: 0.2, delay: 0.02 });
+      tone({ freq: 1200, duration: 0.06, type: 'sine', gain: 0.1, delay: 0.06 });
+    },
+    rankUp: () => {
+      [523, 659, 784, 1046].forEach((freq, i) => tone({ freq, duration: 0.2, type: 'sine', gain: 0.22, delay: i * 0.08 }));
+      tone({ freq: 1046, duration: 0.45, type: 'sine', gain: 0.18, delay: 0.32 });
+    },
+    notification: () => {
+      tone({ freq: 880, duration: 0.07, type: 'sine', gain: 0.18 });
+      tone({ freq: 1046, duration: 0.1, type: 'sine', gain: 0.15, delay: 0.05 });
+    },
+    friendRequest: () => {
+      tone({ freq: 659, duration: 0.09, type: 'sine', gain: 0.18 });
+      tone({ freq: 784, duration: 0.12, type: 'sine', gain: 0.15, delay: 0.07 });
+    },
+    playerJoined: () => {
+      tone({ freq: 523, duration: 0.09, type: 'sine', gain: 0.15 });
+      tone({ freq: 659, duration: 0.08, type: 'sine', gain: 0.12, delay: 0.07 });
+    },
+    success: () => {
+      tone({ freq: 587, duration: 0.09, type: 'sine', gain: 0.2 });
+      tone({ freq: 880, duration: 0.12, type: 'sine', gain: 0.15, delay: 0.07 });
+    },
+    error: () => {
+      tone({ freq: 300, duration: 0.1, type: 'square', gain: 0.12 });
+      tone({ freq: 200, duration: 0.1, type: 'square', gain: 0.1, delay: 0.08 });
+    },
+    warning: () => {
+      [0, 0.12].forEach((delay) => tone({ freq: 500, duration: 0.1, type: 'sine', gain: 0.2, delay }));
+    },
+    tick: () => tone({ freq: 800, duration: 0.04, type: 'sine', gain: 0.1 }),
+
+    // ---- names from the sound-system spec, mapped onto the effects above ----
+    matchWin: () => effects.win_fanfare(),
+    tradeProfitClose: () => effects.profit(),
+    tradeLossClose: () => effects.loss(),
+    slHit: () => effects.sl_hit(),
+    tpHit: () => effects.tp_hit(),
+    cardPlayed: () => effects.card_play(),
+    click: () => effects.buttonClick(),
+    navigate: () => effects.tabSwitch(),
+    coinReceived: () => effects.coin(),
+    finalTick: () => effects.countdown(),
   };
 
   function play(name) {
@@ -291,3 +360,15 @@ TW.Sound = (function () {
 
   return { play, getSettings, updateSettings, DEFAULTS, startAmbient, stopAmbient };
 })();
+
+// SoundEngine-style API over TW.Sound, so there's still exactly one engine
+// and one set of saved settings (tw_audio_settings) - the nav mute button,
+// the settings sliders and these calls all read and write the same values.
+window.SoundEngine = {
+  play: (name) => TW.Sound.play(name),
+  init: () => {},
+  setVolume: (v) => TW.Sound.updateSettings({ master: Math.round(Math.max(0, Math.min(1, v)) * 100) }),
+  getVolume: () => TW.Sound.getSettings().master / 100,
+  setEnabled: (on) => TW.Sound.updateSettings({ muted: !on }),
+  getEnabled: () => !TW.Sound.getSettings().muted,
+};

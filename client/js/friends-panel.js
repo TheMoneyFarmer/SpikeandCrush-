@@ -378,9 +378,13 @@ TW.FriendsPanel = (function () {
     const socket = TW.connectSocket ? TW.connectSocket() : null;
     if (!socket) return;
     socket.on('friend:status_update', applyPresenceUpdate);
-    socket.on('friend:accepted', () => loadFriends());
+    socket.on('friend:accepted', () => {
+      loadFriends();
+      if (TW.Sound) TW.Sound.play('success');
+    });
     socket.on('friend:request_received', () => {
       if (TW.toast) TW.toast('You have a new friend request', 'info');
+      if (TW.Sound) TW.Sound.play('friendRequest');
     });
     socket.on('lobby:invite_received', showInvitePopup);
     socket.on('lobby:invite_expired', (data) => dismissInvite(data.inviteId, 'declining'));
