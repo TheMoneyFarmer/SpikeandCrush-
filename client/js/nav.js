@@ -21,6 +21,11 @@ window.TW = window.TW || {};
 
   const NOTIF_ICON = {
     rank_up: '🏆',
+    comp_started: '🏁',
+    comp_ending_soon: '⏳',
+    comp_ended: '🏆',
+    comp_loss_limit: '🔒',
+    comp_void: '↩️',
     match_starting: '⏱️',
     battlepass_tier: '🎖️',
     battlepass_premium: '👑',

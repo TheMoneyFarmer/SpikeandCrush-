@@ -138,6 +138,9 @@ app.use('/api/dashboard', require('./routes/dashboard')());
 app.use('/api/players', require('./routes/players')());
 app.use('/api/matches', require('./routes/matches')());
 app.use('/api/tournaments', require('./routes/tournaments')());
+// Spec path for the test creator is /admin/api/comps/test - same router.
+app.use('/api/competitions', require('./routes/competitions')());
+app.use('/admin/api/comps', requireAdmin, require('./routes/competitions')());
 app.use('/api/monetisation', require('./routes/monetisation')());
 app.use('/api/analytics', require('./routes/analytics')());
 app.use('/api/config', require('./routes/gameConfig')());

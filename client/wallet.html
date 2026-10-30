@@ -192,8 +192,8 @@
         if (!data.wins.length) { panel.style.display = 'none'; return; }
         panel.style.display = 'block';
         wrap.innerHTML = data.wins.map((w) => `
-          <div class="panel" style="margin-top:10px;background:var(--surface-2);" data-tournament-id="${TW.escapeHtml(w.tournamentId)}">
-            <div style="font-weight:700;">🏆 ${TW.escapeHtml(w.tournamentName)} — 🪙 ${w.prizeCoins} (${TW.formatMoney(w.prizeUsd)})</div>
+          <div class="panel" style="margin-top:10px;background:var(--surface-2);" data-tournament-id="${TW.escapeHtml(w.tournamentId || '')}" data-competition-id="${TW.escapeHtml(w.competitionId || '')}">
+            <div style="font-weight:700;">🏆 ${TW.escapeHtml(w.tournamentName)} — ${w.prizeCoins ? `🪙 ${w.prizeCoins} (${TW.formatMoney(w.prizeUsd)})` : `${TW.formatMoney(w.prizeUsd)} cash prize`}</div>
             <div class="field" style="margin-top:8px;"><label>Payout Method</label>
               <select class="pc-method"><option value="bank_transfer">Bank Transfer</option><option value="crypto">Crypto</option></select>
             </div>
@@ -211,7 +211,8 @@
         wrap.querySelectorAll('.pc-claim-btn').forEach((btn) => {
           btn.addEventListener('click', async () => {
             const card = btn.closest('.panel');
-            const tournamentId = card.dataset.tournamentId;
+            const tournamentId = card.dataset.tournamentId || undefined;
+            const competitionId = card.dataset.competitionId || undefined;
             const payoutMethod = card.querySelector('.pc-method').value;
             let payoutDetails;
             if (payoutMethod === 'bank_transfer') {
@@ -236,7 +237,7 @@
             }
             btn.disabled = true;
             try {
-              await TW.api('/api/prize-claims', { method: 'POST', body: { tournamentId, payoutMethod, payoutDetails } });
+              await TW.api('/api/prize-claims', { method: 'POST', body: { tournamentId, competitionId, payoutMethod, payoutDetails } });
               TW.toast('Prize claim submitted - an admin will process it shortly', 'info');
               loadWallet();
               loadEligibleWins();
@@ -266,7 +267,7 @@
           <tbody>${data.claims.map((c) => `
             <tr>
               <td>${new Date(c.created_at).toLocaleString()}</td>
-              <td>${TW.escapeHtml(c.tournaments?.name || '—')}</td>
+              <td>${TW.escapeHtml(c.tournaments?.name || c.competitions?.title || '—')}</td>
               <td>${TW.formatMoney(c.prize_usd)} (${c.prize_coins} 🪙)</td>
               <td>${c.payout_method === 'bank_transfer' ? 'Bank Transfer' : 'Crypto'}</td>
               <td>${PC_STATUS_LABEL[c.status] || c.status}</td>

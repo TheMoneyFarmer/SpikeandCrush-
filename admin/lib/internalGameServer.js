@@ -39,6 +39,11 @@ module.exports = {
   reloadConfig: () => callInternal('/internal/admin/reload-config', { method: 'POST' }),
   broadcastAnnouncement: (announcement) =>
     callInternal('/internal/admin/broadcast-announcement', { method: 'POST', body: announcement }),
+  settleCompetition: (id) => callInternal(`/internal/admin/competitions/${id}/settle`, { method: 'POST' }),
+  voidCompetition: (id) => callInternal(`/internal/admin/competitions/${id}/void`, { method: 'POST' }),
+  disqualifyFromCompetition: (id, playerId) =>
+    callInternal(`/internal/admin/competitions/${id}/disqualify/${playerId}`, { method: 'POST' }),
+  createTestCompetition: (body) => callInternal('/internal/admin/competitions/test', { method: 'POST', body }),
   notifyPlayer: (playerId, type, message, extra) =>
     callInternal(`/internal/admin/notify-player/${playerId}`, { method: 'POST', body: { type, message, extra } }),
 };

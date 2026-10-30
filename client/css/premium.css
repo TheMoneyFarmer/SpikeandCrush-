@@ -1173,6 +1173,131 @@ h1, h2, h3, h4, .title {
   letter-spacing: 0.05em;
 }
 
+/* ---- long-form competition cards (hub right column) + My Competitions ---- */
+.tw-comp-group-label,
+.tw-my-comps-title {
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.tw-comp-mode-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tw-comp-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  background: var(--surface-2);
+}
+
+.tw-comp-card.is-live {
+  border-left-color: var(--accent-teal);
+}
+
+.tw-comp-card.is-empty {
+  opacity: 0.6;
+}
+
+.tw-comp-card .icon {
+  font-size: 18px;
+}
+
+.tw-comp-card .meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.tw-comp-card .label {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+}
+
+.tw-comp-card .sub,
+.tw-comp-stats {
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.tw-comp-state {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--accent-gold, #F5C542);
+}
+
+.tw-comp-state.live {
+  color: var(--accent-teal);
+}
+
+.tw-comp-action {
+  flex-shrink: 0;
+  min-height: 0;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: none;
+  background: var(--gradient-primary);
+  color: var(--btn-primary-text);
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tw-comp-action.is-in {
+  background: transparent;
+  border: 1px solid var(--accent-teal);
+  color: var(--accent-teal);
+}
+
+.tw-my-comps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.tw-my-comp {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.tw-my-comp:hover {
+  filter: brightness(1.15);
+}
+
+.tw-my-comp .name {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.tw-my-comp .row {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
 .tw-hub-start-btn {
   margin-top: 6px;
   padding: 16px 14px;

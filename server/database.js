@@ -724,6 +724,7 @@ async function listPublishedCompetitions() {
     .from('competitions')
     .select(COMPETITION_SELECT)
     .eq('is_published', true)
+    .eq('is_test', false)
     .gte('ends_at', cutoff)
     .order('starts_at', { ascending: true })
     .limit(200);
@@ -1605,6 +1606,236 @@ async function createReferralConversion({ partnerId, playerId, clickId }) {
   return data;
 }
 
+// ---- long-form competitions: accounts, positions, settlement ----------------
+// Everything a running competition needs lives in these tables (see
+// server/compEngine.js) - nothing is held only in memory, so a server
+// restart mid-competition loses nothing. The comp_* SQL functions do the
+// money-moving steps atomically (fee once, close once, pay once).
+
+async function getCompetitionById(id) {
+  assertConfigured();
+  const { data, error } = await supabase.from('competitions').select(COMPETITION_SELECT).eq('id', id).maybeSingle();
+  if (error) throw error;
+  return flattenCompetition(data);
+}
+
+async function updateCompetition(id, fields) {
+  assertConfigured();
+  const { data, error } = await supabase.from('competitions').update(fields).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// Moves a competition between statuses only if it's still in `fromStatus` -
+// returns the row on success, null if another runner got there first.
+async function transitionCompetition(id, fromStatus, fields) {
+  assertConfigured();
+  const { data, error } = await supabase.from('competitions').update(fields).eq('id', id).eq('status', fromStatus).select().maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function createCompetitionRow(row) {
+  assertConfigured();
+  const { data, error } = await supabase.from('competitions').insert(row).select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function listNativeCompetitionsByStatus(statuses) {
+  assertConfigured();
+  const { data, error } = await supabase.from('competitions').select('*').eq('type', 'native').in('status', statuses);
+  if (error) throw error;
+  return data;
+}
+
+async function listRecentWindowStarts(frequency, limit) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('competitions')
+    .select('data_window_start')
+    .eq('frequency', frequency)
+    .not('data_window_start', 'is', null)
+    .order('starts_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data.map((r) => r.data_window_start);
+}
+
+async function listCompetitionsByFrequency(frequency, since) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('competitions')
+    .select('id, starts_at')
+    .eq('frequency', frequency)
+    .eq('is_test', false)
+    .gte('starts_at', since);
+  if (error) throw error;
+  return data;
+}
+
+async function tryCompJobLock(name, holder, ttlSeconds) {
+  assertConfigured();
+  const { data, error } = await supabase.rpc('comp_try_lock', { p_name: name, p_holder: holder, p_ttl_seconds: ttlSeconds });
+  if (error) throw error;
+  return data === true;
+}
+
+async function compEnter(competitionId, playerId, fee, capital) {
+  assertConfigured();
+  const { data, error } = await supabase.rpc('comp_enter', { p_comp: competitionId, p_player: playerId, p_fee: fee, p_capital: capital });
+  if (error) throw error;
+  return data;
+}
+
+async function getCompAccount(competitionId, playerId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('comp_accounts')
+    .select('*')
+    .eq('competition_id', competitionId)
+    .eq('player_id', playerId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function getCompAccountById(id) {
+  assertConfigured();
+  const { data, error } = await supabase.from('comp_accounts').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function listCompAccounts(competitionId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('comp_accounts')
+    .select('*, player:players(username, avatar_url, country)')
+    .eq('competition_id', competitionId);
+  if (error) throw error;
+  return data;
+}
+
+async function listPlayerCompAccounts(playerId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('comp_accounts')
+    .select('*, competition:competitions(id, title, frequency, status, starts_at, ends_at, is_test)')
+    .eq('player_id', playerId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return data;
+}
+
+async function updateCompAccount(id, fields) {
+  assertConfigured();
+  const { error } = await supabase.from('comp_accounts').update(fields).eq('id', id);
+  if (error) throw error;
+}
+
+// Flips an account out of 'active' exactly once (loss limit, disqualify).
+async function lockCompAccount(id, fields) {
+  assertConfigured();
+  const { data, error } = await supabase.from('comp_accounts').update(fields).eq('id', id).eq('status', 'active').select().maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function incrementCompTradeCount(accountId) {
+  const account = await getCompAccountById(accountId);
+  if (account) await updateCompAccount(accountId, { trade_count: account.trade_count + 1 });
+}
+
+async function insertCompPosition(row) {
+  assertConfigured();
+  const { data, error } = await supabase.from('comp_positions').insert(row).select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function getCompPosition(id) {
+  assertConfigured();
+  const { data, error } = await supabase.from('comp_positions').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function listCompPositions(filter, { limit = 1000 } = {}) {
+  assertConfigured();
+  let query = supabase.from('comp_positions').select('*');
+  for (const [key, value] of Object.entries(filter)) query = query.eq(key, value);
+  const { data, error } = await query.order('opened_at', { ascending: false }).limit(limit);
+  if (error) throw error;
+  return data;
+}
+
+async function updateCompPosition(id, fields) {
+  assertConfigured();
+  const { data, error } = await supabase.from('comp_positions').update(fields).eq('id', id).eq('status', 'open').select().maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function compClosePosition(positionId, exitPrice, reason, pnl) {
+  assertConfigured();
+  const { data, error } = await supabase.rpc('comp_close_position', { p_position: positionId, p_exit: exitPrice, p_reason: reason, p_pnl: pnl });
+  if (error) throw error;
+  return data === true;
+}
+
+async function compPayPrize(accountId) {
+  assertConfigured();
+  const { data, error } = await supabase.rpc('comp_pay_prize', { p_account: accountId });
+  if (error) throw error;
+  return data === true;
+}
+
+async function compRefundEntry(accountId, fee) {
+  assertConfigured();
+  const { data, error } = await supabase.rpc('comp_refund_entry', { p_account: accountId, p_fee: fee });
+  if (error) throw error;
+  return data === true;
+}
+
+async function insertCompEquitySnapshot(accountId, equity) {
+  assertConfigured();
+  const { error } = await supabase.from('comp_equity_snapshots').insert({ account_id: accountId, equity });
+  if (error) throw error;
+}
+
+async function listCompEquitySnapshots(accountId) {
+  assertConfigured();
+  const { data, error } = await supabase.from('comp_equity_snapshots').select('ts, equity').eq('account_id', accountId).order('ts').limit(2000);
+  if (error) throw error;
+  return data;
+}
+
+// Settled competition cash prizes the player hasn't submitted a Wallet claim
+// for yet - the competition counterpart of getUnclaimedTournamentWins.
+async function getUnclaimedCompetitionCashPrizes(playerId) {
+  assertConfigured();
+  const { data: wins, error } = await supabase
+    .from('comp_accounts')
+    .select('competition_id, prize_usd, final_rank, competition:competitions(title)')
+    .eq('player_id', playerId)
+    .eq('prize_paid', true)
+    .gt('prize_usd', 0);
+  if (error) throw error;
+  if (!wins.length) return [];
+  const { data: claims, error: claimsErr } = await supabase
+    .from('prize_claims')
+    .select('competition_id')
+    .eq('player_id', playerId)
+    .not('competition_id', 'is', null);
+  if (claimsErr) throw claimsErr;
+  const claimed = new Set(claims.map((c) => c.competition_id));
+  return wins
+    .filter((w) => !claimed.has(w.competition_id))
+    .map((w) => ({ competitionId: w.competition_id, competitionName: w.competition?.title, rank: w.final_rank, prizeUsd: Number(w.prize_usd) }));
+}
+
 // ---- prize claims (tournament winnings cash-out) -----------------------------
 //
 // Only a tournament win pays out coins that can ever leave the closed-loop
@@ -1641,13 +1872,14 @@ async function getUnclaimedTournamentWins(playerId) {
     }));
 }
 
-async function createPrizeClaim({ playerId, tournamentId, prizeCoins, prizeUsd, payoutMethod, payoutDetails }) {
+async function createPrizeClaim({ playerId, tournamentId = null, competitionId = null, prizeCoins, prizeUsd, payoutMethod, payoutDetails }) {
   assertConfigured();
   const { data, error } = await supabase
     .from('prize_claims')
     .insert({
       player_id: playerId,
       tournament_id: tournamentId,
+      competition_id: competitionId,
       prize_coins: prizeCoins,
       prize_usd: prizeUsd,
       payout_method: payoutMethod,
@@ -1663,7 +1895,7 @@ async function listPlayerPrizeClaims(playerId) {
   assertConfigured();
   const { data, error } = await supabase
     .from('prize_claims')
-    .select('*, tournaments(name)')
+    .select('*, tournaments(name), competitions(title)')
     .eq('player_id', playerId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -1819,6 +2051,32 @@ module.exports = {
   createReferralConversion,
   getUnclaimedTournamentWins,
   createPrizeClaim,
+  getCompetitionById,
+  updateCompetition,
+  transitionCompetition,
+  createCompetitionRow,
+  listNativeCompetitionsByStatus,
+  listRecentWindowStarts,
+  listCompetitionsByFrequency,
+  tryCompJobLock,
+  compEnter,
+  getCompAccount,
+  getCompAccountById,
+  listCompAccounts,
+  listPlayerCompAccounts,
+  updateCompAccount,
+  lockCompAccount,
+  incrementCompTradeCount,
+  insertCompPosition,
+  getCompPosition,
+  listCompPositions,
+  updateCompPosition,
+  compClosePosition,
+  compPayPrize,
+  compRefundEntry,
+  insertCompEquitySnapshot,
+  listCompEquitySnapshots,
+  getUnclaimedCompetitionCashPrizes,
   listPlayerPrizeClaims,
   createSupportTicket,
   listPlayerSupportTickets,

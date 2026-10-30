@@ -118,9 +118,9 @@ TW.Indicators = (function () {
         timeVisible: true,
         secondsVisible: true,
         borderColor: '#2a2a2a',
-        tickMarkFormatter: (time) => TW.Chart.formatElapsedClock(time),
+        tickMarkFormatter: (time) => TW.Chart.formatChartTime(time),
       },
-      localization: { timeFormatter: (time) => TW.Chart.formatElapsedClock(time) },
+      localization: { timeFormatter: (time) => TW.Chart.formatChartTime(time) },
       rightPriceScale: { borderColor: '#2a2a2a' },
       autoSize: true,
     });
@@ -156,9 +156,9 @@ TW.Indicators = (function () {
         timeVisible: true,
         secondsVisible: true,
         borderColor: '#2a2a2a',
-        tickMarkFormatter: (time) => TW.Chart.formatElapsedClock(time),
+        tickMarkFormatter: (time) => TW.Chart.formatChartTime(time),
       },
-      localization: { timeFormatter: (time) => TW.Chart.formatElapsedClock(time) },
+      localization: { timeFormatter: (time) => TW.Chart.formatChartTime(time) },
       rightPriceScale: { borderColor: '#2a2a2a' },
       autoSize: true,
     });

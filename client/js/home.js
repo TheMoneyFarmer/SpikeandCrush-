@@ -554,6 +554,131 @@ window.TW = window.TW || {};
     setTimeout(() => notice.remove(), 8000);
   }
 
+  // ---- long-form competitions (Daily / Weekly / Weekend / Monthly) ----------
+
+  const COMP_FORMATS = [
+    { frequency: 'daily', icon: '☀️', label: 'DAILY WAR', sub: '22H FULL SESSION' },
+    { frequency: 'weekly', icon: '📅', label: 'WEEKLY WAR', sub: 'MON TO FRI' },
+    { frequency: 'weekend', icon: '⚡', label: 'WEEKEND BLITZ', sub: 'CRYPTO · SAT–SUN' },
+    { frequency: 'monthly', icon: '👑', label: 'MONTHLY GRAND', sub: 'FULL MONTH' },
+  ];
+
+  function compSpan(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+  }
+
+  async function fetchMyCompetitions() {
+    if (!TW.getToken || !TW.getToken()) return [];
+    try {
+      return (await TW.api('/api/competitions-mine')).competitions || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // One card per format: the running one if there is one, otherwise the next
+  // to start. Enter creates the account and drops straight into the play
+  // screen; an existing entry shows Continue / Results instead.
+  async function loadCompetitionModeCards() {
+    const wrap = document.getElementById('twCompModeCards');
+    if (!wrap) return;
+    try {
+      const [{ competitions = [] }, mine] = await Promise.all([TW.api('/api/competitions'), fetchMyCompetitions()]);
+      const entered = new Set(mine.map((m) => m.competitionId));
+      const now = Date.now();
+      wrap.innerHTML = COMP_FORMATS.map((f) => {
+        const pool = competitions.filter((c) => c.frequency === f.frequency && c.lifecycle !== 'void');
+        const comp =
+          pool.find((c) => c.status === 'active') ||
+          pool.filter((c) => c.status === 'upcoming').sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0] ||
+          pool.filter((c) => c.status === 'ended').sort((a, b) => new Date(b.ends_at) - new Date(a.ends_at))[0];
+        if (!comp) {
+          return `<div class="tw-comp-card is-empty"><span class="icon">${f.icon}</span><span class="meta"><span class="label">${f.label}</span><span class="sub">Next one coming soon</span></span></div>`;
+        }
+        const live = comp.status === 'active';
+        const ended = comp.status === 'ended';
+        const state = live
+          ? `<span class="tw-comp-state live">LIVE · ${compSpan(new Date(comp.ends_at) - now)} left</span>`
+          : ended
+          ? '<span class="tw-comp-state">ENDED</span>'
+          : `<span class="tw-comp-state">STARTS IN ${compSpan(new Date(comp.starts_at) - now)}</span>`;
+        const coins = (comp.prize_payouts || []).reduce((s, p) => s + (p.coins || 0), 0);
+        const prize = Number(comp.prize_pool) > 0 ? `$${Number(comp.prize_pool).toLocaleString()}` : `🪙 ${coins.toLocaleString()}`;
+        const isIn = entered.has(comp.id);
+        const action = isIn ? (ended ? 'Results' : 'Continue') : ended ? 'Results' : 'Enter';
+        return `
+          <div class="tw-comp-card ${live ? 'is-live' : ''}">
+            <span class="icon">${f.icon}</span>
+            <span class="meta">
+              <span class="label">${f.label}</span>
+              <span class="sub">${f.sub}</span>
+              ${state}
+              <span class="tw-comp-stats">${prize} prize · ${comp.entry_fee_coins > 0 ? `🪙 ${comp.entry_fee_coins}` : 'Free'} entry · ${comp.entry_count || 0} in</span>
+            </span>
+            <button type="button" class="tw-comp-action ${isIn ? 'is-in' : ''}" data-comp-id="${TW.escapeHtml(comp.id)}" data-comp-action="${action}">${action}</button>
+          </div>`;
+      }).join('');
+    } catch (e) {
+      wrap.innerHTML = '';
+    }
+  }
+
+  async function handleCompAction(btn) {
+    const id = btn.dataset.compId;
+    const action = btn.dataset.compAction;
+    if (action !== 'Enter') {
+      window.location.href = action === 'Results' && !btn.classList.contains('is-in') ? '/competitions' : `/competition/${id}`;
+      return;
+    }
+    if (!TW.isLoggedIn()) {
+      TW.requireAuth();
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const result = await TW.api(`/api/competitions/${id}/enter`, { method: 'POST' });
+      window.location.href = result.playUrl || `/competition/${id}`;
+    } catch (e) {
+      TW.toast(e.message, 'danger');
+      btn.disabled = false;
+    }
+  }
+
+  // "My Competitions": every running/upcoming entry with live equity, rank
+  // and time left, one tap back into the play screen.
+  async function loadMyCompetitions() {
+    const el = document.getElementById('twMyComps');
+    if (!el) return;
+    const mine = (await fetchMyCompetitions()).filter((m) => m.status === 'active' || m.status === 'scheduled');
+    if (!mine.length) {
+      el.classList.add('hidden');
+      return;
+    }
+    const now = Date.now();
+    el.classList.remove('hidden');
+    el.innerHTML = `
+      <div class="tw-my-comps-title">MY COMPETITIONS</div>
+      ${mine
+        .map((m) => {
+          const live = m.status === 'active';
+          const pnl = m.equity - m.startingCapital;
+          return `
+          <a class="tw-my-comp" href="/competition/${TW.escapeHtml(m.competitionId)}">
+            <span class="name">${TW.escapeHtml(m.title)}</span>
+            <span class="row">
+              <span class="${pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(m.equity)}</span>
+              <span>${m.accountStatus === 'loss_limit' ? '🔒 Locked' : live && m.rank ? `#${m.rank} of ${m.entrants}` : live ? '—' : 'Entered'}</span>
+              <span class="text-secondary">${live ? `${compSpan(new Date(m.endsAt) - now)} left` : `starts in ${compSpan(new Date(m.startsAt) - now)}`}</span>
+            </span>
+          </a>`;
+        })
+        .join('')}`;
+  }
+
   // Exposed so main.js's login handler can populate the hub cards
   // immediately after login, without needing a full page reload.
   TW.refreshHubData = () => {
@@ -562,6 +687,8 @@ window.TW = window.TW || {};
     loadBattlePassCard();
     loadShopCard();
     loadDailyChallengeCard();
+    loadCompetitionModeCards();
+    loadMyCompetitions();
     checkTradingFloorBalance();
   };
 
@@ -587,6 +714,16 @@ window.TW = window.TW || {};
     loadBattlePassCard();
     loadShopCard();
     loadDailyChallengeCard();
+    loadCompetitionModeCards();
+    loadMyCompetitions();
+    setInterval(() => {
+      loadCompetitionModeCards();
+      loadMyCompetitions();
+    }, 60000);
+    document.getElementById('twCompModeCards')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-comp-action]');
+      if (btn) handleCompAction(btn);
+    });
     loadHubActivityTicker();
     setInterval(loadHubActivityTicker, 60000);
     checkTradingFloorBalance();

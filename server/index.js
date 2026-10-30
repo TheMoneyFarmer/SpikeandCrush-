@@ -160,6 +160,8 @@ async function notifyFriendsOfWin(playerId, username, modeLabel, pnl, matchId) {
 }
 
 const gameEngine = createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin);
+const { createCompEngine } = require('./compEngine');
+const compEngine = createCompEngine({ io, notifyPlayer });
 
 // inviteId -> { id, fromPlayerId, fromUsername, fromTier, lobbyId, matchMode,
 // instruments, currentPlayers, maxPlayers, targetPlayerId, expiresAt, timer }
@@ -370,6 +372,7 @@ app.get('/clip', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'clip.html')))
 app.get('/tournaments', (req, res) => res.redirect(302, '/competitions'));
 app.get('/tournament/:id', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'tournament.html')));
 app.get('/competitions', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'competitions.html')));
+app.get('/competition/:id', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'competition-play.html')));
 app.get('/analytics', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'analytics.html')));
 app.get('/trading-floor', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 app.get('/leaderboard', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'leaderboard.html')));
@@ -406,7 +409,7 @@ app.use('/api', apiLimiter);
 // Internal-only bridge for the separate admin panel (port 3003) - secret +
 // localhost-gated inside the router itself, see server/internalAdmin.js.
 const { createInternalAdminRouter } = require('./internalAdmin');
-app.use('/internal/admin', createInternalAdminRouter({ gameEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }));
+app.use('/internal/admin', createInternalAdminRouter({ gameEngine, compEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }));
 
 // ---- auth -----------------------------------------------------------------
 
@@ -1842,9 +1845,19 @@ function competitionStatus(c, now = Date.now()) {
   return 'ended';
 }
 
+// `status` is the hub's date-based upcoming/active/ended; a voided native
+// competition shows as ended. `lifecycle` is the engine's own status.
 function competitionSummary(c) {
-  const { is_published, click_count, ...rest } = c;
-  return { ...rest, status: competitionStatus(c) };
+  const { is_published, click_count, last_tick_at, last_tick_data_time, notices_sent, data_window_start, ...rest } = c;
+  return { ...rest, status: c.status === 'void' ? 'ended' : competitionStatus(c), lifecycle: c.status };
+}
+
+// compEngine throws errors carrying an HTTP status for anything the player
+// did wrong; anything without one is a real server error.
+function sendCompError(res, e, label) {
+  if (e.status) return res.status(e.status).json({ error: e.message });
+  console.error(`[${label}]`, e);
+  res.status(500).json({ error: 'Something went wrong. Please try again.' });
 }
 
 // A malformed id would otherwise surface as a Postgres uuid cast error (500).
@@ -1884,33 +1897,92 @@ app.post('/api/competitions/:id/click', requireDb, requireCompetitionId, async (
   res.json({ success: true });
 });
 
+// Native competitions: one atomic call charges the fee once and creates the
+// trading account (comp_enter) - calling it again is a no-op, never a
+// second charge.
 app.post('/api/competitions/:id/enter', requireDb, requireCompetitionId, authenticate, async (req, res) => {
   try {
-    const c = await db.getPublishedCompetition(req.params.id);
-    if (!c) return res.status(404).json({ error: 'Competition not found' });
-    if (c.type === 'external') return res.status(400).json({ error: "Enter this competition on the organizer's site" });
-    if (competitionStatus(c) === 'ended') return res.status(400).json({ error: 'This competition has ended' });
-
-    const playerId = req.tokenPlayer.id;
-    if (await db.hasEnteredCompetition(c.id, playerId)) return res.status(400).json({ error: 'Already entered' });
-
-    if (c.entry_fee_coins > 0) {
-      const player = await db.getPlayerById(playerId);
-      if (player.coins < c.entry_fee_coins) return res.status(400).json({ error: 'Not enough coins' });
-      await db.debitCoins(playerId, c.entry_fee_coins, { type: 'competition_entry' });
-    }
-    try {
-      await db.enterCompetition(c.id, playerId);
-    } catch (e) {
-      // Lost a double-click race on the primary key - give the coins back.
-      if (c.entry_fee_coins > 0) await db.creditCoins(playerId, c.entry_fee_coins, { type: 'competition_refund' });
-      if (e.code === '23505') return res.status(400).json({ error: 'Already entered' });
-      throw e;
-    }
-    res.json({ success: true });
+    const result = await compEngine.enter(req.params.id, req.tokenPlayer.id);
+    res.json({ success: true, ...result, playUrl: `/competition/${req.params.id}` });
   } catch (e) {
-    console.error('[competition enter]', e);
-    res.status(500).json({ error: 'Could not enter competition' });
+    sendCompError(res, e, 'competition enter');
+  }
+});
+
+// Competition ids the caller has an account in, plus a live summary of each
+// one still running (home screen "My Competitions" strip, hub Continue buttons).
+app.get('/api/competitions-mine', requireDb, authenticate, async (req, res) => {
+  try {
+    const accounts = await db.listPlayerCompAccounts(req.tokenPlayer.id);
+    const mine = [];
+    for (const a of accounts) {
+      const c = a.competition;
+      if (!c) continue;
+      const row = { competitionId: c.id, title: c.title, frequency: c.frequency, status: c.status, startsAt: c.starts_at, endsAt: c.ends_at, equity: Number(a.equity), startingCapital: Number(a.starting_capital), accountStatus: a.status, finalRank: a.final_rank };
+      if (c.status === 'active') {
+        const lb = await compEngine.getLeaderboard(c.id, req.tokenPlayer.id);
+        row.rank = lb.me?.rank || null;
+        row.entrants = lb.entrants;
+      }
+      mine.push(row);
+    }
+    res.json({ competitions: mine });
+  } catch (e) {
+    sendCompError(res, e, 'competitions mine');
+  }
+});
+
+app.get('/api/competitions/:id/account', requireDb, requireCompetitionId, authenticate, async (req, res) => {
+  try {
+    res.json(await compEngine.getAccountView(req.params.id, req.tokenPlayer.id));
+  } catch (e) {
+    sendCompError(res, e, 'competition account');
+  }
+});
+
+app.post('/api/competitions/:id/trade/open', requireDb, requireCompetitionId, authenticate, async (req, res) => {
+  try {
+    const { symbol, side, lots, stopLoss, takeProfit } = req.body || {};
+    res.json({ success: true, ...(await compEngine.openTrade(req.params.id, req.tokenPlayer.id, { symbol, side, lots, stopLoss, takeProfit })) });
+  } catch (e) {
+    sendCompError(res, e, 'competition trade open');
+  }
+});
+
+app.post('/api/competitions/:id/trade/close', requireDb, requireCompetitionId, authenticate, async (req, res) => {
+  try {
+    res.json({ success: true, ...(await compEngine.closeTrade(req.params.id, req.tokenPlayer.id, req.body?.positionId)) });
+  } catch (e) {
+    sendCompError(res, e, 'competition trade close');
+  }
+});
+
+app.post('/api/competitions/:id/trade/modify', requireDb, requireCompetitionId, authenticate, async (req, res) => {
+  try {
+    const { positionId, stopLoss, takeProfit } = req.body || {};
+    res.json({ success: true, ...(await compEngine.modifyTrade(req.params.id, req.tokenPlayer.id, positionId, { stopLoss, takeProfit })) });
+  } catch (e) {
+    sendCompError(res, e, 'competition trade modify');
+  }
+});
+
+app.get('/api/competitions/:id/leaderboard', requireDb, requireCompetitionId, authenticate, async (req, res) => {
+  try {
+    res.json(await compEngine.getLeaderboard(req.params.id, req.tokenPlayer.id));
+  } catch (e) {
+    sendCompError(res, e, 'competition leaderboard');
+  }
+});
+
+// Competition chart history - only bars up to the competition's current
+// market time (never ahead of it), entrants only.
+app.get('/api/chart-data/:symbol', requireDb, authenticate, async (req, res) => {
+  try {
+    const { compId } = req.query;
+    if (!compId || !UUID_RE.test(compId)) return res.status(400).json({ error: 'compId is required' });
+    res.json(await compEngine.getChartData(compId, req.tokenPlayer.id, req.params.symbol));
+  } catch (e) {
+    sendCompError(res, e, 'chart data');
   }
 });
 
@@ -2362,7 +2434,14 @@ const COIN_TO_USD = 0.005;
 app.get('/api/prize-claims/eligible', requireDb, authenticate, async (req, res) => {
   try {
     const wins = await db.getUnclaimedTournamentWins(req.tokenPlayer.id);
-    res.json({ wins: wins.map((w) => ({ ...w, prizeUsd: Math.round(w.prizeCoins * COIN_TO_USD * 100) / 100 })) });
+    // Competition cash prizes are a fixed announced USD amount, not coins.
+    const compWins = await db.getUnclaimedCompetitionCashPrizes(req.tokenPlayer.id);
+    res.json({
+      wins: [
+        ...wins.map((w) => ({ ...w, prizeUsd: Math.round(w.prizeCoins * COIN_TO_USD * 100) / 100 })),
+        ...compWins.map((w) => ({ competitionId: w.competitionId, tournamentName: w.competitionName, prizeCoins: 0, prizeUsd: w.prizeUsd })),
+      ],
+    });
   } catch (e) {
     console.error('[prize-claims eligible]', e);
     res.status(500).json({ error: 'Could not load eligible prizes' });
@@ -2381,8 +2460,8 @@ app.get('/api/prize-claims/mine', requireDb, authenticate, async (req, res) => {
 
 app.post('/api/prize-claims', requireDb, authenticate, async (req, res) => {
   try {
-    const { tournamentId, payoutMethod, payoutDetails } = req.body || {};
-    if (!tournamentId) return res.status(400).json({ error: 'tournamentId is required' });
+    const { tournamentId, competitionId, payoutMethod, payoutDetails } = req.body || {};
+    if (!tournamentId && !competitionId) return res.status(400).json({ error: 'tournamentId or competitionId is required' });
     if (payoutMethod !== 'bank_transfer' && payoutMethod !== 'crypto') {
       return res.status(400).json({ error: 'payoutMethod must be bank_transfer or crypto' });
     }
@@ -2396,6 +2475,20 @@ app.post('/api/prize-claims', requireDb, authenticate, async (req, res) => {
       if (!currency || !walletAddress) {
         return res.status(400).json({ error: 'currency and walletAddress are required for a crypto payout' });
       }
+    }
+
+    if (competitionId) {
+      const compWin = (await db.getUnclaimedCompetitionCashPrizes(req.tokenPlayer.id)).find((w) => w.competitionId === competitionId);
+      if (!compWin) return res.status(400).json({ error: 'No unclaimed competition cash prize found for that competition' });
+      const claim = await db.createPrizeClaim({
+        playerId: req.tokenPlayer.id,
+        competitionId,
+        prizeCoins: 0,
+        prizeUsd: compWin.prizeUsd,
+        payoutMethod,
+        payoutDetails,
+      });
+      return res.json({ success: true, claim });
     }
 
     const wins = await db.getUnclaimedTournamentWins(req.tokenPlayer.id);
@@ -2887,6 +2980,13 @@ io.use(async (socket, next) => {
 
 io.on('connection', (socket) => {
   const notifyPid = socket.data.player?.id;
+
+  // Long-form competitions: live updates go to comp:{id}:{playerId}, joined
+  // only after compEngine confirms this player has an account there.
+  socket.on('comp:join', async ({ competitionId } = {}, ack) => {
+    const ok = UUID_RE.test(competitionId || '') && (await compEngine.joinRoom(socket, competitionId));
+    if (typeof ack === 'function') ack({ ok });
+  });
   if (notifyPid) {
     if (!playerSockets.has(notifyPid)) playerSockets.set(notifyPid, new Set());
     playerSockets.get(notifyPid).add(socket.id);
@@ -3232,6 +3332,7 @@ for (const r of instrumentReport) {
 
 server.listen(PORT, () => {
   console.log(`Spike & Crush server listening on http://localhost:${PORT}`);
+  compEngine.start();
   if (!db.isConfigured) {
     console.warn(
       'Running WITHOUT a configured database - accounts, matchmaking persistence and leaderboards are disabled until SUPABASE_SERVICE_KEY is set in .env.'

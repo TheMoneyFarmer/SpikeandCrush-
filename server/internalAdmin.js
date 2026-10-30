@@ -23,7 +23,7 @@ function requireInternalSecret(req, res, next) {
   next();
 }
 
-function createInternalAdminRouter({ gameEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }) {
+function createInternalAdminRouter({ gameEngine, compEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }) {
   const router = express.Router();
   router.use(requireInternalSecret);
 
@@ -102,6 +102,38 @@ function createInternalAdminRouter({ gameEngine, io, db, instrumentsRegistry, sa
     notifyPlayer(req.params.playerId, type, message, extra || {});
     res.json({ success: true });
   });
+
+  // ---- long-form competitions ---------------------------------------------------
+  // Settlement/void/disqualify move money and push live events, so they run
+  // through the game server's compEngine rather than as raw Supabase writes.
+  const compAction = (fn) => async (req, res) => {
+    try {
+      res.json({ success: true, ...(await fn(req)) });
+    } catch (e) {
+      res.status(e.status || 500).json({ error: e.message });
+    }
+  };
+  router.post('/competitions/:id/settle', compAction((req) => compEngine.settle(req.params.id)));
+  router.post('/competitions/:id/void', compAction((req) => compEngine.voidCompetition(req.params.id)));
+  router.post('/competitions/:id/disqualify/:playerId', compAction((req) => compEngine.disqualify(req.params.id, req.params.playerId)));
+  // Test competitions start now and may replay faster than real time
+  // (e.g. 144x = a full day of market in 10 minutes). Never published to the hub.
+  router.post('/competitions/test', compAction(async (req) => {
+    const { durationMinutes = 10, replaySpeed = 144, instruments, entryFee = 0, title } = req.body || {};
+    const startsAt = new Date();
+    const competition = await compEngine.createCompetition({
+      title: title || `TEST ${durationMinutes}m @ ${replaySpeed}x`,
+      description: 'Admin test competition',
+      instruments: instruments && instruments.length ? instruments : ['EURUSD', 'XAUUSD', 'BTCUSD'],
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + Number(durationMinutes) * 60000),
+      entryFee: Number(entryFee) || 0,
+      payouts: [{ rank: 1, coins: 100 }, { rank: 2, coins: 50 }],
+      replaySpeed: Number(replaySpeed) || 1,
+      isTest: true,
+    });
+    return { competition };
+  }));
 
   return router;
 }

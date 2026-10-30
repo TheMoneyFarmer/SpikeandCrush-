@@ -3,6 +3,7 @@
 // Downloads real multi-timeframe history for every instrument that has a
 // `dukascopy` id in server/instruments.js, into data/market/<SYMBOL>/:
 //   m1.csv.gz - recent 1-minute bars (match windows + 1m..30m chart history)
+//   m5.csv.gz - ~7 months of 5-minute bars (long-form competition replay)
 //   h1.csv.gz - ~6 months of hourly bars (1h/4h chart history)
 //   d1.csv.gz - ~2 years of daily bars (D1 chart history)
 // Rows are `time,open,high,low,close` with time in UNIX seconds (UTC).
@@ -21,6 +22,10 @@ const DAY_MS = 86400000;
 
 const RANGES = {
   m1: 14,
+  // Base resolution for long-form competitions (server/replayClock.js) - a
+  // monthly needs 31 continuous days plus room for distinct windows; m1 for
+  // that long would be too heavy to hold in memory.
+  m5: 210,
   h1: 180,
   d1: 730,
 };

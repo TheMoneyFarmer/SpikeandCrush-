@@ -16,6 +16,9 @@ const MAX_POSITIONS = 10;
 const SOFT_LOSS_WINDOW_SECONDS = 120; // 2 minutes
 const SOFT_LOSS_PCT = 0.2; // 20% of starting capital lost within the current window -> locked out until it resets
 const HARD_LOSS_PCT = 0.5; // 50% of starting capital lost overall -> eliminated for the rest of the match
+// The core trading rules, shared with long-form competitions (compEngine.js)
+// so both play by the same numbers.
+const GAME_RULES = { STARTING_CAPITAL, MAX_LOTS, MAX_POSITIONS, HARD_LOSS_PCT };
 const ALLOWED_CHAT_MESSAGES = ['GL HF', "Let's go", 'May the best trader win', 'Ready to war'];
 
 // Private War stays free to join for invited friends - MATCH_MODES.private's
@@ -2397,4 +2400,4 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   };
 }
 
-module.exports = { createGameEngine, tierForRating, TIERS, computeMatchResults, groupByTiedPnl, samePnl, getExperienceLevel, EXPERIENCE_LEVELS, PRIVATE_WAR_HOST_FEE };
+module.exports = { createGameEngine, GAME_RULES, baseRatingForPosition, tierForRating, TIERS, computeMatchResults, groupByTiedPnl, samePnl, getExperienceLevel, EXPERIENCE_LEVELS, PRIVATE_WAR_HOST_FEE };

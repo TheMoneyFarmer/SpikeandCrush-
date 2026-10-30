@@ -22,6 +22,7 @@ window.Admin = window.Admin || {};
       { key: 'tournaments-create', label: 'Create Tournament', href: '/tournaments.html?tab=create' },
       { key: 'tournaments-history', label: 'Tournament History', href: '/tournaments.html?tab=history' },
       { key: 'tournaments-sponsors', label: 'Sponsors / Prizes', href: '/tournaments.html?tab=sponsors' },
+      { key: 'competitions', label: 'Competitions', href: '/competitions.html' },
     ]},
     { group: 'Monetisation', icon: '💰', items: [
       { key: 'mon-overview', label: 'Revenue Overview', href: '/monetisation.html?tab=overview' },

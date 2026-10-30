@@ -115,6 +115,39 @@ function getMarketSeries(symbol) {
   return series;
 }
 
+// symbol -> { time: Uint32Array, open/high/low/close: Float64Array } of the
+// 5-minute bars long-form competitions replay from (server/replayClock.js),
+// or null. Typed arrays rather than one object per bar: ~40k bars x 18
+// instruments stays a few tens of MB instead of hundreds.
+const baseCandleCache = new Map();
+
+function getBaseCandles(symbol) {
+  if (baseCandleCache.has(symbol)) return baseCandleCache.get(symbol);
+  const file = path.join(MARKET_DIR, symbol, 'm5.csv.gz');
+  const bars = fs.existsSync(file) ? loadMarketFile(file) : null;
+  let candles = null;
+  if (bars && bars.length) {
+    const n = bars.length;
+    candles = {
+      length: n,
+      time: new Uint32Array(n),
+      open: new Float64Array(n),
+      high: new Float64Array(n),
+      low: new Float64Array(n),
+      close: new Float64Array(n),
+    };
+    bars.forEach((b, i) => {
+      candles.time[i] = b.time;
+      candles.open[i] = b.open;
+      candles.high[i] = b.high;
+      candles.low[i] = b.low;
+      candles.close[i] = b.close;
+    });
+  }
+  baseCandleCache.set(symbol, candles);
+  return candles;
+}
+
 // Volatility isn't flat through a real trading day - busier at session opens,
 // quieter overnight/at lunch. Applied as a multiplier on the base per-minute
 // volatility so synthetic instruments don't feel like flat white noise.
@@ -213,5 +246,6 @@ module.exports = {
   generateSyntheticDay,
   getInstrumentDayData,
   getMarketSeries,
+  getBaseCandles,
   isSynthetic,
 };

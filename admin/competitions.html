@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Competitions — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<style>
+  .comp-layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .comp-row { cursor: pointer; }
+  .comp-row.active td { background: rgba(0,168,124,0.08); }
+  .comp-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .test-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .test-form .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+  .test-form input { width: 160px; }
+  .muted { color: var(--text-secondary, #999); font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="competitions"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content comp-layout">
+        <div class="panel">
+          <h3>Test competition</h3>
+          <p class="muted">Starts now, never listed on the public hub. Replay speed 144 = a full day of market in 10 minutes. Production competitions always replay at 1x.</p>
+          <div class="test-form">
+            <div class="field">Duration (minutes)<input type="number" id="testDuration" value="10" min="1" /></div>
+            <div class="field">Replay speed<input type="number" id="testSpeed" value="144" min="1" /></div>
+            <div class="field">Instruments (comma separated)<input type="text" id="testInstruments" value="EURUSD,XAUUSD,BTCUSD" /></div>
+            <div class="field">Entry fee (coins)<input type="number" id="testFee" value="0" min="0" /></div>
+            <button class="btn btn-primary" id="createTestBtn">Create test competition</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Competitions</h3>
+          <div id="compTableWrap">Loading…</div>
+        </div>
+
+        <div class="panel" id="detailPanel">
+          <div class="empty-state">Select a competition to see entrants</div>
+        </div>
+
+        <div class="panel hidden" id="accountPanel"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Competitions');
+
+    let comps = [];
+    let activeId = null;
+    const esc = Admin.escapeHtml;
+
+    async function loadComps() {
+      try {
+        comps = (await Admin.api('/competitions')).competitions;
+        renderComps();
+      } catch (e) {
+        document.getElementById('compTableWrap').innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
+      }
+    }
+
+    function renderComps() {
+      document.getElementById('compTableWrap').innerHTML = `
+        <div class="admin-table-wrap"><table class="admin-table">
+          <thead><tr><th>Title</th><th>Format</th><th>Status</th><th>Starts</th><th>Ends</th><th>Entrants</th><th>Entry</th><th>Speed</th><th>Data from</th></tr></thead>
+          <tbody>${comps.map((c) => `
+            <tr class="comp-row ${c.id === activeId ? 'active' : ''}" data-id="${c.id}">
+              <td>${esc(c.title)}${c.is_test ? ' <span class="status-pill">TEST</span>' : ''}</td>
+              <td>${esc(c.frequency || '—')}</td>
+              <td><span class="status-pill">${esc(c.status)}</span></td>
+              <td>${Admin.formatDate(c.starts_at)}</td>
+              <td>${Admin.formatDate(c.ends_at)}</td>
+              <td>${c.entrants}</td>
+              <td>${c.entry_fee_coins} coins</td>
+              <td>${c.replay_speed}x</td>
+              <td>${c.data_window_start ? c.data_window_start.slice(0, 10) : '—'}</td>
+            </tr>`).join('') || '<tr><td colspan="9">No competitions yet</td></tr>'}</tbody>
+        </table></div>`;
+      document.querySelectorAll('.comp-row').forEach((row) => row.addEventListener('click', () => selectComp(row.dataset.id)));
+    }
+
+    async function selectComp(id) {
+      activeId = id;
+      renderComps();
+      document.getElementById('accountPanel').classList.add('hidden');
+      const comp = comps.find((c) => c.id === id);
+      const panel = document.getElementById('detailPanel');
+      panel.innerHTML = 'Loading…';
+      try {
+        const { entrants } = await Admin.api(`/competitions/${id}/entrants`);
+        const finished = ['ended', 'void'].includes(comp.status);
+        panel.innerHTML = `
+          <h3>${esc(comp.title)}</h3>
+          <div class="muted">${(comp.instruments || []).join(', ')} · ${Admin.formatDate(comp.starts_at)} → ${Admin.formatDate(comp.ends_at)}${comp.settled_at ? ` · settled ${Admin.formatDate(comp.settled_at)}` : ''}</div>
+          <div class="comp-actions">
+            <button class="btn btn-primary" id="settleBtn" ${comp.status === 'void' ? 'disabled' : ''}>Force Settle</button>
+            <button class="btn btn-danger" id="voidBtn" ${finished ? 'disabled' : ''}>Void &amp; Refund</button>
+          </div>
+          <h4>Leaderboard / entrants (${entrants.length})</h4>
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>#</th><th>Player</th><th>Equity</th><th>P&amp;L</th><th>Trades</th><th>Status</th><th>Prize</th><th></th></tr></thead>
+            <tbody>${entrants.map((a, i) => {
+              const pnl = Number(a.equity) - Number(a.starting_capital);
+              return `<tr>
+                <td>${a.final_rank ?? i + 1}</td>
+                <td>${esc(a.player?.username || a.player_id)}</td>
+                <td>${Admin.formatMoney(a.equity)}</td>
+                <td style="color:${pnl >= 0 ? '#00c896' : '#ff4444'}">${Admin.formatMoney(pnl)}</td>
+                <td>${a.trade_count}</td>
+                <td><span class="status-pill">${esc(a.status)}</span></td>
+                <td>${a.prize_coins ? Admin.formatCoins(a.prize_coins) : ''}${a.prize_usd > 0 ? ` $${a.prize_usd}` : ''}${a.prize_paid ? ' ✅' : ''}</td>
+                <td>
+                  <button class="btn btn-sm" data-account="${a.id}">Account</button>
+                  ${a.status === 'active' && !finished ? `<button class="btn btn-sm btn-danger" data-dq="${a.player_id}" data-name="${esc(a.player?.username || '')}">Disqualify</button>` : ''}
+                </td>
+              </tr>`;
+            }).join('') || '<tr><td colspan="8">No entrants yet</td></tr>'}</tbody>
+          </table></div>`;
+        document.getElementById('settleBtn').addEventListener('click', () => settle(id));
+        document.getElementById('voidBtn').addEventListener('click', () => voidComp(id));
+        panel.querySelectorAll('[data-account]').forEach((b) => b.addEventListener('click', () => showAccount(b.dataset.account)));
+        panel.querySelectorAll('[data-dq]').forEach((b) => b.addEventListener('click', () => disqualify(id, b.dataset.dq, b.dataset.name)));
+      } catch (e) {
+        panel.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
+      }
+    }
+
+    async function showAccount(accountId) {
+      const panel = document.getElementById('accountPanel');
+      panel.classList.remove('hidden');
+      panel.innerHTML = 'Loading…';
+      try {
+        const { account, positions, snapshots } = await Admin.api(`/competitions/accounts/${accountId}`);
+        panel.innerHTML = `
+          <h3>${esc(account.player?.username || '')} — account</h3>
+          <div class="muted">Balance ${Admin.formatMoney(account.balance)} · Equity ${Admin.formatMoney(account.equity)} · Realised ${Admin.formatMoney(account.realised_pnl)} · ${account.trade_count} trades · ${snapshots.length} equity snapshots${account.loss_limit_hit_at ? ` · loss limit hit ${Admin.formatDate(account.loss_limit_hit_at)}` : ''}</div>
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th>Opened</th><th>Symbol</th><th>Side</th><th>Lots</th><th>Entry</th><th>SL</th><th>TP</th><th>Status</th><th>Exit</th><th>Reason</th><th>P&amp;L</th></tr></thead>
+            <tbody>${positions.map((p) => `<tr>
+              <td>${Admin.formatDate(p.opened_at)}</td><td>${esc(p.symbol)}</td><td>${p.side}</td><td>${p.lots}</td><td>${p.entry_price}</td>
+              <td>${p.stop_loss ?? '—'}</td><td>${p.take_profit ?? '—'}</td><td>${p.status}</td><td>${p.exit_price ?? '—'}</td>
+              <td>${p.exit_reason ?? '—'}</td><td>${p.pnl === null ? '—' : Admin.formatMoney(p.pnl)}</td></tr>`).join('') || '<tr><td colspan="11">No trades</td></tr>'}</tbody>
+          </table></div>`;
+      } catch (e) {
+        panel.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
+      }
+    }
+
+    async function settle(id) {
+      if (!(await Admin.confirmModal({ title: 'Force settle?', body: 'Closes every open position at the current replay price, ranks the accounts and pays prizes. Safe to repeat - nobody is paid twice.', confirmLabel: 'Settle now' }))) return;
+      try {
+        const r = await Admin.api(`/competitions/${id}/settle`, { method: 'POST' });
+        Admin.toast(`Settled: ${r.accounts} accounts, ${r.newlyPaid} newly paid`, 'success');
+        await loadComps();
+        selectComp(id);
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    async function voidComp(id) {
+      if (!(await Admin.confirmModal({ title: 'Void and refund?', body: 'Cancels the competition, closes all positions with no P&amp;L and refunds every entry fee. No prizes are paid.', confirmLabel: 'Void & refund', danger: true }))) return;
+      try {
+        const r = await Admin.api(`/competitions/${id}/void`, { method: 'POST' });
+        Admin.toast(`Voided - ${r.refunded} entries refunded`, 'success');
+        await loadComps();
+        selectComp(id);
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    async function disqualify(id, playerId, name) {
+      if (!(await Admin.confirmModal({ title: `Disqualify ${esc(name)}?`, body: 'Closes their positions and removes them from the prize ranking. Their entry fee is not refunded.', confirmLabel: 'Disqualify', danger: true }))) return;
+      try {
+        await Admin.api(`/competitions/${id}/disqualify/${playerId}`, { method: 'POST' });
+        Admin.toast(`${name} disqualified`, 'success');
+        selectComp(id);
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    document.getElementById('createTestBtn').addEventListener('click', async () => {
+      try {
+        const r = await Admin.api('/competitions/test', {
+          method: 'POST',
+          body: {
+            durationMinutes: Number(document.getElementById('testDuration').value),
+            replaySpeed: Number(document.getElementById('testSpeed').value),
+            instruments: document.getElementById('testInstruments').value.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean),
+            entryFee: Number(document.getElementById('testFee').value),
+          },
+        });
+        Admin.toast(`Created "${r.competition.title}" - play at /competition/${r.competition.id}`, 'success');
+        await loadComps();
+        selectComp(r.competition.id);
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
+
+    loadComps();
+  </script>
+</body>
+</html>

@@ -15,6 +15,7 @@ TW.Chart = (function () {
   const CONTEXT_RESOLUTIONS = [
     ['d1', 86400],
     ['h1', 3600],
+    ['m5', 300],
     ['m1', 60],
   ];
   // Always auto-fit the same number of candles into view regardless of
@@ -32,6 +33,12 @@ TW.Chart = (function () {
   let activeSymbol = 'EURUSD';
   let ghosted = false;
   let timeframeSeconds = DEFAULT_TIMEFRAME;
+  // Real epoch seconds that t=0 stands for, when the screen has a real
+  // calendar (long-form competitions) - null keeps the match's elapsed clock.
+  let timeOrigin = null;
+  // Matches dim everything before t=0 as pre-match history; a competition
+  // chart is one continuous market, so it turns this off.
+  let dimHistory = true;
   // {t: elapsedSeconds (negative = pre-match), mid}[] - full-resolution history,
   // keyed lazily per symbol (was hardcoded to EURUSD/XAUUSD only, which broke
   // every other instrument once match instrument rotation shipped).
@@ -134,6 +141,18 @@ TW.Chart = (function () {
     return `${sign}${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   }
 
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Axis/crosshair label: real UTC date-time when a time origin is set,
+  // otherwise the match's elapsed clock.
+  function formatChartTime(time) {
+    if (timeOrigin === null) return formatElapsedClock(time);
+    const d = new Date((timeOrigin + time) * 1000);
+    const day = `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+    if (timeframeSeconds >= 86400) return day;
+    return `${day} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  }
+
   // Reads the live --chart-* / --candle-* CSS custom properties (set per
   // data-theme in css/themes.css) instead of a hardcoded per-theme-name
   // table - this is what makes the chart automatically follow whichever of
@@ -173,7 +192,7 @@ TW.Chart = (function () {
         timeVisible: true,
         secondsVisible: true,
         borderColor: ct.border,
-        tickMarkFormatter: (time) => formatElapsedClock(time),
+        tickMarkFormatter: (time) => formatChartTime(time),
         // A fixed pixel width per candle (rather than fitContent()'s "stretch whatever
         // few bars exist to fill the chart") is what avoids 1-2 candles at match start
         // rendering as giant blocks - the same fixed spacing then naturally shows more
@@ -187,7 +206,7 @@ TW.Chart = (function () {
         fixRightEdge: false,
       },
       localization: {
-        timeFormatter: (time) => formatElapsedClock(time),
+        timeFormatter: (time) => formatChartTime(time),
       },
       rightPriceScale: { borderColor: ct.border, width: isMobile ? 52 : undefined },
       // Magnet snaps the crosshair to the nearest candle, which is much
@@ -233,7 +252,7 @@ TW.Chart = (function () {
           last.close = close;
           last.tickVolume += high - low;
         } else {
-          candles.push({ bucket, time: bucket * tf - off, open, high, low, close, tickVolume: high - low, isPreMatch: true });
+          candles.push({ bucket, time: bucket * tf - off, open, high, low, close, tickVolume: high - low, isPreMatch: dimHistory });
         }
       }
     }
@@ -272,7 +291,7 @@ TW.Chart = (function () {
           low: mid,
           close: mid,
           tickVolume: movement,
-          isPreMatch: t < 0,
+          isPreMatch: dimHistory && t < 0,
         };
         candles.push(candle);
       } else {
@@ -432,6 +451,8 @@ TW.Chart = (function () {
   function reset() {
     Object.keys(rawTicks).forEach((symbol) => delete rawTicks[symbol]);
     Object.keys(preMatchLoaded).forEach((symbol) => delete preMatchLoaded[symbol]);
+    timeOrigin = null;
+    dimHistory = true;
     [contextBars, alignOffsets, contextCandleCache].forEach((map) => Object.keys(map).forEach((symbol) => delete map[symbol]));
   }
 
@@ -886,6 +907,14 @@ TW.Chart = (function () {
     getCandles: () => lastCandles,
     getPositionData: () => Array.from(positionData.entries()),
     formatElapsedClock,
+    formatChartTime,
+    setTimeOrigin: (epochSeconds) => {
+      timeOrigin = epochSeconds;
+    },
+    setDimHistory: (on) => {
+      dimHistory = on;
+      Object.keys(contextCandleCache).forEach((symbol) => delete contextCandleCache[symbol]);
+    },
     get activeSymbol() {
       return activeSymbol;
     },

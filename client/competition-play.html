@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0A0C14">
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Spike & Crush — Competition</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8F%86%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/game.css" />
+<link rel="stylesheet" href="/css/premium.css" />
+<link rel="stylesheet" href="/css/mobile.css">
+<style>
+  /* Competition header: name, real time left, session, equity, rank */
+  .comp-topbar { flex-wrap: wrap; gap: 10px 16px; }
+  .comp-title { font-weight: 800; font-size: 15px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .comp-title small { font-weight: 600; font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+  .replay-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; background: rgba(245,197,66,0.12); color: #F5C542; border: 1px solid rgba(245,197,66,0.35); white-space: nowrap; }
+  .comp-stat { display: flex; flex-direction: column; align-items: flex-start; }
+  .comp-stat .label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+  .comp-stat .value { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 15px; }
+  .comp-banner { margin: 0; padding: 10px 14px; font-size: 13px; text-align: center; font-weight: 600; }
+  .comp-banner.closed { background: rgba(255,255,255,0.05); color: var(--text-secondary); }
+  .comp-banner.locked { background: rgba(255,61,92,0.12); color: #FF3D5C; }
+  .comp-banner.ended { background: rgba(0,200,150,0.12); color: #00C896; }
+  .comp-banner.waiting { background: rgba(77,166,255,0.12); color: #4DA6FF; }
+  .trade-history { max-height: 220px; overflow-y: auto; font-size: 12px; }
+  .trade-history-row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .leaderboard-table tr.me td { color: #F5C542; font-weight: 700; }
+  .game-bottom.comp-bottom { grid-template-columns: 1fr; }
+  .replay-short { display: none; }
+  .instrument-tab.closed::after { content: ' ⏸'; opacity: 0.6; }
+  /* Long-form accounts hold up to the full position cap - let the list
+     scroll instead of squashing every row into its fixed height. */
+  .positions-list .position-row { flex-shrink: 0; }
+
+  /* Portrait phones: the shared fixed 48px game header (css/mobile.css)
+     only has room for title + replay badge, time left, equity and rank -
+     session and P&L are desktop/landscape only. */
+  @media (max-width: 900px) and (orientation: portrait) {
+    .comp-topbar { flex-wrap: nowrap; gap: 8px; }
+    .comp-title { flex: 1; font-size: 12px; }
+    #compTitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .replay-badge { font-size: 8px; padding: 1px 6px; }
+    .comp-stat .label { font-size: 8px; }
+    .comp-stat .value { font-size: 12px; }
+    .comp-stat-wide { display: none; }
+    .comp-topbar .leave-match-btn { padding: 4px 8px; font-size: 11px; }
+    /* Fit bid/ask/time + the timeframe row inside the fixed 64px quotes box. */
+    .chart-quotes { row-gap: 4px; padding-top: 4px; }
+    .chart-quotes .quote { flex-direction: row; align-items: baseline; gap: 5px; }
+    .timeframe-selector { padding-top: 0; }
+    .quote-time .label { display: none; }
+    .timeframe-selector button { min-height: 28px; padding-top: 2px; padding-bottom: 2px; }
+    .replay-full { display: none; }
+    .replay-short { display: inline; }
+    /* Above the slim Buy/Sell bar instead of over the timeframe row. */
+    .comp-banner { position: fixed; left: 8px; right: 8px; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); z-index: 150; border-radius: 10px; font-size: 12px; padding: 8px 10px; }
+  }
+</style>
+</head>
+<body data-page="competition">
+  <div class="game-shell" data-mobile-view="chart">
+    <div class="game-topbar comp-topbar">
+      <div class="comp-title">
+        <span id="compTitle">Loading…</span>
+        <small><span class="replay-badge" title="Prices replay real past market data - not a live market"><span class="replay-full">● REPLAY — historical market data</span><span class="replay-short">● REPLAY · HISTORICAL</span></span></small>
+      </div>
+      <div class="comp-stat"><span class="label">Time left</span><span class="value" id="compTimeLeft">—</span></div>
+      <div class="comp-stat comp-stat-wide"><span class="label">Session</span><span class="value" id="compSession" style="font-family:inherit;">—</span></div>
+      <div class="comp-stat"><span class="label">Equity</span><span class="value" id="compEquity">—</span></div>
+      <div class="comp-stat comp-stat-wide"><span class="label">P&amp;L</span><span class="value" id="compPnl">—</span></div>
+      <div class="comp-stat"><span class="label">Rank</span><span class="value" id="compRank">—</span></div>
+      <div class="instrument-tabs" id="instrumentTabs"></div>
+      <a href="/competitions" class="leave-match-btn" style="text-decoration:none;">← Hub</a>
+    </div>
+    <div class="comp-banner hidden" id="compBanner"></div>
+
+    <div class="game-main">
+      <div class="chart-section">
+        <div class="chart-quotes">
+          <div class="quote"><span class="label">Bid</span><span class="bid mono" id="quoteBid">-</span></div>
+          <div class="quote"><span class="label">Ask</span><span class="ask mono" id="quoteAsk">-</span></div>
+          <div class="quote quote-time"><span class="label">Market time</span><span class="mono" id="quoteTime">-</span></div>
+          <div class="timeframe-selector" id="timeframeSelector"></div>
+        </div>
+        <div class="chart-canvas-wrap" id="chartCanvasWrap">
+          <div id="chartCanvas"></div>
+        </div>
+      </div>
+
+      <div class="trading-panel" id="tradingPanel">
+        <div class="trade-buttons">
+          <button class="btn btn-buy" id="buyBtn">BUY</button>
+          <button class="btn btn-sell" id="sellBtn">SELL</button>
+        </div>
+
+        <div>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:6px;">LOT SIZE</div>
+          <div class="lot-selector" id="lotSelector">
+            <button class="lot-chip" data-lot="0.1">0.1</button>
+            <button class="lot-chip" data-lot="0.5">0.5</button>
+            <button class="lot-chip active" data-lot="1.0">1.0</button>
+            <button class="lot-chip" data-lot="2.0">2.0</button>
+            <button class="lot-chip" data-lot="5.0">5.0</button>
+            <div class="lot-chip custom-chip" id="customLotChip">
+              <span>Custom</span>
+              <input type="number" id="customLotInput" min="0.01" step="0.01" placeholder="0.0" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:6px;">STOP LOSS / TAKE PROFIT (pips)</div>
+          <div class="pretrade-sltp-row">
+            <label class="text-sell">SL</label>
+            <input type="number" id="preSlInput" min="0" step="1" placeholder="off" />
+          </div>
+          <div class="pretrade-sltp-row">
+            <label class="text-buy">TP</label>
+            <input type="number" id="preTpInput" min="0" step="1" placeholder="off" />
+          </div>
+        </div>
+
+        <div>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:6px;">OPEN POSITIONS</div>
+          <div class="positions-list" id="positionsList"></div>
+        </div>
+
+        <div class="account-summary">
+          <div class="stat"><div class="label">Balance</div><div class="value" id="summaryBalance">—</div></div>
+          <div class="stat"><div class="label">Equity</div><div class="value" id="summaryEquity">—</div></div>
+          <div class="stat"><div class="label">Trades</div><div class="value" id="summaryTrades">0</div></div>
+        </div>
+
+        <div>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:6px;">CLOSED TRADES</div>
+          <div class="trade-history" id="tradeHistory"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="game-bottom comp-bottom">
+      <div class="leaderboard-panel">
+        <div class="text-secondary" style="font-size:12px;margin-bottom:8px;">LEADERBOARD — TOP 10</div>
+        <table class="leaderboard-table">
+          <thead><tr><th>#</th><th>Player</th><th>Equity</th><th>P&amp;L %</th><th>Trades</th></tr></thead>
+          <tbody id="leaderboardBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Mobile portrait: same Chart / Trade switch as the match screen.
+         No forced landscape here - players check in through the day. -->
+    <div class="game-mobile-tabs" id="gameMobileTabs">
+      <button type="button" class="game-mobile-tab active" data-view="chart">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 3 5-6"/></svg>
+        <span class="game-mobile-tab-label">Chart</span>
+      </button>
+      <button type="button" class="game-mobile-tab" data-view="trade">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v18l6-4 6 4V3"/></svg>
+        <span class="game-mobile-tab-label">Trade</span>
+        <span class="game-mobile-tab-badge hidden" id="gameMobileTradeBadge"></span>
+      </button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="/js/device.js"></script>
+  <script src="/js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/socket.js"></script>
+  <script src="/js/sound.js"></script>
+  <script src="/js/chart.js"></script>
+  <script src="/js/competition-play.js"></script>
+</body>
+</html>

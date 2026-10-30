@@ -188,6 +188,9 @@ let activeSortDir = 'desc';
 const pageSize    = 20;
 let pageShown     = pageSize;
 let lastLoadedAt  = null;
+// Native competitions the logged-in player already has an account in -
+// their CTA becomes Continue (or Results) and opens the play screen.
+let enteredIds    = new Set();
 
 // TW.escapeHtml leaves quotes alone, and organizer-supplied values land
 // inside attributes here (logo src/alt, data-* ids) as well as text.
@@ -215,6 +218,23 @@ function formatPrize(prize, { compactFrom = 10000, empty = '—' } = {}) {
   return prize >= compactFrom
     ? '$' + Math.round(prize / 1000) + 'K'
     : '$' + prize.toLocaleString();
+}
+
+// Native recurring competitions pay coins (prize_payouts), not cash.
+function prizeCoins(c) {
+  return (c.prize_payouts || []).reduce((s, p) => s + (p.coins || 0), 0);
+}
+
+function formatCompPrize(c, opts = {}) {
+  const usd = parseFloat(c.prize_pool || 0);
+  if (usd > 0) return formatPrize(usd, opts);
+  const coins = prizeCoins(c);
+  return coins > 0 ? '🪙 ' + coins.toLocaleString() : (opts.empty ?? '—');
+}
+
+// Same coin->USD rate the Wallet uses, only for sorting mixed cash/coin prizes.
+function prizeValue(c) {
+  return parseFloat(c.prize_pool || 0) + prizeCoins(c) * 0.005;
 }
 
 function durationDays(c) {
@@ -248,6 +268,7 @@ function formatEntry(c, coinSep = ' ') {
 
 function ctaLabel(c, { short = false } = {}) {
   const isExternal = c.type === 'external';
+  if (!isExternal && enteredIds.has(c.id)) return c.status === 'ended' ? 'Results' : 'Continue';
   if (c.status === 'active') return isExternal ? 'Enter →' : 'Enter';
   if (c.status === 'upcoming') {
     if (short) return 'Details →';
@@ -281,8 +302,12 @@ async function init() {
 
 async function loadComps() {
   try {
-    const data = await TW.api('/api/competitions');
+    const [data, mine] = await Promise.all([
+      TW.api('/api/competitions'),
+      TW.isLoggedIn() ? TW.api('/api/competitions-mine').catch(() => null) : null,
+    ]);
     allComps = data.competitions || [];
+    enteredIds = new Set(((mine && mine.competitions) || []).map((m) => m.competitionId));
     lastLoadedAt = Date.now();
     refreshUpdatedLabels();
     updateHeroStats();
@@ -356,7 +381,7 @@ function sortBy(col) {
 }
 
 const SORT_VALUE = {
-  prize:    (c) => parseFloat(c.prize_pool || 0),
+  prize:    (c) => prizeValue(c),
   entry:    (c) => c.entry_fee_coins || 0,
   entrants: (c) => c.entry_count || 0,
   duration: (c) => durationDays(c),
@@ -470,7 +495,7 @@ function buildTableRow(c, rank) {
       </div>
     </td>
     <td class="col-status">${statusHtml}</td>
-    <td class="col-prize"><span class="prize-val" style="color:${typeColor};">${formatPrize(parseFloat(c.prize_pool || 0))}</span></td>
+    <td class="col-prize"><span class="prize-val" style="color:${typeColor};">${formatCompPrize(c)}</span></td>
     <td class="col-duration">${formatDuration(c)}</td>
     <td class="col-instruments"><div class="instr-wrap">${instrHtml || '<span class="instr-none">—</span>'}</div></td>
     <td class="col-entry"><span class="${c.entry_fee_coins > 0 ? 'entry-paid' : 'entry-free'}">${formatEntry(c)}</span></td>
@@ -513,7 +538,7 @@ function buildMobileCard(c, rank) {
 
     <div class="mc-stats">
       <div class="mc-stat">
-        <div class="mc-sv" style="color:${typeColor};">${formatPrize(parseFloat(c.prize_pool || 0), { compactFrom: 1000, empty: 'TBA' })}</div>
+        <div class="mc-sv" style="color:${typeColor};">${formatCompPrize(c, { compactFrom: 1000, empty: 'TBA' })}</div>
         <div class="mc-sl">Prize</div>
       </div>
       <div class="mc-stat">
@@ -569,12 +594,13 @@ async function openModal(compId) {
 
   const org = comp.organizer;
   const isExternal = comp.type === 'external';
-  const prize = parseFloat(comp.prize_pool || 0);
   const prizeDetails = comp.prize_details && typeof comp.prize_details === 'object'
     ? Object.entries(comp.prize_details) : [];
   const kind = isExternal ? 'ext' : 'native';
 
-  const ctaText = comp.status === 'active'
+  const ctaText = !isExternal && enteredIds.has(comp.id)
+    ? (comp.status === 'ended' ? 'View Results' : 'Continue →')
+    : comp.status === 'active'
     ? (isExternal ? 'Enter on ' + esc(comp.platform_name || org?.name || 'Platform') + ' →' : 'Enter Now')
     : comp.status === 'upcoming'
       ? (isExternal ? 'View on ' + esc(comp.platform_name || org?.name || 'Platform') + ' →' : 'Register')
@@ -601,7 +627,7 @@ async function openModal(compId) {
 
     <div class="modal-stats-row">
       <div class="modal-stat">
-        <div class="msv gold">${formatPrize(prize, { compactFrom: 1000, empty: 'TBA' })}</div>
+        <div class="msv gold">${formatCompPrize(comp, { compactFrom: 1000, empty: 'TBA' })}</div>
         <div class="msl">Prize Pool</div>
       </div>
       <div class="modal-stat">
@@ -678,6 +704,12 @@ async function handleCTA(compId, btn) {
     return;
   }
 
+  // Already entered: the play screen is the place for it, live or ended.
+  if (enteredIds.has(compId)) {
+    window.location.href = '/competition/' + encodeURIComponent(compId);
+    return;
+  }
+
   if (comp.status === 'ended') {
     openModal(compId);
     return;
@@ -692,10 +724,10 @@ async function handleCTA(compId, btn) {
 
   if (btn) btn.disabled = true;
   try {
-    await TW.api('/api/competitions/' + encodeURIComponent(compId) + '/enter', { method: 'POST' });
-    TW.toast('✅ Entered!', 'success');
+    const result = await TW.api('/api/competitions/' + encodeURIComponent(compId) + '/enter', { method: 'POST' });
+    TW.toast(result.alreadyEntered ? 'Already entered - opening your account' : '✅ Entered!', 'success');
     closeModal();
-    loadComps();
+    window.location.href = result.playUrl || '/competition/' + encodeURIComponent(compId);
   } catch (e) {
     TW.toast(e.message || 'Entry failed', 'danger');
   } finally {
