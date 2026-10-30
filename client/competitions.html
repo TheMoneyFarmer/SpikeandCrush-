@@ -10,13 +10,25 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/themes.css">
+<link rel="stylesheet" href="/css/premium.css">
 <link rel="stylesheet" href="/css/competitions.css">
 <link rel="stylesheet" href="/css/mobile.css">
 <script src="/js/device.js"></script>
+<script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);
+// Logged-in players get the shared app header (same as Shop, Wallet, ...);
+// visitors keep the hub's own public header with its "Play Free" CTA.
+if(localStorage.getItem("sc_token")&&localStorage.getItem("sc_player"))document.documentElement.classList.add("tw-logged-in");}catch(e){}})();</script>
+<style>
+html.tw-logged-in .ch-nav { display: none; }
+html:not(.tw-logged-in) #twNav { display: none; }
+</style>
 </head>
 <body class="comp-hub" data-page="competitions">
 
-<!-- TOP NAV -->
+<div id="twNav" data-active="tournaments"></div>
+
+<!-- TOP NAV (logged-out visitors) -->
 <header class="ch-nav">
   <a href="/" class="ch-nav-logo" aria-label="Spike &amp; Crush home">
     <span class="logo-s">S</span><span class="logo-p">P</span><span class="logo-i">I</span><span class="logo-k">K</span><span class="logo-e">E</span><span class="logo-amp">&amp;</span><span class="logo-c">C</span><span class="logo-r">R</span><span class="logo-u">U</span><span class="logo-s2">S</span><span class="logo-h">H</span>
@@ -157,8 +169,15 @@
   <div class="comp-modal-card" id="comp-modal-card" role="dialog" aria-modal="true"></div>
 </div>
 
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/nav.js"></script>
 <script src="/js/sound.js"></script>
 <script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/socket.js"></script>
+<script src="/js/friends-panel.js"></script>
+<script src="/js/lottie.js"></script>
 <script>
 // ── STATE ────────────────────────────────────
 let allComps      = [];

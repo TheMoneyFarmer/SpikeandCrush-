@@ -364,7 +364,10 @@ app.get('/coaching', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'coaching.
 app.get('/async', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'async.html')));
 app.get('/replay', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'replay.html')));
 app.get('/clip', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'clip.html')));
-app.get('/tournaments', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'tournaments.html')));
+// The Competition Hub replaced the old "coming soon" bracket page as the
+// tournaments destination (tournaments.html is kept for when native brackets
+// unlock); old links - landing page, home mode button - land on the hub.
+app.get('/tournaments', (req, res) => res.redirect(302, '/competitions'));
 app.get('/tournament/:id', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'tournament.html')));
 app.get('/competitions', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'competitions.html')));
 app.get('/analytics', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'analytics.html')));

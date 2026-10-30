@@ -10,6 +10,7 @@ window.TW = window.TW || {};
   const NAV_LINKS = [
     { key: 'home', label: 'Home', href: '/play' },
     { key: 'leaderboard', label: 'Leaderboard', href: '/leaderboard' },
+    { key: 'tournaments', label: 'Tournaments', href: '/competitions' },
     { key: 'cards', label: 'Cards', href: '/cards' },
     { key: 'shop', label: 'Shop', href: '/shop' },
     { key: 'wallet', label: 'Wallet', href: '/wallet' },
