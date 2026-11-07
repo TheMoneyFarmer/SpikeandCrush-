@@ -28,10 +28,24 @@ TW.Sabotage = (function () {
         <div class="category-tag">${TW.escapeHtml(def.category)}</div>
       `;
       if (!c.used) {
-        div.addEventListener('click', () => {
+        // Keyboard / controller: cards are focusable buttons (Enter or Space).
+        div.setAttribute('role', 'button');
+        div.tabIndex = 0;
+        div.setAttribute('aria-pressed', String(selectedCardType === c.type));
+        div.setAttribute('aria-label', `${def.name}: ${def.description}`);
+        const toggle = () => {
           selectedCardType = selectedCardType === c.type ? null : c.type;
           render(lastState);
+          const again = container.querySelector(`[data-card="${c.type}"]`);
+          if (again) again.focus();
+        };
+        div.dataset.card = c.type;
+        div.addEventListener('click', toggle);
+        div.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
         });
+      } else {
+        div.setAttribute('aria-disabled', 'true');
       }
       container.appendChild(div);
     });

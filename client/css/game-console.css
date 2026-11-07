@@ -1,0 +1,56 @@
+/* Game screen console pass - loaded after console.css on game.html,
+   spectate.html and competition-play.html. Palette tokens only, so it works
+   in Dark and Light. Layout stays game.css's; this is look and feel. */
+
+/* top HUD */
+html:root .game-topbar { background: var(--c-nav); border-bottom: 1px solid var(--c-hair); }
+html:root .topbar-timer { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 500; color: var(--c-on); }
+html:root .topbar-pnl-label { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--c-mute); }
+html:root .topbar-pnl-value { font-weight: 400; }
+html:root .topbar-equity { color: var(--c-mute); }
+html:root .instrument-tabs { background: var(--c-deep); border: 0; border-radius: 9999px; padding: 4px; }
+html:root .instrument-tabs button { border-radius: 9999px; border: 0; }
+html:root .leave-match-btn { border-radius: 9999px; background: transparent; border: 1px solid var(--c-hair-2); color: var(--c-on); }
+
+/* panels */
+html:root .trading-panel, html:root .sabotage-panel, html:root .leaderboard-panel { border-radius: 12px; }
+html:root .lot-chip, html:root .timeframe-selector button, html:root .chart-tool-btn, html:root .draw-tool-btn {
+  border-radius: 9999px; border: 1px solid var(--c-hair); background: var(--c-card); color: var(--c-on); font-family: var(--c-font);
+}
+html:root .lot-chip.active, html:root .timeframe-selector button.active { background: var(--c-blue); border-color: var(--c-blue); color: #fff; }
+html:root .draw-tool-btn, html:root .chart-tool-btn { border-radius: 10px; }
+html:root .leaderboard-table th { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--c-mute); font-size: 13px; }
+html:root .leaderboard-table td { border-color: var(--c-hair); }
+html:root .leaderboard-table tr.me td, html:root .leaderboard-table tr.is-me td { background: color-mix(in srgb, var(--c-blue) 14%, transparent); }
+
+/* sabotage hand: proper playing cards */
+html:root .card-slots { gap: 12px; }
+html:root .sabotage-card {
+  position: relative; background: var(--c-card); border: 1px solid var(--c-hair); border-radius: 12px; padding: 12px 14px;
+  box-shadow: inset 0 3px 0 var(--c-crush); color: var(--c-on); cursor: pointer;
+  transition: transform 180ms var(--c-ease), border-color 180ms, background 180ms, box-shadow 180ms;
+}
+html:root .sabotage-card:hover { transform: translateY(-2px); background: var(--c-card-2); border-color: var(--c-hair-2); }
+html:root .sabotage-card:focus-visible { transform: translateY(-2px); }
+html:root .sabotage-card.selected {
+  transform: translateY(-3px); border-color: var(--c-blue);
+  box-shadow: inset 0 3px 0 var(--c-crush), 0 0 0 2px var(--c-blue), 0 14px 30px var(--c-shadow);
+}
+html:root .sabotage-card.used { opacity: 0.4; cursor: default; transform: none; filter: grayscale(1); }
+html:root .sabotage-card .icon { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 16px; background: color-mix(in srgb, var(--c-crush) 14%, transparent); }
+html:root .sabotage-card .name { font-weight: 700; font-size: 14px; margin-top: 6px; }
+html:root .sabotage-card .desc { color: var(--c-body); font-size: 12.5px; line-height: 1.4; }
+html:root .sabotage-card .category-tag {
+  display: inline-block; align-self: flex-start; width: auto; margin-top: 6px; padding: 2px 10px; border-radius: 9999px; background: var(--c-ghost);
+  color: var(--c-body); font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: capitalize;
+}
+html:root .help-btn { border-radius: 50%; background: var(--c-ghost); border: 0; color: var(--c-mute); }
+
+/* the floating help bubble sits over the leaderboard mid-match; Help stays in the account menu */
+body[data-page="game"] .tw-sw-launcher { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  html:root .sabotage-card, html:root .sabotage-card:hover, html:root .sabotage-card.selected { transition: none; transform: none; }
+}
+html:root .sabotage-panel { padding-top: 14px; }
+html:root .card-slots { padding-top: 4px; }
