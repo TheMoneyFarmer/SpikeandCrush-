@@ -272,3 +272,4 @@ html:root [class*='eyebrow'], html:root [class*='kicker'], html:root [class*='se
 }
 /* data-driven tags arrive lowercase ('standard', 'market'): capitalise them */
 html:root body .variant-tag, html:root body .category-tag, html:root body .row-type, html:root body .tw-tier-badge { text-transform: capitalize !important; }
+html:root .theme-card.active { border-color: var(--c-blue) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-blue) 35%, transparent) !important; }

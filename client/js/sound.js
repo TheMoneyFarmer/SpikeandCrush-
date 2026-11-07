@@ -8,7 +8,7 @@ window.TW = window.TW || {};
 // settings which sync server-side via /api/player/settings).
 TW.Sound = (function () {
   const STORAGE_KEY = 'tw_audio_settings';
-  const DEFAULTS = { master: 70, effects: 100, music: 50, muted: false };
+  const DEFAULTS = { master: 70, effects: 100, music: 50, ui: 60, muted: false };
 
   let ctx = null;
   let unlocked = false;
@@ -71,12 +71,29 @@ TW.Sound = (function () {
   }
   armUnlock();
 
+  // Sliders are 0-100 but loudness is perceived logarithmically, so each
+  // slider follows a squared (roughly -40 dB to 0 dB) taper instead of a
+  // straight line - the bottom half of a slider now actually sounds quieter.
+  const taper = (v) => Math.pow(Math.min(100, Math.max(0, v)) / 100, 2);
   function effectiveGain(category) {
     if (settings.muted) return 0;
-    const master = settings.master / 100;
-    const cat = (settings[category] ?? 100) / 100;
-    return master * cat;
+    const fallback = category === 'ui' ? DEFAULTS.ui : 100;
+    return taper(settings.master) * taper(settings[category] ?? fallback);
   }
+
+  // Ducking: big moments (a card hitting you, the final bell) briefly dip the
+  // background music so they cut through, then it recovers.
+  let duckTimer = null;
+  function duck(ms = 1400) {
+    if (!ambientEl) return;
+    const full = Math.min(1, Math.max(0, 0.15 * effectiveGain('music')));
+    fadeAudioEl(ambientEl, full * 0.3, 120);
+    clearTimeout(duckTimer);
+    duckTimer = setTimeout(() => { if (ambientEl) fadeAudioEl(ambientEl, full, 600); }, ms);
+  }
+  // Sounds that repeat a lot get a slight random pitch so they don't grate.
+  const VARY = new Set(['coin_earn', 'sabotage_play', 'sabotage_receive', 'card_slap']);
+  const DUCK = new Set(['sabotage_receive', 'win_fanfare', 'margin_alert']);
 
   // ---- real sound files (coin/countdown/win-fanfare/sabotage/ambient) -----------
   // Everything else (buy/sell, sl_hit/tp_hit, button clicks) stays procedural
@@ -114,6 +131,8 @@ TW.Sound = (function () {
     // but needs its own load, harmless for these short one-shot clips.
     const instance = el.cloneNode();
     instance.volume = Math.min(1, Math.max(0, vol));
+    if (VARY.has(key)) { instance.preservesPitch = false; instance.playbackRate = 0.95 + Math.random() * 0.1; }
+    if (DUCK.has(key)) duck();
     instance.play().catch(() => {}); // autoplay-policy rejections pre-unlock are expected and harmless
     return instance;
   }
@@ -290,7 +309,7 @@ TW.Sound = (function () {
       chime([784, 988, 1318, 1568], 60, { gain: 0.22 });
     },
 
-    buttonClick: () => tone({ freq: 700, duration: 0.05, type: 'square', gain: 0.08, category: 'effects' }),
+    buttonClick: () => tone({ freq: 680 + Math.random() * 40, duration: 0.05, type: 'square', gain: 0.08, category: 'ui' }),
     tabSwitch: () => tone({ freq: 500, freqEnd: 700, duration: 0.12, type: 'sine', gain: 0.08 }),
     leaderboardChange: () => tone({ freq: 1200, duration: 0.08, type: 'sine', gain: 0.1 }),
 

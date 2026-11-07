@@ -219,6 +219,11 @@
           <input type="range" id="effectsVolume" min="0" max="100" />
         </div>
         <div class="range-row">
+          <label><span>Menu sounds volume</span><span id="uiVolLabel">60%</span></label>
+          <input type="range" id="uiVolume" min="0" max="100" />
+          <div class="note">Button clicks and menu blips, separate from in-match effects.</div>
+        </div>
+        <div class="range-row">
           <label><span>Music Volume</span><span id="musicVolLabel">50%</span></label>
           <input type="range" id="musicVolume" min="0" max="100" />
           <div class="note">Controls the ambient background track that plays on the Trading Floor home screen.</div>
@@ -553,7 +558,15 @@
       document.getElementById('musicVolume').value = s.music;
       document.getElementById('effectsVolLabel').textContent = `${s.effects}%`;
       document.getElementById('musicVolLabel').textContent = `${s.music}%`;
+      const ui = s.ui ?? 60;
+      document.getElementById('uiVolume').value = ui;
+      document.getElementById('uiVolLabel').textContent = `${ui}%`;
     }
+    document.getElementById('uiVolume').addEventListener('input', (e) => {
+      TW.Sound.updateSettings({ ui: Number(e.target.value) });
+      document.getElementById('uiVolLabel').textContent = `${e.target.value}%`;
+      TW.Sound.play('buttonClick');
+    });
     document.getElementById('soundEnabled').addEventListener('change', (e) => {
       TW.Sound.updateSettings({ muted: !e.target.checked });
       applySoundEnabledState(e.target.checked);
