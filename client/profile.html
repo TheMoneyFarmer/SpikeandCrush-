@@ -147,7 +147,7 @@
         <div class="stat-card"><div class="label">Matches</div><div class="value" id="statMatches">0</div></div>
         <div class="stat-card"><div class="label">Trading Experience</div><div class="value" id="statExperience">-</div></div>
         <div class="stat-card"><div class="label">Favourite Pair</div><div class="value" id="statFavourite">-</div></div>
-        <div class="stat-card"><div class="label">Best Match</div><div class="value" id="statBest">$0.00</div></div>
+        <div class="stat-card"><div class="label">Best match · virtual capital</div><div class="value" id="statBest">0.00</div></div>
         <div class="stat-card"><div class="label">Coin Balance</div><div class="value pill-gold" id="statCoins">0</div></div>
       </div>
     </div>
@@ -263,7 +263,9 @@
         document.getElementById('statMatches').textContent = p.total_matches;
         document.getElementById('statExperience').textContent = p.experience_level || 'Beginner';
         document.getElementById('statFavourite').textContent = data.favouriteInstrument || '-';
-        document.getElementById('statBest').textContent = TW.formatMoney(data.bestMatchPnl);
+        // Virtual match capital, not money: signed number, no $ sign.
+        const best = Number(data.bestMatchPnl) || 0;
+        document.getElementById('statBest').textContent = `${best >= 0 ? '+' : '−'}${Math.abs(best).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         document.getElementById('statCoins').textContent = p.coins;
 
         if (isOwnProfile) {

@@ -112,9 +112,9 @@ window.TW = window.TW || {};
     modal.innerHTML = `
       <div class="mode-card-modal">
         <div class="mode-card-header">
-          <div class="mode-card-icon">${TW.icon ? TW.icon(data.icon, { size: 36 }) : ''}</div>
+          <div class="mode-card-icon" style="color:${data.color}">${TW.icon ? TW.icon(data.icon, { size: 36 }) : ''}</div>
           <div>
-            <h2 class="mode-card-name" style="color:${data.color}">${TW.escapeHtml(data.name)}</h2>
+            <h2 class="mode-card-name">${TW.escapeHtml(data.name)}</h2>
             <p class="mode-card-tagline">${TW.escapeHtml(data.tagline)}</p>
           </div>
           <button class="mode-card-close" aria-label="Close">${TW.icon ? TW.icon('close', { size: 18 }) : '×'}</button>
@@ -122,29 +122,38 @@ window.TW = window.TW || {};
         <div class="mode-stats-row">
           <div class="mode-stat"><div class="mode-stat-label">Duration</div><div class="mode-stat-value">${TW.escapeHtml(data.duration)}</div></div>
           <div class="mode-stat"><div class="mode-stat-label">Players</div><div class="mode-stat-value">${TW.escapeHtml(data.players)}</div></div>
-          <div class="mode-stat"><div class="mode-stat-label">Entry</div><div class="mode-stat-value" style="color:${data.color}">${TW.escapeHtml(data.entry)}</div></div>
+          <div class="mode-stat"><div class="mode-stat-label">Entry</div><div class="mode-stat-value">${TW.escapeHtml(data.entry)}</div></div>
           <div class="mode-stat"><div class="mode-stat-label">Ranked</div><div class="mode-stat-value">${TW.escapeHtml(data.ranked)}</div></div>
         </div>
         <div class="mode-card-content">
           ${data.sections.map((s) => `
             <div class="mode-section">
-              <h4 class="mode-section-title" style="color:${data.color}">${TW.escapeHtml(s.title)}</h4>
+              <h4 class="mode-section-title">${TW.escapeHtml(s.title)}</h4>
               <p class="mode-section-body">${TW.escapeHtml(s.content)}</p>
             </div>
           `).join('')}
           <div class="mode-tips">
-            <h4 class="mode-section-title" style="color:${data.color}">Pro Tips</h4>
+            <h4 class="mode-section-title">Pro tips</h4>
             ${data.tips.map((tip) => `<div class="mode-tip-item"><span class="mode-tip-bullet" style="color:${data.color}">→</span><span>${TW.escapeHtml(tip)}</span></div>`).join('')}
           </div>
         </div>
         <div class="mode-card-footer">
           <button class="btn-mode-learn-more">Maybe Later</button>
-          <button class="btn-mode-play" style="background:linear-gradient(135deg, ${data.color}, ${data.color})">Play ${TW.escapeHtml(data.name)} →</button>
+          <button class="btn-mode-play">Play ${TW.escapeHtml(data.name)} →</button>
         </div>
       </div>
     `;
     document.body.appendChild(modal);
-    const close = () => modal.remove();
+    const opener = document.activeElement;
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    const close = () => {
+      modal.remove();
+      document.removeEventListener('keydown', onKey);
+      if (opener && opener.focus) opener.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    // Start keyboard / controller focus on the main action.
+    setTimeout(() => modal.querySelector('.btn-mode-play')?.focus(), 0);
     modal.querySelector('.mode-card-close').addEventListener('click', close);
     modal.querySelector('.btn-mode-learn-more').addEventListener('click', close);
     modal.addEventListener('click', (e) => { if (e.target === modal) close(); });

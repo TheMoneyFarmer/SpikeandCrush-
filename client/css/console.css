@@ -200,3 +200,49 @@ body.lb-page #twNav { margin: 0 calc(-1 * var(--page-pad, 32px)); }
   html:root .btn, html:root .lb-btn { transition: none; }
   html:root .btn:hover, html:root .lb-btn:hover { transform: none; }
 }
+
+/* ============================================================
+   Shared page furniture: stat tiles, coin packs, page width.
+   ============================================================ */
+html:root .tw-container { max-width: 1240px; }
+html:root .panel > h2, html:root .panel h2:first-child { font-size: 26px; }
+html:root .stat-card, html:root .overview-card {
+  display: flex; flex-direction: column; gap: 6px; text-align: left; align-items: flex-start;
+  background: var(--c-card); border: 0; border-radius: var(--c-r-md); padding: 18px 20px;
+}
+html:root .stat-card .label, html:root .overview-card .label {
+  order: -1; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 500; color: var(--c-mute);
+}
+html:root .stat-card .value, html:root .overview-card .value { font-family: var(--c-font); font-weight: 300; font-size: 30px; line-height: 1.15; }
+html:root .overview-card .sub, html:root .overview-card small { color: var(--c-mute); font-size: 12px; }
+html:root .coin-package {
+  background: var(--c-card); border: 1px solid transparent; border-radius: 12px; cursor: pointer;
+  transition: transform 180ms var(--c-ease), border-color 180ms;
+}
+html:root .coin-package:hover, html:root .coin-package:focus-visible { transform: translateY(-2px); border-color: var(--c-blue); }
+html:root .coin-package .amount { font-weight: 600; }
+html:root .coin-package.popular, html:root .coin-package.best-value { border-color: var(--c-hair-2); background: var(--c-card); }
+html:root .popular-badge, html:root .best-value-badge {
+  border-radius: 9999px; text-transform: none; letter-spacing: 0; font-weight: 600; background: var(--c-blue); color: #fff;
+}
+html:root .shop-tabs button { border-radius: 9999px; border: 1px solid var(--c-hair-2); background: transparent; color: var(--c-on); font-weight: 600; min-height: 40px; }
+html:root .shop-tabs button.active { background: var(--c-on); color: var(--c-canvas); border-color: var(--c-on); }
+html:root .stat-card .value.pill-gold { background: none; border: 0; padding: 0; color: var(--c-gold); }
+
+/* ---- mode info panel (js/mode-cards.js) ---- */
+html:root .mode-card-overlay { background: color-mix(in srgb, var(--c-canvas) 80%, transparent); backdrop-filter: blur(6px); }
+html:root .mode-card-modal { background: var(--c-elev); border: 1px solid var(--c-hair); border-radius: 16px; box-shadow: 0 30px 80px var(--c-shadow); }
+html:root .mode-card-name { font-weight: 300; font-size: 30px; color: var(--c-on); }
+html:root .mode-stat { background: var(--c-elev); }
+html:root .mode-stat-label, html:root .mode-section-title { text-transform: none; letter-spacing: 0; color: var(--c-mute); font-size: 13px; font-weight: 600; }
+html:root .mode-section-title { color: var(--c-on); font-size: 15px; }
+html:root .mode-stat-value { font-family: var(--c-font); font-size: 15px; color: var(--c-on); }
+html:root .btn-mode-play { background: var(--c-blue); color: #fff; border-radius: 9999px; min-height: 48px; padding: 0 28px; font-weight: 700; }
+html:root .btn-mode-play:hover { background: var(--c-blue-press); }
+html:root .btn-mode-learn-more { border-radius: 9999px; min-height: 48px; padding: 0 24px; color: var(--c-on); border-color: var(--c-hair-2); }
+
+/* ---- match waiting room (lobby.html) ---- */
+html:root .lobby-logo { display: none; }  /* the top menu already carries the logo */
+html:root .tw-prematch-side-label { text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 600; color: var(--c-on); }
+html:root .tw-opponent-card, html:root .tw-prematch-side .player-list > * { background: var(--c-card); border: 0; border-radius: 12px; }
+html:root .type-badge { border-radius: 9999px; text-transform: none; letter-spacing: 0; }

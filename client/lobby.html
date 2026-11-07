@@ -32,7 +32,7 @@
     </div>
     <div class="tw-prematch-grid">
       <div class="tw-prematch-side side-you">
-        <div class="tw-prematch-side-label">YOU</div>
+        <div class="tw-prematch-side-label">You</div>
         <ul class="player-list" id="youSlot"></ul>
       </div>
 
@@ -58,22 +58,22 @@
           <div class="text-secondary">ROOM CODE</div>
           <div class="room-code-value" id="roomCodeValue">------</div>
           <div class="room-code-actions">
-            <button id="copyCodeBtn" class="btn btn-primary">📋 Copy Code</button>
-            <button id="shareLinkBtn" class="btn btn-outline">🔗 Share Link</button>
+            <button id="copyCodeBtn" class="btn btn-primary">Copy code</button>
+            <button id="shareLinkBtn" class="btn btn-outline">Share link</button>
           </div>
           <div class="lobby-fill-timer" id="lobbyFillTimer"></div>
           <button id="startNowBtn" class="btn btn-outline hidden" style="margin-top: 10px;">⚡ Start Now</button>
           <div style="display:flex;gap:8px;margin-top:10px;">
-            <button id="loadoutBtn" class="btn btn-outline" style="flex:1;">⚙️ Trade Setup</button>
-            <button id="inviteFriendsBtn" class="btn btn-outline" style="flex:1;">👥 Invite Friends</button>
+            <button id="loadoutBtn" class="btn btn-outline" style="flex:1;">Trade setup</button>
+            <button id="inviteFriendsBtn" class="btn btn-outline" style="flex:1;">Invite friends</button>
           </div>
-          <button id="startWarBtn" class="btn btn-primary btn-block hidden" style="margin-top: 10px">🚀 Start War</button>
+          <button id="startWarBtn" class="btn btn-primary btn-block hidden" style="margin-top: 10px">Start war</button>
           <button id="readyBtn" class="btn btn-primary btn-block" style="margin-top: 10px">Ready</button>
         </div>
       </div>
 
       <div class="tw-prematch-side side-opponents">
-        <div class="tw-prematch-side-label">OPPONENTS (<span id="playerCount">0</span>)</div>
+        <div class="tw-prematch-side-label">Opponents (<span id="playerCount">0</span>)</div>
         <ul class="player-list" id="opponentSlots"></ul>
       </div>
     </div>
@@ -250,7 +250,7 @@
         const enough = state.players.length >= (state.minPlayers || 2);
         startWarBtn.disabled = !enough;
         startWarBtn.textContent = enough
-          ? `🚀 Start War (${state.players.length} joined)`
+          ? `Start war · ${state.players.length} joined`
           : `Waiting for ${Math.max(0, (state.minPlayers || 2) - state.players.length)} more player(s)...`;
       } else {
         startWarBtn.classList.add('hidden');

@@ -55,7 +55,7 @@
         <div class="overview-card"><div class="value" id="ovCoins">-</div><div class="label">Coin Balance</div></div>
         <div class="overview-card"><div class="value" id="ovEarned">-</div><div class="label">Coins Earned (All Time)</div><div class="sub-breakdown text-secondary" id="ovEarnedBreakdown" style="font-size:11px;margin-top:4px;"></div></div>
         <div class="overview-card"><div class="value" id="ovSpent">-</div><div class="label">Coins Spent (All Time)</div></div>
-        <div class="overview-card"><div class="value" id="ovLifetime">-</div><div class="label">Lifetime Match P&amp;L</div></div>
+        <div class="overview-card"><div class="value" id="ovLifetime">-</div><div class="label">Lifetime match P&amp;L · virtual capital</div></div>
       </div>
     </div>
 
@@ -154,7 +154,9 @@
           `${data.coinsFromMatches} from matches · ${data.coinsFromPurchases} purchased`;
         document.getElementById('ovSpent').textContent = `${data.coinsSpentTotal} coins`;
         const lifetimeEl = document.getElementById('ovLifetime');
-        lifetimeEl.textContent = TW.formatMoney(data.lifetimeMatchPnl);
+        // Virtual match capital, not money: shown as a signed number, no $ sign.
+        const pnl = Number(data.lifetimeMatchPnl) || 0;
+        lifetimeEl.textContent = `${pnl >= 0 ? '+' : '−'}${Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         lifetimeEl.className = 'value ' + (data.lifetimeMatchPnl >= 0 ? 'text-buy' : 'text-sell');
       } catch (err) {
         TW.toast(err.message, 'danger');
