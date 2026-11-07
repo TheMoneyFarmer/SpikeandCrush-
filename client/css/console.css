@@ -246,3 +246,29 @@ html:root .lobby-logo { display: none; }  /* the top menu already carries the lo
 html:root .tw-prematch-side-label { text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 600; color: var(--c-on); }
 html:root .tw-opponent-card, html:root .tw-prematch-side .player-list > * { background: var(--c-card); border: 0; border-radius: 12px; }
 html:root .type-badge { border-radius: 9999px; text-transform: none; letter-spacing: 0; }
+
+/* ============================================================
+   Sweep (remaining pages): tabs, primary actions, sentence case.
+   --gradient-primary means "profit green" (P&L text); these
+   controls used it as an accent, so they're repointed here.
+   ============================================================ */
+html:root .settings-tabs button, html:root .tabs button, html:root .tw-loadout-tabs button {
+  border-radius: 9999px; border: 1px solid var(--c-hair-2); background: transparent; color: var(--c-on); font-weight: 600; min-height: 40px;
+}
+html:root .settings-tabs button.active, html:root .tabs button.active, html:root .tw-loadout-tabs button.active, html:root .shop-tabs button.active {
+  background: var(--c-on); color: var(--c-canvas); border-color: var(--c-on);
+}
+html:root .notify-btn, html:root .tw-friend-actions button.primary, html:root .tw-invite-actions .accept {
+  background: var(--c-blue); color: #fff; border-color: transparent; border-radius: 9999px;
+}
+html:root .notify-btn:hover { background: var(--c-blue-press); }
+
+/* Console type is sentence case: no CSS-forced capitals anywhere. Labels
+   that were tracked out for caps get normal spacing back. */
+html:root body * { text-transform: none !important; }
+html:root th, html:root label, html:root [class*='label'], html:root [class*='badge'], html:root [class*='tag'],
+html:root [class*='eyebrow'], html:root [class*='kicker'], html:root [class*='section-title'], html:root [class*='-head'] {
+  letter-spacing: 0.01em !important;
+}
+/* data-driven tags arrive lowercase ('standard', 'market'): capitalise them */
+html:root body .variant-tag, html:root body .category-tag, html:root body .row-type, html:root body .tw-tier-badge { text-transform: capitalize !important; }

@@ -53,7 +53,7 @@
     <div id="lowBalanceWrap"></div>
 
     <div class="panel" id="coins-section">
-      <h2>🪙 Buy Coins <span style="float:right;font-size:14px;font-weight:400;" id="coinBalanceLabel"></span></h2>
+      <h2>Buy Coins <span style="float:right;font-size:14px;font-weight:400;" id="coinBalanceLabel"></span></h2>
       <p class="text-secondary" style="font-size:13px;">Coins are used to enter matches and buy cosmetics below.</p>
       <div class="coin-packages">
         <div class="coin-package" data-pkg="100"><div class="amount">100</div><div class="price">$0.99</div><div class="per-coin">10 Quick War entries</div></div>
@@ -64,7 +64,7 @@
     </div>
 
     <div class="panel" id="cosmetics-section">
-      <h2>✨ Cosmetics</h2>
+      <h2>Cosmetics</h2>
       <div class="shop-tabs" id="shopTabs">
         <button data-tab="cardVariants" class="active">Card Variants</button>
         <button data-tab="avatarFrames">Avatar Frames</button>
@@ -106,7 +106,7 @@
         btnHtml = `<button class="btn btn-primary" data-buy="${item.id}">Buy for ${item.price} 🪙</button>`;
       } else if (equippable) {
         btnHtml = isEquipped
-          ? `<button class="btn equipped" disabled>✓ Equipped</button>`
+          ? `<button class="btn equipped" disabled>Equipped</button>`
           : `<button class="btn btn-outline" data-equip="${item.id}">Equip</button>`;
       } else {
         btnHtml = `<button class="btn" disabled>Owned</button>`;

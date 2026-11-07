@@ -124,28 +124,28 @@
       const root = document.getElementById('analyticsRoot');
       root.innerHTML = `
         <div class="panel">
-          <h2>📊 Analytics Dashboard <span class="pill pill-gold" style="font-size:11px;">PREMIUM</span></h2>
+          <h2>Analytics Dashboard <span class="pill pill-gold" style="font-size:11px;">Premium</span></h2>
         </div>
         <div class="an-grid" style="margin-top:16px;">
           <div class="panel">
-            <h3>🎯 Win Rate by Instrument</h3>
+            <h3>Win Rate by Instrument</h3>
             ${barChart(data.winRateByInstrument, 'symbol', 'winRate', (r) => `${r.winRate}% (${r.trades})`, 100)}
           </div>
           <div class="panel">
-            <h3>💰 P&amp;L by Mode</h3>
+            <h3>P&amp;L by Mode</h3>
             ${barChart(data.pnlByMode, 'mode', 'totalPnl', (r) => `${r.totalPnl >= 0 ? '+' : ''}${TW.formatMoney(r.totalPnl)}`)}
           </div>
           <div class="panel">
-            <h3>🕐 Time-of-Day Heatmap</h3>
+            <h3>Time-of-Day Heatmap</h3>
             ${renderHeatmap(data.timeOfDayHeatmap)}
           </div>
           <div class="panel">
-            <h3>🃏 Card Success Rates</h3>
+            <h3>Card Success Rates</h3>
             ${barChart(data.cardSuccessRates, 'cardType', 'winRateWhenPlayed', (r) => `${r.winRateWhenPlayed}% win (${r.timesPlayed}x)`, 100)}
           </div>
         </div>
         <div class="panel" style="margin-top:16px;">
-          <h3>📈 30-Day P&amp;L Trend</h3>
+          <h3>30-Day P&amp;L Trend</h3>
           ${renderTrendSvg(data.pnlTrend)}
         </div>
       `;
@@ -157,7 +157,7 @@
           <div class="icon">🔒</div>
           <h2>Analytics is a Battle Pass Premium feature</h2>
           <p class="text-secondary">Unlock win-rate breakdowns, P&amp;L trends, and card performance stats with Battle Pass Premium.</p>
-          <a href="/battle-pass" class="btn btn-primary" style="margin-top:12px;">👑 Unlock Premium</a>
+          <a href="/battle-pass" class="btn btn-primary" style="margin-top:12px;">Unlock Premium</a>
         </div>
       `;
     }

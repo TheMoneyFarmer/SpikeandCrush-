@@ -128,7 +128,7 @@
         cta.innerHTML = `<div class="t-cta-banner"><span>✓ You're registered - waiting for the bracket to fill or the 24h window to close.</span></div>`;
       } else if (data.status === 'active' && data.myMatchup) {
         const ready = data.myMatchup.status === 'ready';
-        cta.innerHTML = `<div class="t-cta-banner"><span>${ready ? 'Your match is ready!' : 'Waiting for your opponent to be determined...'}</span>${ready ? `<button class="btn btn-primary" id="playBtn">⚔️ Play My Match</button>` : ''}</div>`;
+        cta.innerHTML = `<div class="t-cta-banner"><span>${ready ? 'Your match is ready!' : 'Waiting for your opponent to be determined...'}</span>${ready ? `<button class="btn btn-primary" id="playBtn">Play My Match</button>` : ''}</div>`;
         if (ready) document.getElementById('playBtn').addEventListener('click', playMyMatch);
       } else if (data.status === 'completed') {
         const champion = data.registrations.find((r) => r.finalRank === 1);

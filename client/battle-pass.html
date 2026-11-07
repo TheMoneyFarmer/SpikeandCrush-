@@ -48,7 +48,7 @@
     <div class="panel">
       <div class="bp-header">
         <div>
-          <h2 style="margin-bottom:4px;">🎖️ Battle Pass <span id="seasonLabel" class="text-secondary" style="font-size:13px;font-weight:400;"></span></h2>
+          <h2 style="margin-bottom:4px;">Battle Pass <span id="seasonLabel" class="text-secondary" style="font-size:13px;font-weight:400;"></span></h2>
           <div id="tierLabel" class="text-secondary" style="font-size:13px;">Tier 0 / 30 <button type="button" class="help-btn" data-help="battle-pass-xp" title="How does Battle Pass XP work?">?</button></div>
         </div>
         <div id="premiumArea"></div>
@@ -68,11 +68,11 @@
 
     <div class="bp-panels">
       <div class="panel">
-        <h3>📅 Daily Challenges</h3>
+        <h3>Daily Challenges</h3>
         <div class="challenge-list" id="dailyList">Spike & Crush loading...</div>
       </div>
       <div class="panel">
-        <h3>🗓️ Weekly Challenges</h3>
+        <h3>Weekly Challenges</h3>
         <div class="challenge-list" id="weeklyList">Spike & Crush loading...</div>
       </div>
     </div>
@@ -173,7 +173,7 @@
       const premiumArea = document.getElementById('premiumArea');
       premiumArea.innerHTML = data.isPremium
         ? `<span class="bp-premium-badge">👑 PREMIUM ACTIVE</span>`
-        : `<button class="btn btn-primary" id="subscribeBtn">👑 Unlock Premium — $4.99/mo</button>`;
+        : `<button class="btn btn-primary" id="subscribeBtn">Unlock Premium — $4.99/mo</button>`;
       const subBtn = document.getElementById('subscribeBtn');
       if (subBtn) subBtn.addEventListener('click', subscribe);
 

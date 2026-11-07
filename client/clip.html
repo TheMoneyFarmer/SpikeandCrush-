@@ -103,9 +103,9 @@
       const shareText = `Check out this Spike & Crush moment: "${clip.caption || 'Epic trade'}" 🔥`;
       const shareUrl = location.href;
       document.getElementById('shareLinks').innerHTML = `
-        <a class="btn btn-outline" href="https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}" target="_blank" rel="noopener">📱 WhatsApp</a>
-        <a class="btn btn-outline" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}" target="_blank" rel="noopener">🐦 Twitter/X</a>
-        <button class="btn btn-outline" id="copyLinkBtn">🔗 Copy Link</button>
+        <a class="btn btn-outline" href="https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}" target="_blank" rel="noopener">WhatsApp</a>
+        <a class="btn btn-outline" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}" target="_blank" rel="noopener">Twitter/X</a>
+        <button class="btn btn-outline" id="copyLinkBtn">Copy Link</button>
       `;
       document.getElementById('copyLinkBtn').addEventListener('click', () => {
         navigator.clipboard.writeText(shareUrl).then(() => TW.toast('Link copied!', 'info'));
