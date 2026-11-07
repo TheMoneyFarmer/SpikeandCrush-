@@ -92,7 +92,7 @@ TW.Sound = (function () {
     duckTimer = setTimeout(() => { if (ambientEl) fadeAudioEl(ambientEl, full, 600); }, ms);
   }
   // Sounds that repeat a lot get a slight random pitch so they don't grate.
-  const VARY = new Set(['coin_earn', 'sabotage_play', 'sabotage_receive', 'card_slap']);
+  const VARY = new Set(['coin_earn', 'coin_big', 'sabotage_play', 'sabotage_receive', 'card_slap', 'ui_click', 'countdown']);
   const DUCK = new Set(['sabotage_receive', 'win_fanfare', 'margin_alert']);
 
   // ---- real sound files (coin/countdown/win-fanfare/sabotage/ambient) -----------
@@ -100,30 +100,40 @@ TW.Sound = (function () {
   // Web Audio - these five events specifically use the licensed WAV assets.
   const SOUND_FILES_BASE = 'assets/sounds/';
   const FILE_SOUNDS = {
-    coin_earn: '693840__philip_berger__collecting-coins.wav',
-    countdown: '243070__timbre__remix-of-167385__ultradust__wood-block-tick-tock-cartoon-clock.wav',
-    win_fanfare: '415504__exchanger__tadaa.wav',
-    sabotage_play: '322216__liamg_sfx__arrow-impact-1.wav',
-    sabotage_receive: '322222__liamg_sfx__arrow-impact-5.wav',
+    // Nov 2026 set (Pixabay, real recordings, processed - see assets/sounds/sfx/AUDIO.md).
+    // An array means variants: one is picked at random each time.
+    coin_earn: ['sfx/coin1.mp3', 'sfx/coin2.mp3'],
+    coin_big: 'sfx/coin_big.mp3',
+    countdown: 'sfx/tick.mp3',
+    win_fanfare: 'sfx/win.mp3',
+    sabotage_play: 'sfx/whoosh.mp3',
+    sabotage_receive: 'sfx/hit.mp3',
+    match_bell: 'sfx/bell.mp3',
+    ui_click: 'sfx/click.mp3',
+    notify: 'sfx/notify.mp3',
     ambient: '377793__little_wall__collectable-videogame-sound-compilation.wav',
-    card_slap: '45821__themfish__slap-cards.wav',
-    margin_alert: '221522__robinhood76__04949-buzzing-alert-analog-looping.wav',
+    card_slap: 'sfx/card_place.mp3',
+    margin_alert: 'sfx/margin.mp3',
     match_timer: '626908__muzakplz__marktimer.wav',
   };
 
   const audioElCache = new Map();
   function getAudioEl(filename) {
     if (audioElCache.has(filename)) return audioElCache.get(filename);
-    const el = new Audio(SOUND_FILES_BASE + encodeURIComponent(filename));
+    const el = new Audio(SOUND_FILES_BASE + filename.split('/').map(encodeURIComponent).join('/'));
     el.preload = 'auto';
     audioElCache.set(filename, el);
     return el;
   }
 
-  function playFile(key) {
-    const filename = FILE_SOUNDS[key];
-    if (!filename) return null;
-    const vol = effectiveGain('effects');
+  // Per-file trim so loud and quiet recordings sit at the same level
+  // (measured mean loudness, see AUDIO.md).
+  const LEVEL = { match_bell: 0.45, sabotage_receive: 0.55, margin_alert: 0.6, win_fanfare: 0.6, sabotage_play: 0.75 };
+  function playFile(key, category = 'effects') {
+    const entry = FILE_SOUNDS[key];
+    if (!entry) return null;
+    const filename = Array.isArray(entry) ? entry[Math.floor(Math.random() * entry.length)] : entry;
+    const vol = effectiveGain(category) * (LEVEL[key] ?? 1);
     if (vol <= 0) return null;
     const el = getAudioEl(filename);
     // A fresh clone lets the same clip overlap itself (e.g. rapid coin awards)
@@ -250,13 +260,10 @@ TW.Sound = (function () {
     card_play: () => playFile('sabotage_play'),
     card_receive: () => playFile('sabotage_receive'),
     // Big events get a cinematic low-end hit; everyday actions stay clean arcade blips.
+    // The opening bell of a real stock exchange, over a low thump.
     match_start: () => {
-      tone({ freq: 60, duration: 0.4, type: 'sine', gain: 0.5 });
-      noise({ duration: 0.2, filterFreq: 200, gain: 0.3 });
-      tone({ freq: 200, freqEnd: 1400, duration: 0.4, type: 'sawtooth', gain: 0.07, delay: 0.15 });
-      tone({ freq: 110, duration: 0.5, type: 'sine', gain: 0.4, delay: 0.55 });
-      tone({ freq: 440, duration: 0.3, type: 'square', gain: 0.12, delay: 0.55 });
-      noise({ duration: 0.15, filterFreq: 3000, gain: 0.25, delay: 0.55 });
+      tone({ freq: 60, duration: 0.4, type: 'sine', gain: 0.35 });
+      playFile('match_bell');
     },
     match_end: () => {
       tone({ freq: 440, freqEnd: 220, duration: 1.0, type: 'sine', gain: 0.22 });
@@ -305,11 +312,11 @@ TW.Sound = (function () {
       for (let i = 0; i < 14; i++) tone({ freq: 150 + Math.random() * 40, duration: 0.06, type: 'square', gain: 0.1, delay: i * 0.08 });
     },
     goldExplosion: () => {
-      noise({ duration: 0.4, filterFreq: 3000, gain: 0.18 });
+      playFile('coin_big');
       chime([784, 988, 1318, 1568], 60, { gain: 0.22 });
     },
 
-    buttonClick: () => tone({ freq: 680 + Math.random() * 40, duration: 0.05, type: 'square', gain: 0.08, category: 'ui' }),
+    buttonClick: () => { if (!playFile('ui_click', 'ui')) tone({ freq: 680 + Math.random() * 40, duration: 0.05, type: 'square', gain: 0.08, category: 'ui' }); },
     tabSwitch: () => tone({ freq: 500, freqEnd: 700, duration: 0.12, type: 'sine', gain: 0.08 }),
     leaderboardChange: () => tone({ freq: 1200, duration: 0.08, type: 'sine', gain: 0.1 }),
 
@@ -334,10 +341,7 @@ TW.Sound = (function () {
       [523, 659, 784, 1046].forEach((freq, i) => tone({ freq, duration: 0.2, type: 'sine', gain: 0.22, delay: i * 0.08 }));
       tone({ freq: 1046, duration: 0.45, type: 'sine', gain: 0.18, delay: 0.32 });
     },
-    notification: () => {
-      tone({ freq: 880, duration: 0.07, type: 'sine', gain: 0.18 });
-      tone({ freq: 1046, duration: 0.1, type: 'sine', gain: 0.15, delay: 0.05 });
-    },
+    notification: () => { playFile('notify', 'ui'); },
     friendRequest: () => {
       tone({ freq: 659, duration: 0.09, type: 'sine', gain: 0.18 });
       tone({ freq: 784, duration: 0.12, type: 'sine', gain: 0.15, delay: 0.07 });
