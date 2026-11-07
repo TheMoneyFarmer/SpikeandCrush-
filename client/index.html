@@ -27,25 +27,53 @@
 <link rel="stylesheet" href="/css/candle-bg.css">
 <link rel="stylesheet" href="/css/lobby-home.css">
   <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/lobby-console.css" />
 </head>
 <body data-page="index" class="lb-page">
   <a class="lb-skip" href="#lbMain">Skip to lobby</a>
   <div class="lb-wrap">
-    <!-- 1. Ticker (the only one on this page) -->
+    <!-- 1. Top bar (shared console menu) -->
+    <div id="twNav" data-active="home" data-variant="lobby"></div>
+    <!-- 2. Ticker -->
     <div class="lb-ticker" id="lbTicker" aria-label="Instrument prices, replayed market data">
       <div class="lb-ticker-track" id="lbTickerTrack"><span class="lb-skel lb-skel-line" style="width:60%"></span></div>
     </div>
 
-    <!-- 2. Top bar (desktop) -->
-    <div id="twNav" data-active="home" data-variant="lobby"></div>
     <div id="twAnnouncementBanner"></div>
 
     <!-- Mobile: profile row -->
     <section class="lb-mprofile" id="lbMProfile" aria-label="Your profile"></section>
 
     <main id="lbMain">
-      <!-- 3. Brand band -->
-      <section class="lb-brand" id="lbBrand" data-candle-bg aria-label="Spike and Crush today">
+      <!-- 3. Mode row (console home row) -->
+      <section class="lb-modes" id="lbModes" aria-label="Game modes">
+        <div class="lb-sheet-head">
+          <span class="lb-label">Choose a mode</span>
+          <button type="button" class="lb-icon-btn" id="lbSheetClose" aria-label="Close modes"></button>
+        </div>
+        <div class="lb-mode-grid">
+          <button type="button" class="lb-mode" id="modeQuickBtn" data-mode="quick" style="--mode:#F5B83D"><span class="lb-mode-ic"></span><span class="lb-mode-name">Quick</span><span class="lb-mode-dur" data-dur="quick">10 min</span></button>
+          <button type="button" class="lb-mode" id="modeBlitzBtn" data-mode="blitz" style="--mode:#FF4D5E"><span class="lb-mode-ic"></span><span class="lb-mode-name">Blitz</span><span class="lb-mode-dur" data-dur="blitz">3 min</span></button>
+          <button type="button" class="lb-mode" id="modeGrandBtn" data-mode="grand" style="--mode:#A78BFA"><span class="lb-mode-ic"></span><span class="lb-mode-name">Grand</span><span class="lb-mode-dur" data-dur="grand">20 min</span></button>
+          <button type="button" class="lb-mode" id="modeSoloBtn" data-mode="solo" style="--mode:#2EE6A6"><span class="lb-mode-ic"></span><span class="lb-mode-name">Solo</span><span class="lb-mode-dur" data-dur="solo">10 min</span></button>
+          <button type="button" class="lb-mode" id="modeAsyncBtn" data-mode="async" style="--mode:#4DA6FF"><span class="lb-mode-ic"></span><span class="lb-mode-name">Async</span><span class="lb-mode-dur" data-dur="async">10 min</span></button>
+          <button type="button" class="lb-mode" id="modePrivateBtn" data-mode="private" style="--mode:#C3CBDB"><span class="lb-mode-ic"></span><span class="lb-mode-name">Private</span><span class="lb-mode-dur" data-dur="private">10 min</span></button>
+          <button type="button" class="lb-mode" id="modeTournamentBtn" data-mode="tournament" style="--mode:#F59E0B"><span class="lb-mode-ic"></span><span class="lb-mode-name">Tournament</span><span class="lb-mode-dur" data-dur="tournament">15 min</span></button>
+        </div>
+        <div class="lb-join">
+          <label class="lb-label" for="joinRoomCodeInput">Join a private war</label>
+          <input type="text" id="joinRoomCodeInput" inputmode="numeric" placeholder="6 digit code" maxlength="6" autocomplete="off" />
+          <button type="button" id="joinPrivateBtn" class="lb-btn lb-btn-dark">Join</button>
+        </div>
+      </section>
+
+      <!-- 4. Featured -->
+      <section class="lb-card lb-hero" id="lbHero" data-hero-chart aria-label="Featured competition">
+        <div class="lb-hero-inner" id="lbHeroInner"><div class="lb-skel" style="height:260px"></div></div>
+      </section>
+
+      <!-- 5. Today (stats strip) -->
+      <section class="lb-brand" id="lbBrand" aria-label="Spike and Crush today">
         <div class="lb-brand-id">
           <div class="lb-logo" aria-label="Spike and Crush"><span class="s">SPIKE</span><span class="a">&amp;</span><span class="c">CRUSH</span></div>
           <div class="lb-tag">Up. Then not.</div>
@@ -56,45 +84,18 @@
         </div>
       </section>
 
-      <!-- 4. Sponsor strip (hidden for players when there are no active sponsors) -->
+      <!-- 6. Sponsor strip (hidden for players when there are no active sponsors) -->
       <section class="lb-sponsors hidden" id="lbSponsors" aria-label="Official partners">
         <span class="lb-label">Official partners</span>
         <div class="lb-sponsor-logos" id="lbSponsorLogos"></div>
         <a class="lb-btn lb-btn-outline-gold lb-sponsor-cta" href="/sponsor">Sponsor a game</a>
       </section>
 
-      <!-- 5. Main row -->
+      <!-- 7. You + competitions -->
       <div class="lb-main">
         <aside class="lb-card lb-player" id="lbPlayer" aria-label="Your player card">
           <div class="lb-skel" style="height:240px"></div>
         </aside>
-
-        <div class="lb-centre">
-          <section class="lb-card lb-hero" id="lbHero" data-candle-bg aria-label="Featured competition">
-            <div class="lb-hero-inner" id="lbHeroInner"><div class="lb-skel" style="height:260px"></div></div>
-          </section>
-
-          <div class="lb-modes" id="lbModes" aria-label="Game modes">
-            <div class="lb-sheet-head">
-              <span class="lb-label">Choose a mode</span>
-              <button type="button" class="lb-icon-btn" id="lbSheetClose" aria-label="Close modes"></button>
-            </div>
-            <div class="lb-mode-grid">
-              <button type="button" class="lb-mode" id="modeQuickBtn" data-mode="quick" style="--mode:#F5B83D"><span class="lb-mode-ic"></span><span class="lb-mode-name">Quick</span><span class="lb-mode-dur" data-dur="quick">10 min</span></button>
-              <button type="button" class="lb-mode" id="modeBlitzBtn" data-mode="blitz" style="--mode:#FF4D5E"><span class="lb-mode-ic"></span><span class="lb-mode-name">Blitz</span><span class="lb-mode-dur" data-dur="blitz">3 min</span></button>
-              <button type="button" class="lb-mode" id="modeGrandBtn" data-mode="grand" style="--mode:#A78BFA"><span class="lb-mode-ic"></span><span class="lb-mode-name">Grand</span><span class="lb-mode-dur" data-dur="grand">20 min</span></button>
-              <button type="button" class="lb-mode" id="modeSoloBtn" data-mode="solo" style="--mode:#2EE6A6"><span class="lb-mode-ic"></span><span class="lb-mode-name">Solo</span><span class="lb-mode-dur" data-dur="solo">10 min</span></button>
-              <button type="button" class="lb-mode" id="modeAsyncBtn" data-mode="async" style="--mode:#4DA6FF"><span class="lb-mode-ic"></span><span class="lb-mode-name">Async</span><span class="lb-mode-dur" data-dur="async">10 min</span></button>
-              <button type="button" class="lb-mode" id="modePrivateBtn" data-mode="private" style="--mode:#C3CBDB"><span class="lb-mode-ic"></span><span class="lb-mode-name">Private</span><span class="lb-mode-dur" data-dur="private">10 min</span></button>
-              <button type="button" class="lb-mode" id="modeTournamentBtn" data-mode="tournament" style="--mode:#F59E0B"><span class="lb-mode-ic"></span><span class="lb-mode-name">Tournament</span><span class="lb-mode-dur" data-dur="tournament">15 min</span></button>
-            </div>
-            <div class="lb-join">
-              <label class="lb-label" for="joinRoomCodeInput">Join a private war</label>
-              <input type="text" id="joinRoomCodeInput" inputmode="numeric" placeholder="6 digit code" maxlength="6" autocomplete="off" />
-              <button type="button" id="joinPrivateBtn" class="lb-btn lb-btn-dark">Join</button>
-            </div>
-          </div>
-        </div>
 
         <section class="lb-card lb-comps" id="lbComps" aria-labelledby="lbCompsTitle">
           <header class="lb-card-head"><h2 class="lb-h" id="lbCompsTitle">Competitions</h2><a class="lb-see-all" href="/competitions">See all</a></header>
@@ -102,7 +103,7 @@
         </section>
       </div>
 
-      <!-- 6. Bottom row -->
+      <!-- 8. Leaderboard + activity -->
       <div class="lb-bottom">
         <section class="lb-card lb-board" aria-labelledby="lbBoardTitle">
           <header class="lb-card-head"><h2 class="lb-h" id="lbBoardTitle">Leaderboard</h2><a class="lb-see-all" href="/leaderboard">Full board</a></header>
@@ -147,5 +148,6 @@
   <script src="js/support-widget.js"></script>
   <script src="/js/orientation.js"></script>
   <script src="/js/bottom-nav.js"></script>
+  <script src="/js/hero-chart.js"></script>
 </body>
 </html>

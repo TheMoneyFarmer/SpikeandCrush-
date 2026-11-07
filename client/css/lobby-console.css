@@ -1,0 +1,158 @@
+/* Lobby (/play) console layout - loaded after console.css on index.html only.
+   Desktop reads like a console home screen: a row of mode tiles, one big
+   featured hero, a quiet stats strip, then you + competitions and the board.
+   Mobile keeps lobby-home.css's structure (profile row, Play sheet, tab bar)
+   and only takes the new type and colour. */
+
+/* ---- type: sentence case everywhere, Inter, no shouty tracking ---- */
+.lb-label, .lb-h, .lb-btn, .lb-stat-label, .lb-stat-value, .lb-tile-value, .lb-hero-num,
+.lb-mode-name, .lb-mode-dur, .lb-see-all, .lb-live, .lb-soon, .lb-coins, .tw-tier-badge,
+.lb-comp-title, .lb-board-head, .lb-board-rank, .lb-board-score, .lb-pod-score, .lb-pod-step,
+.lb-handle, .lb-mp-handle, .lb-sponsor-name, .lb-coin-amt, .lb-coin-unit, .lb-hero-title {
+  font-family: var(--c-font) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.lb-label, .lb-stat-label { font-size: 13px; font-weight: 500; color: var(--c-mute); }
+.lb-h { font-size: 22px; font-weight: 300; }
+.lb-see-all { color: var(--c-on); font-size: 14px; font-weight: 600; }
+.lb-see-all::after { content: ' →'; }
+.lb-coin-unit { font-size: 0.75em; font-weight: 500; color: var(--c-mute); }
+.lb-live { border-radius: 9999px; font-size: 12px; font-weight: 700; height: 24px; }
+.lb-soon { border-radius: 9999px; font-size: 12px; height: 24px; background: rgba(255,255,255,.1); color: var(--c-on); }
+.tw-tier-badge { border-radius: 9999px; font-size: 12px; font-weight: 600; }
+.lb-page *:focus-visible { outline: 2px solid #fff; outline-offset: 3px; border-radius: 8px; box-shadow: 0 0 0 6px rgba(0,112,209,.45); }
+.lb-skel { background: linear-gradient(90deg, #121314 0%, #1f2024 50%, #121314 100%); background-size: 200% 100%; }
+
+/* ---- buttons ---- */
+.lb-btn { border-radius: 9999px; font-weight: 700; font-size: 15px; padding: 0 24px; min-height: 48px; }
+.lb-btn-gold, .lb-btn.primary { background: var(--c-blue); border-color: var(--c-blue); color: #fff; }
+.lb-btn-gold:hover { background: var(--c-blue-press); border-color: var(--c-blue-press); }
+.lb-btn-outline, .lb-btn-dark { background: transparent; border-color: var(--c-hair-2); color: var(--c-on); }
+.lb-btn-outline:hover, .lb-btn-dark:hover { border-color: #fff; }
+.lb-btn-outline-gold { background: transparent; border-color: var(--c-hair-2); color: var(--c-on); }
+.lb-btn-xl { min-height: 56px; font-size: 17px; padding: 0 32px; }
+
+/* ---- cards: flat ---- */
+.lb-card { background: var(--c-elev); border: 0; border-radius: 8px; padding: 24px; }
+.lb-tile { background: var(--c-card); border: 0; border-radius: 8px; }
+.lb-tile-value { font-weight: 300; font-size: 26px; }
+.lb-progress { background: rgba(255,255,255,.1); height: 4px; }
+.lb-progress > span { background: var(--c-blue); }
+.lb-ring-fill { stroke: var(--c-blue); }
+.lb-ring-track { stroke: rgba(255,255,255,.1); }
+.lb-handle { font-weight: 600; font-size: 22px; }
+
+/* ---- ticker: one quiet line ---- */
+.lb-ticker { margin-top: 0; height: 36px; background: transparent; border: 0; border-bottom: 1px solid var(--c-hair); border-radius: 0; }
+.lb-tick { font-size: 12px; }
+.lb-tick .sym { color: var(--c-mute); }
+
+@media (min-width: 1024px) {
+  #lbMain { gap: 40px; padding-top: 28px; }
+
+  /* mode row: console home tiles */
+  .lb-modes { background: none; border: 0; padding: 0; display: flex; align-items: flex-end; gap: 24px; }
+  .lb-mode-grid { display: flex; gap: 12px; flex: 1; min-width: 0; overflow-x: auto; padding: 10px 6px 12px; margin: -10px -6px -12px; scrollbar-width: none; }
+  .lb-mode-grid::-webkit-scrollbar { display: none; }
+  .lb-mode { flex: 0 0 auto; width: 120px; height: 120px; min-height: 0; border-radius: 12px; border: 0; background: var(--c-elev);
+    display: grid; grid-template-rows: 1fr auto auto; justify-items: start; align-items: end; gap: 0; padding: 14px; text-align: left;
+    transition: transform 200ms var(--c-ease), background 200ms var(--c-ease), box-shadow 200ms var(--c-ease); }
+  .lb-mode-ic { align-self: start; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--mode) 18%, transparent); color: var(--mode); }
+  .lb-mode-name { font-size: 15px; font-weight: 600; color: var(--c-on); margin-top: 10px; }
+  .lb-mode-dur { font-size: 13px; font-weight: 400; color: var(--c-mute); }
+  .lb-mode:hover, .lb-mode:focus-visible { transform: scale(1.06); background: var(--c-card-2); box-shadow: 0 0 0 2px #fff; outline: none; }
+  .lb-join { flex: 0 0 340px; margin: 0; padding: 0; border: 0; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; row-gap: 8px; }
+  .lb-join .lb-label { grid-column: 1 / -1; }
+  .lb-join input { min-height: 48px; border-radius: 9999px; background: var(--c-deep); border: 1px solid var(--c-hair-2); letter-spacing: 0.2em; }
+
+  /* featured hero: the big band */
+  .lb-hero { position: relative; overflow: hidden; min-height: 420px; padding: 56px; display: flex; align-items: flex-end; background: var(--c-deep); }
+  .lb-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(90deg, rgba(11,12,14,.96) 0%, rgba(11,12,14,.8) 38%, rgba(11,12,14,.1) 100%), linear-gradient(0deg, rgba(11,12,14,.9) 0%, transparent 55%); }
+  .lb-hero > .candle-bg { opacity: .9; }
+  .lb-hero-inner { position: relative; z-index: 1; width: 100%; max-width: 760px; }
+  .lb-hero-title { font-weight: 300 !important; font-size: clamp(48px, 5vw, 72px); line-height: 1.05; margin-top: 16px; letter-spacing: -0.02em !important; }
+  .lb-hero-title-sm { font-size: 40px; }
+  .lb-hero-nums { gap: 12px 48px; margin-top: 28px; }
+  .lb-hero-num { font-weight: 300; font-size: 32px; }
+  .lb-hero-actions { margin-top: 32px; }
+
+  /* stats strip */
+  .lb-brand { min-height: 0; padding: 0; background: none; border: 0; border-top: 1px solid var(--c-hair); border-bottom: 1px solid var(--c-hair); border-radius: 0; display: block; }
+  .lb-brand > .candle-bg, .lb-brand-id { display: none; }
+  .lb-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+  .lb-stat { height: auto; padding: 22px 24px; background: none; border: 0; border-left: 1px solid var(--c-hair); border-radius: 0; flex-direction: column-reverse; justify-content: flex-end; gap: 6px; }
+  .lb-stat:first-child { border-left: 0; padding-left: 0; }
+  .lb-stat-value { font-weight: 300; font-size: 32px; }
+  .lb-stat-label { font-size: 14px; }
+  .lb-stats-empty { background: none; border: 0; padding: 22px 0; }
+
+  /* you + competitions */
+  .lb-main { grid-template-columns: 340px minmax(0, 1fr); gap: 24px; }
+  .lb-comp-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .lb-comp-row { background: var(--c-card); border: 0; border-radius: 8px; padding: 16px; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; row-gap: 14px; }
+  .lb-comp-row.is-live { box-shadow: inset 3px 0 0 var(--c-crush); }
+  .lb-comp-title { font-size: 17px; font-weight: 600; }
+  .lb-comp-sub { font-size: 13px; }
+  .lb-comp-prize { align-items: flex-start; grid-row: 2; }
+  .lb-comp-btn { grid-row: 2; align-self: end; min-height: 40px; }
+  .lb-comp-pool { font-size: 18px; }
+
+  /* board + feed */
+  .lb-bottom { gap: 24px; }
+  .lb-board-row { border-radius: 8px; }
+  .lb-board-row:nth-child(odd) { background: transparent; }
+  .lb-board-row { border-bottom: 1px solid var(--c-hair); border-radius: 0; }
+  .lb-board-row.is-me { background: rgba(0,112,209,.16); outline: 0; border-radius: 8px; }
+  .lb-board-row.is-me .lb-board-rank, .lb-board-row.is-me .lb-board-name { color: var(--c-on); }
+  .lb-pod-1 .lb-pod-step { background: rgba(245,184,61,.14); border: 0; color: var(--c-gold); }
+  .lb-pod-step { border: 0; background: var(--c-card); }
+  .lb-pod-score { color: var(--c-gold); }
+  .lb-feed-row { border-bottom: 1px solid var(--c-hair); }
+  .lb-feed-ic { border-radius: 8px; background: var(--c-card); }
+
+  .lb-sponsors { background: var(--c-elev); border: 0; border-radius: 8px; }
+  .lb-sponsor { background: var(--c-card); border: 0; }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .lb-main { grid-template-columns: 300px minmax(0, 1fr); }
+  .lb-comp-list { grid-template-columns: minmax(0, 1fr); }
+  .lb-join { flex-basis: 260px; }
+  .lb-hero { padding: 40px; }
+}
+
+/* ---- mobile: keep structure, new look ---- */
+@media (max-width: 1023px) {
+  .lb-hero { background: var(--c-deep); }
+  .lb-hero-title { font-weight: 300 !important; font-size: 40px; }
+  .lb-hero-num { font-weight: 300; }
+  .lb-stat { background: var(--c-elev); border: 0; border-radius: 8px; }
+  .lb-stat-value { font-weight: 400; }
+  .lb-comp-row { background: var(--c-card); border: 0; }
+  body.lb-sheet-open .lb-modes { background: var(--c-elev); border: 0; border-radius: 16px 16px 0 0; }
+  .lb-mode { background: var(--c-card); border: 0; border-radius: 12px; }
+  .lb-mode-name { text-transform: none !important; font-size: 13px; }
+  body.lb-page .bottom-tab-bar { background: rgba(0,0,0,.94); border-top: 1px solid var(--c-hair); }
+  body.lb-page .tab-play-btn { background: var(--c-blue); color: #fff; box-shadow: 0 0 0 6px #000; }
+  body.lb-page .tab-item.active { color: #fff; }
+  body.lb-page .tab-label { font-family: var(--c-font); letter-spacing: 0; }
+}
+
+/* primary buttons must beat console.css's generic .lb-btn rule */
+body.lb-page .lb-btn.lb-btn-gold { background: var(--c-blue); border-color: var(--c-blue); color: #fff; }
+body.lb-page .lb-btn.lb-btn-gold:hover { background: var(--c-blue-press); border-color: var(--c-blue-press); }
+@media (min-width: 1024px) {
+  body.lb-page .lb-hero > .candle-bg { opacity: 1; filter: saturate(1.2) brightness(1.4); }
+  body.lb-page .lb-hero::after { background: linear-gradient(90deg, rgba(11,12,14,.95) 0%, rgba(11,12,14,.7) 40%, rgba(11,12,14,0) 100%), linear-gradient(0deg, rgba(11,12,14,.85) 0%, transparent 50%); }
+}
+
+/* hero key art: live chart (js/hero-chart.js) on the right half */
+.lb-hero { position: relative; isolation: isolate; }
+.lb-hero > .hero-chart { position: absolute; top: 0; right: 0; bottom: 0; width: 70%; height: 100%; z-index: 0; }
+.lb-hero > :not(.hero-chart) { position: relative; z-index: 1; }
+.lb-hero::after { z-index: 0; }
+@media (max-width: 1023px) { .lb-hero > .hero-chart { width: 100%; opacity: .2; } }
+body.lb-page .tab-label { text-transform: none; }

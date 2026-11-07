@@ -303,7 +303,12 @@
   // ---- mode strip / mobile mode sheet -------------------------------------------------
 
   function renderModes(modes) {
-    document.querySelectorAll('.lb-mode-ic').forEach((el) => { el.innerHTML = ic('bolt', 22); });
+    // One icon per mode so the tiles read at a glance.
+    const MODE_ICON = { quick: 'swords', blitz: 'bolt', grand: 'crown', solo: 'target', async: 'clock', private: 'lock', tournament: 'trophy' };
+    document.querySelectorAll('.lb-mode').forEach((btn) => {
+      const el = btn.querySelector('.lb-mode-ic');
+      if (el) el.innerHTML = ic(MODE_ICON[btn.dataset.mode] || 'bolt', 22);
+    });
     (modes || []).forEach((m) => {
       const el = document.querySelector(`[data-dur="${m.key}"]`);
       if (el) el.textContent = `${Math.round(m.durationSeconds / 60)} min`;

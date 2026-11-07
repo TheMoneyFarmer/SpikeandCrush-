@@ -461,3 +461,46 @@
   :root:not([data-theme='light']) .btn:hover,
   :root:not([data-theme='light']) .lb-btn:hover { transform: none; }
 }
+
+/* ============================================================
+   Unified top bar (js/nav.js renderConsoleBar) - every page.
+   ============================================================ */
+#twNav { position: sticky; top: 0; z-index: 1000; background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--c-hair, rgba(229,229,229,.14)); }
+body.lb-page #twNav { margin: 0 calc(-1 * var(--page-pad, 32px)); }
+.cn-bar { max-width: 1376px; margin: 0 auto; height: 64px; padding: 0 max(24px, env(safe-area-inset-left, 0px)); display: flex; align-items: center; gap: 28px; font-family: var(--c-font, Inter, system-ui, sans-serif); }
+.cn-logo { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+.cn-logo .s { color: var(--c-spike, #1fd38a); } .cn-logo .c { color: var(--c-crush, #ff3d5c); } .cn-logo .a { color: #fff; font-weight: 300; margin: 0 1px; }
+.cn-links { display: flex; gap: 2px; flex: 1; min-width: 0; }
+.cn-link { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 9999px; color: rgba(255,255,255,.72); font-size: 15px; font-weight: 500; text-decoration: none; white-space: nowrap; transition: color 160ms, background 160ms; }
+.cn-link:hover { color: #fff; background: rgba(255,255,255,.06); }
+.cn-link.active { color: #fff; font-weight: 700; }
+.cn-link.active::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 4px; height: 2px; border-radius: 2px; background: #fff; }
+.cn-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.cn-coins { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 9999px; background: rgba(255,255,255,.08); color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; font-variant-numeric: tabular-nums; }
+.cn-coins .tw-icon { color: var(--c-gold, #f5b83d); }
+.cn-coins:hover { background: rgba(255,255,255,.14); }
+.cn-icon { position: relative; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255,255,255,.08); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.cn-icon:hover { background: rgba(255,255,255,.16); }
+.cn-dot { position: absolute; top: 8px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--c-crush, #ff3d5c); box-shadow: 0 0 0 2px #000; }
+.cn-login { min-height: 40px; display: inline-flex; align-items: center; padding: 0 20px; border-radius: 9999px; background: var(--c-blue, #0070d1); color: #fff; font-weight: 700; text-decoration: none; }
+.cn-account { position: relative; }
+.cn-avatar { display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 8px 0 4px; border-radius: 9999px; border: 0; background: rgba(255,255,255,.08); color: rgba(255,255,255,.72); cursor: pointer; }
+.cn-avatar:hover { background: rgba(255,255,255,.16); }
+.cn-menu { position: absolute; right: 0; top: calc(100% + 10px); width: 260px; z-index: 1200; background: #121314; border: 1px solid rgba(229,229,229,.14); border-radius: 16px; padding: 8px; box-shadow: 0 24px 64px rgba(0,0,0,.6); }
+.cn-menu-head { display: flex; flex-direction: column; gap: 6px; padding: 12px 12px 14px; border-bottom: 1px solid rgba(229,229,229,.14); margin-bottom: 6px; }
+.cn-menu-name { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: #fff; }
+.cn-menu-rating { font-size: 13px; color: rgba(229,229,229,.55); }
+.cn-menu-rating span { color: #fff; font-variant-numeric: tabular-nums; }
+.cn-progress { display: block; height: 4px; border-radius: 4px; background: rgba(255,255,255,.1); overflow: hidden; }
+.cn-progress span { display: block; height: 100%; background: var(--c-blue, #0070d1); }
+.cn-menu a, .cn-menu button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 12px; border-radius: 8px; border: 0; background: none; color: #fff; font: 500 15px var(--c-font, Inter, sans-serif); text-decoration: none; text-align: left; cursor: pointer; }
+.cn-menu a:hover, .cn-menu button:hover, .cn-menu a:focus-visible, .cn-menu button:focus-visible { background: rgba(255,255,255,.08); }
+.cn-menu a.active { background: rgba(0,112,209,.2); }
+.cn-menu .tw-icon { color: rgba(229,229,229,.55); }
+.cn-menu .tw-friends-online-badge { margin-left: auto; position: static; }
+.cn-burger { display: none; }
+#twNav .hidden { display: none !important; }
+@media (max-width: 1100px) { .cn-link { padding: 0 10px; } .cn-bar { gap: 16px; } }
+@media (max-width: 900px) { .cn-links { display: none; } .cn-burger { display: inline-flex; } .cn-bar { justify-content: space-between; } }
+@media (max-width: 420px) { .cn-coins { padding: 0 12px; } .cn-logo { font-size: 18px; } }

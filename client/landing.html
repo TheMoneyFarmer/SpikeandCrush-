@@ -162,17 +162,65 @@ button { font: inherit; }
 .tile-body p { margin: 6px 0 0; font-size: 14px; color: var(--body); line-height: 1.5; }
 .tile-meta { display: flex; gap: 14px; margin-top: 12px; font-size: 13px; color: var(--mute); }
 
-/* how it works (light chapter) */
-.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-.step { background: var(--light-card); border-radius: 8px; overflow: hidden; }
-.step-art { aspect-ratio: 4 / 3; background: #0b0c0e; position: relative; overflow: hidden; }
-.step-art svg { width: 100%; height: 100%; }
-.step-body { padding: 24px; }
+/* how it works: scroll story (light chapter, pinned dark game screen) */
+.story { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 56px; align-items: start; }
+.story-stage { position: sticky; top: 96px; }
+.story-steps { display: flex; flex-direction: column; }
+.story-step { min-height: 62vh; display: flex; flex-direction: column; justify-content: center; gap: 10px; opacity: .35; transition: opacity 300ms var(--ease); }
+.story-step:last-child { min-height: 50vh; }
+.story-step.on { opacity: 1; }
+.story-step .h3 { font-size: 28px; font-weight: 300; }
+.story-step p { margin: 0; color: var(--ink-body); font-size: 18px; max-width: 420px; }
 .step-n { font: 500 13px var(--mono); color: var(--blue); }
-.step-body .h3 { margin-top: 8px; font-size: 22px; font-weight: 400; }
-.step-body p { margin: 8px 0 0; color: var(--ink-body); }
-@media (max-width: 900px) { .steps { grid-template-columns: 1fr; } .step { display: grid; grid-template-columns: 200px 1fr; } .step-art { aspect-ratio: auto; } }
-@media (max-width: 520px) { .step { grid-template-columns: 1fr; } .step-art { aspect-ratio: 16/9; } }
+
+.stage { position: relative; aspect-ratio: 16 / 11; background: #0b0c0e; border-radius: 16px; overflow: hidden; color: #fff; display: flex; flex-direction: column; padding: 16px; gap: 12px; box-shadow: 0 30px 80px rgba(0,0,0,.25); }
+.st-top { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; }
+.st-timer { font: 500 13px var(--mono); background: #1f2024; padding: 4px 10px; border-radius: 9999px; }
+.st-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 12px; }
+.st-chart { position: relative; background: #000; border-radius: 8px; overflow: hidden; }
+.st-chart canvas { width: 100%; height: 100%; }
+.st-pos { position: absolute; left: 10px; top: 10px; font: 500 12px var(--mono); background: rgba(31,211,138,.16); color: var(--spike); padding: 4px 8px; border-radius: 6px; opacity: 0; transform: translateY(-4px); transition: all 300ms var(--ease); }
+.st-board { display: flex; flex-direction: column; gap: 6px; }
+.st-row { position: relative; display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: center; padding: 9px 10px; border-radius: 8px; background: #121314; font-size: 13px; transition: transform 450ms var(--ease), background 300ms; overflow: hidden; }
+.st-row.me { background: rgba(0,112,209,.22); }
+.st-rk { font: 500 12px var(--mono); color: var(--mute); }
+.st-nm { font-weight: 600; }
+.st-pnl { font: 500 13px var(--mono); }
+.st-frozen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 600; background: #8cb4ff; color: #001530; opacity: 0; transition: opacity 250ms; }
+.st-bottom { display: flex; gap: 12px; align-items: flex-end; }
+.st-hand { display: flex; gap: 8px; flex: 1; min-width: 0; transform: translateY(70%); opacity: .4; transition: transform 450ms var(--ease), opacity 450ms; }
+.st-card { flex: 1; min-width: 0; background: #1f2024; border: 1px solid rgba(255,61,92,.4); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; transition: transform 650ms var(--ease), opacity 400ms, box-shadow 300ms; }
+.st-card b { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-card span { font-size: 11px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-trade { display: flex; gap: 6px; }
+.st-btn { font-size: 13px; font-weight: 700; padding: 10px 16px; border-radius: 9999px; transition: transform 150ms, box-shadow 200ms; }
+.st-btn.buy { background: var(--spike); color: #00140c; }
+.st-btn.sell { background: var(--crush); }
+.st-toast { position: absolute; left: 50%; top: 52px; transform: translate(-50%, -8px); background: #1f2024; border-radius: 9999px; padding: 8px 14px; font-size: 13px; white-space: nowrap; opacity: 0; transition: all 300ms var(--ease); }
+.st-toast b { color: var(--crush); }
+.st-win { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: rgba(0,0,0,.72); opacity: 0; transition: opacity 400ms; pointer-events: none; }
+.st-win span { font-size: 18px; font-weight: 300; }
+.st-win b { font-size: 44px; font-weight: 300; color: var(--gold); transform: scale(.8); transition: transform 500ms var(--ease); }
+
+/* scene states (set by script) */
+.stage.pos-on .st-pos { opacity: 1; transform: none; }
+.stage.buy-press #stBuy { transform: scale(.9); box-shadow: 0 0 0 6px rgba(31,211,138,.35); }
+.stage.hand-up .st-hand { transform: none; opacity: 1; }
+.stage.ghost-lift #stGhost { transform: translateY(-14px); box-shadow: 0 0 0 2px #fff; }
+.stage.ghost-fly #stGhost { transform: translate(120%, -360%) scale(.6) rotate(8deg); opacity: 0; }
+.stage.frozen .st-frozen { opacity: 1; }
+.stage.toast-on .st-toast { opacity: 1; transform: translate(-50%, 0); }
+.stage.win-on .st-win { opacity: 1; }
+.stage.win-on .st-win b { transform: none; }
+
+@media (max-width: 900px) {
+  .story { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .story-stage { top: 72px; z-index: 2; padding-bottom: 12px; background: var(--light); }
+  .stage { aspect-ratio: 4 / 3.4; padding: 12px; }
+  .story-step { min-height: 55vh; }
+  .st-card span { display: none; }
+}
+@media (max-width: 480px) { .st-body { grid-template-columns: 1fr 1fr; } .st-row { padding: 7px 8px; font-size: 12px; } .st-row:nth-child(n+3) { display: none; } }
 
 /* sabotage (dark chapter) */
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
@@ -309,28 +357,46 @@ button { font: inherit; }
 
 <div class="ticker" aria-hidden="true"><div class="tick-inner" id="tickInner"></div></div>
 
-<!-- HOW IT WORKS: light chapter -->
+<!-- HOW IT WORKS: scroll story - a pinned game screen plays each step like a video -->
 <section class="chapter light" id="how" aria-labelledby="howTitle">
   <div class="wrap">
     <div class="chapter-head">
       <div>
         <p class="eyebrow">How a match works</p>
         <h2 class="h2" id="howTitle">Three moves. Ten minutes.</h2>
+        <p class="lede">Scroll to watch a match play out.</p>
       </div>
     </div>
-    <div class="steps">
-      <article class="step">
-        <div class="step-art" data-art="trade" aria-hidden="true"></div>
-        <div class="step-body"><span class="step-n">01</span><h3 class="h3">Trade the market</h3><p>Everyone gets the same virtual capital and the same real price history. Buy, sell, size up.</p></div>
-      </article>
-      <article class="step">
-        <div class="step-art" data-art="sabotage" aria-hidden="true"></div>
-        <div class="step-body"><span class="step-n">02</span><h3 class="h3">Sabotage your rivals</h3><p>Freeze their chart, drain their capital, force-close their best position. It's all in the rules.</p></div>
-      </article>
-      <article class="step">
-        <div class="step-art" data-art="climb" aria-hidden="true"></div>
-        <div class="step-body"><span class="step-n">03</span><h3 class="h3">Finish on top</h3><p>Highest balance at the bell wins the pot. Ranked wins move you from Recruit to War Lord.</p></div>
-      </article>
+    <div class="story">
+      <div class="story-stage">
+        <div class="stage" id="stage" data-step="0" aria-hidden="true">
+          <div class="st-top"><span class="st-mode">Quick War</span><span class="st-timer" id="stTimer">04:12</span></div>
+          <div class="st-body">
+            <div class="st-chart"><canvas id="stChart"></canvas><div class="st-pos" id="stPos">EURUSD · Buy 1.0 lot</div></div>
+            <div class="st-board">
+              <div class="st-row me" id="stMe"><span class="st-rk">1</span><span class="st-nm">You</span><span class="st-pnl up" id="stMePnl">+120</span></div>
+              <div class="st-row" id="stRival"><span class="st-rk">2</span><span class="st-nm">Rival</span><span class="st-pnl up" id="stRivalPnl">+164</span><span class="st-frozen">Chart frozen · <b id="stFreeze">10</b>s</span></div>
+              <div class="st-row"><span class="st-rk">3</span><span class="st-nm">Player 3</span><span class="st-pnl dn">−38</span></div>
+              <div class="st-row"><span class="st-rk">4</span><span class="st-nm">Player 4</span><span class="st-pnl dn">−95</span></div>
+            </div>
+          </div>
+          <div class="st-bottom">
+            <div class="st-hand">
+              <div class="st-card" id="stGhost"><b>Chart Ghost</b><span>Freeze a chart 10s</span></div>
+              <div class="st-card"><b>Force Close</b><span>Close their best trade</span></div>
+              <div class="st-card"><b>Pip Theft</b><span>Steal 150</span></div>
+            </div>
+            <div class="st-trade"><span class="st-btn sell">Sell</span><span class="st-btn buy" id="stBuy">Buy</span></div>
+          </div>
+          <div class="st-toast" id="stToast"></div>
+          <div class="st-win" id="stWin"><span>1st place</span><b>+85 coins</b></div>
+        </div>
+      </div>
+      <div class="story-steps">
+        <article class="story-step" data-step="0"><span class="step-n">01</span><h3 class="h3">Trade the market</h3><p>Everyone starts with the same virtual capital and the same real price history. Read the chart, buy or sell, size up.</p></article>
+        <article class="story-step" data-step="1"><span class="step-n">02</span><h3 class="h3">Sabotage your rivals</h3><p>Every match deals you cards. Freeze a rival's chart, close their best trade, steal their capital. It's all in the rules.</p></article>
+        <article class="story-step" data-step="2"><span class="step-n">03</span><h3 class="h3">Finish on top</h3><p>Highest balance at the bell wins the pot in coins. Ranked wins move you from Recruit to War Lord.</p></article>
+      </div>
     </div>
   </div>
 </section>
@@ -602,20 +668,84 @@ const svgI = k => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" s
 document.getElementById('cardGrid').innerHTML = CARDS.map(([n, d, k]) => `<article class="card"><span class="card-ic">${svgI(k)}</span><h3 class="h3">${n}</h3><p>${d}</p></article>`).join('')
   + `<button class="card more" type="button" onclick="openPanel('register')"><h3 class="h3">+19 more</h3><p>Sign up to see the full deck →</p></button>`;
 
-// step art: three small scenes of the same match
 (function () {
-  const arts = {
-    trade: sparkSVG(101, '#1fd38a', { drift: .07, w: 400, h: 300 }),
-    sabotage: (() => { const base = sparkSVG(202, '#ff3d5c', { drift: -.08, w: 400, h: 300 }); return base.replace('</svg>', `<rect x="236" y="110" width="132" height="44" rx="8" fill="#1f2024"/><text x="252" y="137" fill="#fff" font-family="Inter" font-size="14" font-weight="600">Chart Ghost</text><rect x="0" y="0" width="400" height="300" fill="rgba(255,61,92,.06)"/></svg>`); })(),
-    climb: (() => {
-      const bars = [['You', 0.92, '#1fd38a'], ['P2', 0.66, '#53b1ff'], ['P3', 0.44, '#9aa4b8'], ['P4', 0.26, '#9aa4b8']];
-      return `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">${bars.map(([n, v, c], i) => `<rect x="${40 + i * 86}" y="${260 - v * 210}" width="62" height="${v * 210}" rx="6" fill="${c}" opacity="${i ? .5 : 1}"/><text x="${71 + i * 86}" y="284" fill="rgba(255,255,255,.7)" font-family="Inter" font-size="13" text-anchor="middle">${n}</text>`).join('')}</svg>`;
-    })(),
-  };
-  document.querySelectorAll('.step-art').forEach(el => { el.innerHTML = arts[el.dataset.art]; });
   // offer art: a coin stack
   const coins = Array.from({ length: 7 }, (_, i) => `<ellipse cx="${200 + (i % 2) * 6}" cy="${230 - i * 22}" rx="88" ry="22" fill="#d99a1e"/><ellipse cx="${200 + (i % 2) * 6}" cy="${222 - i * 22}" rx="88" ry="22" fill="url(#cg)"/>`).join('');
   document.getElementById('offerArt').innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="cg" x1="0" x2="1"><stop offset="0" stop-color="#ffce21"/><stop offset=".5" stop-color="#f5a623"/><stop offset="1" stop-color="#ee8e00"/></linearGradient></defs>${coins}<text x="200" y="${222 - 6 * 22 + 6}" fill="#3a2600" font-family="Inter" font-weight="800" font-size="22" text-anchor="middle">500</text></svg>`;
+})();
+
+// ── HOW IT WORKS: scroll story. Each step plays a short looping scene. ──
+(function () {
+  const stage = document.getElementById('stage');
+  const steps = [...document.querySelectorAll('.story-step')];
+  const $ = id => document.getElementById(id);
+  const canvas = $('stChart'), ctx = canvas.getContext('2d');
+  let timers = [], active = -1, pts = [], tick = null;
+  const later = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const clear = () => { timers.forEach(clearTimeout); timers = []; clearInterval(tick); tick = null;
+    stage.className = 'stage'; $('stToast').textContent = ''; };
+  function chart(trend) {
+    const dpr = Math.min(devicePixelRatio || 1, 2), W = canvas.clientWidth, H = canvas.clientHeight;
+    if (!W) return;
+    canvas.width = W * dpr; canvas.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const mn = Math.min(...pts), mx = Math.max(...pts), y = v => H * .12 + (1 - (v - mn) / (mx - mn || 1)) * H * .76;
+    ctx.clearRect(0, 0, W, H);
+    const cw = W / 34;
+    pts.slice(-34).forEach((v, i, a) => { if (!i) return; const up = v >= a[i - 1];
+      ctx.fillStyle = ctx.strokeStyle = up ? '#1fd38a' : '#ff3d5c';
+      const x = i * cw; ctx.fillRect(x - cw * .32, Math.min(y(v), y(a[i - 1])), cw * .64, Math.max(2, Math.abs(y(v) - y(a[i - 1]))));
+    });
+  }
+  function seed(drift) { pts = [50]; for (let i = 0; i < 40; i++) pts.push(pts[i] + (Math.random() - .5 + drift) * 4); }
+  function count(el, from, to, ms) { const st = performance.now(); const f = n => { const p = Math.min(1, (n - st) / ms);
+      const v = Math.round(from + (to - from) * p); el.textContent = (v >= 0 ? '+' : '−') + Math.abs(v); el.className = 'st-pnl ' + (v >= 0 ? 'up' : 'dn'); if (p < 1 && active >= 0) requestAnimationFrame(f); }; requestAnimationFrame(f); }
+  function setRows(meFirst) { $('stMe').querySelector('.st-rk').textContent = meFirst ? '1' : '2'; $('stRival').querySelector('.st-rk').textContent = meFirst ? '2' : '1';
+    $('stMe').style.transform = meFirst ? 'none' : 'translateY(calc(100% + 6px))'; $('stRival').style.transform = meFirst ? 'none' : 'translateY(calc(-100% - 6px))'; }
+
+  const SCENES = [
+    function trade() { // price rises, you buy, P&L climbs
+      setRows(false); $('stMePnl').textContent = '+40'; $('stRivalPnl').textContent = '+164'; $('stTimer').textContent = '06:30';
+      seed(.05); chart(); tick = setInterval(() => { pts.push(pts[pts.length - 1] + (Math.random() - .3) * 4); chart(); }, 260);
+      later(900, () => stage.classList.add('buy-press'));
+      later(1200, () => { stage.classList.remove('buy-press'); stage.classList.add('pos-on'); count($('stMePnl'), 40, 210, 2600); });
+      later(3000, () => setRows(true));
+    },
+    function sabotage() { // card lifts, flies, rival freezes and drops
+      setRows(true); $('stMePnl').textContent = '+210'; $('stRivalPnl').textContent = '+188'; $('stTimer').textContent = '02:05';
+      stage.classList.add('pos-on'); seed(0); chart();
+      later(300, () => stage.classList.add('hand-up'));
+      later(1100, () => stage.classList.add('ghost-lift'));
+      later(1800, () => stage.classList.add('ghost-fly'));
+      later(2300, () => { stage.classList.add('frozen', 'toast-on'); $('stToast').innerHTML = 'You played <b>Chart Ghost</b> on Rival';
+        let n = 10; $('stFreeze').textContent = n; tick = setInterval(() => { n = Math.max(0, n - 1); $('stFreeze').textContent = n; }, 400);
+        count($('stRivalPnl'), 188, 22, 2400); });
+      later(4200, () => stage.classList.remove('toast-on'));
+    },
+    function win() { // bell, board settles, coins
+      setRows(true); $('stMePnl').textContent = '+312'; $('stRivalPnl').textContent = '+22'; seed(.02); chart();
+      let t = 4; $('stTimer').textContent = '00:04';
+      tick = setInterval(() => { t = Math.max(0, t - 1); $('stTimer').textContent = '00:0' + t; if (!t) { clearInterval(tick); stage.classList.add('win-on'); } }, 450);
+    },
+  ];
+  const END = ['pos-on', 'pos-on hand-up frozen', 'win-on'];
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function play(i) {
+    if (i === active) return;
+    clear(); active = i;
+    stage.dataset.step = i;
+    steps.forEach((s, k) => s.classList.toggle('on', k === i));
+    if (reduced) { SCENES[i](); timers.forEach(clearTimeout); timers = []; clearInterval(tick); stage.className = 'stage ' + END[i]; return; }
+    SCENES[i]();
+    later(6200, () => { active = -1; play(i); }); // loop the scene while it's on screen
+  }
+  const io = new IntersectionObserver(es => {
+    es.forEach(e => { if (e.isIntersecting) play(Number(e.target.dataset.step)); });
+  }, { rootMargin: '-45% 0px -45% 0px' });
+  steps.forEach(s => io.observe(s));
+  // start on the first scene so the screen never sits empty
+  play(0);
+  addEventListener('resize', () => chart());
 })();
 
 // ── PARTNERS (real data only: GET /api/stats/broker-partners) ──

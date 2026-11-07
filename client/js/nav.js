@@ -52,42 +52,54 @@ window.TW = window.TW || {};
   };
   const ic = (name, size = 20) => (TW.icon ? TW.icon(name, { size }) : '');
 
-  // The lobby's own top bar (index.html, data-variant="lobby"): five page
-  // links, coins, bell and an avatar menu - the logo lives in the brand band.
-  const LOBBY_LINKS = [
-    { key: 'home', label: 'Lobby', href: '/play' },
+  // ONE console-style top bar for every page (Nov 2026 redesign): logo, six
+  // main links, then coins, bell and an account menu holding everything else.
+  // Keeps every id TW.updateHeader() in main.js reads (headerUsername,
+  // headerCoinWrap, headerCoinBalance, headerAuthLink, headerTierBadge,
+  // headerRating, twNavIdentity, twNavIdentityAvatar, twNavProgressFill,
+  // twLogoutBtn) plus the notification/friends ids wired below.
+  const MAIN_LINKS = [
+    { key: 'home', label: 'Play', href: '/play' },
     { key: 'tournaments', label: 'Compete', href: '/competitions' },
     { key: 'leaderboard', label: 'Ranks', href: '/leaderboard' },
-    { key: 'wallet', label: 'Wallet', href: '/wallet' },
+    { key: 'cards', label: 'Cards', href: '/cards' },
     { key: 'shop', label: 'Shop', href: '/shop' },
+    { key: 'wallet', label: 'Wallet', href: '/wallet' },
   ];
   const AVATAR_MENU = [
-    { label: 'Profile', href: '/profile', icon: 'user' },
-    { label: 'Cards', href: '/cards', icon: 'cards' },
-    { label: 'Battle Pass', href: '/battle-pass', icon: 'star' },
-    { label: 'Coaching', href: '/coaching', icon: 'calendar' },
-    { label: 'Settings', href: '/settings', icon: 'settings' },
-    { label: 'Help', href: '/help', icon: 'help' },
+    { key: 'profile', label: 'Profile', href: '/profile', icon: 'user' },
+    { key: 'battle-pass', label: 'Battle Pass', href: '/battle-pass', icon: 'star' },
+    { key: 'coaching', label: 'Coaching', href: '/coaching', icon: 'calendar' },
+    { key: 'settings', label: 'Settings', href: '/settings', icon: 'settings' },
+    { key: 'help', label: 'Help', href: '/help', icon: 'help' },
   ];
 
-  function renderLobbyBar(container, active) {
+  function renderConsoleBar(container, active) {
     container.innerHTML = `
-      <nav class="lb-topbar" aria-label="Main">
-        <div class="lb-nav-links">${LOBBY_LINKS.map((l) => `<a href="${l.href}" class="lb-nav-link ${l.key === active ? 'active' : ''}" ${l.key === active ? 'aria-current="page"' : ''}>${l.label}</a>`).join('')}</div>
-        <div class="lb-topbar-right">
-          <a href="/wallet" id="headerCoinWrap" class="lb-coins hidden" aria-label="Coin balance">${ic('coin', 18)}<span id="headerCoinBalance">0</span><span class="lb-coins-label">coins</span></a>
-          <button type="button" class="lb-icon-btn" id="twNotifBtn" aria-label="Notifications">${ic('bell')}<span id="twNotifBadge" class="lb-unread-dot hidden" aria-hidden="true"></span></button>
-          <div class="lb-avatar-wrap">
-            <button type="button" class="lb-avatar-btn" id="lbAvatarBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+      <nav class="cn-bar" aria-label="Main">
+        <a href="/play" class="cn-logo" aria-label="Spike and Crush, play"><span class="s">Spike</span><span class="a">&amp;</span><span class="c">Crush</span></a>
+        <div class="cn-links">${MAIN_LINKS.map((l) => `<a href="${l.href}" class="cn-link${l.key === active ? ' active' : ''}"${l.key === active ? ' aria-current="page"' : ''}>${l.label}</a>`).join('')}</div>
+        <div class="cn-right">
+          <a href="/wallet" id="headerCoinWrap" class="cn-coins hidden" aria-label="Coin balance">${ic('coin', 18)}<span id="headerCoinBalance">0</span></a>
+          <button type="button" class="cn-icon" id="twNotifBtn" aria-label="Notifications">${ic('bell')}<span id="twNotifBadge" class="cn-dot hidden" aria-hidden="true"></span></button>
+          <a href="/?login=required" id="headerAuthLink" class="cn-login hidden">Log in</a>
+          <div class="cn-account hidden" id="twNavIdentity">
+            <button type="button" class="cn-avatar" id="lbAvatarBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
               <span id="twNavIdentityAvatar"></span>${ic('chevronDown', 16)}
             </button>
-            <div class="lb-avatar-menu hidden" id="lbAvatarMenu" role="menu">
-              <div class="lb-avatar-menu-head"><span id="headerUsername"></span></div>
-              ${AVATAR_MENU.map((m) => `<a role="menuitem" href="${m.href}">${ic(m.icon, 18)}<span>${m.label}</span></a>`).join('')}
+            <div class="cn-menu hidden" id="lbAvatarMenu" role="menu">
+              <div class="cn-menu-head">
+                <span class="cn-menu-name"><span id="headerUsername"></span><span id="headerTierBadge" class="hidden"></span></span>
+                <span class="cn-menu-rating">Rating <span id="headerRating"></span></span>
+                <span class="cn-progress"><span id="twNavProgressFill"></span></span>
+              </div>
+              ${AVATAR_MENU.map((m) => `<a role="menuitem" href="${m.href}"${m.key === active ? ' aria-current="page" class="active"' : ''}>${ic(m.icon, 18)}<span>${m.label}</span></a>`).join('')}
               <button type="button" role="menuitem" id="twFriendsToggleBtn">${ic('users', 18)}<span>Friends</span><span id="twFriendsOnlineBadge" class="tw-friends-online-badge hidden">0</span></button>
+              <button type="button" role="menuitem" id="cnMuteBtn"></button>
               <button type="button" role="menuitem" id="twLogoutBtn">${ic('logout', 18)}<span>Log out</span></button>
             </div>
           </div>
+          <button type="button" class="cn-icon cn-burger" id="twHamburgerBtn" aria-label="Menu">${ic('menu')}</button>
         </div>
       </nav>
     `;
@@ -96,6 +108,7 @@ window.TW = window.TW || {};
     const setOpen = (open) => {
       menu.classList.toggle('hidden', !open);
       btn.setAttribute('aria-expanded', String(open));
+      if (open) { const first = menu.querySelector('a,button'); if (first) first.focus(); }
     };
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -105,10 +118,29 @@ window.TW = window.TW || {};
       if (!menu.contains(e.target)) setOpen(false);
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape' && !menu.classList.contains('hidden')) { setOpen(false); btn.focus(); }
+    });
+    // Arrow keys move through the menu (keyboard / controller friendly).
+    menu.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+      const items = [...menu.querySelectorAll('a,button')];
+      const i = items.indexOf(document.activeElement);
+      const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+      items[next].focus();
+    });
+    const muteBtn = container.querySelector('#cnMuteBtn');
+    const paintMute = () => {
+      const s = TW.Sound ? TW.Sound.getSettings() : { muted: false };
+      muteBtn.innerHTML = s.muted ? `${ic('sound', 18)}<span>Unmute sounds</span>` : `${ic('mute', 18)}<span>Mute sounds</span>`;
+    };
+    paintMute();
+    muteBtn.addEventListener('click', () => {
+      if (!TW.Sound) return;
+      TW.Sound.updateSettings({ muted: !TW.Sound.getSettings().muted });
+      paintMute();
     });
   }
-
 
   const notifications = [];
   let currentNotifTab = 'new';
@@ -117,58 +149,7 @@ window.TW = window.TW || {};
     const container = document.getElementById('twNav');
     if (!container) return;
     const active = container.dataset.active || '';
-    if (container.dataset.variant === 'lobby') {
-      renderLobbyBar(container, active);
-      wireInteractions(container, active);
-      if (window.TW.updateHeader) window.TW.updateHeader();
-      return;
-    }
-
-    const linksHtml = NAV_LINKS.map(
-      (l) => `<a href="${l.href}" class="${l.key === active ? 'active' : ''}">${l.label}</a>`
-    ).join('');
-
-    // Persistent 3-zone header (identity / coins / icon-only actions) - full
-    // page navigation lives entirely in the ☰ drawer now, so this bar never
-    // wraps to a second row and never changes shape between pages.
-    container.innerHTML = `
-      <nav class="tw-navbar">
-        <a href="/play" class="tw-logo-link">
-          <div class="sc-logo-wrapper nav-logo">
-            <div class="sc-logo">
-              <span class="sc-s1">S</span><span class="sc-p">P</span><span class="sc-i">I</span><span class="sc-k">K</span><span class="sc-e">E</span><span class="sc-amp">&amp;</span><span class="sc-c">C</span><span class="sc-r">R</span><span class="sc-u">U</span><span class="sc-s2">S</span><span class="sc-h">H</span>
-            </div>
-          </div>
-        </a>
-
-        <div class="tw-nav-links">${linksHtml}</div>
-
-        <a href="/profile" class="tw-nav-identity hidden" id="twNavIdentity">
-          <span id="twNavIdentityAvatar"></span>
-          <span class="tw-nav-identity-meta">
-            <span class="tw-nav-identity-top">
-              <span id="headerUsername" class="tw-account-name"></span>
-              <span id="headerTierBadge" class="tw-nav-tier hidden"></span>
-              <span id="headerRating" class="tw-player-badge-rating mono"></span>
-            </span>
-            <span class="tw-nav-progress"><span class="tw-nav-progress-fill" id="twNavProgressFill"></span></span>
-          </span>
-        </a>
-
-        <div class="tw-nav-spacer"></div>
-
-        <a href="/wallet" id="headerCoinWrap" class="tw-coin-balance hidden" aria-label="Coin balance">${ic('coin', 16)} <span id="headerCoinBalance">0</span></a>
-
-        <div class="tw-nav-right">
-          <button type="button" class="tw-nav-icon-btn" id="twNotifBtn" title="Notifications" aria-label="Notifications" style="position:relative;">${ic('bell')}<span id="twNotifBadge" class="tw-notif-badge hidden">0</span></button>
-          <button type="button" class="tw-nav-icon-btn tw-friends-toggle-btn" id="twFriendsToggleBtn" title="Friends (0)" aria-label="Friends">${ic('users')}<span id="twFriendsOnlineBadge" class="tw-friends-online-badge hidden">0</span></button>
-          <a href="#" id="headerAuthLink" class="tw-nav-icon-btn tw-login-icon-link hidden" title="Log in" aria-label="Log in">${ic('login')}</a>
-          <button type="button" class="tw-nav-icon-btn tw-logout-icon-btn hidden" id="twLogoutBtn" title="Log out" aria-label="Log out">${ic('logout')}</button>
-          <button type="button" class="tw-nav-icon-btn tw-hamburger" id="twHamburgerBtn" title="Menu" aria-label="Menu">${ic('menu')}</button>
-        </div>
-      </nav>
-    `;
-
+    renderConsoleBar(container, active);
     wireInteractions(container, active);
     if (window.TW.updateHeader) window.TW.updateHeader();
   }
