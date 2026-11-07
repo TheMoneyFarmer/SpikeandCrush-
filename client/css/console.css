@@ -1,0 +1,463 @@
+/* ============================================================
+   CONSOLE design system - Spike & Crush redesign (Nov 2026).
+
+   Loaded LAST on every page, so it wins over main.css, themes.css,
+   premium.css, mobile.css and lobby-tokens.css without editing them.
+
+   Inspired by console-storefront design language (not copied from any
+   brand): near-black canvas, one confident blue for every primary action,
+   light-weight display type, flat 8px cards, pill buttons, no glows, no
+   chrome gradients. Spike green / Crush red stay as the game's own
+   trading colours; gold is reserved for coins and premium (Battle Pass).
+
+   The 'light' theme is left alone for now; every other theme maps here.
+   ============================================================ */
+
+:root,
+:root:not([data-theme='light']) {
+  /* ---- canvas & surfaces ---- */
+  --c-canvas: #000000;
+  --c-deep: #0b0c0e;
+  --c-elev: #121314;
+  --c-card: #181818;
+  --c-card-2: #1f2024;
+  --c-hair: rgba(229, 229, 229, 0.14);
+  --c-hair-2: rgba(229, 229, 229, 0.24);
+
+  /* ---- text ---- */
+  --c-on: #ffffff;
+  --c-body: rgba(255, 255, 255, 0.72);
+  --c-mute: rgba(229, 229, 229, 0.55);
+
+  /* ---- brand ---- */
+  --c-blue: #0070d1;
+  --c-blue-press: #0064b7;
+  --c-blue-deep: #004d8d;
+  --c-link: #53b1ff;
+  --c-commerce: #d53b00;
+  --c-commerce-press: #aa2f00;
+  --c-gold: #f5b83d;
+  --c-gold-grad: linear-gradient(90deg, #ffce21 0%, #f5a623 50%, #ee8e00 100%);
+  --c-spike: #1fd38a;
+  --c-crush: #ff3d5c;
+  --c-danger: #c81b3a;
+  --c-focus: #ffffff;
+
+  /* ---- type ---- */
+  --c-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --c-display-weight: 300;
+
+  /* ---- shape & rhythm ---- */
+  --c-r-sm: 4px;
+  --c-r-md: 8px;
+  --c-r-lg: 16px;
+  --c-r-pill: 9999px;
+  --c-section: 96px;
+  --c-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* ==== map onto themes.css tokens ==== */
+  --bg-base: var(--c-canvas);
+  --bg-surface-1: var(--c-elev);
+  --bg-surface-2: var(--c-card);
+  --bg-surface-3: var(--c-card-2);
+  --bg-elevated: var(--c-card-2);
+  --bg-card: var(--c-card);
+  --bg-overlay: rgba(0, 0, 0, 0.86);
+
+  --border-subtle: var(--c-hair);
+  --border-normal: var(--c-hair);
+  --border-strong: var(--c-hair-2);
+  --border-gold: rgba(0, 112, 209, 0.55);
+
+  --text-primary: var(--c-on);
+  --text-secondary: var(--c-body);
+  --text-muted: var(--c-mute);
+  --text-gold: var(--c-gold);
+  --text-blue: var(--c-link);
+
+  /* --gold is the UI accent in the old system: it becomes console blue.
+     Coins/premium use --c-gold directly (see bottom of file). */
+  --gold: var(--c-blue);
+  --gold-bright: var(--c-link);
+  --gold-dark: var(--c-blue-press);
+  --gold-btn: var(--c-blue);
+  --gold-deep: var(--c-blue-deep);
+  --gold-glow: transparent;
+  --gold-subtle: rgba(0, 112, 209, 0.12);
+  --gold-border: rgba(0, 112, 209, 0.5);
+
+  --teal: var(--c-spike);
+  --teal-bright: var(--c-spike);
+  --teal-dark: #17a86d;
+  --teal-glow: transparent;
+  --red: var(--c-crush);
+  --red-dark: #d92a48;
+  --red-glow: transparent;
+
+  --buy: var(--c-spike);
+  --sell: var(--c-crush);
+  --profit: var(--c-spike);
+  --loss: var(--c-crush);
+  --warning: var(--c-gold);
+  --neutral: var(--c-mute);
+
+  /* flat surfaces: gradients collapse to solid colour */
+  --grad-gold: var(--c-blue);
+  --grad-gold-btn: var(--c-blue);
+  --grad-teal: var(--c-spike);
+  --grad-red: var(--c-crush);
+  --grad-surface: var(--c-elev);
+  --grad-hero: var(--c-canvas);
+  --grad-card: var(--c-card);
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --shadow-gold: none;
+  --shadow-teal: none;
+  --shadow-card: none;
+
+  --nav-bg: rgba(0, 0, 0, 0.92);
+  --nav-border: var(--c-hair);
+
+  --input-bg: var(--c-deep);
+  --input-border: var(--c-hair-2);
+  --input-focus: rgba(0, 112, 209, 0.35);
+  --input-ph: var(--c-mute);
+
+  --chart-bg: var(--c-canvas);
+  --chart-grid: rgba(229, 229, 229, 0.07);
+  --chart-text: var(--c-mute);
+  --chart-border: var(--c-hair);
+  --candle-up: var(--c-spike);
+  --candle-down: var(--c-crush);
+
+  --btn-cta-bg: var(--c-blue);
+  --btn-cta-text: #ffffff;
+  --btn-primary-bg: var(--c-blue);
+  --btn-primary-text: #ffffff;
+  --btn-ghost-bg: transparent;
+  --btn-ghost-border: var(--c-hair-2);
+
+  --tier-elite: var(--c-gold);
+  --tier-warlord: #ffce21;
+
+  /* overrides of aliases that were not pure var() references */
+  --buy-color-dark: #17a86d;
+  --spike-glow: transparent;
+  --overlay-soft: var(--c-elev);
+  --overlay-medium: var(--c-card);
+
+  /* main.css */
+  --radius: var(--c-r-md);
+  --radius-lg: var(--c-r-md);
+  --font: var(--c-font);
+
+  /* ==== map onto lobby-tokens.css ==== */
+  --bg: var(--c-canvas);
+  --panel: var(--c-elev);
+  --panel-2: var(--c-card);
+  --panel-3: var(--c-deep);
+  --line: var(--c-hair);
+  --line-2: var(--c-hair-2);
+  --text: var(--c-on);
+  --muted: var(--c-body);
+  --gold-bg: rgba(0, 112, 209, 0.16);
+  --gold-ink: #ffffff;
+  --spike: var(--c-spike);
+  --crush: var(--c-crush);
+  --font-display: var(--c-font);
+  --font-body: var(--c-font);
+  --r-card: var(--c-r-md);
+  --r-tile: var(--c-r-md);
+  --r-btn: var(--c-r-pill);
+  --r-chip: var(--c-r-pill);
+  --ease: 160ms var(--c-ease);
+}
+
+/* ---------------- base ---------------- */
+
+:root:not([data-theme='light']) body {
+  background: var(--c-canvas);
+  color: var(--c-on);
+  font-family: var(--c-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root:not([data-theme='light']) h1,
+:root:not([data-theme='light']) h2,
+:root:not([data-theme='light']) .page-title,
+:root:not([data-theme='light']) .section-title,
+:root:not([data-theme='light']) .lb-h {
+  font-family: var(--c-font);
+  font-weight: var(--c-display-weight);
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+:root:not([data-theme='light']) h3 {
+  font-family: var(--c-font);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* inline prose links only - nav/buttons keep their own colours */
+:root:not([data-theme='light']) p a:not(.btn),
+:root:not([data-theme='light']) .legal-text a,
+:root:not([data-theme='light']) .help-section a { color: var(--c-link); }
+
+/* labels: quiet small caps instead of shouty tracking */
+:root:not([data-theme='light']) .label,
+:root:not([data-theme='light']) .stat-label,
+:root:not([data-theme='light']) .section-label,
+:root:not([data-theme='light']) .lb-label {
+  font-family: var(--c-font);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--c-mute);
+}
+
+/* one visible focus ring for keyboard/controller users, everywhere */
+:root:not([data-theme='light']) :focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(0, 112, 209, 0.45);
+}
+
+/* ---------------- buttons: pills ---------------- */
+
+:root:not([data-theme='light']) .btn,
+:root:not([data-theme='light']) .lb-btn {
+  min-height: 48px;
+  padding: 12px 28px;
+  border-radius: var(--c-r-pill);
+  border: 1px solid var(--c-hair-2);
+  background: transparent;
+  color: var(--c-on);
+  font-family: var(--c-font);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  box-shadow: none;
+  filter: none;
+  transition: background 160ms var(--c-ease), border-color 160ms var(--c-ease),
+              transform 120ms var(--c-ease), color 160ms var(--c-ease);
+}
+
+:root:not([data-theme='light']) .btn:hover,
+:root:not([data-theme='light']) .lb-btn:hover {
+  transform: translateY(-1px);
+  filter: none;
+  box-shadow: none;
+  border-color: var(--c-on);
+}
+
+:root:not([data-theme='light']) .btn:active,
+:root:not([data-theme='light']) .lb-btn:active { transform: scale(0.97); }
+
+:root:not([data-theme='light']) .btn-primary,
+:root:not([data-theme='light']) .lb-btn-primary,
+:root:not([data-theme='light']) .lb-btn.primary {
+  background: var(--c-blue);
+  border-color: var(--c-blue);
+  color: #ffffff;
+}
+
+:root:not([data-theme='light']) .btn-primary:hover,
+:root:not([data-theme='light']) .lb-btn-primary:hover,
+:root:not([data-theme='light']) .lb-btn.primary:hover {
+  background: var(--c-blue-press);
+  border-color: var(--c-blue-press);
+  box-shadow: none;
+}
+
+:root:not([data-theme='light']) .btn-outline {
+  background: transparent;
+  border-color: var(--c-hair-2);
+  color: var(--c-on);
+}
+:root:not([data-theme='light']) .btn-outline:hover { background: rgba(255, 255, 255, 0.06); box-shadow: none; }
+
+:root:not([data-theme='light']) .btn-buy {
+  background: var(--c-spike);
+  border-color: var(--c-spike);
+  color: #00140c;
+  box-shadow: none;
+}
+:root:not([data-theme='light']) .btn-sell {
+  background: var(--c-crush);
+  border-color: var(--c-crush);
+  color: #ffffff;
+  box-shadow: none;
+}
+:root:not([data-theme='light']) .btn-buy:hover,
+:root:not([data-theme='light']) .btn-sell:hover { box-shadow: none; filter: brightness(1.08); }
+
+/* Store / real-money purchase buttons use the commerce colour */
+:root:not([data-theme='light']) .btn-commerce,
+:root:not([data-theme='light']) .buy-btn,
+:root:not([data-theme='light']) .coin-package .btn {
+  background: var(--c-commerce);
+  border-color: var(--c-commerce);
+  color: #ffffff;
+}
+:root:not([data-theme='light']) .btn-commerce:hover,
+:root:not([data-theme='light']) .buy-btn:hover,
+:root:not([data-theme='light']) .coin-package .btn:hover {
+  background: var(--c-commerce-press);
+  border-color: var(--c-commerce-press);
+}
+
+:root:not([data-theme='light']) .btn:disabled,
+:root:not([data-theme='light']) .lb-btn:disabled {
+  background: var(--c-card-2);
+  border-color: transparent;
+  color: var(--c-mute);
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------------- surfaces: flat 8px cards ---------------- */
+
+:root:not([data-theme='light']) .panel,
+:root:not([data-theme='light']) .sabotage-panel,
+:root:not([data-theme='light']) .leaderboard-panel,
+:root:not([data-theme='light']) .trading-panel,
+:root:not([data-theme='light']) .room-code-panel,
+:root:not([data-theme='light']) .chat-panel,
+:root:not([data-theme='light']) .stat-card,
+:root:not([data-theme='light']) .settings-panel,
+:root:not([data-theme='light']) .lb-card {
+  background: var(--c-elev);
+  border: 1px solid var(--c-hair);
+  border-radius: var(--c-r-md);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root:not([data-theme='light']) .pill {
+  border-radius: var(--c-r-pill);
+  background: var(--c-card-2);
+  border-color: transparent;
+  font-weight: 600;
+}
+:root:not([data-theme='light']) .pill-gold { color: var(--c-gold); background: rgba(245, 184, 61, 0.12); }
+
+/* kill decorative glow text */
+:root:not([data-theme='light']) .text-buy,
+:root:not([data-theme='light']) .text-sell { text-shadow: none; }
+
+/* ---------------- inputs ---------------- */
+
+:root:not([data-theme='light']) .field input,
+:root:not([data-theme='light']) .field select,
+:root:not([data-theme='light']) .field textarea,
+:root:not([data-theme='light']) input[type='text'],
+:root:not([data-theme='light']) input[type='email'],
+:root:not([data-theme='light']) input[type='password'],
+:root:not([data-theme='light']) input[type='number'],
+:root:not([data-theme='light']) input[type='search'],
+:root:not([data-theme='light']) select,
+:root:not([data-theme='light']) textarea {
+  min-height: 48px;
+  background: var(--c-deep);
+  border: 1px solid var(--c-hair-2);
+  border-radius: var(--c-r-sm);
+  color: var(--c-on);
+  font-family: var(--c-font);
+  font-size: 16px;
+}
+
+:root:not([data-theme='light']) .field input:focus,
+:root:not([data-theme='light']) .field select:focus,
+:root:not([data-theme='light']) input:focus,
+:root:not([data-theme='light']) select:focus,
+:root:not([data-theme='light']) textarea:focus {
+  border: 2px solid var(--c-blue);
+  box-shadow: none;
+  outline: none;
+}
+
+:root:not([data-theme='light']) .field label { color: var(--c-body); font-size: 14px; }
+
+/* ---------------- top navigation (nav.js) ---------------- */
+
+:root:not([data-theme='light']) .lb-topbar { height: 64px; }
+
+:root:not([data-theme='light']) .lb-nav-link {
+  font-family: var(--c-font);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--c-body);
+  border-radius: var(--c-r-pill);
+  position: relative;
+}
+:root:not([data-theme='light']) .lb-nav-link:hover { color: var(--c-on); background: rgba(255, 255, 255, 0.06); }
+:root:not([data-theme='light']) .lb-nav-link.active {
+  color: var(--c-on);
+  background: transparent;
+  font-weight: 700;
+}
+:root:not([data-theme='light']) .lb-nav-link.active::after {
+  content: '';
+  position: absolute;
+  left: 16px; right: 16px; bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--c-on);
+}
+
+:root:not([data-theme='light']) .lb-icon-btn,
+:root:not([data-theme='light']) .lb-avatar-btn {
+  border-radius: var(--c-r-pill);
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.08);
+}
+:root:not([data-theme='light']) .lb-icon-btn:hover,
+:root:not([data-theme='light']) .lb-avatar-btn:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* ---------------- coins & premium keep gold ---------------- */
+
+:root:not([data-theme='light']) .lb-coins {
+  border-radius: var(--c-r-pill);
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.08);
+  font-family: var(--c-font);
+}
+:root:not([data-theme='light']) .lb-coins .tw-icon,
+:root:not([data-theme='light']) .lb-coin-amt,
+:root:not([data-theme='light']) .lb-coin-amt .tw-icon,
+:root:not([data-theme='light']) .lb-feed-text .lb-coin-amt,
+:root:not([data-theme='light']) .tw-coin-balance,
+:root:not([data-theme='light']) .coin-balance,
+:root:not([data-theme='light']) .coin-package .amount,
+:root:not([data-theme='light']) .legal-coins,
+:root:not([data-theme='light']) [class*='coin-icon'] { color: var(--c-gold); }
+
+/* ---------------- toasts & modals ---------------- */
+
+:root:not([data-theme='light']) .modal,
+:root:not([data-theme='light']) .modal-content,
+:root:not([data-theme='light']) .drawer-panel,
+:root:not([data-theme='light']) .lb-avatar-menu {
+  background: var(--c-elev);
+  border: 1px solid var(--c-hair);
+  border-radius: var(--c-r-lg);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  backdrop-filter: none;
+}
+
+/* ---------------- motion preference ---------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-theme='light']) .btn,
+  :root:not([data-theme='light']) .lb-btn { transition: none; }
+  :root:not([data-theme='light']) .btn:hover,
+  :root:not([data-theme='light']) .lb-btn:hover { transform: none; }
+}
