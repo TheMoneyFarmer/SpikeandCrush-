@@ -25,17 +25,11 @@ window.Admin = window.Admin || {};
     String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   Admin.formatMoney = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  Admin.formatCoins = (n) => `🪙 ${Number(n || 0).toLocaleString()}`;
+  Admin.formatCoins = (n) => `${Number(n || 0).toLocaleString()} coins`;
   Admin.formatNumber = (n) => Number(n || 0).toLocaleString();
   Admin.formatDate = (iso) => (iso ? new Date(iso).toLocaleString() : '—');
-  Admin.timeAgo = (iso) => {
-    if (!iso) return '—';
-    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (s < 60) return `${s}s ago`;
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-    return `${Math.floor(s / 86400)}d ago`;
-  };
+  // Shared with the game site (js/time-ago.js, served from client/js).
+  Admin.timeAgo = (iso) => (!iso ? '—' : window.TW && TW.timeAgo ? TW.timeAgo(iso) : new Date(iso).toLocaleString());
 
   Admin.toast = (message, type = 'info') => {
     let wrap = document.getElementById('adminToast');

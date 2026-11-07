@@ -246,22 +246,79 @@ async function recordChallengeCompletion({ playerId, season, challengeId, challe
 
 // ---- trading floor home screen widgets ---------------------------------------
 
+// app_settings.show_seed_accounts (default false): while false, persona
+// accounts (players.is_persona - the seeded bots from seedPersonas.js) never
+// appear on public boards, feeds or counts. Cached briefly so every widget
+// on the lobby doesn't re-read the setting.
+const SEED_SETTING_TTL_MS = 15000;
+let seedSettingCache = { value: false, at: 0 };
+async function showSeedAccounts() {
+  if (Date.now() - seedSettingCache.at < SEED_SETTING_TTL_MS) return seedSettingCache.value;
+  try {
+    const value = (await getAppSetting('show_seed_accounts')) === true;
+    seedSettingCache = { value, at: Date.now() };
+  } catch (e) {
+    seedSettingCache = { value: false, at: Date.now() };
+  }
+  return seedSettingCache.value;
+}
+
+// Midnight in Dubai (UTC+4, no DST) - the lobby's "today".
+const DUBAI_OFFSET_MS = 4 * 3600 * 1000;
+function dubaiDayStart(nowMs = Date.now()) {
+  const d = new Date(nowMs + DUBAI_OFFSET_MS);
+  d.setUTCHours(0, 0, 0, 0);
+  return new Date(d.getTime() - DUBAI_OFFSET_MS);
+}
+
+// Coin credits that count as winnings on the lobby and landing stats.
+const PRIZE_TX_TYPES = ['prize_won', 'competition_prize', 'tournament_prize'];
+// Mirrors excludeTestAccounts() for rows filtered in JS.
+const TEST_USERNAME_RE = /test|debug|iso|^monitor|^pclose/i;
+
 async function getRecentActivity(limit = 15) {
   assertConfigured();
-  const { data, error } = await supabase
-    .from('matches')
-    .select('id, mode, end_time, winner_id, winner:winner_id(username)')
-    .eq('status', 'finished')
-    .not('winner_id', 'is', null)
-    .order('end_time', { ascending: false })
-    .limit(limit);
+  const hideSeeds = !(await showSeedAccounts());
+  const [{ data, error }, comps] = await Promise.all([
+    supabase
+      .from('matches')
+      .select('id, mode, end_time, winner_id, winner:winner_id(username, is_persona)')
+      .eq('status', 'finished')
+      .not('winner_id', 'is', null)
+      .order('end_time', { ascending: false })
+      .limit(limit * 4),
+    supabase
+      .from('comp_accounts')
+      .select('final_rank, prize_coins, competition:competitions!inner(id, title, settled_at, is_test, status), player:players!inner(username, is_persona)')
+      .eq('final_rank', 1)
+      .eq('competition.is_test', false)
+      .eq('competition.status', 'ended')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  ]);
   if (error) throw error;
-  return data.map((m) => ({
-    matchId: m.id,
-    mode: m.mode,
-    endTime: m.end_time,
-    winnerUsername: m.winner?.username || 'Unknown',
-  }));
+  const matchRows = data
+    .filter((m) => !hideSeeds || !m.winner?.is_persona)
+    .map((m) => ({
+      kind: 'match',
+      matchId: m.id,
+      mode: m.mode,
+      endTime: m.end_time,
+      winnerUsername: m.winner?.username || 'Unknown',
+    }));
+  // Competition results are optional extra rows - a missing table (older
+  // database) just means match rows only.
+  const compRows = (comps.error ? [] : comps.data || [])
+    .filter((a) => a.competition?.settled_at && (!hideSeeds || !a.player?.is_persona))
+    .map((a) => ({
+      kind: 'competition',
+      competitionId: a.competition.id,
+      competitionTitle: a.competition.title,
+      prizeCoins: a.prize_coins || 0,
+      endTime: a.competition.settled_at,
+      winnerUsername: a.player.username,
+    }));
+  return [...matchRows, ...compRows].sort((a, b) => new Date(b.endTime) - new Date(a.endTime)).slice(0, limit);
 }
 
 // Streaks aren't a stored column, so this walks each player's most recent
@@ -272,14 +329,16 @@ async function getHotStreaks(limit = 5) {
   assertConfigured();
   const { data, error } = await supabase
     .from('match_players')
-    .select('player_id, final_rank, matches!inner(end_time, status), players!inner(username, war_rating)')
+    .select('player_id, final_rank, matches!inner(end_time, status), players!inner(username, war_rating, is_persona)')
     .eq('matches.status', 'finished')
     .order('end_time', { foreignTable: 'matches', ascending: false })
     .limit(500);
   if (error) throw error;
 
+  const hideSeeds = !(await showSeedAccounts());
   const byPlayer = new Map();
   for (const row of data) {
+    if (hideSeeds && row.players.is_persona) continue;
     if (!byPlayer.has(row.player_id)) byPlayer.set(row.player_id, []);
     byPlayer.get(row.player_id).push(row);
   }
@@ -1020,6 +1079,7 @@ async function getLeaderboard(limit = 10, { search = null } = {}) {
     .gt('total_matches', 0)
     .order('war_rating', { ascending: false });
   query = excludeTestAccounts(query);
+  if (!(await showSeedAccounts())) query = query.eq('is_persona', false);
   if (search) query = query.ilike('username', `%${search}%`);
   query = query.limit(limit);
   const { data, error } = await query;
@@ -1031,14 +1091,16 @@ async function getPeriodLeaderboard(sinceIso, limit = 500) {
   assertConfigured();
   const { data, error } = await supabase
     .from('match_players')
-    .select('player_id, final_pnl, trades_made, matches!inner(end_time), players!inner(username, war_rating)')
+    .select('player_id, final_pnl, trades_made, matches!inner(end_time), players!inner(username, war_rating, is_persona)')
     .gte('matches.end_time', sinceIso)
     .limit(5000);
   if (error) throw error;
 
   const TEST_ACCOUNT_PATTERN = /test|debug|iso/i;
+  const hideSeeds = !(await showSeedAccounts());
   const byPlayer = new Map();
   for (const row of data) {
+    if (hideSeeds && row.players.is_persona) continue;
     if (TEST_ACCOUNT_PATTERN.test(row.players.username) || /^(monitor|pclose)/i.test(row.players.username)) continue;
     const entry = byPlayer.get(row.player_id) || {
       id: row.player_id,
@@ -1289,8 +1351,7 @@ async function getCoinsBreakdown(playerId) {
 // the day.
 async function getMatchesToday() {
   assertConfigured();
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart = dubaiDayStart();
   const { count, error } = await supabase
     .from('matches')
     .select('id', { count: 'exact', head: true })
@@ -1299,40 +1360,32 @@ async function getMatchesToday() {
   return count || 0;
 }
 
-async function getCoinsWonToday() {
+// Prize coin credits since `sinceIso` (all time when null), seed accounts
+// excluded unless show_seed_accounts is on. Everything here is coins.
+async function listPrizeCredits(sinceIso = null) {
   assertConfigured();
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const { data, error } = await supabase
-    .from('coin_transactions')
-    .select('amount')
-    .eq('type', 'prize_won')
-    .gte('created_at', todayStart.toISOString());
+  let query = supabase.from('coin_transactions').select('amount, players!inner(is_persona, username)').in('type', PRIZE_TX_TYPES).gt('amount', 0);
+  if (sinceIso) query = query.gte('created_at', sinceIso);
+  if (!(await showSeedAccounts())) query = query.eq('players.is_persona', false);
+  const { data, error } = await query.limit(10000);
   if (error) throw error;
-  return data.reduce((sum, row) => sum + row.amount, 0);
+  // Same test/QA account exclusions as the public leaderboard.
+  return data.filter((row) => !TEST_USERNAME_RE.test(row.players.username)).map((row) => Number(row.amount) || 0);
 }
 
+async function getCoinsWonToday() {
+  return (await listPrizeCredits(dubaiDayStart().toISOString())).reduce((sum, n) => sum + n, 0);
+}
+
+// Largest single prize credited today, in coins (never simulated-capital P&L).
 async function getLargestWinToday() {
-  assertConfigured();
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const { data, error } = await supabase
-    .from('match_players')
-    .select('final_pnl, matches!inner(end_time)')
-    .gte('matches.end_time', todayStart.toISOString())
-    .order('final_pnl', { ascending: false })
-    .limit(1);
-  if (error) throw error;
-  return data.length ? Number(data[0].final_pnl) : 0;
+  return (await listPrizeCredits(dubaiDayStart().toISOString())).reduce((max, n) => Math.max(max, n), 0);
 }
 
 // Lifetime total, unlike getCoinsWonToday() above which is scoped to today -
-// used by the landing page's "Total Prizes Distributed" stat.
+// used by the landing page's "Total Prizes Distributed" stat. Coins.
 async function getTotalPrizesDistributed() {
-  assertConfigured();
-  const { data, error } = await supabase.from('coin_transactions').select('amount').eq('type', 'prize_won');
-  if (error) throw error;
-  return data.reduce((sum, row) => sum + row.amount, 0);
+  return (await listPrizeCredits()).reduce((sum, n) => sum + n, 0);
 }
 
 // ---- sessions / login history --------------------------------------------------
@@ -1812,84 +1865,9 @@ async function listCompEquitySnapshots(accountId) {
   return data;
 }
 
-// Settled competition cash prizes the player hasn't submitted a Wallet claim
-// for yet - the competition counterpart of getUnclaimedTournamentWins.
-async function getUnclaimedCompetitionCashPrizes(playerId) {
-  assertConfigured();
-  const { data: wins, error } = await supabase
-    .from('comp_accounts')
-    .select('competition_id, prize_usd, final_rank, competition:competitions(title)')
-    .eq('player_id', playerId)
-    .eq('prize_paid', true)
-    .gt('prize_usd', 0);
-  if (error) throw error;
-  if (!wins.length) return [];
-  const { data: claims, error: claimsErr } = await supabase
-    .from('prize_claims')
-    .select('competition_id')
-    .eq('player_id', playerId)
-    .not('competition_id', 'is', null);
-  if (claimsErr) throw claimsErr;
-  const claimed = new Set(claims.map((c) => c.competition_id));
-  return wins
-    .filter((w) => !claimed.has(w.competition_id))
-    .map((w) => ({ competitionId: w.competition_id, competitionName: w.competition?.title, rank: w.final_rank, prizeUsd: Number(w.prize_usd) }));
-}
-
-// ---- prize claims (tournament winnings cash-out) -----------------------------
-//
-// Only a tournament win pays out coins that can ever leave the closed-loop
-// coin economy (see gameEngine.js crediting coins with type 'tournament_prize'
-// when a bracket completes) - regular match winnings, purchased coins, and
-// welcome-bonus coins can never be claimed here. One claim per player per
-// tournament (enforced by the table's UNIQUE constraint) - a win can't be
-// cashed out twice.
-
-async function getUnclaimedTournamentWins(playerId) {
-  assertConfigured();
-  const { data: wins, error } = await supabase
-    .from('tournament_registrations')
-    .select('tournament_id, tournaments!inner(id, name, prize_pool_coins, status)')
-    .eq('player_id', playerId)
-    .eq('final_rank', 1)
-    .eq('tournaments.status', 'completed');
-  if (error) throw error;
-  if (!wins.length) return [];
-
-  const { data: claims, error: claimsErr } = await supabase
-    .from('prize_claims')
-    .select('tournament_id')
-    .eq('player_id', playerId);
-  if (claimsErr) throw claimsErr;
-  const claimedIds = new Set(claims.map((c) => c.tournament_id));
-
-  return wins
-    .filter((w) => !claimedIds.has(w.tournament_id))
-    .map((w) => ({
-      tournamentId: w.tournaments.id,
-      tournamentName: w.tournaments.name,
-      prizeCoins: w.tournaments.prize_pool_coins,
-    }));
-}
-
-async function createPrizeClaim({ playerId, tournamentId = null, competitionId = null, prizeCoins, prizeUsd, payoutMethod, payoutDetails }) {
-  assertConfigured();
-  const { data, error } = await supabase
-    .from('prize_claims')
-    .insert({
-      player_id: playerId,
-      tournament_id: tournamentId,
-      competition_id: competitionId,
-      prize_coins: prizeCoins,
-      prize_usd: prizeUsd,
-      payout_method: payoutMethod,
-      payout_details: payoutDetails,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
+// ---- prize claims (closed; records only) --------------------------------------
+// Coins have no cash value, so no new claims are created. Old rows are still
+// readable for a player's history.
 
 async function listPlayerPrizeClaims(playerId) {
   assertConfigured();
@@ -1924,6 +1902,105 @@ async function listPlayerSupportTickets(playerId) {
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
+}
+
+// ---- sponsors + lobby settings -------------------------------------------------
+// Public reads only ever return sponsors that are status 'active' and inside
+// their starts_at/ends_at window. Writes happen in the admin panel.
+
+const SPONSOR_TIER_ORDER = { platinum: 0, gold: 1, silver: 2, partner: 3 };
+
+function sponsorIsLive(s, now = Date.now()) {
+  return (
+    s &&
+    s.status === 'active' &&
+    (!s.starts_at || new Date(s.starts_at).getTime() <= now) &&
+    (!s.ends_at || new Date(s.ends_at).getTime() > now)
+  );
+}
+
+async function listActiveSponsors({ placement, target = null } = {}) {
+  assertConfigured();
+  let query = supabase
+    .from('sponsor_placements')
+    .select('placement, target_id, sort_order, sponsor:sponsors!inner(id, name, logo_url, link_url, tier, status, starts_at, ends_at)')
+    .eq('active', true)
+    .eq('sponsor.status', 'active');
+  if (placement) query = query.eq('placement', placement);
+  if (target) query = query.eq('target_id', String(target));
+  const { data, error } = await query.limit(200);
+  if (error) throw error;
+  const seen = new Set();
+  return data
+    .filter((row) => sponsorIsLive(row.sponsor))
+    .sort((a, b) => (SPONSOR_TIER_ORDER[a.sponsor.tier] ?? 9) - (SPONSOR_TIER_ORDER[b.sponsor.tier] ?? 9) || a.sort_order - b.sort_order)
+    .filter((row) => {
+      const key = `${row.sponsor.id}:${row.placement}:${row.target_id || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((row) => ({
+      id: row.sponsor.id,
+      name: row.sponsor.name,
+      logoUrl: row.sponsor.logo_url,
+      tier: row.sponsor.tier,
+      placement: row.placement,
+      targetId: row.target_id,
+    }));
+}
+
+// Only a live sponsor can be clicked through - a paused/ended one 404s.
+async function getLiveSponsor(id) {
+  assertConfigured();
+  const { data, error } = await supabase.from('sponsors').select('id, name, link_url, status, starts_at, ends_at').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return sponsorIsLive(data) ? data : null;
+}
+
+async function recordSponsorClick({ sponsorId, placement, targetId, userId, ipHash }) {
+  assertConfigured();
+  const { error } = await supabase
+    .from('sponsor_clicks')
+    .insert({ sponsor_id: sponsorId, placement, target_id: targetId, user_id: userId, ip_hash: ipHash });
+  if (error) throw error;
+}
+
+async function bumpSponsorImpression({ sponsorId, placement, day, count = 1 }) {
+  assertConfigured();
+  const { error } = await supabase.rpc('sponsor_impression_bump', { p_sponsor: sponsorId, p_placement: placement, p_day: day, p_n: count });
+  if (error) throw error;
+}
+
+async function countRecentSponsorLeads(ipHash, sinceIso) {
+  assertConfigured();
+  const { count, error } = await supabase
+    .from('sponsor_leads')
+    .select('id', { count: 'exact', head: true })
+    .eq('ip_hash', ipHash)
+    .gte('created_at', sinceIso);
+  if (error) throw error;
+  return count || 0;
+}
+
+async function createSponsorLead(lead) {
+  assertConfigured();
+  const { data, error } = await supabase.from('sponsor_leads').insert(lead).select('id, created_at').single();
+  if (error) throw error;
+  return data;
+}
+
+const LOBBY_SETTING_KEYS = ['show_seed_accounts', 'lobby_empty_message', 'featured_competition_id', 'season_label'];
+async function getLobbySettings() {
+  const raw = await getAppSettings(LOBBY_SETTING_KEYS);
+  return {
+    showSeedAccounts: raw.show_seed_accounts === true,
+    emptyMessage: typeof raw.lobby_empty_message === 'string' && raw.lobby_empty_message.trim()
+      ? raw.lobby_empty_message
+      : 'Season 1 is live. Be one of the first traders on the board.',
+    featuredCompetitionId: typeof raw.featured_competition_id === 'string' ? raw.featured_competition_id : null,
+    seasonLabel: typeof raw.season_label === 'string' ? raw.season_label : 'Season 1',
+  };
 }
 
 module.exports = {
@@ -2049,8 +2126,6 @@ module.exports = {
   getReferralPartnerByCode,
   recordReferralClick,
   createReferralConversion,
-  getUnclaimedTournamentWins,
-  createPrizeClaim,
   getCompetitionById,
   updateCompetition,
   transitionCompetition,
@@ -2076,11 +2151,19 @@ module.exports = {
   compRefundEntry,
   insertCompEquitySnapshot,
   listCompEquitySnapshots,
-  getUnclaimedCompetitionCashPrizes,
   listPlayerPrizeClaims,
   createSupportTicket,
   listPlayerSupportTickets,
   getActivePromoPopup,
   getPeriodLeaderboard,
   deletePlayer,
+  showSeedAccounts,
+  dubaiDayStart,
+  listActiveSponsors,
+  getLiveSponsor,
+  recordSponsorClick,
+  bumpSponsorImpression,
+  countRecentSponsorLeads,
+  createSponsorLead,
+  getLobbySettings,
 };

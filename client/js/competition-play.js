@@ -71,7 +71,7 @@
       cls = 'closed';
     } else if (c.status === 'ended' || now >= new Date(c.endsAt).getTime()) {
       const a = view.account;
-      const prize = [a.prizeCoins ? `${a.prizeCoins} coins` : '', a.prizeUsd ? `$${a.prizeUsd} cash - claim it in your Wallet` : ''].filter(Boolean).join(' + ');
+      const prize = a.prizeCoins ? `${Number(a.prizeCoins).toLocaleString()} coins` : '';
       text = a.finalRank ? `Competition over - you finished #${a.finalRank}${prize ? ` and won ${prize}` : ''}.` : 'Competition over - final results are being calculated.';
       cls = 'ended';
     } else if (now < new Date(c.startsAt).getTime()) {

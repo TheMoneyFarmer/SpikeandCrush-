@@ -1,0 +1,40 @@
+/* Lobby design system tokens - the single source for the lobby redesign's
+   colours, type, shape and motion. Fonts: Rajdhani (headings, numbers,
+   buttons, labels) and Inter (body), loaded by each page's Google Fonts
+   <link> with display=swap. */
+
+:root {
+  --bg: #07090F;
+  --panel: #0E1320;
+  --panel-2: #111724;
+  --panel-3: #0B0F19;
+  --line: #1D2638;
+  --line-2: #232C40;
+  --text: #E8ECF4;
+  --muted: #9AA4B8;
+  --gold: #F5B83D;
+  --gold-bg: #2A2412;
+  --gold-ink: #1A1405;
+  --spike: #2EE6A6;
+  --crush: #FF4D5E;
+
+  --font-display: 'Rajdhani', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
+
+  --r-card: 16px;
+  --r-tile: 12px;
+  --r-btn: 11px;
+  --r-chip: 6px;
+
+  --page-max: 1376px;
+  --page-pad: 32px;
+  --gap: 20px;
+  --touch: 44px;
+
+  --ease: 150ms ease;
+}
+
+@media (max-width: 1023px) {
+  :root { --page-pad: 16px; }
+}

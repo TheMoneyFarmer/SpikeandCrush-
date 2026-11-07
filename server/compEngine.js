@@ -14,6 +14,8 @@ const instruments = require('./instruments');
 const replayClock = require('./replayClock');
 const { GAME_RULES, baseRatingForPosition, tierForRating } = require('./gameEngine');
 
+const NO_CASH_VALUE_LINE = 'Coins have no cash value and cannot be withdrawn or exchanged for money.';
+
 const TICK_MS = 5000;
 const LOCK_TTL_SECONDS = 15;
 const SNAPSHOT_EVERY_MS = 5 * 60 * 1000;
@@ -299,7 +301,6 @@ function createCompEngine({ io, notifyPlayer }) {
         tradeCount: account.trade_count,
         finalRank: account.final_rank,
         prizeCoins: account.prize_coins,
-        prizeUsd: Number(account.prize_usd),
       },
       rank: ranked.findIndex((a) => a.id === account.id) + 1,
       entrants: accounts.length,
@@ -695,7 +696,9 @@ function createCompEngine({ io, notifyPlayer }) {
       equity: Number(a.balance),
     }));
     const ranked = rankAccounts(accounts);
-    const payouts = Object.fromEntries((comp.prize_payouts || []).map((p) => [p.rank, p]));
+    // Prizes are coin credits only - coins have no cash value, so any legacy
+    // `usd` amount on a payout row is ignored.
+    const payouts = Object.fromEntries((comp.prize_payouts || []).map((p) => [p.rank, { coins: Number(p.coins) || 0 }]));
     const total = ranked.filter((a) => a.status !== 'disqualified').length;
 
     let paid = 0;
@@ -713,16 +716,14 @@ function createCompEngine({ io, notifyPlayer }) {
       if (!acc.prize_paid)
         Object.assign(fields, {
           prize_coins: prize.coins || 0,
-          prize_usd: prize.usd || 0,
+          prize_usd: 0,
         });
       await db.updateCompAccount(acc.id, fields);
 
       if (!(await db.compPayPrize(acc.id))) continue; // already settled for this account
       paid++;
       if (rank && !comp.is_test) await applyRating(acc.player_id, rank, total);
-      const prizeText = [prize.coins ? `${prize.coins} coins` : null, prize.usd ? `$${prize.usd} cash (claim it in your Wallet)` : null]
-        .filter(Boolean)
-        .join(' + ');
+      const prizeText = prize.coins ? `${prize.coins.toLocaleString()} coins` : '';
       const message = dq
         ? `${comp.title} has ended - your account was disqualified`
         : `${comp.title} ended - you finished #${rank} of ${total}${prizeText ? `, winning ${prizeText}` : ''}`;
@@ -731,12 +732,11 @@ function createCompEngine({ io, notifyPlayer }) {
           competitionId: comp.id,
           rank,
           prizeCoins: prize.coins || 0,
-          prizeUsd: prize.usd || 0,
         },
       });
       emit(comp.id, acc.player_id, 'comp:ended', {
         rank,
-        prize: { coins: prize.coins || 0, usd: prize.usd || 0 },
+        prize: { coins: prize.coins || 0 },
         entrants: total,
       });
     }
@@ -837,21 +837,20 @@ function createCompEngine({ io, notifyPlayer }) {
     for (const d of window.dropped) console.warn(`[compEngine] ${title}: dropped ${d.symbol} - ${d.reason}`);
     if (!window.dataWindowStart) throw new Error(`No replay data covers "${title}" - ${window.dropped.map((d) => d.symbol).join(', ')}`);
 
-    const totalCoins = payouts.reduce((s, p) => s + (p.coins || 0), 0);
-    const totalUsd = payouts.reduce((s, p) => s + (p.usd || 0), 0);
+    const coinPayouts = payouts.map((p) => ({ rank: p.rank, coins: Number(p.coins) || 0 }));
+    const totalCoins = coinPayouts.reduce((s, p) => s + p.coins, 0);
     const ordinal = (n) => `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n] || 'th'}`;
-    const prizeDetails = Object.fromEntries(
-      payouts.map((p) => [ordinal(p.rank), [p.coins ? `${p.coins} coins` : null, p.usd ? `$${p.usd}` : null].filter(Boolean).join(' + ')])
-    );
+    const prizeDetails = Object.fromEntries(coinPayouts.map((p) => [ordinal(p.rank), `${p.coins.toLocaleString()} coins`]));
     return db.createCompetitionRow({
       id,
       title,
       description,
-      rules: `Starting capital $${GAME_RULES.STARTING_CAPITAL.toLocaleString()}. Max ${GAME_RULES.MAX_LOTS} lots per trade, ${GAME_RULES.MAX_POSITIONS} open positions. Losing ${GAME_RULES.HARD_LOSS_PCT * 100}% of starting capital locks your account at its final equity. Replays real historical market data.`,
+      rules: `Starting capital $${GAME_RULES.STARTING_CAPITAL.toLocaleString()}. Max ${GAME_RULES.MAX_LOTS} lots per trade, ${GAME_RULES.MAX_POSITIONS} open positions. Losing ${GAME_RULES.HARD_LOSS_PCT * 100}% of starting capital locks your account at its final equity. Replays real historical market data. ${NO_CASH_VALUE_LINE}`,
       type: 'native',
-      prize_pool: totalUsd,
+      prize_pool: 0,
+      prize_pool_coins: totalCoins,
       prize_details: prizeDetails,
-      prize_payouts: payouts,
+      prize_payouts: coinPayouts,
       instruments: window.instruments,
       entry_fee_coins: entryFee,
       starts_at: new Date(startsAt).toISOString(),

@@ -4,12 +4,12 @@ window.TW = window.TW || {};
 
 // Shows a full explanation of a game mode the first 3 times a player clicks
 // into it (index.html's #modeQuickBtn etc.), then gets out of the way -
-// intercepts the existing click handlers already wired in home.js/main.js
+// intercepts the existing click handlers already wired in main.js
 // rather than replacing them, so the real match-start logic is untouched.
 (function () {
   const modeData = {
     quickwar: {
-      icon: '⚔️', name: 'Quick War', tagline: 'The standard battle.', color: 'var(--accent)',
+      icon: 'swords', name: 'Quick War', tagline: 'The standard battle.', color: 'var(--accent)',
       duration: '10 Minutes', players: '2 to 6 Players', entry: '10 Coins', ranked: 'Yes — affects War Rating',
       instruments: '5 Random Instruments', cards: '3 Random Sabotage Cards',
       sections: [
@@ -26,7 +26,7 @@ window.TW = window.TW || {};
       ],
     },
     blitz: {
-      icon: '💨', name: 'Blitz War', tagline: 'Three minutes of pure chaos.', color: 'var(--warning)',
+      icon: 'bolt', name: 'Blitz War', tagline: 'Three minutes of pure chaos.', color: 'var(--warning)',
       duration: '3 Minutes', players: '2 to 6 Players', entry: '5 Coins', ranked: 'No — casual only',
       instruments: '3 Random Instruments', cards: '1 Random Sabotage Card',
       sections: [
@@ -42,7 +42,7 @@ window.TW = window.TW || {};
       ],
     },
     grandwar: {
-      icon: '🏆', name: 'Grand War', tagline: 'The prestige battle.', color: 'var(--gold, var(--accent-gold))',
+      icon: 'trophy', name: 'Grand War', tagline: 'The prestige battle.', color: 'var(--gold, var(--accent-gold))',
       duration: '20 Minutes', players: '4 to 8 Players', entry: '25 Coins', ranked: 'Yes — separate Grand War rating',
       instruments: 'Full instrument list', cards: '5 Cards — you choose your deck',
       sections: [
@@ -58,7 +58,7 @@ window.TW = window.TW || {};
       ],
     },
     solo: {
-      icon: '🎯', name: 'Solo Ranked', tagline: 'You vs the machines.', color: 'var(--info, #4fc3f7)',
+      icon: 'target', name: 'Solo Ranked', tagline: 'You vs the machines.', color: 'var(--info, #4fc3f7)',
       duration: '10 Minutes', players: 'You vs AI Opponents', entry: 'Free', ranked: 'Yes — separate Solo Rating',
       instruments: 'Random', cards: '3 Random Cards',
       sections: [
@@ -74,7 +74,7 @@ window.TW = window.TW || {};
       ],
     },
     async: {
-      icon: '📅', name: 'Async Daily Challenge', tagline: 'Everyone trades the same market.', color: 'var(--accent-red, #ba68c8)',
+      icon: 'calendar', name: 'Async Daily Challenge', tagline: 'Everyone trades the same market.', color: 'var(--accent-red, #ba68c8)',
       duration: '10 Minutes — complete any time today', players: 'Everyone who enters today', entry: '5 Coins', ranked: 'Separate daily leaderboard',
       instruments: '3 Pre-selected — same for everyone', cards: 'None — pure trading skill',
       sections: [
@@ -112,12 +112,12 @@ window.TW = window.TW || {};
     modal.innerHTML = `
       <div class="mode-card-modal">
         <div class="mode-card-header">
-          <div class="mode-card-icon">${data.icon}</div>
+          <div class="mode-card-icon">${TW.icon ? TW.icon(data.icon, { size: 36 }) : ''}</div>
           <div>
             <h2 class="mode-card-name" style="color:${data.color}">${TW.escapeHtml(data.name)}</h2>
             <p class="mode-card-tagline">${TW.escapeHtml(data.tagline)}</p>
           </div>
-          <button class="mode-card-close">✕</button>
+          <button class="mode-card-close" aria-label="Close">${TW.icon ? TW.icon('close', { size: 18 }) : '×'}</button>
         </div>
         <div class="mode-stats-row">
           <div class="mode-stat"><div class="mode-stat-label">Duration</div><div class="mode-stat-value">${TW.escapeHtml(data.duration)}</div></div>
@@ -133,7 +133,7 @@ window.TW = window.TW || {};
             </div>
           `).join('')}
           <div class="mode-tips">
-            <h4 class="mode-section-title" style="color:${data.color}">💡 Pro Tips</h4>
+            <h4 class="mode-section-title" style="color:${data.color}">Pro Tips</h4>
             ${data.tips.map((tip) => `<div class="mode-tip-item"><span class="mode-tip-bullet" style="color:${data.color}">→</span><span>${TW.escapeHtml(tip)}</span></div>`).join('')}
           </div>
         </div>

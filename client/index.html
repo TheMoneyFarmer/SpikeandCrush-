@@ -2,331 +2,132 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0A0C14">
+<meta name="theme-color" content="#07090F">
 <script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<script src="/js/device.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,500;0,700;1,600&display=swap" rel="stylesheet">
-<title>Spike & Crush</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<title>Spike & Crush — Lobby</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F5B83D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='m7 14 4-4 3 3 5-6'/%3E%3C/svg%3E" />
 <meta name="description" content="The competitive trading game. Price spikes. Then it crushes you. Sabotage legal. Mercy not included." />
 <meta property="og:title" content="Spike & Crush" />
 <meta property="og:description" content="The competitive trading game. Price spikes. Then it crushes you. Sabotage legal. Mercy not included." />
 <meta name="twitter:card" content="summary" />
-<meta name="twitter:title" content="Spike & Crush" />
-<meta name="twitter:description" content="The competitive trading game. Price spikes. Then it crushes you. Sabotage legal. Mercy not included." />
 <link rel="stylesheet" href="css/main.css" />
 <link rel="stylesheet" href="css/themes.css" />
 <link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/premium.css" />
 <link rel="stylesheet" href="/css/mobile.css">
-<style>
-  .hero {
-    text-align: center;
-    padding: 60px 20px 40px 20px;
-  }
-  .hero h1 {
-    font-size: 52px;
-    letter-spacing: 1px;
-  }
-  .hero h1 span {
-    color: var(--accent);
-  }
-  .hero .tagline {
-    font-size: 18px;
-    color: var(--text-secondary);
-  }
-  .split {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 24px;
-    align-items: start;
-  }
-  @media (max-width: 800px) {
-    .split {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  }
-  .tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-  .tabs button {
-    flex: 1;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    padding: 10px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-weight: 700;
-    min-height: 44px;
-  }
-  .tabs button.active {
-    color: var(--accent);
-    border-color: var(--accent);
-  }
-  .social-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-  .google-signin-btn,
-  .apple-signin-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
-    min-height: 44px;
-    border-radius: var(--radius);
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-  }
-  .google-signin-btn {
-    background: #fff;
-    color: #1f1f1f;
-    border: 1px solid var(--border);
-  }
-  .google-signin-btn:hover {
-    background: #f5f5f5;
-  }
-  .apple-signin-btn {
-    background: #000;
-    color: #fff;
-    border: 1px solid #000;
-  }
-  .apple-signin-btn:hover {
-    background: #1a1a1a;
-  }
-  .auth-divider {
-    display: flex;
-    align-items: center;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 12px;
-    margin-bottom: 16px;
-  }
-  .auth-divider::before,
-  .auth-divider::after {
-    content: '';
-    flex: 1;
-    border-bottom: 1px solid var(--border);
-  }
-  .auth-divider span {
-    padding: 0 10px;
-  }
-  .forgot-password {
-    text-align: center;
-    margin-top: 10px;
-    font-size: 13px;
-  }
-  .forgot-password a {
-    color: var(--text-secondary);
-    text-decoration: none;
-  }
-  .forgot-password a:hover {
-    color: var(--accent);
-    text-decoration: underline;
-  }
-  .menu-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .join-row {
-    display: flex;
-    gap: 8px;
-  }
-  .join-row input {
-    flex: 1;
-    min-height: 44px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: var(--radius);
-    padding: 10px 12px;
-    letter-spacing: 3px;
-    font-family: var(--mono);
-    text-align: center;
-  }
-  table.lb {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-  }
-  table.lb th {
-    text-align: left;
-    color: var(--text-secondary);
-    font-size: 11px;
-    text-transform: uppercase;
-    padding: 6px 8px;
-  }
-  table.lb td {
-    padding: 8px;
-    border-top: 1px solid var(--border);
-  }
-</style>
+<link rel="stylesheet" href="/css/lobby-tokens.css">
+<link rel="stylesheet" href="/css/candle-bg.css">
+<link rel="stylesheet" href="/css/lobby-home.css">
 </head>
-<body data-page="index">
-  <div id="twNav" data-active="home"></div>
-  <div id="twAnnouncementBanner"></div>
+<body data-page="index" class="lb-page">
+  <a class="lb-skip" href="#lbMain">Skip to lobby</a>
+  <div class="lb-wrap">
+    <!-- 1. Ticker (the only one on this page) -->
+    <div class="lb-ticker" id="lbTicker" aria-label="Instrument prices, replayed market data">
+      <div class="lb-ticker-track" id="lbTickerTrack"><span class="lb-skel lb-skel-line" style="width:60%"></span></div>
+    </div>
 
-  <div class="tw-ticker-wrap" id="twMarketTickerWrap">
-    <div class="tw-ticker-track" id="twTickerTrack"></div>
-  </div>
+    <!-- 2. Top bar (desktop) -->
+    <div id="twNav" data-active="home" data-variant="lobby"></div>
+    <div id="twAnnouncementBanner"></div>
 
-  <!-- Logged-in: Trading Floor hub (Redesign 3) -->
-  <section class="tw-hero-section hidden" id="twHubHero">
-    <canvas class="tw-login-chart-canvas" id="hubChartCanvas"></canvas>
-    <div class="tw-hero-particles" id="twHeroParticles"></div>
-    <div class="tw-hero-content">
-      <div class="logo-hero-wrapper">
-        <svg class="logo-chart-line" viewBox="0 0 300 60" preserveAspectRatio="none">
-          <polyline
-            points="0,50 60,45 90,40 120,10 150,8 160,12 200,35 240,52 300,58"
-            fill="none"
-            stroke="url(#chartGradient)"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <defs>
-            <linearGradient id="chartGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#00C896"/>
-              <stop offset="50%" stop-color="#00C896"/>
-              <stop offset="51%" stop-color="#FF4444"/>
-              <stop offset="100%" stop-color="#FF4444"/>
-            </linearGradient>
-          </defs>
-        </svg>
-        <div class="sc-logo hero-logo">
-          <span class="sc-s1">S</span>
-          <span class="sc-p">P</span>
-          <span class="sc-i">I</span>
-          <span class="sc-k">K</span>
-          <span class="sc-e">E</span>
-          <span class="sc-amp">&amp;</span>
-          <span class="sc-c">C</span>
-          <span class="sc-r">R</span>
-          <span class="sc-u">U</span>
-          <span class="sc-s2">S</span>
-          <span class="sc-h">H</span>
+    <!-- Mobile: profile row -->
+    <section class="lb-mprofile" id="lbMProfile" aria-label="Your profile"></section>
+
+    <main id="lbMain">
+      <!-- 3. Brand band -->
+      <section class="lb-brand" id="lbBrand" data-candle-bg aria-label="Spike and Crush today">
+        <div class="lb-brand-id">
+          <div class="lb-logo" aria-label="Spike and Crush"><span class="s">SPIKE</span><span class="a">&amp;</span><span class="c">CRUSH</span></div>
+          <div class="lb-tag">Up. Then not.</div>
+          <div class="lb-tag2">The competitive trading game where sabotage is legal and nothing stays up.</div>
         </div>
-      </div>
-      <p class="tw-hero-tagline tw-tagline-irony" id="twHeroTagline"></p>
-      <p class="tw-hero-tagline-secondary">The competitive trading game where sabotage is legal and nothing stays up.</p>
-      <div class="tw-stats-bar" id="twStatsBar"></div>
-      <div class="tw-featured-match hidden" id="twFeaturedMatch"></div>
-    </div>
-  </section>
-
-  <div class="tw-container">
-    <section id="mainMenu" class="tw-hub-grid hidden">
-      <div class="tw-hub-left" id="twHubLeft">
-        <div class="tw-hub-card hidden" id="twHubTournamentCard"></div>
-        <div class="tw-hub-card hidden" id="twHubBattlePassCard"></div>
-        <div class="tw-hub-card hidden" id="twHubShopCard"></div>
-        <div class="tw-hub-card hidden" id="twHubDailyCard"></div>
-      </div>
-
-      <div class="tw-hub-center">
-        <div class="panel tw-hub-identity" id="twHubIdentity"></div>
-        <div class="tw-my-comps hidden" id="twMyComps"></div>
-        <div class="join-row">
-          <input type="text" id="joinRoomCodeInput" placeholder="6 DIGIT CODE" maxlength="6" />
-          <button id="joinPrivateBtn" class="btn">Join</button>
+        <div class="lb-stats" id="lbStats">
+          <div class="lb-stat lb-skel"></div><div class="lb-stat lb-skel"></div><div class="lb-stat lb-skel"></div><div class="lb-stat lb-skel"></div>
         </div>
-        <div class="tw-mode-btn tw-hub-private-row" id="modePrivateBtn"><div class="icon">🔒</div><div class="label">Private War</div><div class="meta">🪙 1 to host · free for friends</div></div>
-
-        <div class="tw-partners-label hidden" id="twPartnersLabel">Trading Partners</div>
-        <div class="tw-partner-cards-row" id="twHubPartnerCards"></div>
-      </div>
-
-      <div class="tw-hub-right">
-        <button type="button" class="tw-hub-mode-btn" id="modeQuickBtn">
-          <span class="icon">⚔️</span>
-          <span class="meta"><span class="label">QUICK WAR</span><span class="sub">RANKED</span></span>
-          <span class="tw-premium-diamond">◆</span>
-        </button>
-        <button type="button" class="tw-hub-mode-btn" id="modeBlitzBtn">
-          <span class="icon">💨</span>
-          <span class="meta"><span class="label">BLITZ WAR</span><span class="sub">CASUAL</span></span>
-          <span class="tw-premium-diamond">◆</span>
-        </button>
-        <button type="button" class="tw-hub-mode-btn" id="modeGrandBtn">
-          <span class="icon">🏆</span>
-          <span class="meta"><span class="label">GRAND WAR</span><span class="sub">RANKED</span></span>
-          <span class="tw-premium-diamond">◆</span>
-        </button>
-        <button type="button" class="tw-hub-mode-btn" id="modeSoloBtn">
-          <span class="icon">🎯</span>
-          <span class="meta"><span class="label">SOLO RANKED</span><span class="sub">RANKED</span></span>
-        </button>
-        <button type="button" class="tw-hub-mode-btn" id="modeAsyncBtn">
-          <span class="icon">📊</span>
-          <span class="meta"><span class="label">ASYNC DAILY</span><span class="sub">DAILY</span></span>
-          <span class="tw-premium-diamond">◆</span>
-        </button>
-        <button type="button" class="tw-hub-mode-btn" id="modeTournamentBtn">
-          <span class="icon">🥇</span>
-          <span class="meta"><span class="label">TOURNAMENT</span><span class="sub">COMPETE</span></span>
-        </button>
-        <div class="tw-comp-group-label">COMPETITIONS</div>
-        <div class="tw-comp-mode-cards" id="twCompModeCards"></div>
-        <button type="button" class="tw-hub-start-btn" id="twHubStartBtn">QUICK PLAY → 10 COINS</button>
-      </div>
-    </section>
-
-    <div class="tw-hub-ticker-wrap tw-reveal hidden" id="twHubTickerWrap" style="--reveal-delay:0.7s;">
-      <div class="tw-hub-ticker-track" id="twHubTickerTrack"></div>
-    </div>
-
-    <section class="panel tw-reveal" style="margin-top:20px;--reveal-delay:0.78s;">
-      <h3>🏆 Global War Rating — Top 10</h3>
-      <div style="overflow-x: auto;">
-        <table class="lb">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Player</th>
-              <th>Tier</th>
-              <th>Rating</th>
-              <th>Record</th>
-            </tr>
-          </thead>
-          <tbody id="leaderboardPreviewBody">
-            <tr><td colspan="5" class="text-secondary">Spike & Crush loading...</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div style="margin-top: 12px; text-align: right;">
-        <a href="/leaderboard" class="text-secondary" style="font-size: 13px;">View Full Leaderboard →</a>
-      </div>
-    </section>
-
-    <div class="tw-widgets-grid">
-      <section class="panel tw-reveal" style="--reveal-delay:0.86s;">
-        <h3>📰 Recent Activity</h3>
-        <div id="activityFeed" class="text-secondary" style="font-size:12px;">Spike & Crush loading...</div>
       </section>
-      <section class="panel tw-reveal" style="--reveal-delay:0.94s;">
-        <h3>🔥 Hot Streaks</h3>
-        <div id="hotStreaks" class="text-secondary" style="font-size:12px;">Spike & Crush loading...</div>
+
+      <!-- 4. Sponsor strip (hidden for players when there are no active sponsors) -->
+      <section class="lb-sponsors hidden" id="lbSponsors" aria-label="Official partners">
+        <span class="lb-label">Official partners</span>
+        <div class="lb-sponsor-logos" id="lbSponsorLogos"></div>
+        <a class="lb-btn lb-btn-outline-gold lb-sponsor-cta" href="/sponsor">Sponsor a game</a>
       </section>
-      <section class="panel tw-reveal" style="--reveal-delay:1.02s;">
-        <h3>👑 War Lord Spotlight</h3>
-        <div id="warLordSpotlight" class="tw-warlord-spotlight text-secondary" style="font-size:12px;">Spike & Crush loading...</div>
-      </section>
-    </div>
+
+      <!-- 5. Main row -->
+      <div class="lb-main">
+        <aside class="lb-card lb-player" id="lbPlayer" aria-label="Your player card">
+          <div class="lb-skel" style="height:240px"></div>
+        </aside>
+
+        <div class="lb-centre">
+          <section class="lb-card lb-hero" id="lbHero" data-candle-bg aria-label="Featured competition">
+            <div class="lb-hero-inner" id="lbHeroInner"><div class="lb-skel" style="height:260px"></div></div>
+          </section>
+
+          <div class="lb-modes" id="lbModes" aria-label="Game modes">
+            <div class="lb-sheet-head">
+              <span class="lb-label">Choose a mode</span>
+              <button type="button" class="lb-icon-btn" id="lbSheetClose" aria-label="Close modes"></button>
+            </div>
+            <div class="lb-mode-grid">
+              <button type="button" class="lb-mode" id="modeQuickBtn" data-mode="quick" style="--mode:#F5B83D"><span class="lb-mode-ic"></span><span class="lb-mode-name">Quick</span><span class="lb-mode-dur" data-dur="quick">10 min</span></button>
+              <button type="button" class="lb-mode" id="modeBlitzBtn" data-mode="blitz" style="--mode:#FF4D5E"><span class="lb-mode-ic"></span><span class="lb-mode-name">Blitz</span><span class="lb-mode-dur" data-dur="blitz">3 min</span></button>
+              <button type="button" class="lb-mode" id="modeGrandBtn" data-mode="grand" style="--mode:#A78BFA"><span class="lb-mode-ic"></span><span class="lb-mode-name">Grand</span><span class="lb-mode-dur" data-dur="grand">20 min</span></button>
+              <button type="button" class="lb-mode" id="modeSoloBtn" data-mode="solo" style="--mode:#2EE6A6"><span class="lb-mode-ic"></span><span class="lb-mode-name">Solo</span><span class="lb-mode-dur" data-dur="solo">10 min</span></button>
+              <button type="button" class="lb-mode" id="modeAsyncBtn" data-mode="async" style="--mode:#4DA6FF"><span class="lb-mode-ic"></span><span class="lb-mode-name">Async</span><span class="lb-mode-dur" data-dur="async">10 min</span></button>
+              <button type="button" class="lb-mode" id="modePrivateBtn" data-mode="private" style="--mode:#C3CBDB"><span class="lb-mode-ic"></span><span class="lb-mode-name">Private</span><span class="lb-mode-dur" data-dur="private">10 min</span></button>
+              <button type="button" class="lb-mode" id="modeTournamentBtn" data-mode="tournament" style="--mode:#F59E0B"><span class="lb-mode-ic"></span><span class="lb-mode-name">Tournament</span><span class="lb-mode-dur" data-dur="tournament">15 min</span></button>
+            </div>
+            <div class="lb-join">
+              <label class="lb-label" for="joinRoomCodeInput">Join a private war</label>
+              <input type="text" id="joinRoomCodeInput" inputmode="numeric" placeholder="6 digit code" maxlength="6" autocomplete="off" />
+              <button type="button" id="joinPrivateBtn" class="lb-btn lb-btn-dark">Join</button>
+            </div>
+          </div>
+        </div>
+
+        <section class="lb-card lb-comps" id="lbComps" aria-labelledby="lbCompsTitle">
+          <header class="lb-card-head"><h2 class="lb-h" id="lbCompsTitle">Competitions</h2><a class="lb-see-all" href="/competitions">See all</a></header>
+          <div class="lb-comp-list" id="lbCompList"><div class="lb-skel" style="height:56px"></div><div class="lb-skel" style="height:56px"></div><div class="lb-skel" style="height:56px"></div></div>
+        </section>
+      </div>
+
+      <!-- 6. Bottom row -->
+      <div class="lb-bottom">
+        <section class="lb-card lb-board" aria-labelledby="lbBoardTitle">
+          <header class="lb-card-head"><h2 class="lb-h" id="lbBoardTitle">Leaderboard</h2><a class="lb-see-all" href="/leaderboard">Full board</a></header>
+          <div id="lbBoard"><div class="lb-skel" style="height:200px"></div></div>
+        </section>
+        <section class="lb-card lb-feed" aria-labelledby="lbFeedTitle">
+          <header class="lb-card-head"><h2 class="lb-h" id="lbFeedTitle">Activity</h2></header>
+          <div id="lbFeed"><div class="lb-skel" style="height:200px"></div></div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="legal-footer lb-footer">
+      <div class="legal-footer-content">
+        <p class="legal-text">Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.</p>
+        <p class="legal-text legal-coins">Coins have no cash value and cannot be withdrawn or exchanged for money.</p>
+        <p class="legal-links"><a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a> · <a href="/sponsor">Sponsor a game</a></p>
+        <p class="legal-support">For support: <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a></p>
+      </div>
+    </footer>
   </div>
+  <div class="lb-sheet-backdrop hidden" id="lbSheetBackdrop"></div>
+  <div class="lb-sr-only" aria-live="polite" id="lbCountdownLive"></div>
 
+  <script src="/js/icons.js"></script>
+  <script src="/js/time-ago.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
@@ -335,23 +136,13 @@
   <script src="js/mode-cards.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/auth.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
-<script src="js/socket.js"></script>
-  <script src="js/device.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/socket.js"></script>
   <script src="js/friends-panel.js"></script>
   <script src="js/lottie.js"></script>
-  <script src="js/home.js"></script>
-  <footer class="legal-footer">
-    <div class="legal-footer-content">
-      <p class="legal-text">
-        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
-      </p>
-      <p class="legal-links">
-        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
-      </p>
-      <p class="legal-support">For support: <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a></p>
-    </div>
-  </footer>
+  <script src="js/candle-bg.js"></script>
+  <script src="js/comp-entry.js"></script>
+  <script src="js/lobby-home.js"></script>
   <script src="js/support-widget.js"></script>
   <script src="/js/orientation.js"></script>
   <script src="/js/bottom-nav.js"></script>

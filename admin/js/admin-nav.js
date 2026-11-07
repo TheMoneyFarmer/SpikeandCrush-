@@ -24,12 +24,17 @@ window.Admin = window.Admin || {};
       { key: 'tournaments-sponsors', label: 'Sponsors / Prizes', href: '/tournaments.html?tab=sponsors' },
       { key: 'competitions', label: 'Competitions', href: '/competitions.html' },
     ]},
+    { group: 'Sponsors', icon: '🤝', items: [
+      { key: 'sponsors', label: 'Sponsors', href: '/sponsors.html' },
+      { key: 'sponsors-leads', label: 'Sponsor Leads', href: '/sponsors.html?tab=leads' },
+      { key: 'lobby-settings', label: 'Lobby Settings', href: '/sponsors.html?tab=lobby' },
+    ]},
     { group: 'Monetisation', icon: '💰', items: [
       { key: 'mon-overview', label: 'Revenue Overview', href: '/monetisation.html?tab=overview' },
       { key: 'mon-transactions', label: 'Coin Transactions', href: '/monetisation.html?tab=transactions' },
       { key: 'mon-battlepass', label: 'Battle Pass', href: '/monetisation.html?tab=battlepass' },
       { key: 'mon-shop', label: 'Cosmetic Shop', href: '/monetisation.html?tab=shop' },
-      { key: 'mon-withdrawals', label: 'Withdrawals', href: '/monetisation.html?tab=withdrawals' },
+      { key: 'mon-withdrawals', label: 'Prize Claims (archive)', href: '/monetisation.html?tab=withdrawals' },
       { key: 'mon-brokers', label: 'Broker Partners', href: '/monetisation.html?tab=brokers' },
       { key: 'mon-coaching', label: 'Coaching Sessions', href: '/monetisation.html?tab=coaching' },
       { key: 'mon-partners', label: 'Referral Partners', href: '/partners.html' },

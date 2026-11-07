@@ -227,15 +227,9 @@ window.TW = window.TW || {};
     return Math.max(0, Math.min(100, ((r - tier.min) / (tier.max - tier.min + 1)) * 100));
   };
 
-  TW.TIER_ICON = {
-    Recruit: '🔰',
-    Trader: '⚔️',
-    Broker: '💼',
-    Analyst: '📊',
-    Veteran: '🎖️',
-    Elite: '💎',
-    'War Lord': '👑',
-  };
+  // Tier glyphs are colour-coded SVGs from js/icons.js (looked up lazily so
+  // script order between icons.js and main.js doesn't matter).
+  TW.TIER_ICON = new Proxy({}, { get: (_, tier) => (TW.tierIcon ? TW.tierIcon(String(tier)) : '') });
 
   // The one consistent player-identity format used everywhere a player
   // appears: [Avatar] [Username] [TierIcon] [Rating]. `player` accepts
@@ -243,7 +237,7 @@ window.TW = window.TW || {};
   // pass opts.rating to force a specific one (e.g. grand_war_rating).
   TW.renderPlayerBadge = (player, opts = {}) => {
     const tier = player?.tier || 'Recruit';
-    const icon = TW.TIER_ICON[tier] || '🔰';
+    const icon = TW.TIER_ICON[tier];
     const rating = opts.rating ?? player?.war_rating ?? player?.warRating ?? 0;
     const showAvatar = opts.showAvatar !== false;
     const showRating = opts.showRating !== false;
@@ -404,7 +398,7 @@ window.TW = window.TW || {};
     if (tierBadge) {
       tierBadge.classList.toggle('hidden', !player);
       if (player) {
-        tierBadge.textContent = TW.TIER_ICON[player.tier] || '🔰';
+        tierBadge.innerHTML = TW.TIER_ICON[player.tier];
         tierBadge.title = player.tier;
         tierBadge.className = `tw-nav-tier ${TW.tierClass(player.tier)}`;
       }

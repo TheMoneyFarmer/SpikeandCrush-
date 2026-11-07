@@ -1,0 +1,59 @@
+/* Floating candlestick background (js/candle-bg.js). Sits behind its host's
+   content: the host gets position:relative + isolation, the layer z-index 0,
+   the host's own children z-index 1. Transform-only animation (GPU). */
+
+.candle-bg-host { position: relative; isolation: isolate; overflow: hidden; }
+.candle-bg-host > :not(.candle-bg) { position: relative; z-index: 1; }
+
+.candle-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.candle-bg .cb-candle {
+  position: absolute;
+  bottom: -30%;
+  width: 8px;
+  opacity: 0.3;
+  will-change: transform;
+  animation: cb-drift var(--cb-dur, 60s) linear infinite;
+  animation-delay: var(--cb-delay, 0s);
+}
+.candle-bg .cb-body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 2px;
+  background: var(--cb-color);
+}
+.candle-bg .cb-wick {
+  position: absolute;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  top: 0;
+  bottom: 0;
+  border-radius: 1px;
+  background: var(--cb-color);
+}
+.candle-bg .cb-up { --cb-color: var(--spike, #2EE6A6); }
+.candle-bg .cb-down { --cb-color: var(--crush, #FF4D5E); }
+
+@keyframes cb-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(var(--cb-dx, 20px), -160%, 0); }
+}
+
+.candle-bg.is-paused .cb-candle { animation-play-state: paused; }
+
+/* Reduced motion: the same candles, standing still where they were placed. */
+@media (prefers-reduced-motion: reduce) {
+  .candle-bg .cb-candle {
+    animation: none;
+    bottom: auto;
+    top: var(--cb-static-top, 40%);
+  }
+}

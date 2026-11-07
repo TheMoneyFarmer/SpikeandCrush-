@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#07090F">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<title>Sponsor a Game — Spike & Crush</title>
+<meta name="description" content="Put your brand in front of Spike & Crush traders: sponsor a competition, a game mode or the lobby." />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/lobby-tokens.css" />
+<link rel="stylesheet" href="/css/candle-bg.css" />
+<link rel="stylesheet" href="/css/lobby-home.css" />
+<style>
+  .sp-page { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  .sp-head { border-radius: var(--r-card); border: 1px solid var(--line); background: linear-gradient(100deg, #0B1A18 0%, #0B0F19 50%, #1A0E16 100%); padding: 28px; margin-bottom: 20px; }
+  .sp-head h1 { margin: 6px 0 8px; font: 700 clamp(32px, 6vw, 48px) / 1 var(--font-display); text-transform: uppercase; letter-spacing: 0.02em; }
+  .sp-head p { margin: 0; color: var(--muted); max-width: 560px; }
+  .sp-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  .sp-form .full { grid-column: 1 / -1; }
+  .sp-field { display: flex; flex-direction: column; gap: 6px; }
+  .sp-field input, .sp-field select, .sp-field textarea { min-height: var(--touch); border-radius: var(--r-btn); border: 1px solid var(--line-2); background: var(--panel-3); color: var(--text); padding: 10px 12px; font: 400 15px var(--font-body); }
+  .sp-field textarea { min-height: 120px; resize: vertical; }
+  .sp-status { margin-top: 4px; font-size: 14px; }
+  .sp-status.ok { color: var(--spike); }
+  .sp-status.err { color: var(--crush); }
+  @media (max-width: 600px) { .sp-form { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body class="lb-page" data-page="sponsor">
+  <div class="sp-page">
+    <a class="lb-link-gold" href="/play">Back to the lobby</a>
+    <header class="sp-head" data-candle-bg>
+      <div>
+        <span class="lb-label">Partners</span>
+        <h1>Sponsor a game</h1>
+        <p>Present a competition, a game mode or the lobby partner strip to traders playing Spike &amp; Crush. Tell us what you have in mind and we'll get back to you.</p>
+      </div>
+    </header>
+
+    <section class="lb-card">
+      <form class="sp-form" id="sponsorForm" novalidate>
+        <div class="sp-field"><label class="lb-label" for="company">Company</label><input id="company" name="company" required maxlength="120" autocomplete="organization" /></div>
+        <div class="sp-field"><label class="lb-label" for="contactName">Contact name</label><input id="contactName" name="contactName" required maxlength="120" autocomplete="name" /></div>
+        <div class="sp-field full"><label class="lb-label" for="email">Email</label><input id="email" name="email" type="email" required maxlength="200" autocomplete="email" /></div>
+        <div class="sp-field"><label class="lb-label" for="interest">What you'd like to sponsor</label>
+          <select id="interest" name="interest">
+            <option value="competition">A competition</option>
+            <option value="mode">A game mode</option>
+            <option value="global_strip">Lobby partner strip</option>
+            <option value="hero">Lobby hero placement</option>
+            <option value="tournament">A tournament</option>
+            <option value="other">Something else</option>
+          </select></div>
+        <div class="sp-field"><label class="lb-label" for="budgetBand">Budget</label>
+          <select id="budgetBand" name="budgetBand">
+            <option value="not_sure">Not sure yet</option>
+            <option value="under_1k">Under 1k</option>
+            <option value="1k_5k">1k to 5k</option>
+            <option value="5k_20k">5k to 20k</option>
+            <option value="20k_plus">20k or more</option>
+          </select></div>
+        <div class="sp-field full"><label class="lb-label" for="message">Message</label><textarea id="message" name="message" maxlength="2000"></textarea></div>
+        <div class="full">
+          <button type="submit" class="lb-btn lb-btn-gold" id="sponsorSubmit">Send enquiry</button>
+          <div class="sp-status" id="sponsorStatus" role="status" aria-live="polite"></div>
+        </div>
+      </form>
+    </section>
+
+    <footer class="legal-footer lb-footer">
+      <div class="legal-footer-content">
+        <p class="legal-text legal-coins">Coins have no cash value and cannot be withdrawn or exchanged for money.</p>
+        <p class="legal-links"><a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a></p>
+        <p class="legal-support">For support: <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a></p>
+      </div>
+    </footer>
+  </div>
+  <script src="/js/candle-bg.js"></script>
+  <script>
+    (function () {
+      const form = document.getElementById('sponsorForm');
+      const status = document.getElementById('sponsorStatus');
+      const btn = document.getElementById('sponsorSubmit');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const body = Object.fromEntries(new FormData(form).entries());
+        if (!body.company.trim() || !body.contactName.trim()) {
+          status.className = 'sp-status err';
+          status.textContent = 'Please fill in your company and contact name.';
+          return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
+          status.className = 'sp-status err';
+          status.textContent = 'Please enter a valid email address.';
+          return;
+        }
+        btn.disabled = true;
+        status.className = 'sp-status';
+        status.textContent = 'Sending…';
+        try {
+          const res = await fetch('/api/sponsor-leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || 'Could not send your enquiry.');
+          form.reset();
+          status.className = 'sp-status ok';
+          status.textContent = 'Thanks - your enquiry is in. We will reply by email.';
+        } catch (err) {
+          status.className = 'sp-status err';
+          status.textContent = err.message;
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

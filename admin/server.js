@@ -129,6 +129,8 @@ app.use((req, res, next) => {
   next();
 });
 
+// The game site's relative-time helper, so both panels format times the same way.
+app.get('/js/time-ago.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'js', 'time-ago.js')));
 app.use(express.static(path.join(__dirname)));
 
 // ---- api routes ---------------------------------------------------------------
@@ -150,6 +152,7 @@ app.use('/api/system', require('./routes/system')());
 app.use('/api/admins', require('./routes/adminUsers')());
 app.use('/api/partners', require('./routes/partners')());
 app.use('/api/support', require('./routes/support')());
+app.use('/api/sponsors', require('./routes/sponsors')());
 
 // ---- live socket relay --------------------------------------------------------
 // Polls the game server's internal bridge every 5s and re-emits real data to

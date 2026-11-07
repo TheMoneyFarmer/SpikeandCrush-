@@ -149,7 +149,7 @@ async function notifyFriendsOfWin(playerId, username, modeLabel, pnl, matchId) {
     for (const friendId of friendIds) {
       const friend = await db.getPlayerById(friendId).catch(() => null);
       if (friend?.settings?.notifyFriendWins === false) continue;
-      notifyPlayer(friendId, 'friend_won_match', `${username} just won ${modeLabel} ${pnl >= 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)}`, {
+      notifyPlayer(friendId, 'friend_won_match', `${username} just won ${modeLabel}`, {
         fromPlayerId: playerId,
         data: { username, modeLabel, pnl, matchId },
       });
@@ -161,6 +161,7 @@ async function notifyFriendsOfWin(playerId, username, modeLabel, pnl, matchId) {
 
 const gameEngine = createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin);
 const { createCompEngine } = require('./compEngine');
+const { createLobbyRouter } = require('./lobby');
 const compEngine = createCompEngine({ io, notifyPlayer });
 
 // inviteId -> { id, fromPlayerId, fromUsername, fromTier, lobbyId, matchMode,
@@ -373,6 +374,7 @@ app.get('/tournaments', (req, res) => res.redirect(302, '/competitions'));
 app.get('/tournament/:id', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'tournament.html')));
 app.get('/competitions', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'competitions.html')));
 app.get('/competition/:id', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'competition-play.html')));
+app.get('/sponsor', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'sponsor.html')));
 app.get('/analytics', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'analytics.html')));
 app.get('/trading-floor', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 app.get('/leaderboard', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'leaderboard.html')));
@@ -2421,31 +2423,14 @@ app.get('/api/wallet/transactions', requireDb, authenticate, async (req, res) =>
   }
 });
 
-// ---- prize claims (tournament winnings cash-out) -----------------------------
-// Ordinary coins have no cash value and can never be claimed here (see
-// help.html's own Withdrawals section) - only coins actually credited by a
-// completed tournament win (gameEngine.js's 'tournament_prize' coin_transaction)
-// are eligible, and only once per tournament per player.
+// ---- prize claims (closed) ---------------------------------------------------------
+// Coins have no cash value: no coin balance, tournament prize or competition
+// prize can be turned into money. The claim endpoint stays only to answer
+// old clients with a clear 403; existing prize_claims rows stay for records.
+const NO_CASH_VALUE_MESSAGE = 'Coins have no cash value and cannot be withdrawn';
 
-// Same coin<->USD rate as the cheapest coin package (wallet.html: $24.99 /
-// 5000 coins) - the only place this conversion is defined anywhere.
-const COIN_TO_USD = 0.005;
-
-app.get('/api/prize-claims/eligible', requireDb, authenticate, async (req, res) => {
-  try {
-    const wins = await db.getUnclaimedTournamentWins(req.tokenPlayer.id);
-    // Competition cash prizes are a fixed announced USD amount, not coins.
-    const compWins = await db.getUnclaimedCompetitionCashPrizes(req.tokenPlayer.id);
-    res.json({
-      wins: [
-        ...wins.map((w) => ({ ...w, prizeUsd: Math.round(w.prizeCoins * COIN_TO_USD * 100) / 100 })),
-        ...compWins.map((w) => ({ competitionId: w.competitionId, tournamentName: w.competitionName, prizeCoins: 0, prizeUsd: w.prizeUsd })),
-      ],
-    });
-  } catch (e) {
-    console.error('[prize-claims eligible]', e);
-    res.status(500).json({ error: 'Could not load eligible prizes' });
-  }
+app.get('/api/prize-claims/eligible', requireDb, authenticate, (req, res) => {
+  res.json({ wins: [] });
 });
 
 app.get('/api/prize-claims/mine', requireDb, authenticate, async (req, res) => {
@@ -2458,64 +2443,12 @@ app.get('/api/prize-claims/mine', requireDb, authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/prize-claims', requireDb, authenticate, async (req, res) => {
-  try {
-    const { tournamentId, competitionId, payoutMethod, payoutDetails } = req.body || {};
-    if (!tournamentId && !competitionId) return res.status(400).json({ error: 'tournamentId or competitionId is required' });
-    if (payoutMethod !== 'bank_transfer' && payoutMethod !== 'crypto') {
-      return res.status(400).json({ error: 'payoutMethod must be bank_transfer or crypto' });
-    }
-    if (payoutMethod === 'bank_transfer') {
-      const { accountName, bankName, accountNumber } = payoutDetails || {};
-      if (!accountName || !bankName || !accountNumber) {
-        return res.status(400).json({ error: 'accountName, bankName, and accountNumber are required for a bank transfer' });
-      }
-    } else {
-      const { currency, walletAddress } = payoutDetails || {};
-      if (!currency || !walletAddress) {
-        return res.status(400).json({ error: 'currency and walletAddress are required for a crypto payout' });
-      }
-    }
+app.post('/api/prize-claims', (req, res) => {
+  res.status(403).json({ error: NO_CASH_VALUE_MESSAGE });
+});
 
-    if (competitionId) {
-      const compWin = (await db.getUnclaimedCompetitionCashPrizes(req.tokenPlayer.id)).find((w) => w.competitionId === competitionId);
-      if (!compWin) return res.status(400).json({ error: 'No unclaimed competition cash prize found for that competition' });
-      const claim = await db.createPrizeClaim({
-        playerId: req.tokenPlayer.id,
-        competitionId,
-        prizeCoins: 0,
-        prizeUsd: compWin.prizeUsd,
-        payoutMethod,
-        payoutDetails,
-      });
-      return res.json({ success: true, claim });
-    }
-
-    const wins = await db.getUnclaimedTournamentWins(req.tokenPlayer.id);
-    const win = wins.find((w) => w.tournamentId === tournamentId);
-    if (!win) return res.status(400).json({ error: 'No unclaimed tournament win found for that tournament' });
-
-    const player = await db.getPlayerById(req.tokenPlayer.id);
-    if (!player || player.coins < win.prizeCoins) {
-      return res.status(400).json({ error: 'Insufficient coin balance to claim this prize - has it already been spent?' });
-    }
-
-    const prizeUsd = Math.round(win.prizeCoins * COIN_TO_USD * 100) / 100;
-    await db.debitCoins(player.id, win.prizeCoins, { type: 'prize_claimed' });
-    const claim = await db.createPrizeClaim({
-      playerId: player.id,
-      tournamentId,
-      prizeCoins: win.prizeCoins,
-      prizeUsd,
-      payoutMethod,
-      payoutDetails,
-    });
-    res.json({ success: true, claim });
-  } catch (e) {
-    if (e.code === '23505') return res.status(400).json({ error: 'This tournament prize has already been claimed' });
-    console.error('[prize-claims create]', e);
-    res.status(500).json({ error: 'Could not submit prize claim' });
-  }
+app.all(['/api/withdraw', '/api/withdrawals', '/api/withdrawal-requests', '/api/wallet/withdraw'], (req, res) => {
+  res.status(403).json({ error: NO_CASH_VALUE_MESSAGE });
 });
 
 // ---- support: AI chat + tickets ----------------------------------------------------
@@ -2613,6 +2546,12 @@ app.get('/api/config/public', (req, res) => {
     devCoinGrantsEnabled: !stripeWebhookConfigured && allowedOrigins.length === 0,
   });
 });
+
+// ---- lobby + sponsors (server/lobby.js) ------------------------------------------
+
+app.use(
+  createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets, competitionSummary, TIERS, authenticate: [requireDb, authenticate], optionalViewerId })
+);
 
 // ---- home page stats --------------------------------------------------------------
 

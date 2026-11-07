@@ -49,7 +49,7 @@
 
   <div class="tw-container">
     <div class="panel">
-      <h2>🪙 Wallet</h2>
+      <h2>Wallet</h2>
       <div class="overview-grid" id="overviewGrid">
         <div class="overview-card"><div class="value" id="ovCoins">-</div><div class="label">Coin Balance</div></div>
         <div class="overview-card"><div class="value" id="ovEarned">-</div><div class="label">Coins Earned (All Time)</div><div class="sub-breakdown text-secondary" id="ovEarnedBreakdown" style="font-size:11px;margin-top:4px;"></div></div>
@@ -60,7 +60,7 @@
 
     <div class="panel" style="margin-top: 20px;">
       <div class="game-rule-info">
-        <div class="rule-icon">⚠️</div>
+        <div class="rule-icon"><svg class="tw-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg></div>
         <div class="rule-content">
           <div class="rule-title">Loss Limit — Fixed Game Rule</div>
           <div class="rule-desc">
@@ -76,8 +76,8 @@
       <h3>Buy Coins</h3>
       <p>Quick War entry costs 10 coins. Private War costs 1 coin to host - free for the friends you invite.</p>
       <div class="wallet-disclaimer">
-        <span class="disclaimer-icon">ℹ️</span>
-        <span>Coins are virtual in-game currency for entertainment use only. Coin purchases are final and non-refundable. Coins have no real-world cash value outside of tournament prize distributions governed by our <a href="/terms">Terms of Service</a>.</span>
+        <span class="disclaimer-icon" aria-hidden="true"><svg class="tw-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span>
+        <span>Coins are virtual in-game currency for entertainment use only. Coin purchases are final and non-refundable. Coins have no cash value and cannot be withdrawn or exchanged for money. See our <a href="/terms">Terms of Service</a>.</span>
       </div>
       <div class="coin-packages">
         <div class="coin-package" data-pkg="100"><div class="amount">100</div><div class="price">$0.99</div><div class="per-coin">$0.0099/coin</div></div>
@@ -91,7 +91,7 @@
     </div>
 
     <div class="panel hidden" id="devCoinsPanel" style="margin-top: 20px;">
-      <h3>🧪 Dev Coins</h3>
+      <h3>Dev Coins</h3>
       <p class="text-secondary" style="font-size:13px;">
         This environment doesn't have a live Stripe webhook configured yet, so real purchases only
         complete once you finish the actual Stripe test checkout (card 4242 4242 4242 4242, any future
@@ -101,16 +101,6 @@
       <button class="btn btn-outline" id="devAddCoinsBtn">+1000 Test Coins</button>
     </div>
 
-    <div class="panel" id="prizeClaimPanel" style="margin-top: 20px; display:none;">
-      <h3>🏆 Claim Your Prize</h3>
-      <p class="text-secondary" style="font-size:13px;">Only coins won by finishing 1st in a Tournament War can be cashed out (see our <a href="/terms">Terms of Service</a>). An admin processes each request manually - you'll get a notification and email once funds are on the way.</p>
-      <div id="eligibleWinsWrap"></div>
-    </div>
-
-    <div class="panel" id="prizeClaimHistoryPanel" style="margin-top: 20px; display:none;">
-      <h3>Prize Claim History</h3>
-      <div id="prizeClaimHistoryWrap"></div>
-    </div>
 
     <div class="panel" style="margin-top: 20px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -126,6 +116,8 @@
     </div>
   </div>
 
+  <script src="/js/icons.js"></script>
+  <script src="/js/time-ago.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
@@ -146,7 +138,7 @@
       coin_purchase: 'Coin Purchase',
       welcome_bonus: 'Welcome Bonus',
       tournament_prize: 'Tournament Prize',
-      prize_claimed: 'Prize Claimed (Cashed Out)',
+      prize_claimed: 'Prize Claimed (legacy)',
       prize_claim_refund: 'Prize Claim Refunded',
     };
 
@@ -155,11 +147,11 @@
     async function loadWallet() {
       try {
         const data = await TW.api('/api/wallet');
-        document.getElementById('ovCoins').textContent = `🪙 ${data.coins}`;
-        document.getElementById('ovEarned').textContent = `🪙 ${data.coinsEarnedTotal}`;
+        document.getElementById('ovCoins').textContent = `${data.coins} coins`;
+        document.getElementById('ovEarned').textContent = `${data.coinsEarnedTotal} coins`;
         document.getElementById('ovEarnedBreakdown').textContent =
           `${data.coinsFromMatches} from matches · ${data.coinsFromPurchases} purchased`;
-        document.getElementById('ovSpent').textContent = `🪙 ${data.coinsSpentTotal}`;
+        document.getElementById('ovSpent').textContent = `${data.coinsSpentTotal} coins`;
         const lifetimeEl = document.getElementById('ovLifetime');
         lifetimeEl.textContent = TW.formatMoney(data.lifetimeMatchPnl);
         lifetimeEl.className = 'value ' + (data.lifetimeMatchPnl >= 0 ? 'text-buy' : 'text-sell');
@@ -168,116 +160,7 @@
       }
     }
 
-    const PAYOUT_FIELDS_HTML = {
-      bank_transfer: `
-        <div class="field-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
-          <div class="field" style="flex:1;min-width:160px;"><label>Account Holder Name</label><input type="text" class="pc-bank-name" style="width:100%;" /></div>
-          <div class="field" style="flex:1;min-width:160px;"><label>Bank Name</label><input type="text" class="pc-bank-bank" style="width:100%;" /></div>
-          <div class="field" style="flex:1;min-width:160px;"><label>Account Number / IBAN</label><input type="text" class="pc-bank-account" style="width:100%;" /></div>
-        </div>`,
-      crypto: `
-        <div class="field-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
-          <div class="field"><label>Currency</label>
-            <select class="pc-crypto-currency"><option value="USDT">USDT</option><option value="BTC">BTC</option><option value="ETH">ETH</option></select>
-          </div>
-          <div class="field" style="flex:1;min-width:220px;"><label>Wallet Address</label><input type="text" class="pc-crypto-address" placeholder="Your crypto wallet address" style="width:100%;" /></div>
-        </div>`,
-    };
-
-    async function loadEligibleWins() {
-      const panel = document.getElementById('prizeClaimPanel');
-      const wrap = document.getElementById('eligibleWinsWrap');
-      try {
-        const data = await TW.api('/api/prize-claims/eligible');
-        if (!data.wins.length) { panel.style.display = 'none'; return; }
-        panel.style.display = 'block';
-        wrap.innerHTML = data.wins.map((w) => `
-          <div class="panel" style="margin-top:10px;background:var(--surface-2);" data-tournament-id="${TW.escapeHtml(w.tournamentId || '')}" data-competition-id="${TW.escapeHtml(w.competitionId || '')}">
-            <div style="font-weight:700;">🏆 ${TW.escapeHtml(w.tournamentName)} — ${w.prizeCoins ? `🪙 ${w.prizeCoins} (${TW.formatMoney(w.prizeUsd)})` : `${TW.formatMoney(w.prizeUsd)} cash prize`}</div>
-            <div class="field" style="margin-top:8px;"><label>Payout Method</label>
-              <select class="pc-method"><option value="bank_transfer">Bank Transfer</option><option value="crypto">Crypto</option></select>
-            </div>
-            <div class="pc-fields">${PAYOUT_FIELDS_HTML.bank_transfer}</div>
-            <button class="btn btn-primary pc-claim-btn" style="margin-top:8px;">Claim Prize</button>
-          </div>
-        `).join('');
-
-        wrap.querySelectorAll('.pc-method').forEach((sel) => {
-          sel.addEventListener('change', () => {
-            sel.closest('.panel').querySelector('.pc-fields').innerHTML = PAYOUT_FIELDS_HTML[sel.value];
-          });
-        });
-
-        wrap.querySelectorAll('.pc-claim-btn').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            const card = btn.closest('.panel');
-            const tournamentId = card.dataset.tournamentId || undefined;
-            const competitionId = card.dataset.competitionId || undefined;
-            const payoutMethod = card.querySelector('.pc-method').value;
-            let payoutDetails;
-            if (payoutMethod === 'bank_transfer') {
-              payoutDetails = {
-                accountName: card.querySelector('.pc-bank-name').value.trim(),
-                bankName: card.querySelector('.pc-bank-bank').value.trim(),
-                accountNumber: card.querySelector('.pc-bank-account').value.trim(),
-              };
-              if (!payoutDetails.accountName || !payoutDetails.bankName || !payoutDetails.accountNumber) {
-                TW.toast('Fill in all bank transfer details', 'warning');
-                return;
-              }
-            } else {
-              payoutDetails = {
-                currency: card.querySelector('.pc-crypto-currency').value,
-                walletAddress: card.querySelector('.pc-crypto-address').value.trim(),
-              };
-              if (!payoutDetails.walletAddress) {
-                TW.toast('Enter a wallet address', 'warning');
-                return;
-              }
-            }
-            btn.disabled = true;
-            try {
-              await TW.api('/api/prize-claims', { method: 'POST', body: { tournamentId, competitionId, payoutMethod, payoutDetails } });
-              TW.toast('Prize claim submitted - an admin will process it shortly', 'info');
-              loadWallet();
-              loadEligibleWins();
-              loadPrizeClaimHistory();
-            } catch (err) {
-              TW.toast(err.message, 'danger');
-              btn.disabled = false;
-            }
-          });
-        });
-      } catch (err) {
-        panel.style.display = 'none';
-      }
-    }
-
-    const PC_STATUS_LABEL = { pending: 'Pending', processing: 'Processing', paid: 'Paid', rejected: 'Rejected' };
-
-    async function loadPrizeClaimHistory() {
-      const panel = document.getElementById('prizeClaimHistoryPanel');
-      const wrap = document.getElementById('prizeClaimHistoryWrap');
-      try {
-        const data = await TW.api('/api/prize-claims/mine');
-        if (!data.claims.length) { panel.style.display = 'none'; return; }
-        panel.style.display = 'block';
-        wrap.innerHTML = `
-          <table class="tx"><thead><tr><th>Date</th><th>Tournament</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
-          <tbody>${data.claims.map((c) => `
-            <tr>
-              <td>${new Date(c.created_at).toLocaleString()}</td>
-              <td>${TW.escapeHtml(c.tournaments?.name || c.competitions?.title || '—')}</td>
-              <td>${TW.formatMoney(c.prize_usd)} (${c.prize_coins} 🪙)</td>
-              <td>${c.payout_method === 'bank_transfer' ? 'Bank Transfer' : 'Crypto'}</td>
-              <td>${PC_STATUS_LABEL[c.status] || c.status}</td>
-            </tr>
-          `).join('')}</tbody></table>
-        `;
-      } catch (err) {
-        panel.style.display = 'none';
-      }
-    }
+    // Prize cash-out (prize claims) is closed: coins have no cash value.
 
     document.querySelectorAll('.coin-package').forEach((el) => {
       el.addEventListener('click', async () => {
@@ -332,8 +215,8 @@
           tr.innerHTML = `
             <td>${new Date(tx.created_at).toLocaleString()}</td>
             <td>${TYPE_LABELS[tx.type] || tx.type}</td>
-            <td class="${amountClass} mono">${tx.amount >= 0 ? '+' : ''}${tx.amount} 🪙</td>
-            <td class="mono">${tx.balance_after} 🪙</td>
+            <td class="${amountClass} mono">${tx.amount >= 0 ? '+' : ''}${tx.amount}</td>
+            <td class="mono">${tx.balance_after}</td>
           `;
           body.appendChild(tr);
         });
@@ -364,14 +247,13 @@
 
     loadWallet();
     loadTransactions();
-    loadEligibleWins();
-    loadPrizeClaimHistory();
   </script>
   <footer class="legal-footer">
     <div class="legal-footer-content">
       <p class="legal-text">
         Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
       </p>
+      <p class="legal-text legal-coins">Coins have no cash value and cannot be withdrawn or exchanged for money.</p>
       <p class="legal-links">
         <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
       </p>

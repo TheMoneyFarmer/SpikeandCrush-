@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/css/premium.css">
 <link rel="stylesheet" href="/css/competitions.css">
 <link rel="stylesheet" href="/css/mobile.css">
+<link rel="stylesheet" href="/css/candle-bg.css">
 <script src="/js/device.js"></script>
 <script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);
 // Logged-in players get the shared app header (same as Shop, Wallet, ...);
@@ -43,12 +44,12 @@ html:not(.tw-logged-in) #twNav { display: none; }
 
   <div class="ch-nav-right">
     <a href="mailto:hello@spikeandcrush.com?subject=List%20a%20competition" class="ch-nav-list-btn">List Competition →</a>
-    <a href="/trading-floor" class="ch-nav-play-btn">⚔️ Play Free</a>
+    <a href="/trading-floor" class="ch-nav-play-btn">Play Free</a>
   </div>
 </header>
 
 <!-- HERO -->
-<section class="ch-hero">
+<section class="ch-hero" data-candle-bg>
   <div class="ch-hero-inner">
     <div class="ch-hero-text">
       <div class="ch-hero-badge">
@@ -88,10 +89,10 @@ html:not(.tw-logged-in) #twNav { display: none; }
   <div class="ch-subnav-tabs">
     <button class="ch-stab active" data-filter="all">All</button>
     <button class="ch-stab" data-filter="active"><span class="pulse-r"></span>Live Now</button>
-    <button class="ch-stab" data-filter="native">⚔️ Spike &amp; Crush</button>
-    <button class="ch-stab" data-filter="external">🏢 Prop Firms</button>
-    <button class="ch-stab" data-filter="sponsored">🤝 Sponsored</button>
-    <button class="ch-stab" data-filter="upcoming">📅 Upcoming</button>
+    <button class="ch-stab" data-filter="native">Spike &amp; Crush</button>
+    <button class="ch-stab" data-filter="external">Prop Firms</button>
+    <button class="ch-stab" data-filter="sponsored">Sponsored</button>
+    <button class="ch-stab" data-filter="upcoming">Upcoming</button>
   </div>
   <div class="ch-subnav-right">
     <a href="mailto:hello@spikeandcrush.com?subject=List%20a%20competition" class="ch-list-link">+ List Competition</a>
@@ -136,7 +137,7 @@ html:not(.tw-logged-in) #twNav { display: none; }
 
   <!-- Empty state -->
   <div class="ch-empty" id="ch-empty" style="display:none;">
-    <div class="ch-empty-icon">🏆</div>
+    <div class="ch-empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg></div>
     <h3>No competitions here yet</h3>
     <p id="ch-empty-sub">Check back soon.</p>
     <a href="mailto:hello@spikeandcrush.com?subject=List%20a%20competition" class="ch-cta-btn native" id="ch-empty-cta" style="display:none;">List Your Competition →</a>
@@ -163,6 +164,13 @@ html:not(.tw-logged-in) #twNav { display: none; }
   </div>
 </section>
 
+<footer class="legal-footer">
+  <div class="legal-footer-content">
+    <p class="legal-text legal-coins">Coins have no cash value and cannot be withdrawn or exchanged for money.</p>
+    <p class="legal-links"><a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a> · <a href="/sponsor">Sponsor a game</a></p>
+  </div>
+</footer>
+
 <!-- COMPETITION DETAIL MODAL -->
 <div class="comp-modal" id="comp-modal" style="display:none;">
   <div class="comp-modal-overlay" data-close-modal></div>
@@ -170,7 +178,9 @@ html:not(.tw-logged-in) #twNav { display: none; }
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="/js/nav.js"></script>
+<script src="/js/icons.js"></script>
+  <script src="/js/time-ago.js"></script>
+  <script src="/js/nav.js"></script>
 <script src="/js/sound.js"></script>
 <script src="/js/main.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -178,6 +188,8 @@ html:not(.tw-logged-in) #twNav { display: none; }
 <script src="/js/socket.js"></script>
 <script src="/js/friends-panel.js"></script>
 <script src="/js/lottie.js"></script>
+<script src="/js/candle-bg.js"></script>
+<script src="/js/comp-entry.js"></script>
 <script>
 // ── STATE ────────────────────────────────────
 let allComps      = [];
@@ -198,12 +210,12 @@ const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ESC_MAP[ch]);
 
 const TYPE_COLOR = { native: '#00C896', external: '#8090F0', sponsored: '#F5C542' };
-const TYPE_LABEL = { native: '⚔️ Native', external: '🏢 Prop Firm', sponsored: '🤝 Sponsored' };
-const TYPE_LONG  = { native: '⚔️ Spike & Crush', external: '🏢 Prop Firm', sponsored: '🤝 Sponsored' };
+const TYPE_LABEL = { native: 'Native', external: 'Prop Firm', sponsored: 'Sponsored' };
+const TYPE_LONG  = { native: 'Spike & Crush', external: 'Prop Firm', sponsored: 'Sponsored' };
 const TYPE_MODAL = {
-  native:    '⚔️ Spike & Crush native event',
-  external:  '🏢 Prop firm hosted challenge',
-  sponsored: '🤝 Broker sponsored tournament',
+  native:    'Spike & Crush native event',
+  external:  'Prop firm hosted challenge',
+  sponsored: 'Broker sponsored tournament',
 };
 
 // Only http(s) links ever leave the site from a CTA - the DB enforces this
@@ -213,28 +225,26 @@ function safeUrl(url) {
 }
 
 // ── FORMATTERS ───────────────────────────────
-function formatPrize(prize, { compactFrom = 10000, empty = '—' } = {}) {
-  if (!(prize > 0)) return empty;
-  return prize >= compactFrom
-    ? '$' + Math.round(prize / 1000) + 'K'
-    : '$' + prize.toLocaleString();
+// Every prize on this page is shown in coins - coins have no cash value.
+function formatPrize(coins, { compactFrom = 10000, empty = '—' } = {}) {
+  if (!(coins > 0)) return empty;
+  return (coins >= compactFrom ? Math.round(coins / 1000) + 'K' : coins.toLocaleString()) + ' coins';
 }
 
-// Native recurring competitions pay coins (prize_payouts), not cash.
 function prizeCoins(c) {
-  return (c.prize_payouts || []).reduce((s, p) => s + (p.coins || 0), 0);
+  if (Number(c.prize_pool_coins) > 0) return Number(c.prize_pool_coins);
+  return (c.prize_payouts || []).reduce((s, p) => s + (Number(p.coins) || 0), 0);
 }
 
+// Listings from other platforms set their own prizes on their own site.
 function formatCompPrize(c, opts = {}) {
-  const usd = parseFloat(c.prize_pool || 0);
-  if (usd > 0) return formatPrize(usd, opts);
   const coins = prizeCoins(c);
-  return coins > 0 ? '🪙 ' + coins.toLocaleString() : (opts.empty ?? '—');
+  if (coins > 0) return formatPrize(coins, opts);
+  return c.type === 'native' ? (opts.empty ?? '—') : 'Set by organizer';
 }
 
-// Same coin->USD rate the Wallet uses, only for sorting mixed cash/coin prizes.
 function prizeValue(c) {
-  return parseFloat(c.prize_pool || 0) + prizeCoins(c) * 0.005;
+  return prizeCoins(c);
 }
 
 function durationDays(c) {
@@ -263,7 +273,7 @@ function formatTimeLeft(c) {
 }
 
 function formatEntry(c, coinSep = ' ') {
-  return c.entry_fee_coins > 0 ? c.entry_fee_coins + coinSep + '🪙' : 'Free';
+  return c.entry_fee_coins > 0 ? c.entry_fee_coins + coinSep + 'coins' : 'Free';
 }
 
 function ctaLabel(c, { short = false } = {}) {
@@ -277,13 +287,7 @@ function ctaLabel(c, { short = false } = {}) {
   return 'Results';
 }
 
-function relativeTime(date) {
-  if (!date) return 'just now';
-  const s = Math.round((Date.now() - date) / 1000);
-  if (s < 30) return 'just now';
-  if (s < 90) return '1 min ago';
-  return Math.round(s / 60) + ' min ago';
-}
+const relativeTime = (date) => (window.TW && TW.timeAgo ? TW.timeAgo(date) : 'just now');
 
 function orgAvatar(c, cls, fallbackCls) {
   const org = c.organizer;
@@ -329,12 +333,12 @@ function updateHeroStats() {
   const active = allComps.filter((c) => c.status === 'active');
   const prize = allComps
     .filter((c) => c.status !== 'ended')
-    .reduce((s, c) => s + parseFloat(c.prize_pool || 0), 0);
+    .reduce((s, c) => s + prizeCoins(c), 0);
   const entrants = active.reduce((s, c) => s + (c.entry_count || 0), 0);
   const firms = new Set(allComps.filter((c) => c.organizer_id).map((c) => c.organizer_id)).size;
 
   set('hs-active', active.length);
-  set('hs-prize', formatPrize(prize, { compactFrom: 1000, empty: '$0' }));
+  set('hs-prize', formatPrize(prize, { compactFrom: 10000, empty: '0 coins' }));
   set('hs-entrants', entrants.toLocaleString());
   set('hs-firms', firms || '—');
 }
@@ -587,14 +591,16 @@ async function openModal(compId) {
   try {
     comp = await TW.api('/api/competitions/' + encodeURIComponent(compId));
   } catch (e) {
-    card.innerHTML = `<button type="button" class="modal-x" data-close-modal>✕</button>
+    card.innerHTML = `<button type="button" class="modal-x" data-close-modal aria-label="Close">&times;</button>
       <div class="modal-loading">${esc(e.message)}</div>`;
     return;
   }
 
   const org = comp.organizer;
   const isExternal = comp.type === 'external';
-  const prizeDetails = comp.prize_details && typeof comp.prize_details === 'object'
+  // Only native (coin) prize breakdowns are shown; other platforms' prizes
+  // are theirs to describe on their own site.
+  const prizeDetails = comp.type === 'native' && comp.prize_details && typeof comp.prize_details === 'object'
     ? Object.entries(comp.prize_details) : [];
   const kind = isExternal ? 'ext' : 'native';
 
@@ -607,7 +613,7 @@ async function openModal(compId) {
       : 'View Results';
 
   card.innerHTML = `
-    <button type="button" class="modal-x" data-close-modal aria-label="Close">✕</button>
+    <button type="button" class="modal-x" data-close-modal aria-label="Close">&times;</button>
 
     <div class="modal-hero">
       ${org?.logo_url && safeUrl(org.logo_url)
@@ -640,11 +646,11 @@ async function openModal(compId) {
       </div>
     </div>
 
-    ${comp.rules ? `
-      <div class="modal-section">
-        <div class="modal-section-hd">Rules</div>
-        <div class="modal-rules-text">${esc(comp.rules)}</div>
-      </div>` : ''}
+    <div class="modal-section">
+      <div class="modal-section-hd">Rules</div>
+      ${comp.rules ? `<div class="modal-rules-text">${esc(comp.rules.replace(/\s*Coins have no cash value[^.]*\./i, ''))}</div>` : ''}
+      <div class="modal-rules-text"><strong>Coins have no cash value and cannot be withdrawn or exchanged for money.</strong></div>
+    </div>
 
     ${comp.instruments?.length ? `
       <div class="modal-section">
@@ -724,12 +730,9 @@ async function handleCTA(compId, btn) {
 
   if (btn) btn.disabled = true;
   try {
-    const result = await TW.api('/api/competitions/' + encodeURIComponent(compId) + '/enter', { method: 'POST' });
-    TW.toast(result.alreadyEntered ? 'Already entered - opening your account' : '✅ Entered!', 'success');
+    // Shared confirmation (entry fee, prize, no-cash-value line), then enter.
     closeModal();
-    window.location.href = result.playUrl || '/competition/' + encodeURIComponent(compId);
-  } catch (e) {
-    TW.toast(e.message || 'Entry failed', 'danger');
+    await TW.enterCompetition({ id: compId, title: comp.title, entryCoins: comp.entry_fee_coins || 0, prizeCoins: prizeCoins(comp) });
   } finally {
     if (btn) btn.disabled = false;
   }

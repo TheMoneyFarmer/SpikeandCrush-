@@ -1043,7 +1043,7 @@ window.TW = window.TW || {};
           <div class="rank-num">#${r.rank}</div>
           <div class="rr-name">
             <strong>${TW.escapeHtml(r.username)}</strong>
-            <span class="pill ${TW.tierClass(r.newTier)}" style="font-size:10px;">${TW.TIER_ICON[r.newTier] || '🔰'} ${TW.escapeHtml(r.newTier)}</span>
+            <span class="pill ${TW.tierClass(r.newTier)}" style="font-size:10px;">${TW.TIER_ICON[r.newTier]} ${TW.escapeHtml(r.newTier)}</span>
             ${r.playerId === lastState?.you ? '<span class="pill pill-gold">YOU</span>' : ''}
           </div>
           <div class="rr-pnl ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(r.pnl)}<span class="pct">${

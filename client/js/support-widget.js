@@ -60,7 +60,7 @@
         <div class="tw-sw-ticket-link" id="twSwTicketToggle">Prefer a human? Submit a support ticket instead</div>
       </div>
     </div>
-    <button class="tw-sw-launcher" id="twSwLauncher">💬</button>
+    <button class="tw-sw-launcher" id="twSwLauncher" aria-label="Contact support">${window.TW && TW.icon ? TW.icon('help', { size: 24 }) : '?'}</button>
   `;
   document.body.appendChild(root);
 

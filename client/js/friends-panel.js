@@ -19,16 +19,7 @@ TW.FriendsPanel = (function () {
     return `hsl(${hue}, 65%, 45%)`;
   }
 
-  function timeAgo(ms) {
-    if (!ms) return 'a while ago';
-    const diff = Date.now() - ms;
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  }
+  const timeAgo = (ms) => (!ms ? 'a while ago' : TW.timeAgo ? TW.timeAgo(ms) : '');
 
   function statusText(f) {
     if (f.status === 'online') return 'Online — Trading Floor';
@@ -55,7 +46,7 @@ TW.FriendsPanel = (function () {
           </div>
           <div>
             <div class="tw-friend-name">${TW.renderUsername(f)}</div>
-            <div class="tw-friend-meta">${TW.TIER_ICON[f.tier] || '🔰'} ${f.warRating}</div>
+            <div class="tw-friend-meta">${TW.TIER_ICON[f.tier]} ${f.warRating}</div>
           </div>
         </div>
         <div class="tw-friend-status-text">${statusText(f)}</div>
@@ -220,7 +211,7 @@ TW.FriendsPanel = (function () {
                       ${TW.createAvatar(p, 'sm')}
                       <div style="flex:1;">
                         <div style="font-weight:700;font-size:13px;">${TW.renderUsername(p)}</div>
-                        <div style="font-size:11px;color:var(--text-secondary);">${TW.TIER_ICON[p.tier] || '🔰'} ${p.warRating}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);">${TW.TIER_ICON[p.tier]} ${p.warRating}</div>
                       </div>
                       <button class="btn btn-primary" data-add="${p.id}" style="padding:6px 12px;font-size:12px;">Add</button>
                     </div>

@@ -188,68 +188,13 @@ function router() {
     }
   });
 
-  r.post('/prize-claims/:id/processing', async (req, res) => {
-    try {
-      const { data, error } = await supabase
-        .from('prize_claims')
-        .update({ status: 'processing' })
-        .eq('id', req.params.id)
-        .select('*, player:players(username)')
-        .single();
-      if (error) throw error;
-      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'prize_claim_processing', targetType: 'prize_claim', targetId: req.params.id, ip: clientIp(req) });
-      res.json(data);
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
+  // Paying out a claim turns coins into money, which is closed: coins have
+  // no cash value. Old claims stay listed as records and can only be
+  // rejected (which refunds the coins).
+  r.post(['/prize-claims/:id/processing', '/prize-claims/:id/paid'], (req, res) => {
+    res.status(403).json({ error: 'Coins have no cash value and cannot be withdrawn' });
   });
 
-  r.post('/prize-claims/:id/paid', async (req, res) => {
-    const { reference } = req.body || {};
-    if (!reference) return res.status(400).json({ error: 'reference is required (tx hash for crypto, bank reference note otherwise)' });
-    try {
-      const { data, error } = await supabase
-        .from('prize_claims')
-        .update({ status: 'paid', payout_reference: reference, processed_at: new Date().toISOString() })
-        .eq('id', req.params.id)
-        .select('*, player:players(username, email), tournaments(name)')
-        .single();
-      if (error) throw error;
-      if (data.player_id) {
-        internal.notifyPlayer(data.player_id, 'prize_claim_paid', `Your ${data.tournaments?.name || 'tournament'} prize (${formatMoney(data.prize_usd)}) has been paid out.`, { data: { reference } }).catch(() => {});
-        if (data.player?.email) {
-          (async () => {
-            const { data: tpl } = isConfigured ? await supabase.from('message_templates').select('subject, body_html').eq('id', 'prize_winner').maybeSingle() : { data: null };
-            const tplData = {
-              username: data.player.username,
-              tournament: data.tournaments?.name || 'your tournament win',
-              prize: formatMoney(data.prize_usd),
-              coins: String(data.prize_coins),
-              method: data.payout_method === 'crypto' ? 'crypto' : 'bank transfer',
-              reference,
-            };
-            const defaultHtml = `<p>Hi ${escapeHtml(data.player.username)},</p>` +
-              `<p>Your prize from <strong>${escapeHtml(data.tournaments?.name || 'your tournament win')}</strong> has been processed and paid out via ${data.payout_method === 'crypto' ? 'crypto' : 'bank transfer'}.</p>` +
-              `<p><strong>Amount:</strong> ${formatMoney(data.prize_usd)} (${data.prize_coins} coins)<br>` +
-              `<strong>Reference:</strong> ${escapeHtml(reference)}</p>` +
-              `<p>Funds are on their way. Thanks for playing Spike &amp; Crush.</p>`;
-            await sendEmail({
-              to: data.player.email,
-              subject: renderTemplate(tpl?.subject || 'Your Spike & Crush tournament prize is on its way', tplData),
-              html: tpl?.body_html ? renderTemplate(tpl.body_html, tplData) : defaultHtml,
-            });
-          })().catch(() => {});
-        }
-      }
-      await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'prize_claim_paid', targetType: 'prize_claim', targetId: req.params.id, details: { reference }, ip: clientIp(req) });
-      res.json(data);
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  // Rejecting refunds the coins back to the player - a rejected claim
-  // shouldn't just vanish the coins the earlier debitCoins() already took.
   r.post('/prize-claims/:id/reject', async (req, res) => {
     const { reason } = req.body || {};
     try {

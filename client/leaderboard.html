@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#0A0C14">
 <script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Leaderboard</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/main.css" />
@@ -17,6 +17,8 @@
 <link rel="stylesheet" href="css/tutorial.css" />
 <link rel="stylesheet" href="css/premium.css" />
 <link rel="stylesheet" href="/css/mobile.css">
+<link rel="stylesheet" href="/css/lobby-tokens.css">
+<link rel="stylesheet" href="/css/candle-bg.css">
 <style>
   .lb-controls {
     display: flex;
@@ -81,13 +83,20 @@
     background: linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent 60%);
   }
 </style>
+<style>
+  .lbp-head { min-height: 96px; display: flex; align-items: center; background: linear-gradient(100deg, #0B1A18 0%, #0B0F19 50%, #1A0E16 100%); }
+  .lbp-head h2 { margin: 0; font-family: 'Rajdhani', 'Inter', sans-serif; font-size: 32px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .tw-tier-badge { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--tier) 55%, transparent); background: color-mix(in srgb, var(--tier) 14%, transparent); color: var(--tier); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+</style>
 </head>
 <body data-page="leaderboard">
   <div id="twNav" data-active="leaderboard"></div>
 
   <div class="tw-container">
+    <div class="panel lbp-head" data-candle-bg>
+      <h2>Global Leaderboard</h2>
+    </div>
     <div class="panel">
-      <h2>🏆 Global Leaderboard</h2>
       <div class="lb-controls">
         <select id="periodSelect">
           <option value="all">All Time (War Rating)</option>
@@ -120,6 +129,8 @@
     </div>
   </div>
 
+  <script src="/js/icons.js"></script>
+  <script src="/js/time-ago.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
@@ -185,7 +196,7 @@
           tr.innerHTML = `
             <td>${row.rank}</td>
             <td style="display:flex;align-items:center;gap:8px;">${TW.createAvatar(row, 'sm')}${TW.renderUsername(row)}</td>
-            <td class="${TW.tierClass(row.tier)}">${TW.TIER_ICON[row.tier] || '🔰'} ${TW.escapeHtml(row.tier)}</td>
+            <td>${TW.tierBadge(row.tier)}</td>
             <td class="mono">${metricDisplay}</td>
             <td>${wl}</td>
             <td>${winRate}</td>
@@ -227,6 +238,7 @@
       <p class="legal-text">
         Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
       </p>
+      <p class="legal-text legal-coins">Coins have no cash value and cannot be withdrawn or exchanged for money.</p>
       <p class="legal-links">
         <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
       </p>
@@ -234,7 +246,8 @@
     </div>
   </footer>
   <script src="js/support-widget.js"></script>
-  <script src="/js/orientation.js"></script>
+  <script src="/js/candle-bg.js"></script>
+<script src="/js/orientation.js"></script>
   <script src="/js/bottom-nav.js"></script>
 </body>
 </html>

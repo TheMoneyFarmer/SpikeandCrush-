@@ -50,6 +50,7 @@
     </main>
   </div>
 
+  <script src="js/time-ago.js"></script>
   <script src="js/admin-api.js"></script>
   <script src="js/admin-auth.js"></script>
   <script src="js/admin-nav.js"></script>
@@ -119,7 +120,7 @@
                 <td style="color:${pnl >= 0 ? '#00c896' : '#ff4444'}">${Admin.formatMoney(pnl)}</td>
                 <td>${a.trade_count}</td>
                 <td><span class="status-pill">${esc(a.status)}</span></td>
-                <td>${a.prize_coins ? Admin.formatCoins(a.prize_coins) : ''}${a.prize_usd > 0 ? ` $${a.prize_usd}` : ''}${a.prize_paid ? ' ✅' : ''}</td>
+                <td>${a.prize_coins ? Admin.formatCoins(a.prize_coins) : ''}${a.prize_paid ? ' (paid)' : ''}</td>
                 <td>
                   <button class="btn btn-sm" data-account="${a.id}">Account</button>
                   ${a.status === 'active' && !finished ? `<button class="btn btn-sm btn-danger" data-dq="${a.player_id}" data-name="${esc(a.player?.username || '')}">Disqualify</button>` : ''}

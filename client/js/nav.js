@@ -19,36 +19,96 @@ window.TW = window.TW || {};
     { key: 'settings', label: 'Settings', href: '/settings' },
   ];
 
+  // Icon names from js/icons.js.
   const NOTIF_ICON = {
-    rank_up: '🏆',
-    comp_started: '🏁',
-    comp_ending_soon: '⏳',
-    comp_ended: '🏆',
-    comp_loss_limit: '🔒',
-    comp_void: '↩️',
-    match_starting: '⏱️',
-    battlepass_tier: '🎖️',
-    battlepass_premium: '👑',
-    shop_purchase: '🛒',
-    coin_purchase: '🪙',
-    coaching_booked: '🎓',
-    tournament_advance: '⚔️',
-    tournament_eliminated: '💀',
-    tournament_draw: '🤝',
-    friend_request: '👥',
-    friend_accepted: '✅',
-    friend_won_match: '🏆',
-    match_kicked: '🚫',
-    match_voided: '⚠️',
-    match_summary: '⚔️',
-    invite_declined: '❌',
-    invite_expired: '⏰',
-    system: '📢',
-    tournament_champion: '🏆',
-    prize_claim_processing: '💰',
-    prize_claim_paid: '💸',
-    prize_claim_rejected: '⚠️',
+    rank_up: 'trophy',
+    comp_started: 'flag',
+    comp_ending_soon: 'clock',
+    comp_ended: 'trophy',
+    comp_loss_limit: 'lock',
+    comp_void: 'refresh',
+    match_starting: 'clock',
+    battlepass_tier: 'star',
+    battlepass_premium: 'crown',
+    shop_purchase: 'bag',
+    coin_purchase: 'coin',
+    coaching_booked: 'calendar',
+    tournament_advance: 'swords',
+    tournament_eliminated: 'close',
+    tournament_draw: 'users',
+    friend_request: 'users',
+    friend_accepted: 'check',
+    friend_won_match: 'trophy',
+    match_kicked: 'alert',
+    match_voided: 'alert',
+    match_summary: 'swords',
+    invite_declined: 'close',
+    invite_expired: 'clock',
+    system: 'megaphone',
+    tournament_champion: 'crown',
+    prize_claim_processing: 'info',
+    prize_claim_paid: 'check',
+    prize_claim_rejected: 'alert',
   };
+  const ic = (name, size = 20) => (TW.icon ? TW.icon(name, { size }) : '');
+
+  // The lobby's own top bar (index.html, data-variant="lobby"): five page
+  // links, coins, bell and an avatar menu - the logo lives in the brand band.
+  const LOBBY_LINKS = [
+    { key: 'home', label: 'Lobby', href: '/play' },
+    { key: 'tournaments', label: 'Compete', href: '/competitions' },
+    { key: 'leaderboard', label: 'Ranks', href: '/leaderboard' },
+    { key: 'wallet', label: 'Wallet', href: '/wallet' },
+    { key: 'shop', label: 'Shop', href: '/shop' },
+  ];
+  const AVATAR_MENU = [
+    { label: 'Profile', href: '/profile', icon: 'user' },
+    { label: 'Cards', href: '/cards', icon: 'cards' },
+    { label: 'Battle Pass', href: '/battle-pass', icon: 'star' },
+    { label: 'Coaching', href: '/coaching', icon: 'calendar' },
+    { label: 'Settings', href: '/settings', icon: 'settings' },
+    { label: 'Help', href: '/help', icon: 'help' },
+  ];
+
+  function renderLobbyBar(container, active) {
+    container.innerHTML = `
+      <nav class="lb-topbar" aria-label="Main">
+        <div class="lb-nav-links">${LOBBY_LINKS.map((l) => `<a href="${l.href}" class="lb-nav-link ${l.key === active ? 'active' : ''}" ${l.key === active ? 'aria-current="page"' : ''}>${l.label}</a>`).join('')}</div>
+        <div class="lb-topbar-right">
+          <a href="/wallet" id="headerCoinWrap" class="lb-coins hidden" aria-label="Coin balance">${ic('coin', 18)}<span id="headerCoinBalance">0</span><span class="lb-coins-label">coins</span></a>
+          <button type="button" class="lb-icon-btn" id="twNotifBtn" aria-label="Notifications">${ic('bell')}<span id="twNotifBadge" class="lb-unread-dot hidden" aria-hidden="true"></span></button>
+          <div class="lb-avatar-wrap">
+            <button type="button" class="lb-avatar-btn" id="lbAvatarBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+              <span id="twNavIdentityAvatar"></span>${ic('chevronDown', 16)}
+            </button>
+            <div class="lb-avatar-menu hidden" id="lbAvatarMenu" role="menu">
+              <div class="lb-avatar-menu-head"><span id="headerUsername"></span></div>
+              ${AVATAR_MENU.map((m) => `<a role="menuitem" href="${m.href}">${ic(m.icon, 18)}<span>${m.label}</span></a>`).join('')}
+              <button type="button" role="menuitem" id="twFriendsToggleBtn">${ic('users', 18)}<span>Friends</span><span id="twFriendsOnlineBadge" class="tw-friends-online-badge hidden">0</span></button>
+              <button type="button" role="menuitem" id="twLogoutBtn">${ic('logout', 18)}<span>Log out</span></button>
+            </div>
+          </div>
+        </div>
+      </nav>
+    `;
+    const btn = container.querySelector('#lbAvatarBtn');
+    const menu = container.querySelector('#lbAvatarMenu');
+    const setOpen = (open) => {
+      menu.classList.toggle('hidden', !open);
+      btn.setAttribute('aria-expanded', String(open));
+    };
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setOpen(menu.classList.contains('hidden'));
+    });
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    });
+  }
+
 
   const notifications = [];
   let currentNotifTab = 'new';
@@ -57,6 +117,12 @@ window.TW = window.TW || {};
     const container = document.getElementById('twNav');
     if (!container) return;
     const active = container.dataset.active || '';
+    if (container.dataset.variant === 'lobby') {
+      renderLobbyBar(container, active);
+      wireInteractions(container, active);
+      if (window.TW.updateHeader) window.TW.updateHeader();
+      return;
+    }
 
     const linksHtml = NAV_LINKS.map(
       (l) => `<a href="${l.href}" class="${l.key === active ? 'active' : ''}">${l.label}</a>`
@@ -91,14 +157,14 @@ window.TW = window.TW || {};
 
         <div class="tw-nav-spacer"></div>
 
-        <a href="/wallet" id="headerCoinWrap" class="tw-coin-balance hidden">🪙 <span id="headerCoinBalance">0</span></a>
+        <a href="/wallet" id="headerCoinWrap" class="tw-coin-balance hidden" aria-label="Coin balance">${ic('coin', 16)} <span id="headerCoinBalance">0</span></a>
 
         <div class="tw-nav-right">
-          <button type="button" class="tw-nav-icon-btn" id="twNotifBtn" title="Notifications" style="position:relative;">🔔<span id="twNotifBadge" class="tw-notif-badge hidden">0</span></button>
-          <button type="button" class="tw-nav-icon-btn tw-friends-toggle-btn" id="twFriendsToggleBtn" title="Friends (0)">👥<span id="twFriendsOnlineBadge" class="tw-friends-online-badge hidden">0</span></button>
-          <a href="#" id="headerAuthLink" class="tw-nav-icon-btn tw-login-icon-link hidden" title="Log in">🔑</a>
-          <button type="button" class="tw-nav-icon-btn tw-logout-icon-btn hidden" id="twLogoutBtn" title="Log out">🚪</button>
-          <button type="button" class="tw-nav-icon-btn tw-hamburger" id="twHamburgerBtn" title="Menu">☰</button>
+          <button type="button" class="tw-nav-icon-btn" id="twNotifBtn" title="Notifications" aria-label="Notifications" style="position:relative;">${ic('bell')}<span id="twNotifBadge" class="tw-notif-badge hidden">0</span></button>
+          <button type="button" class="tw-nav-icon-btn tw-friends-toggle-btn" id="twFriendsToggleBtn" title="Friends (0)" aria-label="Friends">${ic('users')}<span id="twFriendsOnlineBadge" class="tw-friends-online-badge hidden">0</span></button>
+          <a href="#" id="headerAuthLink" class="tw-nav-icon-btn tw-login-icon-link hidden" title="Log in" aria-label="Log in">${ic('login')}</a>
+          <button type="button" class="tw-nav-icon-btn tw-logout-icon-btn hidden" id="twLogoutBtn" title="Log out" aria-label="Log out">${ic('logout')}</button>
+          <button type="button" class="tw-nav-icon-btn tw-hamburger" id="twHamburgerBtn" title="Menu" aria-label="Menu">${ic('menu')}</button>
         </div>
       </nav>
     `;
@@ -145,19 +211,10 @@ window.TW = window.TW || {};
     }
   }
 
-  function timeAgo(at) {
-    if (!at) return '';
-    const diffMs = Date.now() - new Date(at).getTime();
-    const mins = Math.floor(diffMs / 60000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  }
+  const timeAgo = (at) => (TW.timeAgo ? TW.timeAgo(at) : '');
 
   function notifItemHtml(n) {
-    const icon = NOTIF_ICON[n.type] || '🔔';
+    const icon = `<span class="notif-item-icon">${ic(NOTIF_ICON[n.type] || 'bell', 16)}</span>`;
     let actionsHtml = '';
     if (n.type === 'friend_request' && n.data?.requestId) {
       actionsHtml = `
@@ -186,7 +243,7 @@ window.TW = window.TW || {};
     const filtered = currentNotifTab === 'new' ? notifications.filter((n) => !n.read) : notifications;
     list.innerHTML = filtered.length
       ? filtered.map(notifItemHtml).join('')
-      : `<div class="notif-empty">${currentNotifTab === 'new' ? '✅ All caught up!' : 'No notifications yet'}</div>`;
+      : `<div class="notif-empty">${currentNotifTab === 'new' ? 'All caught up' : 'No notifications yet'}</div>`;
 
     const count = unreadCount();
     const countEl = document.getElementById('twNotifNewCount');
@@ -287,14 +344,14 @@ window.TW = window.TW || {};
     const ratingClass = data.ratingChange >= 0 ? 'toast-good' : 'toast-bad';
     toast.innerHTML = `
       <div class="toast-header">
-        <span class="toast-icon">⚔️</span>
+        <span class="toast-icon">${ic('swords', 18)}</span>
         <span class="toast-title">Match Summary — ${TW.escapeHtml(data.mode || '')}</span>
-        <button class="toast-close">✕</button>
+        <button class="toast-close" aria-label="Close">${ic('close', 16)}</button>
       </div>
       <div class="toast-content">
         <div class="toast-row"><span>Your Rank</span><span class="${pnlClass}">${rankLabel}</span></div>
         <div class="toast-row"><span>Your P&amp;L</span><span class="${pnlClass}">${data.yourPnl >= 0 ? '+' : ''}$${Number(data.yourPnl).toLocaleString()}</span></div>
-        ${data.winner ? `<div class="toast-row"><span>Winner</span><span class="toast-good">${TW.escapeHtml(data.winner)} ${data.winnerPnl >= 0 ? '+' : ''}$${Number(data.winnerPnl).toLocaleString()}</span></div>` : ''}
+        ${data.winner ? `<div class="toast-row"><span>Winner</span><span class="toast-good">${TW.escapeHtml(data.winner)}</span></div>` : ''}
         <div class="toast-row"><span>Rating Change</span><span class="${ratingClass}">${data.ratingChange >= 0 ? '+' : ''}${data.ratingChange} → ${data.newRating}</span></div>
       </div>
       ${data.matchId ? `<button class="toast-replay-btn">View Replay</button>` : ''}
@@ -398,7 +455,7 @@ window.TW = window.TW || {};
     });
     // Instant admin broadcast (Communications > Announcements > Broadcast Now).
     // Only reaches logged-in visitors already connected at broadcast time -
-    // the /api/announcements/active fetch on page load (home.js) is what
+    // the /api/announcements/active fetch on page load (lobby-home.js) is what
     // covers anonymous visitors and anyone who loads the page later.
     socket.on('announcement:new', (payload) => {
       if (window.TW && TW.renderAnnouncement) TW.renderAnnouncement(payload);
@@ -420,7 +477,7 @@ window.TW = window.TW || {};
         <a href="/profile">Profile</a>
         <a href="/help">Help</a>
         <div class="tw-account-dropdown-divider"></div>
-        <button type="button" class="tw-account-dropdown-item" id="twDrawerMuteBtn">🔊 Mute sounds</button>
+        <button type="button" class="tw-account-dropdown-item" id="twDrawerMuteBtn">Mute sounds</button>
         <a href="#" id="twDrawerAuthLink" class="tw-account-dropdown-item tw-logout-item">${loggedIn ? 'Log out' : 'Log in'}</a>
       </div>
     `;
@@ -432,7 +489,7 @@ window.TW = window.TW || {};
     const drawerMuteBtn = overlay.querySelector('#twDrawerMuteBtn');
     const refreshDrawerMuteIcon = () => {
       const s = TW.Sound ? TW.Sound.getSettings() : { muted: false };
-      drawerMuteBtn.textContent = s.muted ? '🔇 Unmute sounds' : '🔊 Mute sounds';
+      drawerMuteBtn.innerHTML = s.muted ? `${ic('sound', 18)} Unmute sounds` : `${ic('mute', 18)} Mute sounds`;
     };
     refreshDrawerMuteIcon();
     drawerMuteBtn.addEventListener('click', () => {
