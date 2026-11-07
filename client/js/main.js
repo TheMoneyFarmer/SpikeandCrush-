@@ -115,7 +115,8 @@ window.TW = window.TW || {};
     window.location.href = '/api/discord/connect?token=' + encodeURIComponent(TW.getToken());
   };
 
-  // ---- theme (Default War Room / Midnight / Combat / Light) -----------------
+  // ---- theme: one main theme in two modes - 'default' (Dark) or 'light' ------
+  // Older saved values ('midnight', 'combat') are treated as Dark.
   // The <head> of every page runs a tiny inline script (before any CSS
   // paints) that reads this same localStorage key and stamps data-theme on
   // <html>, so there's no flash of the wrong theme on load - see the
@@ -123,12 +124,13 @@ window.TW = window.TW || {};
   const THEME_KEY = 'sc_theme';
   TW.getTheme = () => {
     try {
-      return localStorage.getItem(THEME_KEY) || 'default';
+      return localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'default';
     } catch (e) {
       return 'default';
     }
   };
   TW.setTheme = (theme) => {
+    theme = theme === 'light' ? 'light' : 'default';
     document.documentElement.setAttribute('data-theme', theme);
     try {
       localStorage.setItem(THEME_KEY, theme);

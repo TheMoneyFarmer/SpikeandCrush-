@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="/css/mobile.css">
 <link rel="stylesheet" href="/css/candle-bg.css">
 <script src="/js/device.js"></script>
-<script>(function(){try{var t=localStorage.getItem("sc_theme")||"default";document.documentElement.setAttribute("data-theme",t);
+<script>(function(){try{var t=localStorage.getItem("sc_theme")==="light"?"light":"default",p=localStorage.getItem("sc_palette");document.documentElement.setAttribute("data-theme",t);if(p)document.documentElement.setAttribute("data-palette",p);
 // Logged-in players get the shared app header (same as Shop, Wallet, ...);
 // visitors keep the hub's own public header with its "Play Free" CTA.
 if(localStorage.getItem("sc_token")&&localStorage.getItem("sc_player"))document.documentElement.classList.add("tw-logged-in");}catch(e){}})();</script>

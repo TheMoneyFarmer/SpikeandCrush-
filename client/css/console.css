@@ -1,506 +1,202 @@
 /* ============================================================
    CONSOLE design system - Spike & Crush redesign (Nov 2026).
 
-   Loaded LAST on every page, so it wins over main.css, themes.css,
-   premium.css, mobile.css and lobby-tokens.css without editing them.
+   Loaded LAST on every page (after main/themes/premium/mobile/lobby-tokens)
+   so it wins without editing those files. All colour comes from
+   css/palette.css (imported below): one main theme, Dark or Light.
 
-   Inspired by console-storefront design language (not copied from any
-   brand): near-black canvas, one confident blue for every primary action,
-   light-weight display type, flat 8px cards, pill buttons, no glows, no
-   chrome gradients. Spike green / Crush red stay as the game's own
-   trading colours; gold is reserved for coins and premium (Battle Pass).
-
-   The 'light' theme is left alone for now; every other theme maps here.
+   Language: deep coloured canvas (never pure black), one blue for every
+   primary action, light-weight display type, flat 8px cards, pill buttons,
+   no glows or chrome gradients. Spike green / Crush red only for trading,
+   gold only for coins and premium.
    ============================================================ */
+@import url('/css/palette.css');
 
-:root,
-:root:not([data-theme='light']) {
-  /* ---- canvas & surfaces ---- */
-  --c-canvas: #000000;
-  --c-deep: #0b0c0e;
-  --c-elev: #121314;
-  --c-card: #181818;
-  --c-card-2: #1f2024;
-  --c-hair: rgba(229, 229, 229, 0.14);
-  --c-hair-2: rgba(229, 229, 229, 0.24);
-
-  /* ---- text ---- */
-  --c-on: #ffffff;
-  --c-body: rgba(255, 255, 255, 0.72);
-  --c-mute: rgba(229, 229, 229, 0.55);
-
-  /* ---- brand ---- */
-  --c-blue: #0070d1;
-  --c-blue-press: #0064b7;
-  --c-blue-deep: #004d8d;
-  --c-link: #53b1ff;
-  --c-commerce: #d53b00;
-  --c-commerce-press: #aa2f00;
-  --c-gold: #f5b83d;
-  --c-gold-grad: linear-gradient(90deg, #ffce21 0%, #f5a623 50%, #ee8e00 100%);
-  --c-spike: #1fd38a;
-  --c-crush: #ff3d5c;
-  --c-danger: #c81b3a;
-  --c-focus: #ffffff;
-
-  /* ---- type ---- */
+html:root {
   --c-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --c-display-weight: 300;
-
-  /* ---- shape & rhythm ---- */
-  --c-r-sm: 4px;
-  --c-r-md: 8px;
-  --c-r-lg: 16px;
-  --c-r-pill: 9999px;
-  --c-section: 96px;
+  --c-r-sm: 4px; --c-r-md: 8px; --c-r-lg: 16px; --c-r-pill: 9999px;
   --c-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --c-nav: color-mix(in srgb, var(--c-canvas) 88%, transparent);
+  --c-gold-grad: linear-gradient(90deg, #ffce21 0%, #f5a623 50%, #ee8e00 100%);
 
-  /* ==== map onto themes.css tokens ==== */
-  --bg-base: var(--c-canvas);
-  --bg-surface-1: var(--c-elev);
-  --bg-surface-2: var(--c-card);
-  --bg-surface-3: var(--c-card-2);
-  --bg-elevated: var(--c-card-2);
-  --bg-card: var(--c-card);
-  --bg-overlay: rgba(0, 0, 0, 0.86);
+  /* ==== themes.css tokens -> palette ==== */
+  --bg-base: var(--c-canvas); --bg-surface-1: var(--c-elev); --bg-surface-2: var(--c-card); --bg-surface-3: var(--c-card-2);
+  --bg-elevated: var(--c-card-2); --bg-card: var(--c-card); --bg-overlay: color-mix(in srgb, var(--c-canvas) 88%, transparent);
+  --border-subtle: var(--c-hair); --border-normal: var(--c-hair); --border-strong: var(--c-hair-2);
+  --border-gold: color-mix(in srgb, var(--c-blue) 55%, transparent);
+  --text-primary: var(--c-on); --text-secondary: var(--c-body); --text-muted: var(--c-mute);
+  --text-gold: var(--c-gold); --text-blue: var(--c-link); --text-teal: var(--c-spike); --text-red: var(--c-crush);
 
-  --border-subtle: var(--c-hair);
-  --border-normal: var(--c-hair);
-  --border-strong: var(--c-hair-2);
-  --border-gold: rgba(0, 112, 209, 0.55);
+  /* old "gold" = the UI accent -> blue. Coins use --c-gold directly. */
+  --gold: var(--c-blue); --gold-bright: var(--c-link); --gold-dark: var(--c-blue-press); --gold-btn: var(--c-blue);
+  --gold-deep: var(--c-blue-deep); --gold-glow: transparent;
+  --gold-subtle: color-mix(in srgb, var(--c-blue) 12%, transparent); --gold-border: color-mix(in srgb, var(--c-blue) 50%, transparent);
 
-  --text-primary: var(--c-on);
-  --text-secondary: var(--c-body);
-  --text-muted: var(--c-mute);
-  --text-gold: var(--c-gold);
-  --text-blue: var(--c-link);
+  --teal: var(--c-spike); --teal-bright: var(--c-spike); --teal-dark: var(--c-spike); --teal-glow: transparent;
+  --teal-subtle: color-mix(in srgb, var(--c-spike) 12%, transparent); --teal-border: color-mix(in srgb, var(--c-spike) 40%, transparent);
+  --red: var(--c-crush); --red-bright: var(--c-crush); --red-dark: var(--c-crush); --red-glow: transparent;
+  --red-subtle: color-mix(in srgb, var(--c-crush) 12%, transparent);
+  --buy: var(--c-spike); --sell: var(--c-crush); --profit: var(--c-spike); --loss: var(--c-crush);
+  --warning: var(--c-gold); --neutral: var(--c-mute);
 
-  /* --gold is the UI accent in the old system: it becomes console blue.
-     Coins/premium use --c-gold directly (see bottom of file). */
-  --gold: var(--c-blue);
-  --gold-bright: var(--c-link);
-  --gold-dark: var(--c-blue-press);
-  --gold-btn: var(--c-blue);
-  --gold-deep: var(--c-blue-deep);
-  --gold-glow: transparent;
-  --gold-subtle: rgba(0, 112, 209, 0.12);
-  --gold-border: rgba(0, 112, 209, 0.5);
+  --grad-gold: var(--c-blue); --grad-gold-btn: var(--c-blue); --grad-teal: var(--c-spike); --grad-red: var(--c-crush);
+  --grad-surface: var(--c-elev); --grad-hero: var(--c-canvas); --grad-card: var(--c-card);
+  --shadow-sm: none; --shadow-md: none; --shadow-lg: 0 12px 32px var(--c-shadow); --shadow-gold: none; --shadow-teal: none; --shadow-card: none;
+  --nav-bg: var(--c-nav); --nav-border: var(--c-hair);
+  --input-bg: var(--c-deep); --input-border: var(--c-hair-2); --input-focus: color-mix(in srgb, var(--c-blue) 35%, transparent);
+  --input-text: var(--c-on); --input-ph: var(--c-mute);
+  --chart-bg: var(--c-deep); --chart-grid: var(--c-hair); --chart-text: var(--c-mute); --chart-border: var(--c-hair);
+  --candle-up: var(--c-spike); --candle-down: var(--c-crush);
+  --btn-cta-bg: var(--c-blue); --btn-cta-text: #ffffff; --btn-primary-bg: var(--c-blue); --btn-primary-text: #ffffff;
+  --btn-danger-bg: var(--c-crush); --btn-danger-text: #ffffff;
+  --btn-ghost-bg: transparent; --btn-ghost-text: var(--c-on); --btn-ghost-border: var(--c-hair-2);
+  --tier-elite: var(--c-gold); --tier-warlord: #e0a800;
 
-  --teal: var(--c-spike);
-  --teal-bright: var(--c-spike);
-  --teal-dark: #17a86d;
-  --teal-glow: transparent;
-  --red: var(--c-crush);
-  --red-dark: #d92a48;
-  --red-glow: transparent;
-
-  --buy: var(--c-spike);
-  --sell: var(--c-crush);
-  --profit: var(--c-spike);
-  --loss: var(--c-crush);
-  --warning: var(--c-gold);
-  --neutral: var(--c-mute);
-
-  /* flat surfaces: gradients collapse to solid colour */
-  --grad-gold: var(--c-blue);
-  --grad-gold-btn: var(--c-blue);
-  --grad-teal: var(--c-spike);
-  --grad-red: var(--c-crush);
-  --grad-surface: var(--c-elev);
-  --grad-hero: var(--c-canvas);
-  --grad-card: var(--c-card);
-
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
-  --shadow-gold: none;
-  --shadow-teal: none;
-  --shadow-card: none;
-
-  --nav-bg: rgba(0, 0, 0, 0.92);
-  --nav-border: var(--c-hair);
-
-  --input-bg: var(--c-deep);
-  --input-border: var(--c-hair-2);
-  --input-focus: rgba(0, 112, 209, 0.35);
-  --input-ph: var(--c-mute);
-
-  --chart-bg: var(--c-canvas);
-  --chart-grid: rgba(229, 229, 229, 0.07);
-  --chart-text: var(--c-mute);
-  --chart-border: var(--c-hair);
-  --candle-up: var(--c-spike);
-  --candle-down: var(--c-crush);
-
-  --btn-cta-bg: var(--c-blue);
-  --btn-cta-text: #ffffff;
-  --btn-primary-bg: var(--c-blue);
-  --btn-primary-text: #ffffff;
-  --btn-ghost-bg: transparent;
-  --btn-ghost-border: var(--c-hair-2);
-
-  --tier-elite: var(--c-gold);
-  --tier-warlord: #ffce21;
-
-  /* overrides of aliases that were not pure var() references */
-  --buy-color-dark: #17a86d;
-  --spike-glow: transparent;
-  --overlay-soft: var(--c-elev);
-  --overlay-medium: var(--c-card);
+  --bg: var(--c-canvas); --surface: var(--c-elev); --surface-2: var(--c-card); --surface-3: var(--c-card-2);
+  --border: var(--c-hair); --text: var(--c-on); --accent: var(--c-blue); --accent-teal: var(--c-blue); --accent-teal-dark: var(--c-blue-press);
+  --accent-gold: var(--c-blue); --accent-gold-dark: var(--c-blue-press); --accent-red: var(--c-crush); --accent-red-dark: var(--c-crush);
+  --buy-color: var(--c-spike); --buy-color-dark: var(--c-spike); --sell-color: var(--c-crush); --profit-color: var(--c-spike); --loss-color: var(--c-crush);
+  --spike-green: var(--c-spike); --spike-green-bright: var(--c-spike); --spike-glow: transparent; --crush-red: var(--c-crush); --crush-glow: transparent;
+  --gradient-primary: var(--c-spike); --gradient-danger: var(--c-crush); --gradient-gold: var(--c-blue);
+  --gradient-dark: var(--c-elev); --gradient-surface: var(--c-elev); --gradient-card: var(--c-card); --gradient-hero: var(--c-canvas);
+  --card-shadow: none; --shadow-elevated: 0 12px 32px var(--c-shadow);
+  --overlay-soft: var(--c-elev); --overlay-medium: var(--c-card);
+  --border-accent: color-mix(in srgb, var(--c-blue) 55%, transparent); --text-accent: var(--c-blue);
 
   /* main.css */
-  --radius: var(--c-r-md);
-  --radius-lg: var(--c-r-md);
-  --font: var(--c-font);
+  --radius: var(--c-r-md); --radius-lg: var(--c-r-md); --font: var(--c-font);
 
-  /* ==== map onto lobby-tokens.css ==== */
-  --bg: var(--c-canvas);
-  --panel: var(--c-elev);
-  --panel-2: var(--c-card);
-  --panel-3: var(--c-deep);
-  --line: var(--c-hair);
-  --line-2: var(--c-hair-2);
-  --text: var(--c-on);
-  --muted: var(--c-body);
-  --gold-bg: rgba(0, 112, 209, 0.16);
-  --gold-ink: #ffffff;
-  --spike: var(--c-spike);
-  --crush: var(--c-crush);
-  --font-display: var(--c-font);
-  --font-body: var(--c-font);
-  --r-card: var(--c-r-md);
-  --r-tile: var(--c-r-md);
-  --r-btn: var(--c-r-pill);
-  --r-chip: var(--c-r-pill);
+  /* lobby-tokens.css */
+  --panel: var(--c-elev); --panel-2: var(--c-card); --panel-3: var(--c-deep); --line: var(--c-hair); --line-2: var(--c-hair-2);
+  --muted: var(--c-body); --gold-bg: color-mix(in srgb, var(--c-blue) 16%, transparent); --gold-ink: #ffffff;
+  --spike: var(--c-spike); --crush: var(--c-crush);
+  --font-display: var(--c-font); --font-body: var(--c-font);
+  --r-card: var(--c-r-md); --r-tile: var(--c-r-md); --r-btn: var(--c-r-pill); --r-chip: var(--c-r-pill);
   --ease: 160ms var(--c-ease);
 }
 
 /* ---------------- base ---------------- */
-
-:root:not([data-theme='light']) body {
+html:root body {
   background: var(--c-canvas);
   color: var(--c-on);
   font-family: var(--c-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
-:root:not([data-theme='light']) h1,
-:root:not([data-theme='light']) h2,
-:root:not([data-theme='light']) .page-title,
-:root:not([data-theme='light']) .section-title,
-:root:not([data-theme='light']) .lb-h {
-  font-family: var(--c-font);
-  font-weight: var(--c-display-weight);
-  letter-spacing: -0.01em;
-  text-transform: none;
+html:root h1, html:root h2, html:root .page-title, html:root .section-title, html:root .lb-h {
+  font-family: var(--c-font); font-weight: var(--c-display-weight); letter-spacing: -0.01em; text-transform: none; color: var(--c-on);
 }
-
-:root:not([data-theme='light']) h3 {
-  font-family: var(--c-font);
-  font-weight: 600;
-  letter-spacing: 0;
+html:root h3 { font-family: var(--c-font); font-weight: 600; letter-spacing: 0; }
+html:root p a:not(.btn), html:root .legal-text a, html:root .help-section a { color: var(--c-link); }
+html:root .label, html:root .stat-label, html:root .section-label, html:root .lb-label {
+  font-family: var(--c-font); font-size: 12px; font-weight: 500; letter-spacing: 0.04em; color: var(--c-mute);
 }
-
-/* inline prose links only - nav/buttons keep their own colours */
-:root:not([data-theme='light']) p a:not(.btn),
-:root:not([data-theme='light']) .legal-text a,
-:root:not([data-theme='light']) .help-section a { color: var(--c-link); }
-
-/* labels: quiet small caps instead of shouty tracking */
-:root:not([data-theme='light']) .label,
-:root:not([data-theme='light']) .stat-label,
-:root:not([data-theme='light']) .section-label,
-:root:not([data-theme='light']) .lb-label {
-  font-family: var(--c-font);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: var(--c-mute);
-}
-
-/* one visible focus ring for keyboard/controller users, everywhere */
-:root:not([data-theme='light']) :focus-visible {
-  outline: 2px solid var(--c-focus);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 6px rgba(0, 112, 209, 0.45);
+html:root :focus-visible {
+  outline: 2px solid var(--c-focus); outline-offset: 3px;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--c-blue) 45%, transparent);
 }
 
 /* ---------------- buttons: pills ---------------- */
-
-:root:not([data-theme='light']) .btn,
-:root:not([data-theme='light']) .lb-btn {
-  min-height: 48px;
-  padding: 12px 28px;
-  border-radius: var(--c-r-pill);
-  border: 1px solid var(--c-hair-2);
-  background: transparent;
-  color: var(--c-on);
-  font-family: var(--c-font);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  box-shadow: none;
-  filter: none;
-  transition: background 160ms var(--c-ease), border-color 160ms var(--c-ease),
-              transform 120ms var(--c-ease), color 160ms var(--c-ease);
+html:root .btn, html:root .lb-btn {
+  min-height: 48px; padding: 12px 28px; border-radius: var(--c-r-pill); border: 1px solid var(--c-hair-2);
+  background: transparent; color: var(--c-on); font-family: var(--c-font); font-size: 15px; font-weight: 700;
+  letter-spacing: 0.02em; text-transform: none; box-shadow: none; filter: none;
+  transition: background 160ms var(--c-ease), border-color 160ms var(--c-ease), transform 120ms var(--c-ease), color 160ms var(--c-ease);
 }
-
-:root:not([data-theme='light']) .btn:hover,
-:root:not([data-theme='light']) .lb-btn:hover {
-  transform: translateY(-1px);
-  filter: none;
-  box-shadow: none;
-  border-color: var(--c-on);
+html:root .btn:hover, html:root .lb-btn:hover { transform: translateY(-1px); filter: none; box-shadow: none; border-color: var(--c-on); }
+html:root .btn:active, html:root .lb-btn:active { transform: scale(0.97); }
+html:root .btn-primary, html:root .lb-btn-primary, html:root .lb-btn.primary, html:root .lb-btn.lb-btn-gold {
+  background: var(--c-blue); border-color: var(--c-blue); color: #ffffff;
 }
-
-:root:not([data-theme='light']) .btn:active,
-:root:not([data-theme='light']) .lb-btn:active { transform: scale(0.97); }
-
-:root:not([data-theme='light']) .btn-primary,
-:root:not([data-theme='light']) .lb-btn-primary,
-:root:not([data-theme='light']) .lb-btn.primary {
-  background: var(--c-blue);
-  border-color: var(--c-blue);
-  color: #ffffff;
+html:root .btn-primary:hover, html:root .lb-btn-primary:hover, html:root .lb-btn.primary:hover, html:root .lb-btn.lb-btn-gold:hover {
+  background: var(--c-blue-press); border-color: var(--c-blue-press); box-shadow: none;
 }
-
-:root:not([data-theme='light']) .btn-primary:hover,
-:root:not([data-theme='light']) .lb-btn-primary:hover,
-:root:not([data-theme='light']) .lb-btn.primary:hover {
-  background: var(--c-blue-press);
-  border-color: var(--c-blue-press);
-  box-shadow: none;
-}
-
-:root:not([data-theme='light']) .btn-outline {
-  background: transparent;
-  border-color: var(--c-hair-2);
-  color: var(--c-on);
-}
-:root:not([data-theme='light']) .btn-outline:hover { background: rgba(255, 255, 255, 0.06); box-shadow: none; }
-
-:root:not([data-theme='light']) .btn-buy {
-  background: var(--c-spike);
-  border-color: var(--c-spike);
-  color: #00140c;
-  box-shadow: none;
-}
-:root:not([data-theme='light']) .btn-sell {
-  background: var(--c-crush);
-  border-color: var(--c-crush);
-  color: #ffffff;
-  box-shadow: none;
-}
-:root:not([data-theme='light']) .btn-buy:hover,
-:root:not([data-theme='light']) .btn-sell:hover { box-shadow: none; filter: brightness(1.08); }
-
-/* Store / real-money purchase buttons use the commerce colour */
-:root:not([data-theme='light']) .btn-commerce,
-:root:not([data-theme='light']) .buy-btn,
-:root:not([data-theme='light']) .coin-package .btn {
-  background: var(--c-commerce);
-  border-color: var(--c-commerce);
-  color: #ffffff;
-}
-:root:not([data-theme='light']) .btn-commerce:hover,
-:root:not([data-theme='light']) .buy-btn:hover,
-:root:not([data-theme='light']) .coin-package .btn:hover {
-  background: var(--c-commerce-press);
-  border-color: var(--c-commerce-press);
-}
-
-:root:not([data-theme='light']) .btn:disabled,
-:root:not([data-theme='light']) .lb-btn:disabled {
-  background: var(--c-card-2);
-  border-color: transparent;
-  color: var(--c-mute);
-  opacity: 1;
-  transform: none;
-}
+html:root .btn-outline { background: transparent; border-color: var(--c-hair-2); color: var(--c-on); }
+html:root .btn-outline:hover { background: var(--c-ghost); box-shadow: none; }
+html:root .btn-buy { background: var(--c-spike); border-color: var(--c-spike); color: #00140c; box-shadow: none; }
+html:root .btn-sell { background: var(--c-crush); border-color: var(--c-crush); color: #ffffff; box-shadow: none; }
+html:root .btn-buy:hover, html:root .btn-sell:hover { box-shadow: none; filter: brightness(1.08); }
+html:root .btn-commerce, html:root .buy-btn, html:root .coin-package .btn { background: var(--c-commerce); border-color: var(--c-commerce); color: #ffffff; }
+html:root .btn-commerce:hover, html:root .buy-btn:hover, html:root .coin-package .btn:hover { background: var(--c-commerce-press); border-color: var(--c-commerce-press); }
+html:root .btn:disabled, html:root .lb-btn:disabled { background: var(--c-card-2); border-color: transparent; color: var(--c-mute); opacity: 1; transform: none; }
 
 /* ---------------- surfaces: flat 8px cards ---------------- */
-
-:root:not([data-theme='light']) .panel,
-:root:not([data-theme='light']) .sabotage-panel,
-:root:not([data-theme='light']) .leaderboard-panel,
-:root:not([data-theme='light']) .trading-panel,
-:root:not([data-theme='light']) .room-code-panel,
-:root:not([data-theme='light']) .chat-panel,
-:root:not([data-theme='light']) .stat-card,
-:root:not([data-theme='light']) .settings-panel,
-:root:not([data-theme='light']) .lb-card {
-  background: var(--c-elev);
-  border: 1px solid var(--c-hair);
-  border-radius: var(--c-r-md);
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+html:root .panel, html:root .sabotage-panel, html:root .leaderboard-panel, html:root .trading-panel, html:root .room-code-panel,
+html:root .chat-panel, html:root .stat-card, html:root .settings-panel, html:root .lb-card {
+  background: var(--c-elev); border: 1px solid var(--c-hair); border-radius: var(--c-r-md); box-shadow: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none; color: var(--c-on);
 }
-
-:root:not([data-theme='light']) .pill {
-  border-radius: var(--c-r-pill);
-  background: var(--c-card-2);
-  border-color: transparent;
-  font-weight: 600;
-}
-:root:not([data-theme='light']) .pill-gold { color: var(--c-gold); background: rgba(245, 184, 61, 0.12); }
-
-/* kill decorative glow text */
-:root:not([data-theme='light']) .text-buy,
-:root:not([data-theme='light']) .text-sell { text-shadow: none; }
+html:root .pill { border-radius: var(--c-r-pill); background: var(--c-card-2); border-color: transparent; font-weight: 600; }
+html:root .pill-gold { color: var(--c-gold); background: color-mix(in srgb, var(--c-gold) 14%, transparent); }
+html:root .text-buy, html:root .text-sell { text-shadow: none; }
 
 /* ---------------- inputs ---------------- */
-
-:root:not([data-theme='light']) .field input,
-:root:not([data-theme='light']) .field select,
-:root:not([data-theme='light']) .field textarea,
-:root:not([data-theme='light']) input[type='text'],
-:root:not([data-theme='light']) input[type='email'],
-:root:not([data-theme='light']) input[type='password'],
-:root:not([data-theme='light']) input[type='number'],
-:root:not([data-theme='light']) input[type='search'],
-:root:not([data-theme='light']) select,
-:root:not([data-theme='light']) textarea {
-  min-height: 48px;
-  background: var(--c-deep);
-  border: 1px solid var(--c-hair-2);
-  border-radius: var(--c-r-sm);
-  color: var(--c-on);
-  font-family: var(--c-font);
-  font-size: 16px;
+html:root .field input, html:root .field select, html:root .field textarea,
+html:root input[type='text'], html:root input[type='email'], html:root input[type='password'], html:root input[type='number'],
+html:root input[type='search'], html:root select, html:root textarea {
+  min-height: 48px; background: var(--c-deep); border: 1px solid var(--c-hair-2); border-radius: var(--c-r-sm);
+  color: var(--c-on); font-family: var(--c-font); font-size: 16px;
 }
-
-:root:not([data-theme='light']) .field input:focus,
-:root:not([data-theme='light']) .field select:focus,
-:root:not([data-theme='light']) input:focus,
-:root:not([data-theme='light']) select:focus,
-:root:not([data-theme='light']) textarea:focus {
-  border: 2px solid var(--c-blue);
-  box-shadow: none;
-  outline: none;
+html:root .field input:focus, html:root .field select:focus, html:root input:focus, html:root select:focus, html:root textarea:focus {
+  border: 2px solid var(--c-blue); box-shadow: none; outline: none;
 }
-
-:root:not([data-theme='light']) .field label { color: var(--c-body); font-size: 14px; }
-
-/* ---------------- top navigation (nav.js) ---------------- */
-
-:root:not([data-theme='light']) .lb-topbar { height: 64px; }
-
-:root:not([data-theme='light']) .lb-nav-link {
-  font-family: var(--c-font);
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--c-body);
-  border-radius: var(--c-r-pill);
-  position: relative;
-}
-:root:not([data-theme='light']) .lb-nav-link:hover { color: var(--c-on); background: rgba(255, 255, 255, 0.06); }
-:root:not([data-theme='light']) .lb-nav-link.active {
-  color: var(--c-on);
-  background: transparent;
-  font-weight: 700;
-}
-:root:not([data-theme='light']) .lb-nav-link.active::after {
-  content: '';
-  position: absolute;
-  left: 16px; right: 16px; bottom: 4px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--c-on);
-}
-
-:root:not([data-theme='light']) .lb-icon-btn,
-:root:not([data-theme='light']) .lb-avatar-btn {
-  border-radius: var(--c-r-pill);
-  border-color: transparent;
-  background: rgba(255, 255, 255, 0.08);
-}
-:root:not([data-theme='light']) .lb-icon-btn:hover,
-:root:not([data-theme='light']) .lb-avatar-btn:hover { background: rgba(255, 255, 255, 0.16); }
+html:root .field label { color: var(--c-body); font-size: 14px; }
 
 /* ---------------- coins & premium keep gold ---------------- */
-
-:root:not([data-theme='light']) .lb-coins {
-  border-radius: var(--c-r-pill);
-  border-color: transparent;
-  background: rgba(255, 255, 255, 0.08);
-  font-family: var(--c-font);
-}
-:root:not([data-theme='light']) .lb-coins .tw-icon,
-:root:not([data-theme='light']) .lb-coin-amt,
-:root:not([data-theme='light']) .lb-coin-amt .tw-icon,
-:root:not([data-theme='light']) .lb-feed-text .lb-coin-amt,
-:root:not([data-theme='light']) .tw-coin-balance,
-:root:not([data-theme='light']) .coin-balance,
-:root:not([data-theme='light']) .coin-package .amount,
-:root:not([data-theme='light']) .legal-coins,
-:root:not([data-theme='light']) [class*='coin-icon'] { color: var(--c-gold); }
+html:root .lb-coin-amt, html:root .lb-coin-amt .tw-icon, html:root .lb-feed-text .lb-coin-amt, html:root .tw-coin-balance,
+html:root .coin-balance, html:root .coin-package .amount, html:root .legal-coins, html:root [class*='coin-icon'] { color: var(--c-gold); }
 
 /* ---------------- toasts & modals ---------------- */
-
-:root:not([data-theme='light']) .modal,
-:root:not([data-theme='light']) .modal-content,
-:root:not([data-theme='light']) .drawer-panel,
-:root:not([data-theme='light']) .lb-avatar-menu {
-  background: var(--c-elev);
-  border: 1px solid var(--c-hair);
-  border-radius: var(--c-r-lg);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
-  backdrop-filter: none;
-}
-
-/* ---------------- motion preference ---------------- */
-
-@media (prefers-reduced-motion: reduce) {
-  :root:not([data-theme='light']) .btn,
-  :root:not([data-theme='light']) .lb-btn { transition: none; }
-  :root:not([data-theme='light']) .btn:hover,
-  :root:not([data-theme='light']) .lb-btn:hover { transform: none; }
+html:root .modal, html:root .modal-content, html:root .drawer-panel {
+  background: var(--c-elev); border: 1px solid var(--c-hair); border-radius: var(--c-r-lg);
+  box-shadow: 0 24px 64px var(--c-shadow); backdrop-filter: none; color: var(--c-on);
 }
 
 /* ============================================================
    Unified top bar (js/nav.js renderConsoleBar) - every page.
    ============================================================ */
-#twNav { position: sticky; top: 0; z-index: 1000; background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--c-hair, rgba(229,229,229,.14)); }
+#twNav { position: sticky; top: 0; z-index: 1000; background: var(--c-nav);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--c-hair); }
 body.lb-page #twNav { margin: 0 calc(-1 * var(--page-pad, 32px)); }
-.cn-bar { max-width: 1376px; margin: 0 auto; height: 64px; padding: 0 max(24px, env(safe-area-inset-left, 0px)); display: flex; align-items: center; gap: 28px; font-family: var(--c-font, Inter, system-ui, sans-serif); }
+.cn-bar { max-width: 1376px; margin: 0 auto; height: 64px; padding: 0 max(24px, env(safe-area-inset-left, 0px)); display: flex; align-items: center; gap: 28px; font-family: var(--c-font); }
 .cn-logo { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
-.cn-logo .s { color: var(--c-spike, #1fd38a); } .cn-logo .c { color: var(--c-crush, #ff3d5c); } .cn-logo .a { color: #fff; font-weight: 300; margin: 0 1px; }
+.cn-logo .s { color: var(--c-spike); } .cn-logo .c { color: var(--c-crush); } .cn-logo .a { color: var(--c-on); font-weight: 300; margin: 0 1px; }
 .cn-links { display: flex; gap: 2px; flex: 1; min-width: 0; }
-.cn-link { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 9999px; color: rgba(255,255,255,.72); font-size: 15px; font-weight: 500; text-decoration: none; white-space: nowrap; transition: color 160ms, background 160ms; }
-.cn-link:hover { color: #fff; background: rgba(255,255,255,.06); }
-.cn-link.active { color: #fff; font-weight: 700; }
-.cn-link.active::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 4px; height: 2px; border-radius: 2px; background: #fff; }
+.cn-link { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 9999px; color: var(--c-body); font-size: 15px; font-weight: 500; text-decoration: none; white-space: nowrap; transition: color 160ms, background 160ms; }
+.cn-link:hover { color: var(--c-on); background: var(--c-ghost); }
+.cn-link.active { color: var(--c-on); font-weight: 700; }
+.cn-link.active::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--c-on); }
 .cn-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.cn-coins { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 9999px; background: rgba(255,255,255,.08); color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; font-variant-numeric: tabular-nums; }
-.cn-coins .tw-icon { color: var(--c-gold, #f5b83d); }
-.cn-coins:hover { background: rgba(255,255,255,.14); }
-.cn-icon { position: relative; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255,255,255,.08); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-.cn-icon:hover { background: rgba(255,255,255,.16); }
-.cn-dot { position: absolute; top: 8px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--c-crush, #ff3d5c); box-shadow: 0 0 0 2px #000; }
-.cn-login { min-height: 40px; display: inline-flex; align-items: center; padding: 0 20px; border-radius: 9999px; background: var(--c-blue, #0070d1); color: #fff; font-weight: 700; text-decoration: none; }
+.cn-coins { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 9999px; background: var(--c-ghost); color: var(--c-on); font-weight: 700; font-size: 15px; text-decoration: none; font-variant-numeric: tabular-nums; }
+.cn-coins .tw-icon { color: var(--c-gold); }
+.cn-coins:hover { background: var(--c-ghost-2); }
+.cn-icon { position: relative; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--c-ghost); color: var(--c-on); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.cn-icon:hover { background: var(--c-ghost-2); }
+.cn-dot { position: absolute; top: 8px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--c-crush); box-shadow: 0 0 0 2px var(--c-canvas); }
+.cn-login { min-height: 40px; display: inline-flex; align-items: center; padding: 0 20px; border-radius: 9999px; background: var(--c-blue); color: #fff; font-weight: 700; text-decoration: none; }
 .cn-account { position: relative; }
-.cn-avatar { display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 8px 0 4px; border-radius: 9999px; border: 0; background: rgba(255,255,255,.08); color: rgba(255,255,255,.72); cursor: pointer; }
-.cn-avatar:hover { background: rgba(255,255,255,.16); }
-.cn-menu { position: absolute; right: 0; top: calc(100% + 10px); width: 260px; z-index: 1200; background: #121314; border: 1px solid rgba(229,229,229,.14); border-radius: 16px; padding: 8px; box-shadow: 0 24px 64px rgba(0,0,0,.6); }
-.cn-menu-head { display: flex; flex-direction: column; gap: 6px; padding: 12px 12px 14px; border-bottom: 1px solid rgba(229,229,229,.14); margin-bottom: 6px; }
-.cn-menu-name { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: #fff; }
-.cn-menu-rating { font-size: 13px; color: rgba(229,229,229,.55); }
-.cn-menu-rating span { color: #fff; font-variant-numeric: tabular-nums; }
-.cn-progress { display: block; height: 4px; border-radius: 4px; background: rgba(255,255,255,.1); overflow: hidden; }
-.cn-progress span { display: block; height: 100%; background: var(--c-blue, #0070d1); }
-.cn-menu a, .cn-menu button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 12px; border-radius: 8px; border: 0; background: none; color: #fff; font: 500 15px var(--c-font, Inter, sans-serif); text-decoration: none; text-align: left; cursor: pointer; }
-.cn-menu a:hover, .cn-menu button:hover, .cn-menu a:focus-visible, .cn-menu button:focus-visible { background: rgba(255,255,255,.08); }
-.cn-menu a.active { background: rgba(0,112,209,.2); }
-.cn-menu .tw-icon { color: rgba(229,229,229,.55); }
+.cn-avatar { display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 8px 0 4px; border-radius: 9999px; border: 0; background: var(--c-ghost); color: var(--c-body); cursor: pointer; }
+.cn-avatar:hover { background: var(--c-ghost-2); }
+.cn-menu { position: absolute; right: 0; top: calc(100% + 10px); width: 260px; z-index: 1200; background: var(--c-elev); border: 1px solid var(--c-hair); border-radius: 16px; padding: 8px; box-shadow: 0 24px 64px var(--c-shadow); }
+.cn-menu-head { display: flex; flex-direction: column; gap: 6px; padding: 12px 12px 14px; border-bottom: 1px solid var(--c-hair); margin-bottom: 6px; }
+.cn-menu-name { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: var(--c-on); }
+.cn-menu-rating { font-size: 13px; color: var(--c-mute); }
+.cn-menu-rating span { color: var(--c-on); font-variant-numeric: tabular-nums; }
+.cn-progress { display: block; height: 4px; border-radius: 4px; background: var(--c-ghost-2); overflow: hidden; }
+.cn-progress span { display: block; height: 100%; background: var(--c-blue); }
+.cn-menu a, .cn-menu button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 12px; border-radius: 8px; border: 0; background: none; color: var(--c-on); font: 500 15px var(--c-font); text-decoration: none; text-align: left; cursor: pointer; }
+.cn-menu a:hover, .cn-menu button:hover, .cn-menu a:focus-visible, .cn-menu button:focus-visible { background: var(--c-ghost); }
+.cn-menu a.active { background: color-mix(in srgb, var(--c-blue) 18%, transparent); }
+.cn-menu .tw-icon { color: var(--c-mute); }
 .cn-menu .tw-friends-online-badge { margin-left: auto; position: static; }
 .cn-burger { display: none; }
 #twNav .hidden { display: none !important; }
 @media (max-width: 1100px) { .cn-link { padding: 0 10px; } .cn-bar { gap: 16px; } }
 @media (max-width: 900px) { .cn-links { display: none; } .cn-burger { display: inline-flex; } .cn-bar { justify-content: space-between; } }
 @media (max-width: 420px) { .cn-coins { padding: 0 12px; } .cn-logo { font-size: 18px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html:root .btn, html:root .lb-btn { transition: none; }
+  html:root .btn:hover, html:root .lb-btn:hover { transform: none; }
+}
