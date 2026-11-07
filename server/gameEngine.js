@@ -2258,12 +2258,54 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   // way to lock in a better-than-earned result. The match itself keeps
   // running normally for whoever's left; earlyLeavers is consulted in
   // endMatch() to notify the player once real final standings are known.
+  // Leaving a match that hasn't started yet (the waiting room). Entry coins
+  // were debited when the player queued (/api/match/create, invite accept),
+  // so they're refunded here. If the host leaves, the next human becomes host;
+  // if no humans are left, the room is closed. Tournament brackets are not
+  // leavable from the waiting room - their entry belongs to the bracket.
+  async function leaveLobby(match, playerId) {
+    if (match.mode === 'tournament') return { success: false, error: 'Tournament rounds cannot be left before they start' };
+    const player = match.players[playerId];
+    delete match.players[playerId];
+    match.playerOrder = match.playerOrder.filter((id) => id !== playerId);
+    const humansLeft = match.playerOrder.filter((id) => match.players[id] && !match.players[id].isAI);
+    if (match.hostId === playerId) match.hostId = humansLeft[0] || null;
+
+    let refunded = 0;
+    if (match.config.entryCoins > 0 && db.isConfigured) {
+      try {
+        await db.creditCoins(playerId, match.config.entryCoins, { type: 'match_refund', matchId: match.dbMatchId });
+        refunded = match.config.entryCoins;
+      } catch (e) {
+        console.warn('[gameEngine] leaveLobby refund failed for', player?.username, e.message);
+      }
+    }
+    updatePresence?.(playerId, { status: 'online', matchId: null, lobbyId: null, mode: null });
+
+    if (!humansLeft.length) {
+      clearInterval(match.timers.tickInterval);
+      clearInterval(match.timers.leaderboardInterval);
+      clearTimeout(match.timers.lobbyTimeout);
+      match.status = 'voided';
+      if (db.isConfigured && match.dbMatchId) db.updateMatch(match.dbMatchId, { status: 'voided', end_time: new Date().toISOString() }).catch(() => {});
+      instruments.releaseMatchWindows(match.id);
+      personas.resetMatchPersonas(match.id);
+      matches.delete(match.id);
+      roomCodeIndex.delete(match.roomCode);
+    } else {
+      pushFeed(match, `${player?.username || 'A player'} left the lobby`);
+      emitMatchStateToAll(match);
+    }
+    return { success: true, refunded, left: 'lobby' };
+  }
+
   async function leaveMatch(matchId, playerId) {
     const match = matches.get(matchId);
     if (!match) return { success: false, error: 'Match not found' };
     const player = match.players[playerId];
     if (!player) return { success: false, error: 'Player not in this match' };
     if (player.isAI) return { success: false, error: 'Cannot leave as AI' };
+    if (match.status === 'waiting') return leaveLobby(match, playerId);
     if (match.status !== 'active' && match.status !== 'countdown') {
       return { success: false, error: `Cannot leave a match in status "${match.status}"` };
     }

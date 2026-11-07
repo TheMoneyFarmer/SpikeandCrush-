@@ -69,6 +69,16 @@
           </div>
           <button id="startWarBtn" class="btn btn-primary btn-block hidden" style="margin-top: 10px">Start war</button>
           <button id="readyBtn" class="btn btn-primary btn-block" style="margin-top: 10px">Ready</button>
+          <div id="leaveLobbyWrap" style="margin-top:10px;">
+            <button id="leaveLobbyBtn" type="button" class="btn btn-outline btn-block">Leave lobby</button>
+            <div id="leaveLobbyConfirm" class="hidden" role="alertdialog" aria-labelledby="leaveLobbyQ" style="display:flex;flex-direction:column;gap:8px;">
+              <p id="leaveLobbyQ" style="margin:0;text-align:center;color:var(--text-secondary);">Leave this lobby? Any entry coins you paid are refunded.</p>
+              <div style="display:flex;gap:8px;">
+                <button id="leaveLobbyNo" type="button" class="btn btn-outline" style="flex:1;">Stay</button>
+                <button id="leaveLobbyYes" type="button" class="btn btn-sell" style="flex:1;">Leave</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -277,6 +287,31 @@
     }
 
     const socket = TW.connectSocket();
+
+    // ---- Leave lobby (before the match starts; entry coins refunded) ----
+    (function wireLeaveLobby() {
+      const btn = document.getElementById('leaveLobbyBtn');
+      const box = document.getElementById('leaveLobbyConfirm');
+      const yes = document.getElementById('leaveLobbyYes');
+      const no = document.getElementById('leaveLobbyNo');
+      if (!btn) return;
+      const show = (confirming) => { btn.classList.toggle('hidden', confirming); box.classList.toggle('hidden', !confirming); (confirming ? no : btn).focus(); };
+      btn.addEventListener('click', () => show(true));
+      no.addEventListener('click', () => show(false));
+      yes.addEventListener('click', () => {
+        yes.disabled = true; yes.textContent = 'Leaving…';
+        socket.emit('match:leave', {}, async (res) => {
+          if (res && res.success) {
+            // refresh the cached coin balance so the refund shows straight away
+            try { const me = await TW.api('/api/player/me'); if (me) TW.updatePlayerCache(me); } catch (e) {}
+            window.location.href = '/play';
+          } else {
+            TW.toast((res && res.error) || 'Could not leave the lobby', 'danger');
+            yes.disabled = false; yes.textContent = 'Leave'; show(false);
+          }
+        });
+      });
+    })();
     if (!socket) window.location.href = '/play';
 
     socket.on('connect', async () => {
