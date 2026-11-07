@@ -858,7 +858,7 @@ nav{
   <div class="hero-particles" id="lpHeroParticles"></div>
   <div class="hero-badge">
     <div class="dot"></div>
-    <span id="heroBadgeText">Live — 2,847 traders active right now</span>
+    <span id="heroBadgeText">Live now</span>
   </div>
 
   <div class="hero-logo">
@@ -883,7 +883,7 @@ nav{
 
   <div class="stats">
     <div class="stat">
-      <span class="stat-v" id="sv1">2,847</span>
+      <span class="stat-v" id="sv1">—</span>
       <span class="stat-l">Active Traders</span>
     </div>
     <div class="stat">
@@ -1232,7 +1232,7 @@ nav{
   </div>
 
   <h2 class="sp-title">Enter the War</h2>
-  <p class="sp-sub">Join 2,847 traders competing right now. 500 free coins on registration.</p>
+  <p class="sp-sub"><span id="spJoinCount">Join the traders on the board.</span> 500 free coins on registration.</p>
 
   <div class="soc-btns">
     <button class="soc-btn google" onclick="TW.loginWithGoogle()">
@@ -1595,6 +1595,8 @@ async function loadLiveStats(){
     const badge=document.getElementById('heroBadgeText');
     if(badge) badge.textContent=`Live — ${Number(data.activePlayers||0).toLocaleString()} traders active right now`;
     animCount(document.getElementById('sv1'),data.activePlayers||0);
+    const join=document.getElementById('spJoinCount');
+    if(join&&data.totalPlayers>0) join.textContent=`Join ${Number(data.totalPlayers).toLocaleString()} traders.`;
     animCount(document.getElementById('sv2'),data.matchesToday||0);
     animCountFormatted(document.getElementById('sv3'),data.largestWinToday||0,formatWin);
     animCountFormatted(document.getElementById('sv4'),data.totalPrizesDistributed||0,formatTotal);

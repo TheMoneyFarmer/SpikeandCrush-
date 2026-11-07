@@ -2578,16 +2578,18 @@ app.get('/api/stats/live', async (req, res) => {
     const activePlayers = playerSockets.size;
     const { matchesToday } = await gameEngine.getHomeStats();
     if (!db.isConfigured) {
-      return res.json({ activePlayers, matchesToday, largestWinToday: 0, totalPrizesDistributed: 0 });
+      return res.json({ activePlayers, matchesToday, largestWinToday: 0, totalPrizesDistributed: 0, totalPlayers: 0 });
     }
-    const [largestWinToday, totalPrizesDistributed] = await Promise.all([
+    // totalPlayers is every account, persona/bot accounts included.
+    const [largestWinToday, totalPrizesDistributed, totalPlayers] = await Promise.all([
       db.getLargestWinToday(),
       db.getTotalPrizesDistributed(),
+      db.getTotalPlayerCount(),
     ]);
-    res.json({ activePlayers, matchesToday, largestWinToday, totalPrizesDistributed });
+    res.json({ activePlayers, matchesToday, largestWinToday, totalPrizesDistributed, totalPlayers });
   } catch (e) {
     console.error('[stats live]', e);
-    res.json({ activePlayers: 0, matchesToday: 0, largestWinToday: 0, totalPrizesDistributed: 0 });
+    res.json({ activePlayers: 0, matchesToday: 0, largestWinToday: 0, totalPrizesDistributed: 0, totalPlayers: 0 });
   }
 });
 

@@ -103,10 +103,15 @@ html, body {
 
 /* ---- main area -------------------------------------------------------------- */
 
+/* The single row is pinned to the space .game-main actually has
+   (minmax(0, 1fr)) - left as an auto row it grew to the trading panel's
+   full content once a few positions were open, and the chart stretched
+   with it, painting over the sabotage cards and leaderboard below. */
 .game-main {
   flex: 1;
   display: grid;
   grid-template-columns: 62% 38%;
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -116,6 +121,8 @@ html, body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chart-quotes {
@@ -423,6 +430,7 @@ html, body {
   flex-direction: column;
   padding: 16px;
   gap: 16px;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -536,7 +544,11 @@ html, body {
   overflow-y: auto;
 }
 
+/* Rows keep their full height and the list scrolls - squeezed into the
+   list's max-height they overlapped each other (and the SL/TP stepper sat
+   on top of the next row's P&L). */
 .position-row {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
