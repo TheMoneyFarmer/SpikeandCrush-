@@ -933,8 +933,7 @@ h1, h2, h3, h4, .title {
   margin-bottom: 16px;
 }
 
-.tw-login-social-row .google-signin-btn,
-.tw-login-social-row .apple-signin-btn {
+.tw-login-social-row .google-signin-btn {
   flex: 1;
   height: 52px;
   min-height: 52px;
@@ -945,8 +944,7 @@ h1, h2, h3, h4, .title {
   backdrop-filter: blur(6px);
 }
 
-.tw-login-social-row .google-signin-btn:hover,
-.tw-login-social-row .apple-signin-btn:hover {
+.tw-login-social-row .google-signin-btn:hover {
   background: rgba(30, 30, 42, 0.7);
 }
 

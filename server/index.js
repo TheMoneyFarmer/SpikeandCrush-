@@ -672,7 +672,7 @@ app.post('/api/auth/reset-password', authLimiter, requireDb, async (req, res) =>
   res.json({ message: 'Reset email sent if found' });
 });
 
-// OAuth (Google/Apple) sign-ins land here after supabaseClient.auth.getSession()
+// OAuth (Google) sign-ins land here after supabaseClient.auth.getSession()
 // resolves client-side. Finds the existing player for this Supabase user, or
 // creates one on first sign-in - never overwrites stats for a returning
 // OAuth user. Deliberately does NOT use the `authenticate` middleware: that

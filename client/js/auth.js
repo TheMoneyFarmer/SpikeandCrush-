@@ -85,16 +85,6 @@ window.TW = window.TW || {};
     if (error) TW.toast(error.message, 'danger');
   };
 
-  TW.loginWithApple = async function loginWithApple() {
-    await ready;
-    if (!supabaseClient) return TW.toast('Sign-in is unavailable right now', 'danger');
-    const { error } = await supabaseClient.auth.signInWithOAuth({
-      provider: 'apple',
-      options: { redirectTo: `${window.location.origin}/auth-callback` },
-    });
-    if (error) TW.toast(error.message, 'danger');
-  };
-
   TW.handleForgotPassword = async function handleForgotPassword() {
     const email = prompt('Enter your email address:');
     if (!email) return;

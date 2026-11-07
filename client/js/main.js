@@ -588,7 +588,6 @@ window.TW = window.TW || {};
     });
 
     document.getElementById('googleSignInBtn')?.addEventListener('click', () => TW.loginWithGoogle());
-    document.getElementById('appleSignInBtn')?.addEventListener('click', () => TW.loginWithApple());
     document.getElementById('forgotPasswordLink')?.addEventListener('click', (e) => {
       e.preventDefault();
       TW.handleForgotPassword();
