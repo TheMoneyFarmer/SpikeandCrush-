@@ -78,7 +78,14 @@ jobs:
           }
 
           echo "Pausing new matches on $SITE"
-          drain true 3300
+          resp=$(drain true 3300)
+          echo "$resp"
+          if ! echo "$resp" | grep -q '"draining":true'; then
+            # Without a confirmed pause a match could start mid-deploy, so
+            # "nothing running right now" would not be a safe signal.
+            echo "::error::The live server did not confirm the pause (is DEPLOY_DRAIN_TOKEN set on Railway with the same value as the GitHub secret, and deployed?). Deploy skipped."
+            exit 1
+          fi
 
           while [ "$(elapsed)" -lt "$MAX_WAIT" ]; do
             s=$(curl -s --max-time 20 "$SITE/api/deploy/status" || echo '{}')
