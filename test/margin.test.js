@@ -50,8 +50,6 @@ test('margin rules in a live match', { timeout: 40000 }, async (t) => {
   });
   await t.test('stop-out closes the biggest loser first, then stops, and play continues', async () => {
     player.positions.length = 0;
-    // A big profit banked, so the 50%-of-capital floor is far away and only
-    // the margin rules can act.
     player.balance = 40000;
     const big = open({ symbol: 'EURUSD', direction: 'BUY', lots: 10 });
     const small = open({ symbol: 'EURUSD', direction: 'BUY', lots: 10 });
@@ -63,7 +61,7 @@ test('margin rules in a live match', { timeout: 40000 }, async (t) => {
     for (let i = 0; i < 40 && player.positions.length === 2; i++) await sleep(100);
     assert.strictEqual(player.positions.length, 1, 'only the worst position should close');
     assert.strictEqual(player.positions[0].id, b.id, 'the biggest loser goes first');
-    assert.ok(!player.eliminated, 'not eliminated: the 50% floor was not reached');
+    assert.ok(!player.eliminated, 'still in the match');
     assert.ok(match.feed.some((f) => /was stopped out/.test(f.text || f.message || String(f))), 'stop-out appears in the feed');
     // Still under the margin call level, so new trades wait until margin is freed.
     const blocked = open({ symbol: 'NAS100', direction: 'BUY', lots: 0.01 });
@@ -85,15 +83,27 @@ test('margin rules in a live match', { timeout: 40000 }, async (t) => {
     assert.strictEqual(blocked.success, false);
     assert.match(blocked.error, /free margin/i);
   });
-  await t.test('the 50% limit still ends trading when it is reached first', async () => {
+  await t.test('no fixed maximum loss: a small position can ride through more than 50%', async () => {
+    player.positions.length = 0;
+    player.balance = 10000;
+    const r = open({ symbol: 'EURUSD', direction: 'BUY', lots: 1 });
+    assert.ok(r.success, r.error);
+    player.positions[0].entryPrice += 0.06; // about -$6,000: equity near $4,000, margin level far above 100%
+    await new Promise((res) => setTimeout(res, 1500));
+    assert.strictEqual(player.positions.length, 1, 'the position stays open');
+    assert.ok(!player.eliminated, 'not eliminated');
+  });
+  await t.test('from a fresh account at full size, stop-out does the closing', async () => {
     player.positions.length = 0;
     player.balance = 10000;
     player.softLocked = false;
-    const r = open({ symbol: 'EURUSD', direction: 'BUY', lots: 1 });
+    const asked = open({ symbol: 'EURUSD', direction: 'BUY', lots: 100000 });
+    const most = Number(/up to ([\d.]+) lots/.exec(asked.error)[1]);
+    const r = open({ symbol: 'EURUSD', direction: 'BUY', lots: most });
     assert.ok(r.success, r.error);
-    player.positions[0].entryPrice += 0.06; // about -$6,000: equity near $4,000
-    for (let i = 0; i < 40 && !player.eliminated; i++) await sleep(100);
-    assert.ok(player.eliminated, 'eliminated at the 50% loss limit');
-    assert.strictEqual(player.positions.length, 0);
+    player.positions[0].entryPrice += 0.1; // far past the stop-out level
+    for (let i = 0; i < 40 && player.positions.length; i++) await new Promise((res) => setTimeout(res, 100));
+    assert.strictEqual(player.positions.length, 0, 'stopped out');
+    assert.ok(!player.eliminated, 'still in the match');
   });
 });

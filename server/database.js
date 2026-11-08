@@ -204,6 +204,32 @@ async function setBattlePassPremium(playerId, season, { stripeSubscriptionId, ex
   return data;
 }
 
+// The player's most recent subscription, whichever season it was started in.
+async function getLatestBattlePassSubscription(playerId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('battle_pass_subscriptions')
+    .select('*')
+    .eq('player_id', playerId)
+    .not('stripe_subscription_id', 'is', null)
+    .order('started_at', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return data && data[0] ? data[0] : null;
+}
+
+// A subscription has ended: Premium stops on every row it paid for.
+async function clearBattlePassPremium(stripeSubscriptionId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('battle_pass_subscriptions')
+    .update({ is_premium: false })
+    .eq('stripe_subscription_id', stripeSubscriptionId)
+    .select('player_id');
+  if (error) throw error;
+  return data || [];
+}
+
 async function listCompletedChallenges(playerId, season) {
   assertConfigured();
   const { data, error } = await supabase
@@ -2077,6 +2103,8 @@ module.exports = {
   ensureBattlePassStatus,
   addBattlePassXp,
   setBattlePassPremium,
+  getLatestBattlePassSubscription,
+  clearBattlePassPremium,
   listCompletedChallenges,
   recordChallengeCompletion,
   getBattlePassChallengeStats,

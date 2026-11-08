@@ -314,7 +314,6 @@ function createCompEngine({ io, notifyPlayer }) {
       rules: {
         ...marginRules.MARGIN_RULES,
         maxPositions: GAME_RULES.MAX_POSITIONS,
-        lossLimitPct: GAME_RULES.HARD_LOSS_PCT,
       },
       instrumentInfo: Object.fromEntries(
         (comp.instruments || []).map((sym) => {
@@ -417,14 +416,9 @@ function createCompEngine({ io, notifyPlayer }) {
     const quote = replayClock.getPriceAt(symbol, dataTime);
     if (!quote || quote.marketClosed) throw Object.assign(new Error('Market closed - you can still close trades'), { status: 400 });
 
-    // Refuse new risk once equity is at the loss limit, or if it won't fit in free margin.
+    // A new trade has to fit in free margin.
     const allQuotes = quotesFor(comp, dataTime);
     const equity = equityOf(account, open, allQuotes);
-    if (equity <= Number(account.starting_capital) * (1 - GAME_RULES.HARD_LOSS_PCT)) {
-      throw Object.assign(new Error('Equity is at the loss limit'), {
-        status: 400,
-      });
-    }
     const usedNow = marginRules.usedMargin(open, (p) => (allQuotes[p.symbol] ? marginRules.mid(allQuotes[p.symbol]) : Number(p.entry_price)));
     const freeMargin = equity - usedNow;
     if (marginRules.positionMargin(symbol, size, marginRules.mid(quote)) > freeMargin) {
@@ -451,7 +445,7 @@ function createCompEngine({ io, notifyPlayer }) {
 
   async function closeTrade(compId, playerId, positionId) {
     // Closing is allowed even with the market closed, but not once the
-    // account is locked (loss limit already closed everything).
+    // account is locked.
     const { comp } = await requireTradeable(compId, playerId);
     const pos = await db.getCompPosition(positionId);
     if (!pos || pos.player_id !== playerId || pos.competition_id !== comp.id || pos.status !== 'open') {
@@ -546,12 +540,8 @@ function createCompEngine({ io, notifyPlayer }) {
 
   // Replays the price path between the last tick and now for one account, in
   // time order: at every point each open position's SL/TP is checked, then
-  // the account's equity at that same moment against the loss limit. Prices
-  // move in straight lines between path points, so equity does too - the
-  // stop-out happens at the exact moment equity crosses the floor, not
-  // wherever the next 5-second tick happens to land.
+  // the account's margin level at that same moment against the stop-out level.
   async function walkAccountPath(comp, acc, open, lastData, dataTime) {
-    const floor = Number(acc.starting_capital) * (1 - GAME_RULES.HARD_LOSS_PCT);
     const startOf = (pos) => Math.max(lastData, replayClock.dataTimeFor(comp, new Date(pos.opened_at).getTime()));
     const times = new Set([dataTime]);
     for (const sym of new Set(open.map((p) => p.symbol))) {
@@ -561,7 +551,6 @@ function createCompEngine({ io, notifyPlayer }) {
     let balance = Number(acc.balance);
     let live = open.slice();
     const equityAt = (t) => live.reduce((eq, pos) => eq + positionPnl(pos, replayClock.getPriceAt(pos.symbol, t)).pnl, balance);
-    let prev = { t: lastData, equity: equityAt(lastData) };
 
     for (const t of [...times].sort((a, b) => a - b)) {
       for (const pos of live.slice()) {
@@ -579,47 +568,29 @@ function createCompEngine({ io, notifyPlayer }) {
           emit(comp.id, pos.player_id, hit.reason === 'sl' ? 'comp:sl_hit' : 'comp:tp_hit', { positionId: pos.id, symbol: pos.symbol, exitPrice: exit, pnl });
         }
       }
-      if (!live.length) {
-        prev = { t, equity: balance };
-        continue;
-      }
+      if (!live.length) continue;
 
+      // Margin stop-out: close the biggest loser, then the next, until the
+      // margin level recovers. Stored as 'loss_limit' (the table has no
+      // stop_out reason; the play screen labels it Stopped out). The account stays open.
       let equity = equityAt(t);
-      if (equity > floor) {
-        // Margin stop-out: close the biggest loser, then the next, until the
-        // margin level recovers. Stored as 'loss_limit' (the table has no
-        // stop_out reason), but the account stays open and the player is told.
-        const usedAt = () => marginRules.usedMargin(live, (p) => marginRules.mid(replayClock.getPriceAt(p.symbol, t)));
-        let level = marginRules.marginLevel(equity, usedAt());
-        let closed = 0;
-        while (level !== null && level <= marginRules.STOP_OUT_LEVEL && live.length) {
-          const scored = live.map((p) => ({ p, ...positionPnl(p, replayClock.getPriceAt(p.symbol, t)) })).sort((a, b) => a.pnl - b.pnl);
-          const { p: worst, exit, pnl } = scored[0];
-          live = live.filter((p) => p !== worst);
-          if (await db.compClosePosition(worst.id, exit, 'loss_limit', pnl)) {
-            balance += pnl;
-            closed += 1;
-          }
-          equity = equityAt(t);
-          level = marginRules.marginLevel(equity, usedAt());
+      const usedAt = () => marginRules.usedMargin(live, (p) => marginRules.mid(replayClock.getPriceAt(p.symbol, t)));
+      let level = marginRules.marginLevel(equity, usedAt());
+      let closed = 0;
+      while (level !== null && level <= marginRules.STOP_OUT_LEVEL && live.length) {
+        const scored = live.map((p) => ({ p, ...positionPnl(p, replayClock.getPriceAt(p.symbol, t)) })).sort((x, y) => x.pnl - y.pnl);
+        const { p: worst, exit, pnl } = scored[0];
+        live = live.filter((p) => p !== worst);
+        if (await db.compClosePosition(worst.id, exit, 'loss_limit', pnl)) {
+          balance += pnl;
+          closed += 1;
         }
-        if (closed) emit(comp.id, acc.player_id, 'comp:stop_out', { closed, equity: round2(equity) });
-        prev = { t, equity };
-        continue;
+        equity = equityAt(t);
+        level = marginRules.marginLevel(equity, usedAt());
       }
-      if (!(await db.lockCompAccount(acc.id, { status: 'loss_limit', loss_limit_hit_at: new Date().toISOString() }))) {
-        return { balance, live, locked: false };
-      }
-      // Interpolate back to the moment equity actually hit the floor.
-      const crossT =
-        prev.equity > floor && prev.equity !== equity ? Math.round(prev.t + ((prev.equity - floor) / (prev.equity - equity)) * (t - prev.t)) : t;
-      for (const pos of live) {
-        const { exit, pnl } = positionPnl(pos, replayClock.getPriceAt(pos.symbol, crossT));
-        if (await db.compClosePosition(pos.id, exit, 'loss_limit', pnl)) balance += pnl;
-      }
-      return { balance, live: [], locked: true };
+      if (closed) emit(comp.id, acc.player_id, 'comp:stop_out', { closed, equity: round2(equity) });
     }
-    return { balance, live, locked: false };
+    return { balance, live };
   }
 
   async function tickCompetition(comp, nowMs) {
@@ -634,20 +605,13 @@ function createCompEngine({ io, notifyPlayer }) {
     const byAccount = {};
     for (const pos of openAll) (byAccount[pos.account_id] = byAccount[pos.account_id] || []).push(pos);
 
-    // 1) stops and loss limit along the path, 2) mark to market, snapshots
+    // 1) stops and stop-out along the path, 2) mark to market, snapshots
     for (const acc of fresh) {
       if (acc.status !== 'active') continue;
       const walked = await walkAccountPath(comp, acc, byAccount[acc.id] || [], lastData, dataTime);
       byAccount[acc.id] = walked.live;
       acc.balance = round2(walked.balance);
-      const equity = walked.locked ? acc.balance : equityOf(acc, walked.live, quotes);
-      if (walked.locked) {
-        acc.status = 'loss_limit';
-        emit(comp.id, acc.player_id, 'comp:loss_limit', { equity });
-        notifyPlayer(acc.player_id, 'comp_loss_limit', `Loss limit hit in ${comp.title} - your account is locked at $${equity.toFixed(2)}`, {
-          data: { competitionId: comp.id },
-        });
-      }
+      const equity = equityOf(acc, walked.live, quotes);
       const fields = { equity };
       if (!acc.last_snapshot_at || nowMs - new Date(acc.last_snapshot_at).getTime() >= SNAPSHOT_EVERY_MS) {
         await db.insertCompEquitySnapshot(acc.id, equity);
@@ -870,7 +834,7 @@ function createCompEngine({ io, notifyPlayer }) {
       id,
       title,
       description,
-      rules: `Starting capital $${GAME_RULES.STARTING_CAPITAL.toLocaleString()}. Leverage ${marginRules.LEVERAGE}:1, up to ${GAME_RULES.MAX_POSITIONS} open positions, no lot limit (size is set by free margin). Margin call at ${marginRules.MARGIN_CALL_LEVEL}%, stop-out at ${marginRules.STOP_OUT_LEVEL}%. Losing ${GAME_RULES.HARD_LOSS_PCT * 100}% of starting capital locks your account at its final equity. Replays real historical market data. ${NO_CASH_VALUE_LINE}`,
+      rules: `Starting capital $${GAME_RULES.STARTING_CAPITAL.toLocaleString()}. Leverage ${marginRules.LEVERAGE}:1, up to ${GAME_RULES.MAX_POSITIONS} open positions, no lot limit (size is set by free margin). Margin call at ${marginRules.MARGIN_CALL_LEVEL}%, stop-out at ${marginRules.STOP_OUT_LEVEL}%. Replays real historical market data. ${NO_CASH_VALUE_LINE}`,
       type: 'native',
       prize_pool: 0,
       prize_pool_coins: totalCoins,

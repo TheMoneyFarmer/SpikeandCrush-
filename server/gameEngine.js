@@ -16,10 +16,9 @@ const MAX_POSITIONS = 10;
 const SOFT_LOSS_WINDOW_SECONDS = 120; // 2 minutes
 const SOFT_LOSS_PCT = 0.2; // 20% of starting capital lost within the current window -> locked out until it resets
 const RECONNECT_GRACE_MS = 60000; // disconnect grace before a mid-match forfeit (startDisconnectGrace)
-const HARD_LOSS_PCT = 0.5; // 50% of starting capital lost overall -> eliminated for the rest of the match
 // The core trading rules, shared with long-form competitions (compEngine.js)
 // so both play by the same numbers.
-const GAME_RULES = { STARTING_CAPITAL, MAX_POSITIONS, HARD_LOSS_PCT, ...marginRules.MARGIN_RULES };
+const GAME_RULES = { STARTING_CAPITAL, MAX_POSITIONS, ...marginRules.MARGIN_RULES };
 const ALLOWED_CHAT_MESSAGES = ['GL HF', "Let's go", 'May the best trader win', 'Ready to war'];
 
 // Private War stays free to join for invited friends - MATCH_MODES.private's
@@ -393,7 +392,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       hostId: match.hostId || null,
       cardsPerPlayer: match.config.cardsPerPlayer,
       entryCoins: match.config.entryCoins,
-      rules: { ...marginRules.MARGIN_RULES, maxPositions: MAX_POSITIONS, hardLossPct: HARD_LOSS_PCT, softLossPct: SOFT_LOSS_PCT, softLossWindowSeconds: SOFT_LOSS_WINDOW_SECONDS },
+      rules: { ...marginRules.MARGIN_RULES, maxPositions: MAX_POSITIONS, softLossPct: SOFT_LOSS_PCT, softLossWindowSeconds: SOFT_LOSS_WINDOW_SECONDS },
       cardCatalog: sabotage.getCardCatalog(),
       feed: match.feed.slice(-30),
       players: Object.values(match.players).map((p) => publicPlayer(p, p.id === viewerId)),
@@ -698,7 +697,6 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       cardsPlayed: 0,
       tradesMade: 0,
       effects: sabotage.createPlayerEffects(),
-      marginWarned: false,
       marginCalled: false,
       eliminated: false,
       softLocked: false,
@@ -1560,14 +1558,11 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
 
   // ---- risk limits ---------------------------------------------------------
   //
-  // Two-tier risk system:
+  // Risk is decided by the margin rules (applyMarginRules / marginRules.js):
+  // margin call, then stop-out. One extra brake on top:
   //  - Soft limit: lose SOFT_LOSS_PCT (20%) of starting capital within the
   //    current SOFT_LOSS_WINDOW_SECONDS (2 min) window -> locked out of new
   //    trades until the window rolls over (every 2 minutes, from match start).
-  //  - Margin rules on top of these: see applyMarginRules / marginRules.js.
-  //  - Hard limit: lose HARD_LOSS_PCT (50%) of starting capital overall ->
-  //    all positions force-closed and the player is permanently eliminated
-  //    from trading for the rest of the match.
 
   function checkRiskLimits(match, player, elapsedSeconds, nowMs) {
     if (player.eliminated) return;
@@ -1598,26 +1593,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       }
     }
 
-    const overallLossPct = (STARTING_CAPITAL - equity) / STARTING_CAPITAL;
-    if (overallLossPct >= HARD_LOSS_PCT) {
-      player.eliminated = true;
-      for (const pos of player.positions.slice()) closeTrade(match.id, player.id, pos.id, 'eliminated');
-      pushFeed(match, `${player.username} hit max loss (-50%) and is eliminated from the match`, {
-        type: 'margin_warning',
-        timestamp: elapsedSeconds,
-        playerId: player.id,
-        pnl: Math.round(equity - STARTING_CAPITAL),
-      });
-      emitToPlayer(match, player.id, 'margin:warning', { level: 'eliminated', equity: Math.round(equity) });
-    } else if (overallLossPct >= 0.4) {
-      if (!player.marginWarned) {
-        player.marginWarned = true;
-        emitToPlayer(match, player.id, 'margin:warning', { level: 'warning', equity: Math.round(equity) });
-      }
-    } else {
-      player.marginWarned = false;
-    }
-    if (!player.eliminated) applyMarginRules(match, player, elapsedSeconds, nowMs);
+    applyMarginRules(match, player, elapsedSeconds, nowMs);
   }
 
   // ---- tick / leaderboard / end -------------------------------------------

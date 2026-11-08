@@ -12,7 +12,7 @@ const { TEMPLATES } = require('../compEngine');
 const { LEVERAGE, MARGIN_CALL_LEVEL, STOP_OUT_LEVEL } = require('../marginRules');
 const { NO_CASH, CONTACT_EMAIL } = require('./knowledge/articles');
 
-const PROMPT_VERSION = 'support-agent-v1.1 (2026-11-08)';
+const PROMPT_VERSION = 'support-agent-v1.2 (2026-11-08)';
 
 function liveRules() {
   const modes = Object.keys(MATCH_MODES)
@@ -27,7 +27,6 @@ function liveRules() {
     .join('\n');
   return `Starting capital $${GAME_RULES.STARTING_CAPITAL} (virtual). Leverage ${LEVERAGE}:1. No lot limit: size is decided by free margin. Max ${GAME_RULES.MAX_POSITIONS} open positions.
 Margin level = equity / margin used x 100. Margin call at ${MARGIN_CALL_LEVEL}%: warning and no new trades. Stop-out at ${STOP_OUT_LEVEL}%: the biggest losing position is closed, then the next, until the level recovers; the player keeps trading.
-Hard loss limit: losing ${GAME_RULES.HARD_LOSS_PCT * 100}% of starting capital closes all positions and ends your trading for the match.
 Soft limit: losing ${SOFT_LOSS_PCT * 100}% within a ${SOFT_LOSS_WINDOW_SECONDS / 60}-minute window blocks new trades until the next window.
 Disconnect: ${RECONNECT_GRACE_SECONDS}s to reconnect, then it counts as leaving (positions closed, placed last).
 Modes:

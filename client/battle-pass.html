@@ -171,9 +171,36 @@
       document.getElementById('xpLabel').textContent = `${data.xpIntoTier} / ${data.xpPerTier} XP to next tier`;
 
       const premiumArea = document.getElementById('premiumArea');
+      const sub = data.subscription;
+      const endDate = sub && sub.periodEnd ? new Date(sub.periodEnd).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : 'the end of your paid period';
       premiumArea.innerHTML = data.isPremium
-        ? `<span class="bp-premium-badge">👑 PREMIUM ACTIVE</span>`
+        ? `<span class="bp-premium-badge">PREMIUM ACTIVE</span>${sub ? `
+           <p class="text-secondary" style="font-size:13px;margin:10px 0 8px;">${sub.paymentProblem ? 'Your last payment failed. Please update your card to keep Premium. ' : ''}${sub.cancelAtPeriodEnd ? `Cancelled. You keep Premium until ${TW.escapeHtml(endDate)} and will not be charged again.` : `Renews on ${TW.escapeHtml(endDate)} at $4.99 a month.`}</p>
+           ${sub.cancelAtPeriodEnd
+             ? '<button class="btn btn-primary" id="resumeBtn">Keep my subscription</button>'
+             : '<button class="btn btn-outline" id="cancelSubBtn">Cancel subscription</button>'}
+           <div id="cancelConfirm" class="hidden" style="margin-top:10px;">
+             <p style="font-size:13px;margin:0 0 8px;">Cancel your Battle Pass? You keep Premium until ${TW.escapeHtml(endDate)} and rewards you earned stay yours. You will not be charged again.</p>
+             <button class="btn btn-sell" id="cancelYesBtn">Yes, cancel</button>
+             <button class="btn btn-outline" id="cancelNoBtn">Keep Premium</button>
+           </div>` : ''}`
         : `<button class="btn btn-primary" id="subscribeBtn">Unlock Premium — $4.99/mo</button>`;
+      const changeSub = async (path, button, doneText) => {
+        button.disabled = true;
+        try {
+          await TW.api(path, { method: 'POST' });
+          TW.toast(doneText, 'success');
+          await load();
+        } catch (e) {
+          TW.toast(e.message, 'danger');
+          button.disabled = false;
+        }
+      };
+      const onClick = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', () => fn(el)); };
+      onClick('cancelSubBtn', () => document.getElementById('cancelConfirm').classList.remove('hidden'));
+      onClick('cancelNoBtn', () => document.getElementById('cancelConfirm').classList.add('hidden'));
+      onClick('cancelYesBtn', (b) => changeSub('/api/battlepass/cancel', b, 'Your Battle Pass is cancelled. You will not be charged again.'));
+      onClick('resumeBtn', (b) => changeSub('/api/battlepass/resume', b, 'Your subscription will continue.'));
       const subBtn = document.getElementById('subscribeBtn');
       if (subBtn) subBtn.addEventListener('click', subscribe);
 

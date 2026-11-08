@@ -7,7 +7,7 @@
 // - Only create_ticket and escalate_to_human write anything (and only support
 //   rows). Nothing here can change coins, ratings, bans, passwords or results.
 
-const { tierForRating, GAME_RULES, RECONNECT_GRACE_SECONDS } = require('../gameEngine');
+const { tierForRating, RECONNECT_GRACE_SECONDS } = require('../gameEngine');
 const { maskEmail } = require('./safety');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -15,7 +15,7 @@ const CATEGORIES = ['gameplay_bug', 'match_ended', 'coins_shop', 'competition_re
 
 const END_REASON_TEXT = {
   completed: 'played to the end of the match timer',
-  loss_limit: `hit the ${GAME_RULES.HARD_LOSS_PCT * 100}% max loss limit (positions auto-closed, trading ended for the match)`,
+  loss_limit: 'hit the old max loss limit (positions auto-closed, trading ended for the match)',
   left: 'left the match early (counts as a forfeit, placed last)',
   disconnect: `disconnected and did not reconnect within ${RECONNECT_GRACE_SECONDS} seconds (counts as a forfeit, placed last)`,
 };

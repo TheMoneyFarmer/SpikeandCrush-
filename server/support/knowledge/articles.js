@@ -72,7 +72,6 @@ function buildArticles() {
   const eurPrice = instruments.getInstrument('EURUSD').basePrice;
   const eurMargin = Math.round(positionMargin('EURUSD', 1, eurPrice));
   const eurMax = Math.floor(maxAffordableLots('EURUSD', eurPrice, rules.STARTING_CAPITAL));
-  const lossFloor = rules.STARTING_CAPITAL * (1 - rules.HARD_LOSS_PCT);
   const ratingTable4 = [1, 2, 3, 4].map((p) => `${ordinal(p)}: ${sign(baseRatingForPosition(p, 4))}`).join(', ');
   const ratingTable6 = [1, 2, 3, 4, 5, 6].map((p) => `${ordinal(p)}: ${sign(baseRatingForPosition(p, 6))}`).join(', ');
   const shares = Object.entries(PRIZE_SHARE_BY_RANK).map(([r, s]) => `${ordinal(Number(r))}: ${pct(s)}`).join(', ');
@@ -122,16 +121,14 @@ Long-form competitions use the same capital, position limit and margin rules.`,
     },
     {
       slug: 'loss-limits',
-      title: 'Loss limits: the 50% max loss rule and the 2-minute lock',
+      title: 'How you can lose: stop-out and the 2-minute lock',
       category: 'rules',
-      tags: ['max loss', 'loss limit', 'eliminated', 'margin call', 'auto close', '50%', 'locked', 'lockout'],
-      body: `These apply on top of the margin rules.
+      tags: ['max loss', 'loss limit', 'eliminated', 'auto close', 'locked', 'lockout', 'blown account', 'lose everything', 'stopped out', 'why was my position closed'],
+      body: `Risk is decided by the margin rules (see "Leverage, margin, margin call and stop-out"). There is no fixed maximum loss: small positions can keep running through a bigger drawdown, and big ones get stopped out sooner. You are never removed from a match for losing. If your equity is too low to open anything, you just can't trade until you have free margin.
 
-**Hard limit (${pct(rules.HARD_LOSS_PCT)} max loss).** If your equity falls to ${pct(rules.HARD_LOSS_PCT)} below your starting capital (${money(lossFloor)} or less from ${money(rules.STARTING_CAPITAL)}), all your open positions are closed automatically and you are eliminated from trading for the rest of that match. You get a warning when you are down 40%.
+**Stop-out at ${STOP_OUT_LEVEL}% margin level.** Your biggest losing position closes automatically, then the next, until the level recovers.
 
-**Soft limit (2-minute lock).** If you lose ${pct(SOFT_LOSS_PCT)} of starting capital within one ${minutes(SOFT_LOSS_WINDOW_SECONDS)} window, you cannot open new trades until the next window starts. Windows run every ${minutes(SOFT_LOSS_WINDOW_SECONDS)} from the start of the match.
-
-In long-form competitions, reaching the ${pct(rules.HARD_LOSS_PCT)} loss locks the account at its final equity for the rest of the competition. The 2-minute lock applies to matches only.`,
+**The 2-minute lock.** If you lose ${pct(SOFT_LOSS_PCT)} of starting capital within one ${minutes(SOFT_LOSS_WINDOW_SECONDS)} window, you cannot open new trades until the next window starts. Windows run every ${minutes(SOFT_LOSS_WINDOW_SECONDS)} from the start of the match. This applies to matches only, not competitions.`,
     },
     {
       slug: 'leverage',
@@ -150,7 +147,7 @@ Example: on EUR/USD near ${eurPrice}, one lot needs about ${money(eurMargin)} of
 
 **Stop-out at ${STOP_OUT_LEVEL}%.** Your biggest losing position is closed, then the next, until the level recovers. You keep trading with what is left.
 
-The loss limits apply as well (see "Loss limits"). Margin Call is also the name of a sabotage card, which closes a target's open positions.`,
+Margin Call is also the name of a sabotage card, which closes a target's open positions.`,
     },
     {
       slug: 'game-modes',
@@ -225,7 +222,7 @@ ${['daily', 'weekly', 'weekend', 'monthly'].map(compTemplateBlock).join('\n\n')}
 - You pay the entry fee once and get one account with ${money(rules.STARTING_CAPITAL)}, with the same leverage, margin rules and position limit as matches.
 - Your account lives between sessions, so closing the page changes nothing.
 - Ranking is by equity at the end. Ties are broken by fewer trades, then by who entered first.
-- Reaching the ${STOP_OUT_LEVEL}% margin level closes your biggest losers first. Losing ${pct(rules.HARD_LOSS_PCT)} locks your account at its final equity.
+- Reaching the ${STOP_OUT_LEVEL}% margin level closes your biggest losers first. Your account stays open.
 - When a competition ends it is settled: final ranks are set, prize coins are credited automatically, and your War Rating is adjusted by your finishing position. Disqualified accounts get no rank or prize.
 - An admin can set different prizes for a specific event; the competition page shows the real prizes for that event.
 
@@ -298,10 +295,12 @@ ${NO_CASH}`,
       slug: 'battle-pass',
       title: 'Battle Pass',
       category: 'progression',
-      tags: ['battle pass', 'season', 'xp', 'challenges', 'premium', 'subscription', 'cancel'],
+      tags: ['battle pass', 'season', 'xp', 'challenges', 'premium', 'subscription', 'cancel', 'cancel subscription', 'stop paying', 'renew'],
       body: `The Battle Pass runs in seasons of ${battlepass.SEASON_DAYS} days with tiers you unlock with XP (${battlepass.XP_PER_TIER} XP per tier). Matches give XP and daily and weekly challenges give XP and coins.
 
-Everyone has the free track. Premium costs $${BATTLE_PASS_PRICE_USD.toFixed(2)} a month (Stripe subscription) and unlocks a second track with extra cosmetics and coins. It renews monthly until cancelled. There is no cancel button yet, so to cancel, ask for a human agent in this chat and the team will do it. Rewards you already claimed stay yours.
+Everyone has the free track. Premium costs $${BATTLE_PASS_PRICE_USD.toFixed(2)} a month (Stripe subscription) and unlocks a second track with extra cosmetics and coins. It renews monthly until you cancel, and stays active across seasons while you pay.
+
+**To cancel:** open the Battle Pass page and choose Cancel subscription. You keep Premium until the end of the period you paid for and are not charged again. You can change your mind before then with Keep my subscription. Rewards you already claimed stay yours.
 
 Tiers cannot be bought directly.`,
     },

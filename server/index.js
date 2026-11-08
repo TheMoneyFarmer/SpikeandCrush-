@@ -378,6 +378,12 @@ app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), async
         }
       }
     }
+    if (event.type === 'customer.subscription.deleted') {
+      const ended = await db.clearBattlePassPremium(event.data.object.id);
+      for (const playerId of new Set(ended.map((r) => r.player_id))) {
+        notifyPlayer(playerId, 'battlepass_ended', 'Your Battle Pass Premium has ended. Rewards you already earned stay yours.');
+      }
+    }
     await db.markStripeEventProcessed(event.id).catch((e) => console.error('[stripe webhook] could not mark processed:', e.message));
   } catch (e) {
     // Fail loudly so Stripe retries (it backs off for up to 3 days). Before,
@@ -1793,15 +1799,72 @@ async function grantBattlePassXp(playerId, season, xpGained) {
   return newTier;
 }
 
+// Stripe is the record of whether a subscription is alive. Premium is stored per
+// season while billing is monthly, so a paying subscriber's Premium is carried
+// into each new season here, and an ended subscription's Premium is removed.
+// A Stripe outage must never break the page: it just leaves things as they are.
+const BP_LIVE_STATUSES = new Set(['active', 'trialing', 'past_due']);
+const stripePeriodEnd = (sub) => sub.current_period_end || (sub.items && sub.items.data[0] && sub.items.data[0].current_period_end) || null;
+
+async function syncBattlePassSubscription(playerId, season, status) {
+  if (!stripeConfigured) return { status, subscription: null };
+  const latest = await db.getLatestBattlePassSubscription(playerId);
+  if (!latest) return { status, subscription: null };
+  let sub;
+  try {
+    sub = await stripe.subscriptions.retrieve(latest.stripe_subscription_id);
+  } catch (e) {
+    console.warn('[battlepass] could not read subscription:', e.message);
+    return { status, subscription: null };
+  }
+  if (!BP_LIVE_STATUSES.has(sub.status)) {
+    // Only this subscription's Premium ends. Premium from anywhere else stays.
+    if (!status.is_premium || status.stripe_subscription_id !== sub.id) return { status, subscription: null };
+    await db.clearBattlePassPremium(sub.id);
+    return { status: { ...status, is_premium: false }, subscription: null };
+  }
+  const synced = status.is_premium ? status : await db.setBattlePassPremium(playerId, season, { stripeSubscriptionId: sub.id, expiresAt: battlepass.seasonExpiry() });
+  const end = stripePeriodEnd(sub);
+  return {
+    status: synced,
+    subscription: { cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end), periodEnd: end ? new Date(end * 1000).toISOString() : null, paymentProblem: sub.status === 'past_due' },
+  };
+}
+
+// Cancels at the end of the paid period, or undoes that. Only ever touches the
+// signed-in player's own subscription; no subscription id comes from the browser.
+async function setBattlePassCancellation(req, res, cancelAtPeriodEnd) {
+  try {
+    if (!stripeConfigured) return res.status(503).json({ error: 'Payments are temporarily unavailable. Please try again later.' });
+    const latest = await db.getLatestBattlePassSubscription(req.tokenPlayer.id);
+    if (!latest) return res.status(404).json({ error: 'You have no Battle Pass subscription.' });
+    const current = await stripe.subscriptions.retrieve(latest.stripe_subscription_id);
+    if (!BP_LIVE_STATUSES.has(current.status)) return res.status(404).json({ error: 'Your Battle Pass subscription has already ended.' });
+    const sub = await stripe.subscriptions.update(current.id, { cancel_at_period_end: cancelAtPeriodEnd });
+    const end = stripePeriodEnd(sub);
+    const periodEnd = end ? new Date(end * 1000).toISOString() : null;
+    if (cancelAtPeriodEnd) {
+      notifyPlayer(req.tokenPlayer.id, 'battlepass_cancelled', 'Your Battle Pass is cancelled. You keep Premium until the end of the period you paid for and will not be charged again.');
+    }
+    res.json({ success: true, cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end), periodEnd });
+  } catch (e) {
+    console.error('[battlepass cancel]', e);
+    res.status(500).json({ error: 'Could not update your subscription. Please try again, or ask for a human in the support chat.' });
+  }
+}
+app.post('/api/battlepass/cancel', requireDb, authenticate, (req, res) => setBattlePassCancellation(req, res, true));
+app.post('/api/battlepass/resume', requireDb, authenticate, (req, res) => setBattlePassCancellation(req, res, false));
+
 app.get('/api/battlepass/status', requireDb, authenticate, async (req, res) => {
   try {
     const season = battlepass.currentSeason();
-    const [status, player, completed, stats] = await Promise.all([
+    const [rawStatus, player, completed, stats] = await Promise.all([
       db.ensureBattlePassStatus(req.tokenPlayer.id, season),
       db.getPlayerById(req.tokenPlayer.id),
       db.listCompletedChallenges(req.tokenPlayer.id, season),
       db.getBattlePassChallengeStats(req.tokenPlayer.id, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
     ]);
+    const { status, subscription } = await syncBattlePassSubscription(req.tokenPlayer.id, season, rawStatus);
     const dailyStats = await db.getBattlePassChallengeStats(req.tokenPlayer.id, new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z');
     const completedIds = completed.map((c) => c.challenge_id);
     const dailyIds = new Set(battlepass.DAILY_CHALLENGES.map((c) => c.id));
@@ -1815,6 +1878,7 @@ app.get('/api/battlepass/status', requireDb, authenticate, async (req, res) => {
       xpIntoTier: status.xp_current % battlepass.XP_PER_TIER,
       xpPerTier: battlepass.XP_PER_TIER,
       isPremium: status.is_premium,
+      subscription,
       expiresAt: status.expires_at,
       coins: player.coins,
       track: battlepass.buildTrack(status.tier_current, status.is_premium),

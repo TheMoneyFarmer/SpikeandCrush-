@@ -217,7 +217,7 @@ window.TW = window.TW || {};
           <div class="rule-item"><div class="rule-label">Max Open Positions</div><div class="rule-value">${rules.maxPositions} Positions</div></div>
           <div class="rule-item"><div class="rule-label">Margin Call</div><div class="rule-value">${rules.marginCallLevel}% margin level</div></div>
           <div class="rule-item"><div class="rule-label">Stop Out</div><div class="rule-value">${rules.stopOutLevel}% margin level</div></div>
-          <div class="rule-item"><div class="rule-label">Loss Limits</div><div class="rule-value" style="font-size:12px;">-${rules.hardLossPct * 100}% ends your trading; -${rules.softLossPct * 100}% in ${rules.softLossWindowSeconds / 60} min pauses new trades</div></div>
+          <div class="rule-item"><div class="rule-label">Loss Limit</div><div class="rule-value" style="font-size:12px;">-${rules.softLossPct * 100}% in ${rules.softLossWindowSeconds / 60} min pauses new trades</div></div>
           <div class="rule-item"><div class="rule-label">Sabotage Cards</div><div class="rule-value">${state.cardsPerPlayer} Cards — 1 use each</div></div>
           <div class="rule-item" style="grid-column:1 / -1;"><div class="rule-label">Instruments</div><div class="rule-value" style="font-size:12px;">${(state.instruments || []).join(' · ')}</div></div>
           <div class="rule-item"><div class="rule-label">Entry Cost</div><div class="rule-value">${state.entryCoins ?? 0} Coins</div></div>
@@ -725,7 +725,7 @@ window.TW = window.TW || {};
     let persistent = false;
     switch (payload.level) {
       case 'eliminated':
-        text = `🚨 MAX LOSS REACHED (-50%) — you are eliminated from this match (equity $${payload.equity})`;
+        text = `🚨 Your trading has ended for this match (equity $${payload.equity})`;
         riskLocked = true;
         persistent = true;
         break;
@@ -745,7 +745,7 @@ window.TW = window.TW || {};
         riskLocked = false;
         break;
       default:
-        text = `⚠️ Getting crushed. You are down 40%; at 50% your trading ends. (equity $${payload.equity})`;
+        text = `⚠️ Getting crushed. Watch your margin level. (equity $${payload.equity})`;
         break;
     }
     banner.className = 'margin-banner ' + (payload.level === 'window_reset' ? 'positive' : 'negative');
@@ -775,7 +775,7 @@ window.TW = window.TW || {};
       <div class="elimination-card">
         <div class="elim-icon">💀</div>
         <h3 class="elim-title">You have been eliminated</h3>
-        <p class="elim-body">Your account hit the margin call limit (equity $${payload.equity}). The match continues without you.</p>
+        <p class="elim-body">Your trading has ended for this match (equity $${payload.equity}). The match continues without you.</p>
         <div class="elim-options">
           <div class="elim-option watch">
             <div class="elim-option-title">👁️ Watch Until End</div>

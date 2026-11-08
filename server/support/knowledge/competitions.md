@@ -43,7 +43,7 @@ A full month of markets. The long game — patience and risk control win this on
 - You pay the entry fee once and get one account with $10,000, with the same leverage, margin rules and position limit as matches.
 - Your account lives between sessions, so closing the page changes nothing.
 - Ranking is by equity at the end. Ties are broken by fewer trades, then by who entered first.
-- Reaching the 50% margin level closes your biggest losers first. Losing 50% locks your account at its final equity.
+- Reaching the 50% margin level closes your biggest losers first. Your account stays open.
 - When a competition ends it is settled: final ranks are set, prize coins are credited automatically, and your War Rating is adjusted by your finishing position. Disqualified accounts get no rank or prize.
 - An admin can set different prizes for a specific event; the competition page shows the real prizes for that event.
 

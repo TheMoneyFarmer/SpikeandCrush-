@@ -200,7 +200,7 @@ test('KB articles and prompt quote the live constants', () => {
   assert.ok(all.includes(`${GAME_RULES.leverage}:1 leverage`));
   assert.ok(all.includes('no lot limit'));
   assert.ok(!/Marked for review/.test(all), 'unresolved review note');
-  assert.ok(all.includes(`${GAME_RULES.HARD_LOSS_PCT * 100}%`));
+  assert.ok(all.includes('There is no fixed maximum loss'));
   assert.ok(all.includes(`${RECONNECT_GRACE_SECONDS} seconds`));
   for (const key of Object.keys(MATCH_MODES)) assert.ok(all.includes(`| ${MATCH_MODES[key].label} | ${MODE_DURATIONS[key] / 60} minute`), key);
   for (const t of Object.values(TEMPLATES)) assert.ok(all.includes(t.title), t.title);
@@ -221,7 +221,7 @@ test('last place always costs 25 rating, whatever the table size', () => {
 
 test('the Help page no longer contradicts the game rules', () => {
   const help = require('fs').readFileSync(require('path').join(__dirname, '../client/help.html'), 'utf8');
-  assert.ok(!/Your open positions stay in the match|Quick War, Blitz, and Private|from the Wallet page\. It continues|report option|aren\\'t currently supported/.test(help));
+  assert.ok(!/Your open positions stay in the match|Quick War, Blitz, and Private|from the Wallet page\. It continues|report option|aren\\'t currently supported|Lose 50% overall/.test(help));
   assert.ok(help.includes(`${GAME_RULES.leverage}:1 leverage`));
   assert.ok(help.includes(`${RECONNECT_GRACE_SECONDS} seconds to reconnect`));
 });

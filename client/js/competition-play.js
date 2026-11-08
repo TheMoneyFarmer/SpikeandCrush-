@@ -164,7 +164,7 @@
 
   function renderTrades() {
     const trades = view.trades || [];
-    const reasons = { manual: 'Closed', sl: 'Stop loss', tp: 'Take profit', loss_limit: 'Loss limit', settle: 'Settled', void: 'Void', disqualified: 'DQ' };
+    const reasons = { manual: 'Closed', sl: 'Stop loss', tp: 'Take profit', loss_limit: 'Stopped out', settle: 'Settled', void: 'Void', disqualified: 'DQ' };
     $('tradeHistory').innerHTML = trades.length
       ? trades
           .slice(0, 50)

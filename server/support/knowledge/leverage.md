@@ -21,4 +21,4 @@ Example: on EUR/USD near 1.08, one lot needs about $1,080 of margin, so $10,000 
 
 **Stop-out at 50%.** Your biggest losing position is closed, then the next, until the level recovers. You keep trading with what is left.
 
-The loss limits apply as well (see "Loss limits"). Margin Call is also the name of a sabotage card, which closes a target's open positions.
+Margin Call is also the name of a sabotage card, which closes a target's open positions.
