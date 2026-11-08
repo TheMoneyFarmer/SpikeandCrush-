@@ -14,7 +14,7 @@ const md = require('../client/js/support-markdown');
 const tools = require('../server/support/tools');
 const { buildArticles } = require('../server/support/knowledge/articles');
 const { buildSystemPrompt } = require('../server/support/agentPrompt');
-const { GAME_RULES, MODE_DURATIONS, MATCH_MODES, RECONNECT_GRACE_SECONDS } = require('../server/gameEngine');
+const { GAME_RULES, MODE_DURATIONS, MATCH_MODES, RECONNECT_GRACE_SECONDS, baseRatingForPosition } = require('../server/gameEngine');
 const { TEMPLATES } = require('../server/compEngine');
 
 // ---- safety --------------------------------------------------------------------
@@ -207,4 +207,18 @@ test('KB articles and prompt quote the live constants', () => {
   assert.ok(prompt.includes(`Starting capital $${GAME_RULES.STARTING_CAPITAL}`));
   assert.ok(/cannot be withdrawn/.test(prompt));
   assert.ok(!/\p{Extended_Pictographic}/u.test(prompt + all), 'emoji found');
+});
+
+test('last place always costs 25 rating, whatever the table size', () => {
+  for (const n of [2, 3, 4, 6, 8]) assert.strictEqual(baseRatingForPosition(n, n), -25, `${n} players`);
+  assert.strictEqual(baseRatingForPosition(1, 2), 25);
+  assert.strictEqual(baseRatingForPosition(2, 3), 10);
+  assert.strictEqual(baseRatingForPosition(3, 4), 0);
+  assert.strictEqual(baseRatingForPosition(4, 6), -10);
+});
+
+test('the Help page no longer contradicts the game rules', () => {
+  const help = require('fs').readFileSync(require('path').join(__dirname, '../client/help.html'), 'utf8');
+  assert.ok(!/What Is Margin\?|Your open positions stay in the match|Quick War, Blitz, and Private/.test(help));
+  assert.ok(help.includes(`${RECONNECT_GRACE_SECONDS} seconds to reconnect`));
 });

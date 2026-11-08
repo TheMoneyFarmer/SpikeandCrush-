@@ -4,7 +4,7 @@ title: "Loss limits: the 50% max loss rule and the 2-minute lock"
 category: rules
 tags: ["max loss", "loss limit", "eliminated", "margin call", "auto close", "50%", "locked", "lockout"]
 source: code
-needs_review: true
+needs_review: false
 ---
 
 # Loss limits: the 50% max loss rule and the 2-minute lock
@@ -17,4 +17,4 @@ There are two loss limits in a match.
 
 In long-form competitions, reaching the 50% loss locks the account at its final equity for the rest of the competition.
 
-Note: there is no separate "margin call" or leverage setting in the game code; the loss limits above are what protect your account. (Marked for review: the Help page still describes a generic margin call.)
+There is no separate margin call or leverage setting; the loss limits above are what protect your account. (Margin Call is also the name of a sabotage card, which closes a target's open positions.)

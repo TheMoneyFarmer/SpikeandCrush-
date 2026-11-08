@@ -791,6 +791,9 @@ app.post('/api/auth/oauth-callback', authLimiter, requireDb, async (req, res) =>
   }
 });
 
+// The bare spikeandcrush.com is a forwarder that returns 404 for any path, so
+// Discord must always send people back to the www host.
+const DISCORD_REDIRECT_URI = `${String(process.env.SITE_URL || '').replace(/\/$/, '').replace('://spikeandcrush.com', '://www.spikeandcrush.com')}/api/discord/callback`;
 // ---- discord -------------------------------------------------------------------
 //
 // /api/discord/connect is reached via a plain browser navigation
@@ -818,7 +821,7 @@ app.post('/api/discord/connect-url', requireDb, authenticate, (req, res) => {
   discordStates.set(state, { playerId: req.tokenPlayer.id, expires: Date.now() + DISCORD_STATE_TTL_MS });
   const params = new URLSearchParams({
     client_id: process.env.DISCORD_CLIENT_ID,
-    redirect_uri: process.env.SITE_URL + '/api/discord/callback',
+    redirect_uri: DISCORD_REDIRECT_URI,
     response_type: 'code',
     scope: 'identify guilds.join',
     state,
@@ -844,7 +847,7 @@ app.get('/api/discord/callback', requireDb, async (req, res) => {
         client_secret: process.env.DISCORD_CLIENT_SECRET,
         grant_type: 'authorization_code',
         code,
-        redirect_uri: process.env.SITE_URL + '/api/discord/callback',
+        redirect_uri: DISCORD_REDIRECT_URI,
       }),
     });
     const tokenData = await tokenRes.json();

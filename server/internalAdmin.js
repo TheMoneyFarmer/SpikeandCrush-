@@ -17,7 +17,9 @@ function requireInternalSecret(req, res, next) {
   // Belt-and-braces: this bridge should only ever be called from the admin
   // server on the same machine, never reachable from the public internet.
   const ip = (req.socket.remoteAddress || '').replace('::ffff:', '');
-  if (ip !== '127.0.0.1' && ip !== '::1' && ip !== 'localhost') {
+  // In production the admin panel is a separate service, so it can't be on
+  // localhost: SUPPORT_BRIDGE_ALLOW_REMOTE=1 relies on the secret alone.
+  if (process.env.SUPPORT_BRIDGE_ALLOW_REMOTE !== '1' && ip !== '127.0.0.1' && ip !== '::1' && ip !== 'localhost') {
     return res.status(403).json({ error: 'Forbidden - internal endpoint, localhost only' });
   }
   next();

@@ -70,7 +70,6 @@ function buildArticles() {
   const lossFloor = rules.STARTING_CAPITAL * (1 - rules.HARD_LOSS_PCT);
   const ratingTable4 = [1, 2, 3, 4].map((p) => `${ordinal(p)}: ${sign(baseRatingForPosition(p, 4))}`).join(', ');
   const ratingTable6 = [1, 2, 3, 4, 5, 6].map((p) => `${ordinal(p)}: ${sign(baseRatingForPosition(p, 6))}`).join(', ');
-  const twoPlayerLast = baseRatingForPosition(2, 2);
   const shares = Object.entries(PRIZE_SHARE_BY_RANK).map(([r, s]) => `${ordinal(Number(r))}: ${pct(s)}`).join(', ');
   const cat = shop.getCatalog();
   const cardList = Object.values(CARDS)
@@ -119,7 +118,6 @@ Long-form competitions use the same starting capital, lot limit and position lim
       title: 'Loss limits: the 50% max loss rule and the 2-minute lock',
       category: 'rules',
       tags: ['max loss', 'loss limit', 'eliminated', 'margin call', 'auto close', '50%', 'locked', 'lockout'],
-      needsReview: true,
       body: `There are two loss limits in a match.
 
 **Hard limit (${pct(rules.HARD_LOSS_PCT)} max loss).** If your equity falls to ${pct(rules.HARD_LOSS_PCT)} below your starting capital (${money(lossFloor)} or less from ${money(rules.STARTING_CAPITAL)}), all your open positions are closed automatically and you are eliminated from trading for the rest of that match. You get a warning when you are down 40%.
@@ -128,17 +126,14 @@ Long-form competitions use the same starting capital, lot limit and position lim
 
 In long-form competitions, reaching the ${pct(rules.HARD_LOSS_PCT)} loss locks the account at its final equity for the rest of the competition.
 
-Note: there is no separate "margin call" or leverage setting in the game code; the loss limits above are what protect your account. (Marked for review: the Help page still describes a generic margin call.)`,
+There is no separate margin call or leverage setting; the loss limits above are what protect your account. (Margin Call is also the name of a sabotage card, which closes a target's open positions.)`,
     },
     {
       slug: 'leverage',
       title: 'Leverage and margin',
       category: 'rules',
       tags: ['leverage', 'margin', 'margin call'],
-      needsReview: true,
-      body: `The game does not use a leverage setting. Position size is controlled by lot size (up to ${rules.MAX_LOTS} lots per trade) and risk is capped by the loss limits: a ${pct(SOFT_LOSS_PCT)} loss within ${minutes(SOFT_LOSS_WINDOW_SECONDS)} pauses new trades, and a ${pct(rules.HARD_LOSS_PCT)} total loss ends your trading for the match.
-
-If you need a specific leverage figure, a human agent can confirm it. (Marked for review: the Help page talks about leverage and margin calls in general terms, but no leverage value exists in the game code.)`,
+      body: `The game does not use a leverage setting. Position size is controlled by lot size (up to ${rules.MAX_LOTS} lots per trade) and risk is capped by the loss limits: a ${pct(SOFT_LOSS_PCT)} loss within ${minutes(SOFT_LOSS_WINDOW_SECONDS)} pauses new trades, and a ${pct(rules.HARD_LOSS_PCT)} total loss ends your trading for the match.`,
     },
     {
       slug: 'game-modes',
@@ -175,28 +170,24 @@ Prize coins are added to your balance automatically when the match ends. ${NO_CA
       title: 'Disconnects and leaving a match',
       category: 'rules',
       tags: ['disconnect', 'disconnected', 'lost connection', 'reconnect', 'forfeit', 'left match', 'match ended'],
-      needsReview: true,
       body: `If you lose connection during a match, you have **${RECONNECT_GRACE_SECONDS} seconds** to reconnect. Open the same match again and you continue where you were.
 
 If you do not reconnect within ${RECONNECT_GRACE_SECONDS} seconds, it counts as leaving the match (a forfeit):
 - all your open positions are closed,
 - you are placed last,
-- in ranked modes you get the last-place rating change (${sign(baseRatingForPosition(4, 4))} in a match of 4 or more players),
+- in ranked modes you get the last-place rating change (${sign(baseRatingForPosition(4, 4))}),
 - the match carries on for everyone else.
 
-Leaving a match on purpose has the same result.
-
-Note for review: in the code, the "last place" rating change in a 2-player ranked match is ${sign(twoPlayerLast)} and in a 3-player match it is ${sign(baseRatingForPosition(3, 3))}, not ${sign(baseRatingForPosition(4, 4))}. The Help page FAQ also says disconnected positions stay open, which the code does not do after ${RECONNECT_GRACE_SECONDS} seconds.`,
+Leaving a match on purpose has the same result.`,
     },
     {
       slug: 'rating-and-tiers',
       title: 'War Rating, tiers and experience levels',
       category: 'progression',
-      needsReview: true,
       tags: ['rating', 'war rating', 'elo', 'tier', 'rank', 'ranking', 'experience level', 'war lord'],
       body: `**Ratings.** Ranked matches change your rating by finishing position. In a 4-player match: ${ratingTable4}. In a 6-player match: ${ratingTable6}. You get 5 extra points for a gain if your opponents were rated higher on average, and lose 5 more on a loss if they were rated lower.
 
-Only ranked modes change a rating: ${MODE_ORDER.filter((k) => MATCH_MODES[k].ranked).map((k) => `${MATCH_MODES[k].label} (${MATCH_MODES[k].ratingKey === 'war_rating' ? 'War Rating' : MATCH_MODES[k].ratingKey === 'grand_war_rating' ? 'Grand War rating' : 'Solo rating'})`).join(', ')}. ${MODE_ORDER.filter((k) => !MATCH_MODES[k].ranked).map((k) => MATCH_MODES[k].label).join(', ')} do not change any rating. Long-form competitions also adjust your War Rating when they settle.\n\n(Marked for review: the Help page FAQ says Blitz and Private matches affect War Rating; in the code they are unranked.)
+Only ranked modes change a rating: ${MODE_ORDER.filter((k) => MATCH_MODES[k].ranked).map((k) => `${MATCH_MODES[k].label} (${MATCH_MODES[k].ratingKey === 'war_rating' ? 'War Rating' : MATCH_MODES[k].ratingKey === 'grand_war_rating' ? 'Grand War rating' : 'Solo rating'})`).join(', ')}. ${MODE_ORDER.filter((k) => !MATCH_MODES[k].ranked).map((k) => MATCH_MODES[k].label).join(', ')} do not change any rating. Long-form competitions also adjust your War Rating when they settle.
 
 **Tiers** come from your War Rating:
 ${TIERS.map((t) => `- ${t.name}: ${t.max === Infinity ? `${t.min.toLocaleString('en-US')}+` : `${t.min.toLocaleString('en-US')}-${t.max.toLocaleString('en-US')}`}`).join('\n')}
@@ -407,12 +398,9 @@ Businesses interested in sponsoring can use the Sponsor page on the site or ask 
       title: 'Fair play, reports and bans',
       category: 'safety',
       tags: ['cheating', 'report', 'report player', 'ban', 'banned', 'suspended', 'appeal', 'harassment', 'fair play'],
-      needsReview: true,
       body: `- **Reporting a player:** use the report option on their profile or on the match results screen.
 - **Harassment or safety concerns:** tell support and ask for a human. These are always passed to the team.
-- **Bans and suspensions** are decided by the team. Support (including this assistant) cannot ban, unban or change a ban. If you want to appeal, ask for a human agent and a ticket will be opened.
-
-(Marked for review: bans are stored on accounts, but the code that would stop a banned player from playing could not be found.)`,
+- **Bans and suspensions** are decided by the team. A banned account cannot log in or play while the ban lasts, but can still use this support chat. Support (including this assistant) cannot ban, unban or change a ban. If you want to appeal, ask for a human agent and a ticket will be opened.`,
     },
     {
       slug: 'contact',

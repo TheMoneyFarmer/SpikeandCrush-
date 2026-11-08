@@ -153,9 +153,12 @@ function groupByTiedPnl(sortedEntries, enableTies) {
 // factored out so a tied group can average it across the positions it spans.
 function baseRatingForPosition(pos, totalPlayers) {
   if (pos === 1) return 25;
+  // Checked before 2nd/3rd so last place always costs 25: in a 2-player match
+  // it used to pay +10, and in a 3-player match 0, including for a forfeit.
+  if (pos === totalPlayers) return -25;
   if (pos === 2) return 10;
   if (pos === 3) return 0;
-  return pos === totalPlayers ? -25 : -10;
+  return -10;
 }
 
 const TIERS = [
