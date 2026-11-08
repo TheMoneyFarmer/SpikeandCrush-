@@ -237,10 +237,36 @@ button { font: inherit; }
 @media (max-width: 760px) { .cards { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 420px) { .cards { grid-template-columns: 1fr; } .card { min-height: 0; } }
 
+/* sabotage card showcase: 3D scene left, ordinary HTML right */
+.showcase { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 48px; align-items: center; background: var(--elev); border-radius: 8px; padding: 24px 48px 24px 24px; margin-bottom: 24px; }
+.showcase-stage { position: relative; height: 480px; border-radius: 8px; background: radial-gradient(60% 65% at 50% 46%, color-mix(in srgb, var(--c-blue) 22%, var(--deep)), var(--deep)); overflow: hidden; }
+.showcase-stage:focus-visible { outline: 2px solid var(--c-focus); outline-offset: 2px; }
+.showcase-canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.showcase-canvas.is-ready { opacity: 1; }
+.is-dragging .showcase-canvas { cursor: grabbing; }
+.showcase-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.showcase-poster.is-done { visibility: hidden; }
+.showcase-loader, .showcase-hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); font-size: 13px; font-weight: 500; color: var(--body); background: var(--card-2); padding: 6px 12px; border-radius: 9999px; white-space: nowrap; pointer-events: none; transition: opacity 300ms var(--ease); }
+.showcase-hint.is-used { opacity: 0; }
+.showcase-copy { min-width: 0; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.showcase-copy h3 { margin: 0; font-weight: 300; font-size: clamp(28px, 3vw, 36px); line-height: 1.2; letter-spacing: -0.01em; }
+.showcase-copy > p { margin: 0; font-size: 18px; color: var(--body); max-width: 420px; min-height: 2.9em; }
+.showcase-picks { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.showcase-picks button { min-height: 40px; padding: 8px 16px; border-radius: 9999px; border: 1px solid var(--hair-2); background: transparent; color: var(--on); font-size: 14px; font-weight: 600; cursor: pointer; }
+.showcase-picks button:hover { border-color: var(--on); }
+.showcase-picks button[aria-pressed='true'] { background: var(--on); border-color: var(--on); color: var(--canvas); }
+.showcase-copy .cta-row { margin-top: 12px; }
+.showcase-copy .btn[hidden] { display: none; }
+@media (max-width: 860px) { .showcase { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 16px 16px 24px; } .showcase-stage { height: 380px; } }
+@media (max-width: 480px) { .showcase-stage { height: 340px; } }
+
 /* coins banner (premium gold accent - the one gradient) */
 .offer { position: relative; background: var(--elev); border-radius: 8px; overflow: hidden; display: grid; grid-template-columns: 1.2fr 1fr; align-items: center; }
 .offer::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--gold-grad); }
+.offer-copy, .offer-art { position: relative; z-index: 1; }
+.offer::before { z-index: 1; }
 .offer-copy { padding: 56px 48px; }
+.offer-copy .eyebrow { color: var(--body); }
 .offer-copy .h2 b { color: var(--gold); font-weight: 400; }
 .offer-copy .lede { margin-top: 12px; }
 .offer-copy .cta-row { margin-top: 28px; }
@@ -431,6 +457,29 @@ button { font: inherit; }
         <p class="lede">Every match deals you cards. When you play them is the whole game.</p>
       </div>
     </div>
+    <div class="showcase">
+      <div class="showcase-stage" id="showcaseStage" role="group" tabindex="0">
+        <img class="showcase-poster" id="showcasePoster" alt="" width="1114" height="960">
+        <span class="showcase-loader" id="showcaseLoader" role="status" hidden>Loading 3D view…</span>
+        <span class="showcase-hint" id="showcaseHint" hidden>Drag to turn</span>
+      </div>
+      <div class="showcase-copy">
+        <div class="showcase-picks" role="group" aria-label="Choose a card">
+          <button type="button" data-showcase-card aria-pressed="true">Chart Ghost</button>
+          <button type="button" data-showcase-card aria-pressed="false">Force Close</button>
+          <button type="button" data-showcase-card aria-pressed="false">Pip Theft</button>
+          <button type="button" data-showcase-card aria-pressed="false">Margin Call</button>
+          <button type="button" data-showcase-card aria-pressed="false">News Bomb</button>
+          <button type="button" data-showcase-card aria-pressed="false">Capital Drain</button>
+        </div>
+        <h3 id="showcaseName">Chart Ghost</h3>
+        <p id="showcaseDesc">Freezes their price display for 10 seconds.</p>
+        <div class="cta-row">
+          <button class="btn btn-primary" type="button" onclick="openPanel('register')">Play free</button>
+          <button class="btn btn-ghost" type="button" id="showcaseFlip">Flip the card</button>
+        </div>
+      </div>
+    </div>
     <div class="cards" id="cardGrid"></div>
   </div>
 </section>
@@ -438,7 +487,7 @@ button { font: inherit; }
 <!-- COINS OFFER -->
 <section class="chapter" aria-labelledby="offerTitle">
   <div class="wrap">
-    <div class="offer">
+    <div class="offer" data-shader-bg="coins">
       <div class="offer-copy">
         <p class="eyebrow">New players</p>
         <h2 class="h2" id="offerTitle">Start with <b>500 free coins.</b></h2>
@@ -887,6 +936,9 @@ function countUp(el, target) {
   } catch (e) { /* placeholders stay */ }
 })();
 </script>
+<script src="/js/shader-bg.js"></script>
+<script src="/js/card-art.js"></script>
+<script src="/js/card-showcase.js"></script>
 <script src="js/support-widget.js"></script>
 </body>
 </html>
