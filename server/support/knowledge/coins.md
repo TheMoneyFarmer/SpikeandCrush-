@@ -13,8 +13,8 @@ Coins are the in-game currency.
 
 **Earn coins:** welcome bonus on a new account, match prizes, competition and tournament prizes, Battle Pass challenges and tiers.
 **Spend coins:** match and competition entry fees, the cosmetic shop, tournament entry.
-**Buy coins:** coin packages on the Wallet page (see "Buying coins").
+**Invite friends:** earn coins when a friend you invite plays (see "Invite friends and earn coins").
 
-Every change to your balance is listed in your coin history on the Wallet page, with the reason (entry fee, prize, purchase, shop and so on).
+Every change to your balance is listed in your coin history on the Wallet page, with the reason (entry fee, prize, shop and so on).
 
 Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money. They exist only for use inside the game.

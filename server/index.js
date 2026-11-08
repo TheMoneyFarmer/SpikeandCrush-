@@ -17,7 +17,6 @@ const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const QRCode = require('qrcode');
 const { Server } = require('socket.io');
-const Stripe = require('stripe');
 
 const db = require('./database');
 const { sendEmail, renderTemplate } = require('../admin/lib/email');
@@ -28,10 +27,9 @@ const sabotage = require('./sabotage');
 const instrumentsRegistry = require('./instruments');
 const shop = require('./shop');
 const battlepass = require('./battlepass');
-const coaching = require('./coaching');
 const tournament = require('./tournament');
 const presence = require('./presence');
-const { BATTLE_PASS_PRICE_USD } = require('./coinPackages');
+const { INVITE_REWARD_COINS, INVITE_MAX_PAID } = require('./referralRules');
 
 const PORT = process.env.PORT || 3000;
 
@@ -67,9 +65,6 @@ function passwordSignIn(credentials) {
   });
   return client.auth.signInWithPassword(credentials);
 }
-const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== 'your_value');
-// Timeout + safe retries (the Stripe SDK adds idempotency keys to retried requests).
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', { timeout: 15000, maxNetworkRetries: 2 });
 
 
 // ALLOWED_ORIGIN restricts CORS to the real domain(s) in production - unset
@@ -96,7 +91,7 @@ const app = express();
 // when Cloudflare is in front, or every visitor shares Cloudflare's IP in rate limits.
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
 app.disable('x-powered-by');
-// Security headers on every response, including the Stripe webhook and static files.
+// Security headers on every response, including static files.
 app.use(securityHeaders());
 
 // Liveness / readiness for Railway and an uptime monitor (audit item 42).
@@ -321,78 +316,6 @@ function requireDb(req, res, next) {
   next();
 }
 
-// Stripe needs the raw request body to verify webhook signatures, so this
-// route must be registered before the global express.json() body parser.
-const stripeWebhookConfigured = Boolean(process.env.STRIPE_WEBHOOK_SECRET && process.env.STRIPE_WEBHOOK_SECRET !== 'your_value');
-
-app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
-  // Every coin/battle-pass/coaching credit below is driven by this event, so
-  // an unsigned body must never be trusted - fail closed (503) rather than
-  // fall back to trusting arbitrary JSON when the secret isn't configured
-  // yet. Get the real secret from the Stripe dashboard before going live.
-  if (!stripeWebhookConfigured) {
-    console.error('[stripe webhook] rejected: STRIPE_WEBHOOK_SECRET is not configured');
-    return res.status(503).json({ error: 'Stripe webhook is not configured' });
-  }
-  const sig = req.headers['stripe-signature'];
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (e) {
-    console.error('[stripe webhook] signature verification failed:', e.message);
-    return res.status(400).send(`Webhook Error: ${e.message}`);
-  }
-
-  // De-duplicate: Stripe redelivers events. Record the event id first; a
-  // replay of a fully processed event is acknowledged without doing anything.
-  // (Every credit below is also idempotent on its own, so a crash between the
-  // credit and marking the event processed is safe to retry.)
-  let seen = null;
-  try {
-    seen = await db.recordStripeEvent(event.id, event.type);
-  } catch (e) {
-    console.error('[stripe webhook] event log unavailable:', e.message);
-  }
-  if (seen?.processed_at) return res.json({ received: true, duplicate: true });
-
-  try {
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      if (session.metadata?.type === 'battlepass') {
-        await db.setBattlePassPremium(session.metadata.playerId, session.metadata.season, {
-          stripeSubscriptionId: session.subscription,
-          expiresAt: battlepass.seasonExpiry(),
-        });
-        notifyPlayer(session.metadata.playerId, 'battlepass_premium', 'Battle Pass Premium activated!');
-      } else if (session.metadata?.type === 'coaching') {
-        const row = await db.updateCoachingSession(session.metadata.sessionId, { status: 'scheduled' });
-        notifyPlayer(row.student_id, 'coaching_booked', 'Your coaching session is confirmed!');
-        notifyPlayer(row.coach_id, 'coaching_booked', 'You have a new coaching session booked!');
-      } else {
-        const purchase = await db.completeCoinPurchase(session.id);
-        if (purchase && !purchase.alreadyCompleted) {
-          if (session.metadata?.playerId) {
-            notifyPlayer(session.metadata.playerId, 'coin_purchase', `${session.metadata.coins || ''} coins added to your wallet!`);
-          }
-          await sendReceiptEmail(purchase).catch((e) => console.error('[stripe webhook] receipt email failed:', e.message));
-        }
-      }
-    }
-    if (event.type === 'customer.subscription.deleted') {
-      const ended = await db.clearBattlePassPremium(event.data.object.id);
-      for (const playerId of new Set(ended.map((r) => r.player_id))) {
-        notifyPlayer(playerId, 'battlepass_ended', 'Your Battle Pass Premium has ended. Rewards you already earned stay yours.');
-      }
-    }
-    await db.markStripeEventProcessed(event.id).catch((e) => console.error('[stripe webhook] could not mark processed:', e.message));
-  } catch (e) {
-    // Fail loudly so Stripe retries (it backs off for up to 3 days). Before,
-    // a failed credit was logged and acknowledged with 200, so it was lost.
-    console.error('[stripe webhook] processing failed, Stripe will retry:', event.id, e.message);
-    return res.status(500).json({ error: 'processing failed' });
-  }
-  res.json({ received: true });
-});
 
 app.use(cors({ origin: corsOrigin }));
 // Mostly for /api/match/:id/history, which carries several hundred KB of
@@ -428,7 +351,6 @@ app.get('/privacy', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'privacy.ht
 app.get('/responsible', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'responsible.html')));
 app.get('/shop', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'shop.html')));
 app.get('/battle-pass', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'battle-pass.html')));
-app.get('/coaching', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'coaching.html')));
 app.get('/async', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'async.html')));
 app.get('/replay', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'replay.html')));
 app.get('/clip', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'clip.html')));
@@ -447,6 +369,34 @@ app.get('/profile', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'profile.ht
 app.get('/profile/:username', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'profile.html')));
 app.get('/auth-callback', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'auth-callback.html')));
 app.get('/reset-password', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'reset-password.html')));
+
+// Player invite links: /invite/CODE remembers the inviter for 30 days. Read once,
+// when a new account is created. Only ever attaches to a brand-new account.
+const INVITE_COOKIE = 'sc_invite';
+app.get('/invite/:code', async (req, res) => {
+  try {
+    const code = String(req.params.code || '').toUpperCase();
+    if (db.isConfigured && /^[A-Z0-9]{8}$/.test(code) && (await db.getInviterByCode(code))) {
+      res.cookie(INVITE_COOKIE, code, { maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'lax', httpOnly: true, secure: req.secure });
+    }
+  } catch (e) {
+    console.error('[invite link]', e.message);
+  }
+  res.redirect('/');
+});
+
+// Never fatal: a bad or expired invite just means no reward, not a failed signup.
+async function attachInvite(req, res, player) {
+  const code = getCookie(req, INVITE_COOKIE);
+  if (!code || !db.isConfigured) return;
+  try {
+    const inviterId = await db.getInviterByCode(code);
+    if (inviterId && inviterId !== player.id) await db.createPlayerReferral({ inviterId, friendId: player.id });
+  } catch (e) {
+    console.error('[invite attach]', e.message);
+  }
+  res.clearCookie(INVITE_COOKIE);
+}
 
 // Broker/prop-firm referral links: /r/CODE logs the click, drops a 30-day
 // ref_code cookie, then bounces straight to the home page. The cookie is
@@ -505,19 +455,6 @@ const DEFAULT_WELCOME_EMAIL_HTML = `
   </div>
 `;
 
-const DEFAULT_RECEIPT_EMAIL_HTML = `
-  <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0a0e14;color:#fff;">
-    <h2 style="margin:0 0 20px;">Purchase confirmed</h2>
-    <table style="width:100%;border-collapse:collapse;color:rgba(255,255,255,.85);">
-      <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">Coins</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);text-align:right;font-weight:700;">{{coins}}</td></tr>
-      <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">Amount charged</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);text-align:right;font-weight:700;">${'$'}{{amount}}</td></tr>
-      <tr><td style="padding:8px 0;">New balance</td><td style="padding:8px 0;text-align:right;font-weight:700;color:#00C896;">{{balance}} coins</td></tr>
-    </table>
-    <p style="color:rgba(255,255,255,.35);font-size:12px;margin-top:32px;">
-      Coins are used for entry fees in Spike &amp; Crush's simulated trading matches. Not a real-money financial product.
-    </p>
-  </div>
-`;
 
 // Both templates are admin-customizable (Branding > Email Templates in the
 // admin panel, ids "welcome" and "coin_purchase") - falls back to the
@@ -537,26 +474,6 @@ async function sendWelcomeEmail(player) {
     });
   } catch (e) {
     console.error('[welcome email]', e.message);
-  }
-}
-
-async function sendReceiptEmail(purchase) {
-  try {
-    const player = await db.getPlayerById(purchase.player_id);
-    if (!player?.email) return;
-    const tpl = await db.getEmailTemplate('coin_purchase').catch(() => null);
-    const data = {
-      coins: purchase.package_coins.toLocaleString(),
-      amount: Number(purchase.amount_usd).toFixed(2),
-      balance: player.coins.toLocaleString(),
-    };
-    await sendEmail({
-      to: player.email,
-      subject: renderTemplate(tpl?.subject || 'Receipt: {{coins}} coins - Spike & Crush', data),
-      html: renderTemplate(tpl?.body_html || DEFAULT_RECEIPT_EMAIL_HTML, data),
-    });
-  } catch (e) {
-    console.error('[receipt email]', e.message);
   }
 }
 
@@ -607,6 +524,8 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
       await supabaseAdmin.auth.admin.deleteUser(created.user.id).catch(() => {});
       throw e;
     }
+
+    await attachInvite(req, res, player);
 
     // Referral attribution: if this browser arrived via a partner's /r/:code
     // link, that route already logged the click and dropped a ref_code
@@ -785,6 +704,7 @@ app.post('/api/auth/oauth-callback', authLimiter, requireDb, async (req, res) =>
     }
 
     const player = await db.createPlayer({ username, email, supabaseUserId: user.id });
+    await attachInvite(req, res, player);
     const session = await db.createSession({ playerId: player.id, userAgent: req.headers['user-agent'], ip: clientIp(req) });
     await db.recordLoginEvent({ playerId: player.id, ip: clientIp(req), userAgent: req.headers['user-agent'] });
     await db.recordCoinTransaction({ playerId: player.id, type: 'welcome_bonus', amount: player.coins, balanceAfter: player.coins });
@@ -1215,18 +1135,6 @@ app.patch('/api/player/settings', requireDb, authenticate, async (req, res) => {
   } catch (e) {
     console.error('[settings patch]', e);
     res.status(500).json({ error: 'Could not update settings' });
-  }
-});
-
-app.post('/api/notifications/coaching-notify', requireDb, authenticate, async (req, res) => {
-  try {
-    const player = await db.getPlayerById(req.tokenPlayer.id);
-    if (!player) return res.status(404).json({ error: 'Player not found' });
-    await db.updatePlayer(player.id, { settings: { ...player.settings, coaching_notify: true } });
-    res.json({ success: true });
-  } catch (e) {
-    console.error('[coaching notify]', e);
-    res.status(500).json({ error: 'Could not save notification preference' });
   }
 });
 
@@ -1799,72 +1707,15 @@ async function grantBattlePassXp(playerId, season, xpGained) {
   return newTier;
 }
 
-// Stripe is the record of whether a subscription is alive. Premium is stored per
-// season while billing is monthly, so a paying subscriber's Premium is carried
-// into each new season here, and an ended subscription's Premium is removed.
-// A Stripe outage must never break the page: it just leaves things as they are.
-const BP_LIVE_STATUSES = new Set(['active', 'trialing', 'past_due']);
-const stripePeriodEnd = (sub) => sub.current_period_end || (sub.items && sub.items.data[0] && sub.items.data[0].current_period_end) || null;
-
-async function syncBattlePassSubscription(playerId, season, status) {
-  if (!stripeConfigured) return { status, subscription: null };
-  const latest = await db.getLatestBattlePassSubscription(playerId);
-  if (!latest) return { status, subscription: null };
-  let sub;
-  try {
-    sub = await stripe.subscriptions.retrieve(latest.stripe_subscription_id);
-  } catch (e) {
-    console.warn('[battlepass] could not read subscription:', e.message);
-    return { status, subscription: null };
-  }
-  if (!BP_LIVE_STATUSES.has(sub.status)) {
-    // Only this subscription's Premium ends. Premium from anywhere else stays.
-    if (!status.is_premium || status.stripe_subscription_id !== sub.id) return { status, subscription: null };
-    await db.clearBattlePassPremium(sub.id);
-    return { status: { ...status, is_premium: false }, subscription: null };
-  }
-  const synced = status.is_premium ? status : await db.setBattlePassPremium(playerId, season, { stripeSubscriptionId: sub.id, expiresAt: battlepass.seasonExpiry() });
-  const end = stripePeriodEnd(sub);
-  return {
-    status: synced,
-    subscription: { cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end), periodEnd: end ? new Date(end * 1000).toISOString() : null, paymentProblem: sub.status === 'past_due' },
-  };
-}
-
-// Cancels at the end of the paid period, or undoes that. Only ever touches the
-// signed-in player's own subscription; no subscription id comes from the browser.
-async function setBattlePassCancellation(req, res, cancelAtPeriodEnd) {
-  try {
-    if (!stripeConfigured) return res.status(503).json({ error: 'Payments are temporarily unavailable. Please try again later.' });
-    const latest = await db.getLatestBattlePassSubscription(req.tokenPlayer.id);
-    if (!latest) return res.status(404).json({ error: 'You have no Battle Pass subscription.' });
-    const current = await stripe.subscriptions.retrieve(latest.stripe_subscription_id);
-    if (!BP_LIVE_STATUSES.has(current.status)) return res.status(404).json({ error: 'Your Battle Pass subscription has already ended.' });
-    const sub = await stripe.subscriptions.update(current.id, { cancel_at_period_end: cancelAtPeriodEnd });
-    const end = stripePeriodEnd(sub);
-    const periodEnd = end ? new Date(end * 1000).toISOString() : null;
-    if (cancelAtPeriodEnd) {
-      notifyPlayer(req.tokenPlayer.id, 'battlepass_cancelled', 'Your Battle Pass is cancelled. You keep Premium until the end of the period you paid for and will not be charged again.');
-    }
-    res.json({ success: true, cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end), periodEnd });
-  } catch (e) {
-    console.error('[battlepass cancel]', e);
-    res.status(500).json({ error: 'Could not update your subscription. Please try again, or ask for a human in the support chat.' });
-  }
-}
-app.post('/api/battlepass/cancel', requireDb, authenticate, (req, res) => setBattlePassCancellation(req, res, true));
-app.post('/api/battlepass/resume', requireDb, authenticate, (req, res) => setBattlePassCancellation(req, res, false));
-
 app.get('/api/battlepass/status', requireDb, authenticate, async (req, res) => {
   try {
     const season = battlepass.currentSeason();
-    const [rawStatus, player, completed, stats] = await Promise.all([
+    const [status, player, completed, stats] = await Promise.all([
       db.ensureBattlePassStatus(req.tokenPlayer.id, season),
       db.getPlayerById(req.tokenPlayer.id),
       db.listCompletedChallenges(req.tokenPlayer.id, season),
       db.getBattlePassChallengeStats(req.tokenPlayer.id, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
     ]);
-    const { status, subscription } = await syncBattlePassSubscription(req.tokenPlayer.id, season, rawStatus);
     const dailyStats = await db.getBattlePassChallengeStats(req.tokenPlayer.id, new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z');
     const completedIds = completed.map((c) => c.challenge_id);
     const dailyIds = new Set(battlepass.DAILY_CHALLENGES.map((c) => c.id));
@@ -1878,7 +1729,6 @@ app.get('/api/battlepass/status', requireDb, authenticate, async (req, res) => {
       xpIntoTier: status.xp_current % battlepass.XP_PER_TIER,
       xpPerTier: battlepass.XP_PER_TIER,
       isPremium: status.is_premium,
-      subscription,
       expiresAt: status.expires_at,
       coins: player.coins,
       track: battlepass.buildTrack(status.tier_current, status.is_premium),
@@ -1888,39 +1738,6 @@ app.get('/api/battlepass/status', requireDb, authenticate, async (req, res) => {
   } catch (e) {
     console.error('[battlepass status]', e);
     res.status(500).json({ error: 'Could not load battle pass' });
-  }
-});
-
-app.post('/api/battlepass/subscribe', requireDb, authenticate, async (req, res) => {
-  try {
-    if (!stripeConfigured) {
-      return res.status(503).json({ error: 'Payments are temporarily unavailable. Please try again later.' });
-    }
-    const season = battlepass.currentSeason();
-    const player = await db.getPlayerById(req.tokenPlayer.id);
-    const origin = req.headers.origin || `http://localhost:${PORT}`;
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: { name: 'Spike & Crush - Battle Pass (Premium)' },
-            unit_amount: Math.round(BATTLE_PASS_PRICE_USD * 100),
-            recurring: { interval: 'month' },
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: { type: 'battlepass', playerId: player.id, season },
-      success_url: `${origin}/battle-pass?subscribe=success`,
-      cancel_url: `${origin}/battle-pass?subscribe=cancelled`,
-    });
-    res.json({ url: session.url });
-  } catch (e) {
-    console.error('[battlepass subscribe]', e);
-    res.status(500).json({ error: 'Could not start checkout' });
   }
 });
 
@@ -2509,132 +2326,6 @@ app.get('/api/analytics', requireDb, authenticate, async (req, res) => {
   }
 });
 
-// ---- coaching marketplace -----------------------------------------------------
-
-app.get('/api/coaching/coaches', requireDb, authenticate, async (req, res) => {
-  try {
-    const coaches = await db.listCoaches();
-    const withRatings = await Promise.all(
-      coaches.map(async (c) => ({
-        id: c.id,
-        username: c.username,
-        avatarUrl: c.avatar_url,
-        warRating: c.war_rating,
-        tier: tierForRating(c.war_rating),
-        rateAed: c.coaching_rate_aed,
-        bio: c.coaching_bio,
-        ...(await db.getCoachRatingSummary(c.id)),
-      }))
-    );
-    res.json({ coaches: withRatings, sessionTypes: coaching.SESSION_TYPES });
-  } catch (e) {
-    console.error('[coaching coaches]', e);
-    res.status(500).json({ error: 'Could not load coaches' });
-  }
-});
-
-app.post('/api/coaching/profile', requireDb, authenticate, async (req, res) => {
-  try {
-    const player = await db.getPlayerById(req.tokenPlayer.id);
-    if (tierForRating(player.war_rating) !== coaching.COACH_TIER) {
-      return res.status(403).json({ error: `Only ${coaching.COACH_TIER} tier players can coach` });
-    }
-    const { enabled, rateAed, bio } = req.body || {};
-    if (enabled && !coaching.validRate(rateAed)) {
-      return res.status(400).json({ error: `Rate must be between AED ${coaching.MIN_RATE_AED} and ${coaching.MAX_RATE_AED}` });
-    }
-    const updated = await db.setCoachingProfile(player.id, { enabled: !!enabled, rateAed, bio });
-    res.json({ success: true, player: sanitizePlayer(updated) });
-  } catch (e) {
-    console.error('[coaching profile]', e);
-    res.status(500).json({ error: 'Could not update coaching profile' });
-  }
-});
-
-app.post('/api/coaching/book', requireDb, authenticate, async (req, res) => {
-  try {
-    if (!stripeConfigured) {
-      return res.status(503).json({ error: 'Payments are temporarily unavailable. Please try again later.' });
-    }
-    const { coachId, sessionType, scheduledAt } = req.body || {};
-    const sessionTypeDef = coaching.SESSION_TYPES[sessionType];
-    if (!sessionTypeDef) return res.status(400).json({ error: 'Unknown session type' });
-    if (!scheduledAt) return res.status(400).json({ error: 'scheduledAt is required' });
-
-    const coach = await db.getPlayerById(coachId);
-    if (!coach || !coach.coaching_enabled) return res.status(404).json({ error: 'Coach not found or not accepting bookings' });
-    if (coach.id === req.tokenPlayer.id) return res.status(400).json({ error: 'You cannot book a session with yourself' });
-
-    const priceAed = Number(coach.coaching_rate_aed);
-    const row = await db.createCoachingSession({
-      coachId: coach.id,
-      studentId: req.tokenPlayer.id,
-      sessionType,
-      priceAed,
-      durationMinutes: sessionTypeDef.durationMinutes,
-      scheduledAt,
-    });
-
-    const origin = req.headers.origin || `http://localhost:${PORT}`;
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'aed',
-            product_data: { name: `Coaching: ${sessionTypeDef.label} with ${coach.username}` },
-            unit_amount: Math.round(priceAed * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: { type: 'coaching', sessionId: row.id },
-      success_url: `${origin}/coaching?booking=success`,
-      cancel_url: `${origin}/coaching?booking=cancelled`,
-    });
-
-    await db.updateCoachingSession(row.id, { stripe_payment_intent: session.id });
-    res.json({ url: session.url });
-  } catch (e) {
-    console.error('[coaching book]', e);
-    res.status(500).json({ error: 'Could not start booking checkout' });
-  }
-});
-
-app.get('/api/coaching/my-sessions', requireDb, authenticate, async (req, res) => {
-  try {
-    const sessions = await db.listCoachingSessionsFor(req.tokenPlayer.id);
-    res.json({ sessions, playerId: req.tokenPlayer.id });
-  } catch (e) {
-    console.error('[coaching my-sessions]', e);
-    res.status(500).json({ error: 'Could not load sessions' });
-  }
-});
-
-app.post('/api/coaching/complete', requireDb, authenticate, async (req, res) => {
-  try {
-    const { sessionId, rating, reviewText } = req.body || {};
-    const row = await db.getCoachingSession(sessionId);
-    if (!row) return res.status(404).json({ error: 'Session not found' });
-    if (row.student_id !== req.tokenPlayer.id) return res.status(403).json({ error: 'Only the student can complete this session' });
-    if (row.status !== 'scheduled') return res.status(400).json({ error: 'Session is not in a completable state' });
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5' });
-
-    await db.updateCoachingSession(sessionId, {
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-      rating,
-      review_text: reviewText || null,
-    });
-    notifyPlayer(row.coach_id, 'coaching_booked', `Session reviewed: ${rating}★`);
-    res.json({ success: true });
-  } catch (e) {
-    console.error('[coaching complete]', e);
-    res.status(500).json({ error: 'Could not complete session' });
-  }
-});
-
 app.put('/api/cards/deck', requireDb, authenticate, async (req, res) => {
   try {
     const { cardTypes } = req.body || {};
@@ -2740,7 +2431,7 @@ app.get('/api/config/public', (req, res) => {
   res.json({
     supabaseUrl: process.env.SUPABASE_URL || null,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
-    devCoinGrantsEnabled: process.env.NODE_ENV !== 'production' && !stripeWebhookConfigured && allowedOrigins.length === 0,
+    devCoinGrantsEnabled: process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0,
   });
 });
 
@@ -2968,71 +2659,33 @@ app.get('/api/leaderboard', cacheJson(10000), requireDb, async (req, res) => {
   }
 });
 
-// ---- coins / stripe -----------------------------------------------------------
-
-const { COIN_PACKAGES } = require('./coinPackages');
-
-app.post('/api/coins/purchase', requireDb, authenticate, async (req, res) => {
+// ---- invite rewards ---------------------------------------------------------
+// A player's own invite link and how it has done. The player id only ever comes
+// from the verified session. The reward itself is paid by gameEngine at match end.
+app.get('/api/referrals/me', requireDb, authenticate, async (req, res) => {
   try {
-    const pkg = COIN_PACKAGES[req.body?.packageId];
-    if (!pkg) return res.status(400).json({ error: 'Unknown coin package' });
-    const player = await db.getPlayerById(req.tokenPlayer.id);
-    if (!player) return res.status(404).json({ error: 'Player not found' });
-    if (!stripeConfigured) {
-      return res.status(503).json({ error: 'Payments are temporarily unavailable. Please try again later.' });
-    }
-
-    const origin = req.headers.origin || `http://localhost:${PORT}`;
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: { name: `Spike & Crush - ${pkg.coins} coins` },
-            unit_amount: Math.round(pkg.priceUsd * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: { playerId: player.id, coins: String(pkg.coins) },
-      success_url: `${origin}/profile.html?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/profile.html?purchase=cancelled`,
+    const code = await db.getOrCreateInviteCode(req.tokenPlayer.id);
+    const stats = await db.getInviteStats(req.tokenPlayer.id);
+    res.json({
+      link: `${req.protocol}://${req.get('host')}/invite/${code}`,
+      rewardCoins: INVITE_REWARD_COINS,
+      maxPaid: INVITE_MAX_PAID,
+      paid: stats.paid,
+      waiting: stats.waiting,
+      coinsEarned: stats.paid * INVITE_REWARD_COINS,
     });
-
-    await db.recordCoinPurchase({
-      playerId: player.id,
-      packageCoins: pkg.coins,
-      amountUsd: pkg.priceUsd,
-      stripeSessionId: session.id,
-      status: 'pending',
-    });
-
-    res.json({ url: session.url });
   } catch (e) {
-    console.error('[coins/purchase]', e);
-    res.status(500).json({ error: 'Could not start checkout' });
+    console.error('[referrals/me]', e);
+    res.status(500).json({ error: 'Could not load your invite link' });
   }
 });
 
-// Dev-only self-service top-up so testing the game doesn't require running
-// a real Stripe test-mode checkout every time. Self-disabling the moment a
-// real webhook secret is configured (the same signal /api/webhook/stripe
-// uses to fail closed), so this can never work against a production Stripe
-// setup - it only exists while the payment integration itself is still
-// unconfigured for real webhook delivery. Grants a fixed, modest amount per
-// call (rate-limited by the existing apiLimiter) rather than an arbitrary
-// client-supplied number, so it can't be scripted into an unlimited coin
-// faucet even in dev.
+// Dev-only top-up so testing the game doesn't need real coins. Off in
+// production. Grants a fixed amount per call, never a client-supplied number.
 const DEV_COIN_GRANT_AMOUNT = 1000;
 app.post('/api/dev/add-coins', requireDb, authenticate, async (req, res) => {
-  // Prod sets ALLOWED_ORIGIN to lock down CORS to the real domain(s); dev
-  // leaves it unset for convenience. Reusing that same signal here closes
-  // this faucet on any locked-down deployment even before Stripe itself is
-  // configured there - without it, a live prod site with Stripe still
-  // pending would otherwise let any signed-up user free-mint coins.
-  if (process.env.NODE_ENV === 'production' || stripeWebhookConfigured || allowedOrigins.length > 0) {
+  // Prod sets ALLOWED_ORIGIN to lock down CORS; dev leaves it unset. Either signal closes this.
+  if (process.env.NODE_ENV === 'production' || allowedOrigins.length > 0) {
     return res.status(403).json({ error: 'Dev coin grants are disabled on this deployment' });
   }
   try {
@@ -3043,40 +2696,6 @@ app.post('/api/dev/add-coins', requireDb, authenticate, async (req, res) => {
   } catch (e) {
     console.error('[dev/add-coins]', e);
     res.status(500).json({ error: 'Could not grant coins' });
-  }
-});
-
-// Fallback completion path for the success redirect. The webhook above is
-// the source of truth in production, but it requires a configured
-// STRIPE_WEBHOOK_SECRET and a publicly reachable URL (or `stripe listen`)
-// to ever fire - neither is available in every deployment, which otherwise
-// leaves paid purchases stuck in "pending" forever. This asks Stripe
-// directly whether the session was paid (never trusts the client) and
-// reuses the same idempotent db.completeCoinPurchase used by the webhook,
-// so calling both for the same session is harmless.
-app.post('/api/coins/verify-session', requireDb, authenticate, async (req, res) => {
-  try {
-    if (!stripeConfigured) {
-      return res.status(503).json({ error: 'Payments are temporarily unavailable. Please try again later.' });
-    }
-    const sessionId = req.body?.sessionId;
-    if (!sessionId) return res.status(400).json({ error: 'sessionId is required' });
-
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (session.metadata?.playerId !== req.tokenPlayer.id) {
-      return res.status(403).json({ error: 'This session does not belong to you' });
-    }
-    if (session.payment_status !== 'paid') {
-      return res.json({ status: session.payment_status, credited: false });
-    }
-
-    const purchase = await db.completeCoinPurchase(session.id);
-    const player = await db.getPlayerById(req.tokenPlayer.id);
-    if (purchase && !purchase.alreadyCompleted) await sendReceiptEmail(purchase);
-    res.json({ status: 'paid', credited: true, coins: purchase?.package_coins ?? null, player });
-  } catch (e) {
-    console.error('[coins/verify-session]', e);
-    res.status(500).json({ error: 'Could not verify purchase' });
   }
 });
 
@@ -3503,8 +3122,5 @@ server.listen(PORT, () => {
     console.warn(
       'Running WITHOUT a configured database - accounts, matchmaking persistence and leaderboards are disabled until SUPABASE_SERVICE_KEY is set in .env.'
     );
-  }
-  if (!stripeConfigured) {
-    console.warn('Stripe is not configured - coin purchases are disabled until STRIPE_SECRET_KEY is set in .env.');
   }
 });

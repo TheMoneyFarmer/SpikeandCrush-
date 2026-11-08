@@ -24,7 +24,6 @@
           <button class="admin-tab" data-tab="shop">Cosmetic Shop</button>
           <button class="admin-tab" data-tab="withdrawals">Prize Claims (archive)</button>
           <button class="admin-tab" data-tab="brokers">Broker Partners</button>
-          <button class="admin-tab" data-tab="coaching">Coaching Sessions</button>
         </div>
 
         <div class="admin-tab-panel" id="tab-overview">
@@ -61,8 +60,6 @@
           <div id="brokersTableWrap2"><div class="empty-state">Loading…</div></div>
         </div>
 
-        <div class="admin-tab-panel" id="tab-coaching">
-          <div id="coachingTableWrap"><div class="empty-state">Loading…</div></div>
         </div>
 
       </div>
@@ -94,7 +91,6 @@
           <div class="kpi-card"><div class="kpi-label">Total Revenue (12mo)</div><div class="kpi-value">${Admin.formatMoney(d.totalRevenueUsd12mo)}</div></div>
           <div class="kpi-card"><div class="kpi-label">MoM Growth</div><div class="kpi-value">${d.monthOverMonthGrowthPct != null ? d.monthOverMonthGrowthPct + '%' : '—'}</div></div>
           <div class="kpi-card"><div class="kpi-label">Avg Revenue / User</div><div class="kpi-value">${Admin.formatMoney(d.averageRevenuePerUser)}</div></div>
-          <div class="kpi-card"><div class="kpi-label">Coaching (AED, all-time)</div><div class="kpi-value">${d.byStream.coachingAed.toLocaleString()}</div></div>
           <div class="kpi-card"><div class="kpi-label">Broker Fees / mo (AED)</div><div class="kpi-value">${d.byStream.brokerPartnerFeesAedMonthly.toLocaleString()}</div></div>
         `;
         Admin.Charts.barChart(document.getElementById('chartRevenue12mo'), {
@@ -211,15 +207,6 @@
             <tbody>${rows.map((b) => `<tr><td>${Admin.escapeHtml(b.broker_name)}</td><td>${b.tier}</td><td>${b.monthly_fee_aed}</td><td>${b.active ? '✅' : '❌'}</td></tr>`).join('')}</tbody>
           </table></div>
         ` : '<div class="empty-state">No brokers yet. Add one under Tournaments > Sponsors / Prizes.</div>';
-      },
-      coaching: async () => {
-        const rows = await Admin.api('/monetisation/coaching');
-        document.getElementById('coachingTableWrap').innerHTML = rows.length ? `
-          <div class="admin-table-wrap"><table class="admin-table">
-            <thead><tr><th>Coach</th><th>Student</th><th>Type</th><th>Price (AED)</th><th>Status</th><th>Date</th></tr></thead>
-            <tbody>${rows.map((c) => `<tr><td>${Admin.escapeHtml(c.coach?.username || '—')}</td><td>${Admin.escapeHtml(c.student?.username || '—')}</td><td>${c.session_type}</td><td>${c.price_aed}</td><td>${c.status}</td><td>${Admin.formatDate(c.created_at)}</td></tr>`).join('')}</tbody>
-          </table></div>
-        ` : '<div class="empty-state">No coaching sessions yet.</div>';
       },
     };
 

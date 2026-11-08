@@ -74,11 +74,17 @@
     </div>
 
     <div class="panel" style="margin-top: 20px;">
+      <h3>Invite friends</h3>
+      <p>Earn 100 coins for each friend who joins and plays a match against other real players.</p>
+      <button class="btn btn-primary" id="inviteFriendsBtn">Get my invite link</button>
+    </div>
+
+    <div class="panel" style="margin-top: 20px;">
       <h3>Buy Coins</h3>
       <p>Quick War entry costs 10 coins. Private War costs 1 coin to host - free for the friends you invite.</p>
       <div class="wallet-disclaimer">
         <span class="disclaimer-icon" aria-hidden="true"><svg class="tw-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span>
-        <span>Coins are virtual in-game currency for entertainment use only. Coin purchases are final and non-refundable. Coins have no cash value and cannot be withdrawn or exchanged for money. See our <a href="/terms">Terms of Service</a>.</span>
+        <span>Coins are virtual in-game currency for entertainment use only. Coins have no cash value and cannot be withdrawn or exchanged for money. See our <a href="/terms">Terms of Service</a>.</span>
       </div>
       <div class="coin-packages">
         <div class="coin-package" data-pkg="100"><div class="amount">100</div><div class="price">$0.99</div><div class="per-coin">$0.0099/coin</div></div>
@@ -94,10 +100,7 @@
     <div class="panel hidden" id="devCoinsPanel" style="margin-top: 20px;">
       <h3>Dev Coins</h3>
       <p class="text-secondary" style="font-size:13px;">
-        This environment doesn't have a live Stripe webhook configured yet, so real purchases only
-        complete once you finish the actual Stripe test checkout (card 4242 4242 4242 4242, any future
-        expiry/CVC) - the wallet page verifies it directly with Stripe when you land back here. For quick
-        testing without running a real checkout, grant yourself coins instead:
+        For testing on this environment, grant yourself coins:
       </p>
       <button class="btn btn-outline" id="devAddCoinsBtn">+1000 Test Coins</button>
     </div>
@@ -123,6 +126,7 @@
   <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/main.js"></script>
+  <script src="/js/earn-coins.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/auth.js"></script>
     <script src="/socket.io/socket.io.js"></script>
@@ -137,6 +141,7 @@
       match_entry: 'Match Entry',
       prize_won: 'Prize Won',
       coin_purchase: 'Coin Purchase',
+      referral_reward: 'Invite Reward',
       welcome_bonus: 'Welcome Bonus',
       tournament_prize: 'Tournament Prize',
       prize_claimed: 'Prize Claimed (legacy)',
@@ -166,21 +171,12 @@
     // Prize cash-out (prize claims) is closed: coins have no cash value.
 
     document.querySelectorAll('.coin-package').forEach((el) => {
-      el.addEventListener('click', async () => {
-        try {
-          const data = await TW.api('/api/coins/purchase', { method: 'POST', body: { packageId: el.dataset.pkg } });
-          window.location.href = data.url;
-        } catch (err) {
-          TW.toast(err.message, 'danger');
-        }
-      });
+      el.addEventListener('click', () => TW.earnCoins.open());
     });
 
-    // Ask the server whether this deployment allows dev coin grants at all
-    // before showing the panel - avoids flashing a "test coins" button at
-    // real users on a locked-down (prod) deployment where Stripe just
-    // hasn't been configured yet. The click handler's 403 check stays as a
-    // second, authoritative gate regardless of what this fetch says.
+    document.getElementById('inviteFriendsBtn').addEventListener('click', () => TW.earnCoins.open());
+
+    // Only shows on a deployment that allows dev coin grants. The server's own check still decides.
     fetch('/api/config/public').then((r) => r.json()).then((cfg) => {
       if (cfg.devCoinGrantsEnabled) document.getElementById('devCoinsPanel').classList.remove('hidden');
     }).catch(() => {});

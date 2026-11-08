@@ -25,7 +25,7 @@ function buildCsp({ supabaseUrl = process.env.SUPABASE_URL || '', admin = false 
     'frame-ancestors': ["'none'"],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
-    'form-action': ["'self'", 'https://checkout.stripe.com', ...(admin ? [] : ['https://discord.com'])],
+    'form-action': ["'self'", ...(admin ? [] : ['https://discord.com'])],
     'upgrade-insecure-requests': [],
   };
   return Object.entries(directives).map(([k, v]) => (v.length ? `${k} ${v.join(' ')}` : k)).join('; ');
@@ -39,7 +39,7 @@ function securityHeaders(options = {}) {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.stripe.com")');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     // HSTS only over HTTPS (Railway terminates TLS; req.secure honours trust proxy).
     if (req.secure || isProd) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const instruments = require('./instruments');
 const marginRules = require('./marginRules');
+const referralRules = require('./referralRules');
 const sabotage = require('./sabotage');
 const db = require('./database');
 const battlepass = require('./battlepass');
@@ -1936,6 +1937,22 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       }
     }
 
+    // Invite rewards. Separate and best-effort: never allowed to affect results.
+    if (db.isConfigured && match.dbMatchId) {
+      const everyone = Object.values(match.players);
+      for (const p of everyone) {
+        if (!referralRules.qualifiesForInviteReward(everyone, p.id)) continue;
+        try {
+          const paid = await db.payPlayerReferral(p.id, match.dbMatchId, referralRules.INVITE_REWARD_COINS, referralRules.INVITE_MAX_PAID);
+          if (paid && paid.paid) {
+            notifyPlayer?.(paid.inviter, 'referral_reward', `A friend you invited finished a match. +${referralRules.INVITE_REWARD_COINS} coins!`);
+          }
+        } catch (e) {
+          console.warn('[gameEngine] invite reward failed for', p.username, e.message);
+        }
+      }
+    }
+
     if (db.isConfigured && match.dbMatchId) {
       try {
         await db.updateMatch(match.dbMatchId, {
@@ -2369,6 +2386,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       return { success: false, error: `Cannot leave a match in status "${match.status}"` };
     }
 
+    player.forfeited = true;
     for (const pos of player.positions.slice()) closeTrade(matchId, playerId, pos.id, 'left_match');
 
     const totalPlayers = match.playerOrder.length; // original full roster, doesn't shrink as players leave

@@ -61,7 +61,7 @@ window.TW = window.TW || {};
     {
       target: '#headerCoinWrap',
       title: 'Your Coin Balance',
-      body: 'Coins are your in-game currency. You earn them by winning matches and completing challenges. You spend them on match entry fees and cosmetics. You can buy more coins anytime from the Wallet page.',
+      body: 'Coins are your in-game currency. You earn them by winning matches and completing challenges. You spend them on match entry fees and cosmetics. You can earn more by inviting friends from the Wallet page.',
       tip: 'Coins are never lost forever - you always earn them back by winning matches.',
     },
     {

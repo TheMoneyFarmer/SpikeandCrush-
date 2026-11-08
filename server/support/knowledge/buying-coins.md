@@ -1,22 +1,16 @@
 ---
 slug: buying-coins
-title: "Buying coins and payments"
-category: payments
-tags: ["buy coins", "purchase", "payment", "stripe", "price", "charged", "refund", "card"]
+title: "Buying coins and Premium"
+category: coins
+tags: ["buy coins", "purchase", "payment", "price", "charged", "refund", "card", "top up", "get coins", "premium"]
 source: code
 needs_review: false
 ---
 
-# Buying coins and payments
+# Buying coins and Premium
 
-Coin packages are sold on the Wallet page and paid through Stripe:
-- 100 coins: $0.99
-- 500 coins: $3.99
-- 1,500 coins: $9.99
-- 5,000 coins: $24.99
+Coins and Battle Pass Premium are not on sale right now. We are not taking any payments, so no card is needed and nothing can be charged.
 
-Coins are added to your balance after Stripe confirms the payment. The purchase then appears in your coin history.
+To get more coins: win matches, finish daily and weekly challenges, reach Battle Pass tiers, or invite friends (see "Invite friends and earn coins").
 
-If you were charged but did not get your coins, a human agent needs to check the payment. Support can open a ticket for this, but cannot add coins or issue refunds itself. Never share your full card number in chat.
-
-Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money.
+If a charge from us appears on your statement, ask for a human agent and do not share your card number in chat. Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money.

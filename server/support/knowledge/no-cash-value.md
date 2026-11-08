@@ -12,5 +12,3 @@ needs_review: false
 Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money.
 
 There are no withdrawals of any kind: not for coins won in matches, tournaments or competitions, and not for coins you bought. Prizes are coins only. There is no cash prize path.
-
-Coin purchases are final.

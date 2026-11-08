@@ -15,7 +15,6 @@ window.TW = window.TW || {};
     { key: 'shop', label: 'Shop', href: '/shop' },
     { key: 'wallet', label: 'Wallet', href: '/wallet' },
     { key: 'battle-pass', label: 'Battle Pass', href: '/battle-pass' },
-    { key: 'coaching', label: 'Coaching', href: '/coaching' },
     { key: 'settings', label: 'Settings', href: '/settings' },
   ];
 
@@ -32,7 +31,7 @@ window.TW = window.TW || {};
     battlepass_premium: 'crown',
     shop_purchase: 'bag',
     coin_purchase: 'coin',
-    coaching_booked: 'calendar',
+    referral_reward: 'coin',
     tournament_advance: 'swords',
     tournament_eliminated: 'close',
     tournament_draw: 'users',
@@ -69,7 +68,6 @@ window.TW = window.TW || {};
   const AVATAR_MENU = [
     { key: 'profile', label: 'Profile', href: '/profile', icon: 'user' },
     { key: 'battle-pass', label: 'Battle Pass', href: '/battle-pass', icon: 'star' },
-    { key: 'coaching', label: 'Coaching', href: '/coaching', icon: 'calendar' },
     { key: 'settings', label: 'Settings', href: '/settings', icon: 'settings' },
     { key: 'help', label: 'Help', href: '/help', icon: 'help' },
   ];

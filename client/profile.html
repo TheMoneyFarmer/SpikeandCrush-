@@ -204,6 +204,7 @@
   <script src="/js/nav.js"></script>
   <script src="/js/sound.js"></script>
   <script src="/js/main.js"></script>
+  <script src="/js/earn-coins.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/js/auth.js"></script>
     <script src="/socket.io/socket.io.js"></script>
@@ -415,40 +416,8 @@
     });
 
     document.querySelectorAll('.coin-package').forEach((el) => {
-      el.addEventListener('click', async () => {
-        try {
-          const data = await TW.api('/api/coins/purchase', { method: 'POST', body: { packageId: el.dataset.pkg } });
-          window.location.href = data.url;
-        } catch (err) {
-          TW.toast(err.message, 'danger');
-        }
-      });
+      el.addEventListener('click', () => TW.earnCoins.open());
     });
-
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('purchase') === 'success') {
-      const sessionId = urlParams.get('session_id');
-      if (sessionId) {
-        TW.api('/api/coins/verify-session', { method: 'POST', body: { sessionId } })
-          .then((data) => {
-            if (data.credited) {
-              TW.updatePlayerCache(data.player);
-              TW.updateHeader();
-              TW.toast(`${data.coins} coins added to your wallet!`, 'info');
-              loadProfile();
-            } else {
-              TW.toast('Payment received! Coins will credit shortly.', 'info');
-            }
-          })
-          .catch(() => TW.toast('Payment received! Coins will credit shortly.', 'info'));
-      } else {
-        TW.toast('Payment received! Coins will credit shortly.', 'info');
-      }
-      window.history.replaceState({}, '', window.location.pathname);
-    } else if (urlParams.get('purchase') === 'cancelled') {
-      TW.toast('Purchase cancelled.', 'warning');
-      window.history.replaceState({}, '', window.location.pathname);
-    }
 
     loadProfile();
   </script>

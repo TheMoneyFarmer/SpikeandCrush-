@@ -151,7 +151,7 @@ function maskEmail(email) {
 }
 const SECRET_PATTERNS = [
   /\bsk-ant-[A-Za-z0-9_-]{10,}/g, // Anthropic keys
-  /\bsk_(live|test)_[A-Za-z0-9]{10,}/g, // Stripe secret keys
+  /\bsk_(live|test)_[A-Za-z0-9]{10,}/g, // secret keys
   /\b(rk|pk)_(live|test)_[A-Za-z0-9]{10,}/g,
   /\bwhsec_[A-Za-z0-9]{10,}/g,
   /\bre_[A-Za-z0-9]{8,}_[A-Za-z0-9]{8,}/g, // Resend keys

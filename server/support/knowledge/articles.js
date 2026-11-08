@@ -29,7 +29,7 @@ const shop = require('../../shop');
 const battlepass = require('../../battlepass');
 const instruments = require('../../instruments');
 const { LEVERAGE, MARGIN_CALL_LEVEL, STOP_OUT_LEVEL, positionMargin, maxAffordableLots } = require('../../marginRules');
-const { COIN_PACKAGES, BATTLE_PASS_PRICE_USD } = require('../../coinPackages');
+const { INVITE_REWARD_COINS, INVITE_MAX_PAID } = require('../../referralRules');
 
 const CONTACT_EMAIL = 'hello@spikeandcrush.com';
 const NO_CASH = 'Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money.';
@@ -79,7 +79,6 @@ function buildArticles() {
   const cardList = Object.values(CARDS)
     .map((c) => `- **${c.name}** (${c.category}${c.targeted ? ', targets an opponent' : ''}): ${c.description}`)
     .join('\n');
-  const packages = Object.values(COIN_PACKAGES).map((p) => `- ${p.coins.toLocaleString('en-US')} coins: $${p.priceUsd.toFixed(2)}`).join('\n');
 
   return [
     {
@@ -260,9 +259,9 @@ Card variants (silver, gold) from the shop are cosmetic only.`,
 
 **Earn coins:** welcome bonus on a new account, match prizes, competition and tournament prizes, Battle Pass challenges and tiers.
 **Spend coins:** match and competition entry fees, the cosmetic shop, tournament entry.
-**Buy coins:** coin packages on the Wallet page (see "Buying coins").
+**Invite friends:** earn coins when a friend you invite plays (see "Invite friends and earn coins").
 
-Every change to your balance is listed in your coin history on the Wallet page, with the reason (entry fee, prize, purchase, shop and so on).
+Every change to your balance is listed in your coin history on the Wallet page, with the reason (entry fee, prize, shop and so on).
 
 ${NO_CASH} They exist only for use inside the game.`,
     },
@@ -273,34 +272,27 @@ ${NO_CASH} They exist only for use inside the game.`,
       tags: ['withdraw', 'withdrawal', 'cash out', 'real money', 'payout', 'bank', 'crypto', 'redeem', 'convert'],
       body: `${NO_CASH}
 
-There are no withdrawals of any kind: not for coins won in matches, tournaments or competitions, and not for coins you bought. Prizes are coins only. There is no cash prize path.
-
-Coin purchases are final.`,
+There are no withdrawals of any kind: not for coins won in matches, tournaments or competitions, and not for coins you bought. Prizes are coins only. There is no cash prize path.`,
     },
     {
       slug: 'buying-coins',
-      title: 'Buying coins and payments',
-      category: 'payments',
-      tags: ['buy coins', 'purchase', 'payment', 'stripe', 'price', 'charged', 'refund', 'card'],
-      body: `Coin packages are sold on the Wallet page and paid through Stripe:
-${packages}
+      title: 'Buying coins and Premium',
+      category: 'coins',
+      tags: ['buy coins', 'purchase', 'payment', 'price', 'charged', 'refund', 'card', 'top up', 'get coins', 'premium'],
+      body: `Coins and Battle Pass Premium are not on sale right now. We are not taking any payments, so no card is needed and nothing can be charged.
 
-Coins are added to your balance after Stripe confirms the payment. The purchase then appears in your coin history.
+To get more coins: win matches, finish daily and weekly challenges, reach Battle Pass tiers, or invite friends (see "Invite friends and earn coins").
 
-If you were charged but did not get your coins, a human agent needs to check the payment. Support can open a ticket for this, but cannot add coins or issue refunds itself. Never share your full card number in chat.
-
-${NO_CASH}`,
+If a charge from us appears on your statement, ask for a human agent and do not share your card number in chat. ${NO_CASH}`,
     },
     {
       slug: 'battle-pass',
       title: 'Battle Pass',
       category: 'progression',
-      tags: ['battle pass', 'season', 'xp', 'challenges', 'premium', 'subscription', 'cancel', 'cancel subscription', 'stop paying', 'renew'],
+      tags: ['battle pass', 'season', 'xp', 'challenges', 'premium', 'subscription', 'cancel', 'cancel subscription'],
       body: `The Battle Pass runs in seasons of ${battlepass.SEASON_DAYS} days with tiers you unlock with XP (${battlepass.XP_PER_TIER} XP per tier). Matches give XP and daily and weekly challenges give XP and coins.
 
-Everyone has the free track. Premium costs $${BATTLE_PASS_PRICE_USD.toFixed(2)} a month (Stripe subscription) and unlocks a second track with extra cosmetics and coins. It renews monthly until you cancel, and stays active across seasons while you pay.
-
-**To cancel:** open the Battle Pass page and choose Cancel subscription. You keep Premium until the end of the period you paid for and are not charged again. You can change your mind before then with Keep my subscription. Rewards you already claimed stay yours.
+Everyone has the free track. There is also a Premium track with extra cosmetics and coins, but Premium is not on sale right now, so there is nothing to subscribe to or cancel and no one is being charged.
 
 Tiers cannot be bought directly.`,
     },
@@ -329,13 +321,30 @@ Cosmetics are visual only and never change gameplay. Equip them from the shop or
 - **Blocking:** blocked players are managed in Settings, Privacy.`,
     },
     {
-      slug: 'referrals-partners',
-      title: 'Referrals and partners',
+      slug: 'invite-friends',
+      title: 'Invite friends and earn coins',
       category: 'social',
-      tags: ['referral', 'partner', 'broker', 'affiliate', 'link', 'code'],
+      tags: ['invite', 'invite link', 'referral', 'refer a friend', 'earn coins', 'free coins', 'friend bonus', 'referral reward'],
+      body: `Share your invite link and earn ${INVITE_REWARD_COINS} coins for each friend who joins and plays. Find your link on the Wallet page under Invite friends.
+
+**When you get paid:** when your friend finishes their first match against at least one other real player. Matches against only bots or AI do not count. Your friend has to stay until the end and make at least one trade. Until then the invite shows as waiting.
+
+**The rules:**
+- Your friend must create a new account after opening your link, within 30 days. Existing accounts cannot be added later.
+- The reward goes to the inviter. The friend gets the normal welcome coins.
+- You can be paid for up to ${INVITE_MAX_PAID} invites.
+- Inviting yourself with extra accounts is abuse, and coins can be removed.
+
+${NO_CASH}`,
+    },
+    {
+      slug: 'referrals-partners',
+      title: 'Partner referral links',
+      category: 'social',
+      tags: ['partner', 'broker', 'affiliate', 'prop firm', 'creator', 'code'],
       body: `Partner referral links look like spikeandcrush.com/r/CODE. Opening one remembers the partner for 30 days, and if you sign up in that time your new account is credited to that partner.
 
-The referral programme is for partners (brokers, prop firms, creators). There are no referral rewards for players inviting friends.
+These links are for partners (brokers, prop firms, creators). To invite friends and earn coins, use your own invite link instead (see "Invite friends and earn coins").
 
 For partner or business enquiries, ask for a human agent or email ${CONTACT_EMAIL}.`,
     },
@@ -356,7 +365,7 @@ If it fails you are sent back to Settings with an error. Try again, and make sur
       title: 'Notifications',
       category: 'account',
       tags: ['notifications', 'bell', 'alerts', 'email'],
-      body: `The bell at the top of the site shows your notifications, and they are saved so they are there after a reload or on another device. You get notifications for friend requests and invites, friends' wins, competitions starting, ending soon and ending, loss limit hits in competitions, shop and coin purchases, Battle Pass, coaching bookings and support replies.
+      body: `The bell at the top of the site shows your notifications, and they are saved so they are there after a reload or on another device. You get notifications for friend requests and invites, friends' wins, competitions starting, ending soon and ending, loss limit hits in competitions, shop purchases, invite rewards, Battle Pass and support replies.
 
 Notification preferences (for example friends' wins) are in Settings.`,
     },

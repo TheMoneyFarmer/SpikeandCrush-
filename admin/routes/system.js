@@ -5,14 +5,11 @@ const os = require('os');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const internal = require('../lib/internalGameServer');
 
-const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== 'your_value');
-const Stripe = stripeConfigured ? require('stripe') : null;
-const stripe = stripeConfigured ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 const REAL_TABLES = [
   'players', 'matches', 'match_players', 'trades', 'sabotage_events', 'coin_purchases', 'coin_transactions',
   'sessions', 'login_events', 'card_decks', 'player_blocks', 'battle_pass_subscriptions', 'battle_pass_progress',
-  'shop_purchases', 'equipped_cosmetics', 'replays', 'clips', 'broker_partners', 'coaching_sessions',
+  'shop_purchases', 'equipped_cosmetics', 'replays', 'clips', 'broker_partners',
   'async_daily', 'async_results', 'tournaments', 'tournament_registrations', 'friendships', 'player_presence',
   'notifications', 'admin_logs', 'admin_sessions', 'player_moderation_actions', 'player_reports', 'announcements',
 ];
@@ -43,7 +40,6 @@ function router() {
       adminServer: { uptimeSeconds: process.uptime(), memory: process.memoryUsage(), nodeVersion: process.version },
       gameServer: gameServer ? { reachable: true, ...gameServer } : { reachable: false, error: gameServerError },
       database: { configured: isConfigured, reachable: dbOk },
-      stripe: { configured: stripeConfigured },
       internalBridgeRoundTripMs: roundTripMs,
       host: { loadavg: os.loadavg(), totalMemMb: Math.round(os.totalmem() / 1e6), freeMemMb: Math.round(os.freemem() / 1e6), cpuCount: os.cpus().length },
     });
@@ -52,7 +48,6 @@ function router() {
   r.get('/api-usage', async (req, res) => {
     const result = {
       supabase: { configured: isConfigured, tableCount: REAL_TABLES.length, rowCounts: {} },
-      stripe: { configured: stripeConfigured },
       llmApis: {
         note: 'AI trading opponents are rule-based, not model-driven - no LLM involved there. The support chat widget (/api/support/chat) does call Anthropic\'s Claude API when ANTHROPIC_API_KEY is set - real usage/cost accrues per message once configured. ElevenLabs is not integrated.',
       },
@@ -60,15 +55,6 @@ function router() {
     if (isConfigured) {
       const counts = await Promise.all(REAL_TABLES.map((t) => supabase.from(t).select('id', { count: 'exact', head: true }).then((res) => [t, res.count]).catch(() => [t, null])));
       result.supabase.rowCounts = Object.fromEntries(counts);
-    }
-    if (stripeConfigured) {
-      try {
-        const [balance, charges] = await Promise.all([stripe.balance.retrieve(), stripe.charges.list({ limit: 10 })]);
-        result.stripe.balance = balance.available.map((b) => ({ amount: b.amount / 100, currency: b.currency }));
-        result.stripe.recentCharges = charges.data.map((c) => ({ amount: c.amount / 100, currency: c.currency, created: new Date(c.created * 1000).toISOString(), status: c.status }));
-      } catch (e) {
-        result.stripe.error = e.message;
-      }
     }
     res.json(result);
   });

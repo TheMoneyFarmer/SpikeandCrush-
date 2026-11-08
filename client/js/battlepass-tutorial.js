@@ -17,7 +17,7 @@ window.TW = window.TW || {};
     {
       icon: '⚖️',
       title: 'Free Track vs Premium Track',
-      body: 'Everyone has access to the Free Track - it gives you coins and basic rewards as you play. The Premium Track unlocks when you subscribe and gives you much more: exclusive cosmetics, bigger coin rewards, and seasonal items that can\'t be earned any other way.',
+      body: 'Everyone has access to the Free Track - it gives you coins and basic rewards as you play. There is also a Premium Track with exclusive cosmetics and bigger coin rewards. Premium is not on sale right now, so play the Free Track and invite friends to earn more coins.',
       visual: 'Both tracks progress together as you earn XP - premium just unlocks a second row of rewards at every tier.',
     },
     {
@@ -95,7 +95,7 @@ window.TW = window.TW || {};
       if (isLast) {
         footer.innerHTML = `
           <button class="btn-tutorial-skip" id="bpStartFree">Start with Free</button>
-          <button class="btn-tutorial-next" id="bpSubscribe">Subscribe →</button>
+          <button class="btn-tutorial-next" id="bpSubscribe">Invite friends →</button>
         `;
         footer.querySelector('#bpStartFree').addEventListener('click', () => this.complete());
         footer.querySelector('#bpSubscribe').addEventListener('click', () => {

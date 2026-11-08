@@ -6,7 +6,6 @@ Competitive multiplayer trading game. Traders battle in real time on simulated E
 
 - Node.js 18+
 - A Supabase project (URL + anon key + service_role key)
-- (Optional) Stripe account in test mode, for coin purchases
 
 ## 1. Install dependencies
 
@@ -27,12 +26,9 @@ SUPABASE_URL=https://<your-project>.supabase.co
 SUPABASE_ANON_KEY=<anon key>
 SUPABASE_SERVICE_KEY=<service_role key>   # Dashboard -> Project Settings -> API
 
-STRIPE_SECRET_KEY=<sk_test_...>
-STRIPE_PUBLISHABLE_KEY=<pk_test_...>
-STRIPE_WEBHOOK_SECRET=<whsec_...>
 ```
 
-The database schema (`players`, `matches`, `match_players`, `trades`, `sabotage_events`, `coin_purchases`) is expected to already exist in your Supabase project, with Row Level Security enabled. Without `SUPABASE_SERVICE_KEY` set, the server still starts and the landing page loads, but accounts, matches and the leaderboard are disabled (you'll get a clear "Database not configured" error). Without Stripe keys, everything works except coin purchases.
+The database schema (`players`, `matches`, `match_players`, `trades`, `sabotage_events`, `coin_purchases`) is expected to already exist in your Supabase project, with Row Level Security enabled. Without `SUPABASE_SERVICE_KEY` set, the server still starts and the landing page loads, but accounts, matches and the leaderboard are disabled (you'll get a clear "Database not configured" error).
 
 ## 3. Start the server
 
@@ -100,7 +96,7 @@ Beyond the core lobby/match flow, the app now has:
 
 | Route | Purpose |
 |---|---|
-| `/wallet` | Coin purchase packages (Stripe), daily loss limit tracker with a midnight countdown, transaction history with CSV export |
+| `/wallet` | Invite link and rewards, daily loss limit tracker with a midnight countdown, transaction history with CSV export |
 | `/cards` | Card collection grid (Standard / Silver at 50 wins / Gold at 200 wins), per-card play stats, deck builder for the upcoming Grand War mode |
 | `/settings` | Profile (username/avatar/country/experience/instruments), Game Preferences, Privacy (visibility, online status, friend requests, block list), Security (2FA, login history, active sessions, delete account), Notifications |
 | `/leaderboard` | Full leaderboard with All-Time/Week/Month and tier filters, username search, and your own row highlighted |
@@ -134,7 +130,7 @@ Every effect is generated at runtime via the Web Audio API (oscillators, gain en
 
 ## Coins-only economy
 
-Wallet, prize rewards, and the coin store are entirely virtual currency. There is no real-money withdrawal path (bank/PayPal/crypto) — this prototype has no payment-processor KYC integration or real-money tournament mode, so building one would have meant fabricating a compliance story that doesn't exist. Coin purchases still run through real Stripe test-mode checkout.
+Wallet, prize rewards, and the coin store are entirely virtual currency. There is no real-money withdrawal path (bank/PayPal/crypto) — this prototype has no payment-processor KYC integration or real-money tournament mode, so building one would have meant fabricating a compliance story that doesn't exist. Coins and Premium are not on sale; players earn more by inviting friends.
 
 ## Security additions
 
@@ -146,7 +142,6 @@ Wallet, prize rewards, and the coin store are entirely virtual currency. There i
 
 - **Auth**: the `players` table needed a `password_hash` column (not in the original schema) — added via migration, since real login requires it.
 - **Room codes**: `matches.room_code` was added (referenced throughout the matchmaking flow but not in the original column list).
-- **Purchase history**: a `coin_purchases` table was added for Stripe purchase records (required by the coin system spec, not in the original table list).
 - **AI opponents** (Aggressive Al, Patient Patricia, Chaos Carlos) are rule-based, not LLM-driven — `ANTHROPIC_API_KEY` isn't used anywhere in this build.
 - All trade execution, P&L, and sabotage validation is server-authoritative; the client only renders live estimates for responsiveness.
 - **Schema additions for the features above**: `players` gained `settings`, `avatar_url`, `country`, `experience_level`, `preferred_instruments`, `totp_secret`, `totp_enabled`, `daily_loss_limit_usd`, `coins_earned_total`, `coins_spent_total`; new tables `sessions`, `login_events`, `card_decks`, `player_blocks`, `coin_transactions`; `matches.winner_id` was changed to `ON DELETE SET NULL` so a past match winner's account can be deleted.

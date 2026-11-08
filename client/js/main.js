@@ -261,7 +261,7 @@ window.TW = window.TW || {};
   // (a few false positives caught here cost nothing) rather than narrow.
   const DEV_ERROR_PHRASES = /not configured|\.env\b|violates|constraint|undefined is not|cannot read propert|is not a function|internal server error/i;
   // Deliberately no /i here - this one only means to catch genuine
-  // SCREAMING_SNAKE_CASE env-var names (STRIPE_SECRET_KEY etc.), and case-
+  // SCREAMING_SNAKE_CASE env-var names (SUPABASE_SERVICE_KEY etc.), and case-
   // insensitive would also match ordinary lowercase_words like
   // "bank_transfer" in an otherwise perfectly friendly message.
   const DEV_ERROR_ENV_VAR = /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+){1,}\b/;

@@ -36,7 +36,6 @@ window.Admin = window.Admin || {};
       { key: 'mon-shop', label: 'Cosmetic Shop', href: '/monetisation.html?tab=shop' },
       { key: 'mon-withdrawals', label: 'Prize Claims (archive)', href: '/monetisation.html?tab=withdrawals' },
       { key: 'mon-brokers', label: 'Broker Partners', href: '/monetisation.html?tab=brokers' },
-      { key: 'mon-coaching', label: 'Coaching Sessions', href: '/monetisation.html?tab=coaching' },
       { key: 'mon-partners', label: 'Referral Partners', href: '/partners.html' },
     ]},
     { group: 'Support', icon: '💬', items: [

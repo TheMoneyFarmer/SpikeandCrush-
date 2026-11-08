@@ -46,10 +46,6 @@
             <h3>Supabase</h3>
             <div id="supabaseUsage" class="text-secondary" style="font-size:12px;"></div>
           </div>
-          <div class="panel" style="margin-bottom:16px;">
-            <h3>Stripe</h3>
-            <div id="stripeUsage"></div>
-          </div>
           <div class="panel">
             <h3>LLM APIs (OpenAI / Anthropic / ElevenLabs)</h3>
             <div id="llmNote" class="text-secondary" style="font-size:12px;"></div>
@@ -142,7 +138,6 @@
             <div>Admin Server: ✅ Running</div>
             <div>Database: ${d.database.reachable ? '✅ Connected' : '❌ Error'}</div>
             <div>Socket.io: ${d.gameServer.reachable ? `✅ ${d.gameServer.websocketConnections} clients` : '❌'}</div>
-            <div>Stripe: ${d.stripe.configured ? '✅ Configured' : '❌ Not configured'}</div>
             <div>Supabase: ${d.database.configured ? '✅ Connected' : '❌ Not configured'}</div>
           `;
           if (d.gameServer.reachable) {
@@ -168,9 +163,6 @@
           const d = await Admin.api('/system/api-usage');
           document.getElementById('supabaseUsage').innerHTML = `Configured: ${d.supabase.configured ? 'Yes' : 'No'} · ${d.supabase.tableCount} tables tracked<br/><br/>` +
             Object.entries(d.supabase.rowCounts).map(([t, c]) => `${t}: <strong>${c ?? '—'}</strong>`).join(' · ');
-          document.getElementById('stripeUsage').innerHTML = d.stripe.configured
-            ? `<div style="font-size:12px;">Available balance: ${(d.stripe.balance || []).map((b) => `${b.amount} ${b.currency.toUpperCase()}`).join(', ') || '—'}<br/>Recent charges: ${(d.stripe.recentCharges || []).length}</div>`
-            : '<div class="empty-state">Stripe not configured.</div>';
           document.getElementById('llmNote').textContent = d.llmApis.note;
         } catch (e) { Admin.toast(e.message, 'danger'); }
       },

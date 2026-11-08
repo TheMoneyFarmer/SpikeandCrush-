@@ -10,9 +10,10 @@
 const { GAME_RULES, MODE_DURATIONS, MATCH_MODES, SOFT_LOSS_PCT, SOFT_LOSS_WINDOW_SECONDS, RECONNECT_GRACE_SECONDS, TIERS, PRIVATE_WAR_HOST_FEE } = require('../gameEngine');
 const { TEMPLATES } = require('../compEngine');
 const { LEVERAGE, MARGIN_CALL_LEVEL, STOP_OUT_LEVEL } = require('../marginRules');
+const { INVITE_REWARD_COINS, INVITE_MAX_PAID } = require('../referralRules');
 const { NO_CASH, CONTACT_EMAIL } = require('./knowledge/articles');
 
-const PROMPT_VERSION = 'support-agent-v1.2 (2026-11-08)';
+const PROMPT_VERSION = 'support-agent-v1.3 (2026-11-08)';
 
 function liveRules() {
   const modes = Object.keys(MATCH_MODES)
@@ -33,6 +34,8 @@ Modes:
 ${modes}
 Competitions (UTC):
 ${comps}
+Coins and Battle Pass Premium are not on sale; no payments are being taken.
+Invites: ${INVITE_REWARD_COINS} coins to the inviter when an invited friend finishes their first match against another real player (no bots or AI), up to ${INVITE_MAX_PAID} paid invites.
 Tiers: ${TIERS.map((t) => `${t.name} ${t.min}${t.max === Infinity ? '+' : `-${t.max}`}`).join(', ')}.
 ${NO_CASH}`;
 }

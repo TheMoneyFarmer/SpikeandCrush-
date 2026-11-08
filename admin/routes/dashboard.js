@@ -4,10 +4,7 @@ const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const internal = require('../lib/internalGameServer');
 
-// Matches the Stripe checkout unit_amount for battle pass premium in
-// server/index.js (line ~1303: unit_amount: 499). battle_pass_subscriptions
-// doesn't store a price itself (it's a subscription status row), so revenue
-// attribution multiplies this constant by new-premium-subs-today.
+// Past Battle Pass price, for revenue history. Nothing is on sale now.
 const BATTLE_PASS_PRICE_USD = 4.99;
 const PRESENCE_FRESH_MINUTES = 3; // player_presence rows older than this aren't "online" anymore, just stale
 

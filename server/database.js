@@ -1,5 +1,7 @@
 'use strict';
 
+const crypto = require('crypto');
+
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -189,45 +191,6 @@ async function addBattlePassXp(playerId, season, xpDelta, tierCurrent) {
     .single();
   if (error) throw error;
   return data;
-}
-
-async function setBattlePassPremium(playerId, season, { stripeSubscriptionId, expiresAt }) {
-  assertConfigured();
-  const status = await ensureBattlePassStatus(playerId, season);
-  const { data, error } = await supabase
-    .from('battle_pass_subscriptions')
-    .update({ is_premium: true, stripe_subscription_id: stripeSubscriptionId, expires_at: expiresAt })
-    .eq('id', status.id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-// The player's most recent subscription, whichever season it was started in.
-async function getLatestBattlePassSubscription(playerId) {
-  assertConfigured();
-  const { data, error } = await supabase
-    .from('battle_pass_subscriptions')
-    .select('*')
-    .eq('player_id', playerId)
-    .not('stripe_subscription_id', 'is', null)
-    .order('started_at', { ascending: false })
-    .limit(1);
-  if (error) throw error;
-  return data && data[0] ? data[0] : null;
-}
-
-// A subscription has ended: Premium stops on every row it paid for.
-async function clearBattlePassPremium(stripeSubscriptionId) {
-  assertConfigured();
-  const { data, error } = await supabase
-    .from('battle_pass_subscriptions')
-    .update({ is_premium: false })
-    .eq('stripe_subscription_id', stripeSubscriptionId)
-    .select('player_id');
-  if (error) throw error;
-  return data || [];
 }
 
 async function listCompletedChallenges(playerId, season) {
@@ -970,84 +933,6 @@ async function listBrokerPartners() {
   return data.sort((a, b) => (BROKER_TIER_ORDER[a.tier] ?? 9) - (BROKER_TIER_ORDER[b.tier] ?? 9));
 }
 
-// ---- coaching ---------------------------------------------------------------
-
-async function listCoaches() {
-  assertConfigured();
-  const { data, error } = await supabase
-    .from('players')
-    .select('id, username, avatar_url, war_rating, tier, coaching_rate_aed, coaching_bio')
-    .eq('coaching_enabled', true)
-    .order('war_rating', { ascending: false });
-  if (error) throw error;
-  return data;
-}
-
-async function setCoachingProfile(playerId, { enabled, rateAed, bio }) {
-  assertConfigured();
-  const fields = { coaching_enabled: enabled };
-  if (rateAed !== undefined) fields.coaching_rate_aed = rateAed;
-  if (bio !== undefined) fields.coaching_bio = bio;
-  return updatePlayer(playerId, fields);
-}
-
-async function createCoachingSession({ coachId, studentId, sessionType, priceAed, durationMinutes, scheduledAt }) {
-  assertConfigured();
-  const { data, error } = await supabase
-    .from('coaching_sessions')
-    .insert({
-      coach_id: coachId,
-      student_id: studentId,
-      session_type: sessionType,
-      price_aed: priceAed,
-      duration_minutes: durationMinutes,
-      scheduled_at: scheduledAt,
-      status: 'pending_payment',
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-async function updateCoachingSession(id, fields) {
-  assertConfigured();
-  const { data, error } = await supabase.from('coaching_sessions').update(fields).eq('id', id).select().single();
-  if (error) throw error;
-  return data;
-}
-
-async function getCoachingSession(id) {
-  assertConfigured();
-  const { data, error } = await supabase.from('coaching_sessions').select('*').eq('id', id).maybeSingle();
-  if (error) throw error;
-  return data;
-}
-
-async function listCoachingSessionsFor(playerId) {
-  assertConfigured();
-  const { data, error } = await supabase
-    .from('coaching_sessions')
-    .select('*')
-    .or(`coach_id.eq.${playerId},student_id.eq.${playerId}`)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data;
-}
-
-async function getCoachRatingSummary(coachId) {
-  assertConfigured();
-  const { data, error } = await supabase
-    .from('coaching_sessions')
-    .select('rating')
-    .eq('coach_id', coachId)
-    .not('rating', 'is', null);
-  if (error) throw error;
-  if (!data.length) return { avgRating: null, count: 0 };
-  const avgRating = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
-  return { avgRating: Math.round(avgRating * 10) / 10, count: data.length };
-}
-
 // ---- shop / cosmetics -----------------------------------------------------
 
 async function recordShopPurchase({ playerId, itemType, itemId, coinsSpent }) {
@@ -1324,35 +1209,8 @@ async function recordSabotageEvent({ matchId, playerId, targetPlayerId, cardType
 
 // ---- coin_purchases --------------------------------------------------------
 
-async function recordCoinPurchase({ playerId, packageCoins, amountUsd, stripeSessionId, status = 'pending' }) {
-  assertConfigured();
-  const { data, error } = await supabase
-    .from('coin_purchases')
-    .insert({
-      player_id: playerId,
-      package_coins: packageCoins,
-      amount_usd: amountUsd,
-      stripe_session_id: stripeSessionId,
-      status,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-// Exactly-once completion: the SQL function flips pending -> completed and
-// credits in one transaction, so the webhook, /api/coins/verify-session and
-// Stripe redeliveries can all call this safely (audit Proof B).
-async function completeCoinPurchase(stripeSessionId) {
-  assertConfigured();
-  const { data, error } = await supabase.rpc('complete_coin_purchase', { p_session: stripeSessionId });
-  if (error) throw error;
-  if (data?.error === 'not_found') return null;
-  const { data: purchase } = await supabase.from('coin_purchases').select('*').eq('stripe_session_id', stripeSessionId).maybeSingle();
-  return { ...purchase, alreadyCompleted: Boolean(data?.already) };
-}
-
+// Buy a shop item once and pay once, atomically (audit Proof C).
+// Returns { ok, balance } or { error: 'already_owned' | 'insufficient_coins' | 'player_not_found' }.
 // Cheap readiness probe: one indexed row read.
 async function ping() {
   assertConfigured();
@@ -1361,23 +1219,6 @@ async function ping() {
   return true;
 }
 
-// Stripe webhook event log (de-duplication). Returns the existing row or null
-// after inserting a new one.
-async function recordStripeEvent(id, type) {
-  assertConfigured();
-  const { data } = await supabase.from('stripe_events').select('id, processed_at').eq('id', id).maybeSingle();
-  if (data) return data;
-  const { error } = await supabase.from('stripe_events').insert({ id, type });
-  if (error && error.code !== '23505') throw error;
-  return null;
-}
-async function markStripeEventProcessed(id) {
-  assertConfigured();
-  await supabase.from('stripe_events').update({ processed_at: new Date().toISOString() }).eq('id', id);
-}
-
-// Buy a shop item once and pay once, atomically (audit Proof C).
-// Returns { ok, balance } or { error: 'already_owned' | 'insufficient_coins' | 'player_not_found' }.
 async function shopBuy({ playerId, itemType, itemId, price }) {
   assertConfigured();
   const { data, error } = await supabase.rpc('shop_buy', { p_player: playerId, p_item_type: itemType, p_item_id: itemId, p_price: price });
@@ -1704,6 +1545,56 @@ async function setAppSetting(key, value) {
     .upsert({ key, value, updated_at: new Date().toISOString() })
     .select()
     .single();
+  if (error) throw error;
+  return data;
+}
+
+// ---- player invite rewards ---------------------------------------------------
+const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no easily confused characters
+
+async function getInviterByCode(code) {
+  assertConfigured();
+  const { data, error } = await supabase.from('player_invite_codes').select('player_id').eq('code', code).maybeSingle();
+  if (error) throw error;
+  return data ? data.player_id : null;
+}
+
+async function getOrCreateInviteCode(playerId) {
+  assertConfigured();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabase.from('player_invite_codes').select('code').eq('player_id', playerId).maybeSingle();
+    if (error) throw error;
+    if (data) return data.code;
+    const code = Array.from(crypto.randomBytes(8), (b) => INVITE_ALPHABET[b % INVITE_ALPHABET.length]).join('');
+    const { error: insertError } = await supabase.from('player_invite_codes').insert({ player_id: playerId, code });
+    if (!insertError) return code;
+    if (insertError.code !== '23505') throw insertError; // only a code clash or a double click is retried
+  }
+  throw new Error('Could not create an invite code');
+}
+
+async function createPlayerReferral({ inviterId, friendId }) {
+  assertConfigured();
+  const { error } = await supabase.from('player_referrals').insert({ inviter_id: inviterId, friend_id: friendId });
+  if (error && error.code !== '23505') throw error;
+}
+
+async function getInviteStats(inviterId) {
+  assertConfigured();
+  const count = async (status) => {
+    const { count: n, error } = await supabase.from('player_referrals').select('id', { count: 'exact', head: true }).eq('inviter_id', inviterId).eq('status', status);
+    if (error) throw error;
+    return n || 0;
+  };
+  const [paid, waiting] = await Promise.all([count('paid'), count('waiting')]);
+  return { paid, waiting };
+}
+
+// Pays the friend's inviter once, inside one database transaction. Returns
+// { paid: true, inviter } when coins moved, otherwise { paid: false }.
+async function payPlayerReferral(friendId, matchId, coins, limit) {
+  assertConfigured();
+  const { data, error } = await supabase.rpc('pay_player_referral', { p_friend: friendId, p_match: matchId, p_coins: coins, p_limit: limit });
   if (error) throw error;
   return data;
 }
@@ -2102,9 +1993,6 @@ module.exports = {
   getBattlePassStatus,
   ensureBattlePassStatus,
   addBattlePassXp,
-  setBattlePassPremium,
-  getLatestBattlePassSubscription,
-  clearBattlePassPremium,
   listCompletedChallenges,
   recordChallengeCompletion,
   getBattlePassChallengeStats,
@@ -2156,13 +2044,6 @@ module.exports = {
   getAnalyticsCardSuccessRates,
   getAnalyticsPnlTrend,
   listBrokerPartners,
-  listCoaches,
-  setCoachingProfile,
-  createCoachingSession,
-  updateCoachingSession,
-  getCoachingSession,
-  listCoachingSessionsFor,
-  getCoachRatingSummary,
   createMatch,
   updateMatch,
   getMatch,
@@ -2174,12 +2055,8 @@ module.exports = {
   recordTrade,
   closeTrade,
   recordSabotageEvent,
-  recordCoinPurchase,
-  completeCoinPurchase,
   shopBuy,
   ping,
-  recordStripeEvent,
-  markStripeEventProcessed,
   applyCoins,
   recordCoinTransaction,
   getCoinTransactions,
@@ -2210,6 +2087,11 @@ module.exports = {
   getAppSettings,
   setAppSetting,
   getTotalPlayerCount,
+  getInviterByCode,
+  getOrCreateInviteCode,
+  createPlayerReferral,
+  getInviteStats,
+  payPlayerReferral,
   getReferralPartnerByCode,
   recordReferralClick,
   createReferralConversion,

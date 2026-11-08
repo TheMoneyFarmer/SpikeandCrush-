@@ -8,7 +8,7 @@ const { logAdminAction, clientIp } = require('../lib/auth');
 const internal = require('../lib/internalGameServer');
 const { sendEmail, renderTemplate } = require('../lib/email');
 
-const BATTLE_PASS_PRICE_USD = 4.99; // server/index.js Stripe checkout unit_amount: 499
+const BATTLE_PASS_PRICE_USD = 4.99; // past price, for revenue history. Nothing is on sale now.
 
 function startOfDayIso(daysAgo = 0) {
   const d = new Date();
@@ -38,10 +38,9 @@ function router() {
       const since12mo = startOfDayIso(365);
       const monthStart = startOfDayIso(new Date().getUTCDate() - 1);
 
-      const [purchases, bpSubs, coachingSessions, tournaments, brokers, totalPlayers] = await Promise.all([
+      const [purchases, bpSubs, tournaments, brokers, totalPlayers] = await Promise.all([
         supabase.from('coin_purchases').select('amount_usd, created_at').eq('status', 'completed').gte('created_at', since12mo),
         supabase.from('battle_pass_subscriptions').select('is_premium, started_at').gte('started_at', since12mo),
-        supabase.from('coaching_sessions').select('price_aed, status, created_at').eq('status', 'completed'),
         supabase.from('tournaments').select('entry_coins').eq('status', 'completed'),
         supabase.from('broker_partners').select('monthly_fee_aed, active'),
         supabase.from('players').select('id', { count: 'exact', head: true }),
@@ -61,7 +60,6 @@ function router() {
       const totalCoinsRevenue = (purchases.data || []).reduce((s, p) => s + Number(p.amount_usd || 0), 0);
       const totalBpRevenue = (bpSubs.data || []).filter((s) => s.is_premium).length * BATTLE_PASS_PRICE_USD;
       const totalTournamentFees = (tournaments.data || []).reduce((s, t) => s + Number(t.entry_coins || 0), 0); // in coins, not USD - noted separately
-      const totalCoachingAed = (coachingSessions.data || []).reduce((s, c) => s + Number(c.price_aed || 0), 0);
       const totalBrokerFeesAed = (brokers.data || []).filter((b) => b.active).reduce((s, b) => s + Number(b.monthly_fee_aed || 0), 0);
 
       const thisMonthKey = months[months.length - 1];
@@ -75,7 +73,6 @@ function router() {
           coinPurchasesUsd: Math.round(totalCoinsRevenue * 100) / 100,
           battlePassUsd: Math.round(totalBpRevenue * 100) / 100,
           tournamentEntryCoins: totalTournamentFees,
-          coachingAed: totalCoachingAed,
           brokerPartnerFeesAedMonthly: totalBrokerFeesAed,
         },
         revenueChart,
@@ -149,20 +146,6 @@ function router() {
         byItem[p.item_id].coinsRevenue += p.coins_spent || 0;
       });
       res.json(Object.values(byItem).sort((a, b) => b.unitsSold - a.unitsSold));
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  r.get('/coaching', async (req, res) => {
-    try {
-      const { data, error } = await supabase
-        .from('coaching_sessions')
-        .select('*, coach:players!coaching_sessions_coach_id_fkey(username), student:players!coaching_sessions_student_id_fkey(username)')
-        .order('created_at', { ascending: false })
-        .limit(500);
-      if (error) throw error;
-      res.json(data);
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

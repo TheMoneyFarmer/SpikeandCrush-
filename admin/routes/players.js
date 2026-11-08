@@ -64,7 +64,7 @@ function router() {
     const { id } = req.params;
     try {
       const [
-        playerRes, presenceRes, matchHistoryRes, coinTxRes, bpRes, coachingRes,
+        playerRes, presenceRes, matchHistoryRes, coinTxRes, bpRes,
         friendsRes, reportsReceivedRes, reportsMadeRes, modActionsRes, sessionsRes, loginHistoryRes,
       ] = await Promise.all([
         supabase.from('players').select('*').eq('id', id).single(),
@@ -77,7 +77,6 @@ function router() {
           .limit(50),
         supabase.from('coin_transactions').select('*').eq('player_id', id).order('created_at', { ascending: false }).limit(100),
         supabase.from('battle_pass_subscriptions').select('*').eq('player_id', id).order('started_at', { ascending: false }).limit(5),
-        supabase.from('coaching_sessions').select('*').or(`coach_id.eq.${id},student_id.eq.${id}`).order('created_at', { ascending: false }).limit(20),
         supabase.from('friendships').select('*').or(`requester_id.eq.${id},addressee_id.eq.${id}`),
         supabase.from('player_reports').select('*').eq('reported_player_id', id).order('created_at', { ascending: false }),
         supabase.from('player_reports').select('*').eq('reporter_id', id).order('created_at', { ascending: false }),
@@ -156,7 +155,6 @@ function router() {
           totalRevenue: Math.round((revenueByPlayer[id] || 0) * 100) / 100,
           coinTransactions: coinTxRes.data || [],
           battlePass: bpRes.data || [],
-          coachingSessions: coachingRes.data || [],
         },
         matchHistory,
         social: { friendships: friendsRes.data || [] },
@@ -329,7 +327,7 @@ function router() {
   r.get('/:id/export', async (req, res) => {
     const { id } = req.params;
     try {
-      const tables = ['players', 'coin_transactions', 'trades', 'sabotage_events', 'match_players', 'shop_purchases', 'battle_pass_subscriptions', 'coaching_sessions', 'sessions', 'login_events', 'notifications'];
+      const tables = ['players', 'coin_transactions', 'trades', 'sabotage_events', 'match_players', 'shop_purchases', 'battle_pass_subscriptions', 'sessions', 'login_events', 'notifications'];
       const results = await Promise.all(tables.map((t) => supabase.from(t).select('*').eq(t === 'players' ? 'id' : 'player_id', id)));
       const bundle = Object.fromEntries(tables.map((t, i) => [t, results[i].data || []]));
       await logAdminAction({ adminUsername: req.admin.username, actionType: 'data_export', targetType: 'player', targetId: id, ip: clientIp(req) });
