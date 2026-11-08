@@ -1,5 +1,7 @@
 'use strict';
 
+const { applyCoins } = require('../lib/coins');
+
 const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const { logAdminAction, clientIp } = require('../lib/auth');
@@ -203,12 +205,8 @@ function router() {
       if (!claim) return res.status(404).json({ error: 'Prize claim not found' });
       if (claim.status !== 'pending') return res.status(400).json({ error: 'Only pending claims can be rejected' });
 
-      const { data: player } = await supabase.from('players').select('coins').eq('id', claim.player_id).single();
-      if (player) {
-        const newBalance = player.coins + claim.prize_coins;
-        await supabase.from('players').update({ coins: newBalance }).eq('id', claim.player_id);
-        await supabase.from('coin_transactions').insert({ player_id: claim.player_id, type: 'prize_claim_refund', amount: claim.prize_coins, balance_after: newBalance });
-      }
+      // Keyed per claim: rejecting twice can't refund twice.
+      if (claim.prize_coins > 0) await applyCoins(claim.player_id, claim.prize_coins, 'prize_claim_refund', `prize_claim_refund:${claim.id}`);
 
       const { data, error } = await supabase
         .from('prize_claims')

@@ -48,7 +48,10 @@ function requireInternalSecret(req, res, next) {
   next();
 }
 
-function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp }) {
+function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp, limiters = {} }) {
+  const pass = (req, res, next) => next();
+  const messageLimiter = limiters.message || pass;
+  const ticketLimiter = limiters.ticket || pass;
   const nsp = io.of('/support');
   const adminBridge = createAdminBridge();
   const service = createSupportService({
@@ -116,6 +119,7 @@ function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp }) {
   // delta (AI tokens), done. Without Accept: text/event-stream returns JSON.
   router.post(
     '/messages',
+    messageLimiter,
     withOwner(async (req, res, o) => {
       const { conversationId, body, attachments } = req.body || {};
       if (conversationId && !UUID_RE.test(conversationId)) return res.status(404).json({ error: 'Conversation not found.' });
@@ -220,6 +224,7 @@ function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp }) {
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_BYTES, files: 1 } });
   router.post(
     '/attachments',
+    messageLimiter,
     (req, res, next) =>
       upload.single('file')(req, res, (err) => {
         if (err) return res.status(err.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Images must be 3 MB or smaller.' : 'Upload failed.' });
@@ -272,7 +277,7 @@ function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp }) {
 
   // Ticket form (guests who don't want chat, and the legacy widget). A guest
   // must give an email; signed-in players' tickets are linked to their account.
-  router.post('/ticket', async (req, res) => {
+  router.post('/ticket', ticketLimiter, async (req, res) => {
     try {
       const { subject, message, email, category } = req.body || {};
       if (!subject || !message) return res.status(400).json({ error: 'Subject and message are required.' });

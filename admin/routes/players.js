@@ -1,5 +1,7 @@
 'use strict';
 
+const { applyCoins, deductUpTo } = require('../lib/coins');
+
 const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const { logAdminAction, clientIp } = require('../lib/auth');
@@ -179,14 +181,10 @@ function router() {
     if (!Number.isFinite(amt) || amt <= 0) return res.status(400).json({ error: 'amount must be a positive number' });
     if (!['add', 'deduct'].includes(direction)) return res.status(400).json({ error: 'direction must be add or deduct' });
     try {
-      const { data: player, error: pErr } = await supabase.from('players').select('coins').eq('id', id).single();
-      if (pErr || !player) return res.status(404).json({ error: 'Player not found' });
-      const delta = direction === 'add' ? amt : -amt;
-      const newBalance = Math.max(0, player.coins + delta);
-      await supabase.from('players').update({ coins: newBalance }).eq('id', id);
-      await supabase.from('coin_transactions').insert({
-        player_id: id, type: direction === 'add' ? 'admin_grant' : 'admin_deduct', amount: delta, balance_after: newBalance,
-      });
+      const result = direction === 'add' ? await applyCoins(id, amt, 'admin_grant') : await deductUpTo(id, amt, 'admin_deduct');
+      if (result?.error === 'player_not_found') return res.status(404).json({ error: 'Player not found' });
+      if (result?.error) throw new Error(result.error);
+      const newBalance = result.balance;
       await supabase.from('player_moderation_actions').insert({
         player_id: id, admin_username: req.admin.username, action_type: direction === 'add' ? 'coins_added' : 'coins_deducted',
         reason, amount: amt,

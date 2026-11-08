@@ -18,10 +18,11 @@ const LOCKOUT_WINDOW_MINUTES = 15;
 const ADMIN_ROLES = ['super_admin', 'admin', 'moderator', 'support'];
 const MASTER_ADMIN_EMAIL = 'thandolwenkosimceeyah@gmail.com';
 
+// req.ip honours `trust proxy` (set to the single Railway hop in server.js), so
+// it is the real client address. Reading X-Forwarded-For directly, as before,
+// let anyone put an allowlisted IP in the header and bypass ADMIN_ALLOWED_IPS.
 function clientIp(req) {
-  const fwd = req.headers['x-forwarded-for'];
-  if (fwd) return String(fwd).split(',')[0].trim();
-  return req.socket.remoteAddress || 'unknown';
+  return String(req.ip || req.socket?.remoteAddress || 'unknown').replace('::ffff:', '');
 }
 
 // Optional IP allowlist. Empty/unset ADMIN_ALLOWED_IPS means "allow anything" -
@@ -61,22 +62,29 @@ async function recordLoginAttempt(username, ip, success) {
 // 5 failed attempts for this username in the last 15 minutes -> locked out,
 // regardless of which IP they're coming from (spec: "lock out for 15 minutes
 // after 5 failures").
-async function isLockedOut(username) {
+// Keyed on username AND IP: before, five bad attempts from anyone locked the
+// real admin out for 15 minutes (a free denial-of-service on the master login).
+// Fails closed if the attempts table can't be read.
+async function isLockedOut(username, ip = null) {
   if (!isConfigured) return false;
   const since = new Date(Date.now() - LOCKOUT_WINDOW_MINUTES * 60 * 1000).toISOString();
-  const { data, error } = await supabase
+  let query = supabase
     .from('admin_login_attempts')
     .select('success, created_at')
     .eq('username', username)
-    .gte('created_at', since)
+    .gte('created_at', since);
+  if (ip) query = query.eq('ip_address', ip);
+  const { data, error } = await query
     .order('created_at', { ascending: false })
     .limit(LOCKOUT_THRESHOLD);
-  if (error || !data) return false;
+  if (error || !data) return true;
   return data.length >= LOCKOUT_THRESHOLD && data.every((row) => row.success === false);
 }
 
-function signAdminToken(username) {
-  return jwt.sign({ username, role: 'admin' }, process.env.ADMIN_SECRET, { expiresIn: `${SESSION_HOURS}h` });
+const JWT_OPTS = { algorithms: ['HS256'] };
+
+function signAdminToken(username, sid) {
+  return jwt.sign({ username, role: 'admin', sid }, process.env.ADMIN_SECRET, { expiresIn: `${SESSION_HOURS}h`, algorithm: 'HS256' });
 }
 
 // For a real admin_users row (as opposed to the legacy single shared
@@ -84,7 +92,7 @@ function signAdminToken(username) {
 // its token the old way). Carries id/email/is_master so the admin_users
 // management endpoints and the UI's "you are the master admin" badge have
 // something to check without a DB round trip on every request.
-function signAdminUserToken(adminUser) {
+function signAdminUserToken(adminUser, sid) {
   return jwt.sign(
     {
       username: adminUser.email,
@@ -92,10 +100,49 @@ function signAdminUserToken(adminUser) {
       email: adminUser.email,
       role: adminUser.role,
       is_master: Boolean(adminUser.is_master),
+      sid,
     },
     process.env.ADMIN_SECRET,
-    { expiresIn: `${SESSION_HOURS}h` }
+    { expiresIn: `${SESSION_HOURS}h`, algorithm: 'HS256' }
   );
+}
+
+// ---- session revocation ------------------------------------------------------------
+// Every token names its admin_sessions row (sid). A token is only honoured while
+// that row is unrevoked and unexpired and, for named admins, while the admin is
+// still active - so logout and deactivation take effect immediately instead of
+// after the 8 h JWT expiry. Cached briefly to avoid a DB read on every request.
+const sessionCache = new Map(); // sid -> { ok, at }
+const SESSION_CACHE_MS = 20 * 1000;
+async function sessionStillValid(decoded) {
+  if (!isConfigured) return true;
+  if (!decoded.sid) return false; // tokens issued before revocation existed
+  const hit = sessionCache.get(decoded.sid);
+  if (hit && Date.now() - hit.at < SESSION_CACHE_MS) return hit.ok;
+  let ok = false;
+  try {
+    const { data: sess } = await supabase.from('admin_sessions').select('revoked, expires_at').eq('id', decoded.sid).maybeSingle();
+    ok = Boolean(sess && !sess.revoked && new Date(sess.expires_at).getTime() > Date.now());
+    if (ok && decoded.id) {
+      const { data: admin } = await supabase.from('admin_users').select('is_active, role').eq('id', decoded.id).maybeSingle();
+      ok = Boolean(admin && admin.is_active && admin.role === decoded.role);
+    }
+  } catch (e) {
+    ok = false;
+  }
+  sessionCache.set(decoded.sid, { ok, at: Date.now() });
+  return ok;
+}
+function forgetSession(sid) {
+  sessionCache.delete(sid);
+}
+async function revokeSessions({ sid = null, username = null }) {
+  if (!isConfigured) return;
+  let q = supabase.from('admin_sessions').update({ revoked: true });
+  q = sid ? q.eq('id', sid) : q.eq('admin_username', username);
+  await q;
+  if (sid) forgetSession(sid);
+  else sessionCache.clear();
 }
 
 // Inserts into admin_activity_log - distinct from logAdminAction/admin_logs
@@ -135,7 +182,14 @@ async function seedMasterAdmin() {
     console.warn('[admin] Supabase not configured - skipping master admin seed');
     return;
   }
-  const password = process.env.MASTER_ADMIN_PASSWORD || 'SpikeAndCrush2026!';
+  // No fallback password. A missing or weak MASTER_ADMIN_PASSWORD now skips the
+  // password sync (the existing hash is left as it is) instead of resetting the
+  // super-admin to a value that was in the source code and git history.
+  const password = process.env.MASTER_ADMIN_PASSWORD;
+  if (!password || password.length < 12) {
+    console.error('[admin] MASTER_ADMIN_PASSWORD is not set or shorter than 12 characters - master admin password NOT synced. Set a strong value in the environment.');
+    return;
+  }
   try {
     const hash = await bcrypt.hash(password, 12);
     const { data: existing, error: selectErr } = await supabase.from('admin_users').select('id, is_master').eq('email', MASTER_ADMIN_EMAIL).maybeSingle();
@@ -202,7 +256,7 @@ function getToken(req) {
 // Applied to every /admin/api/* route. Redirects HTML page requests to the
 // login page, but returns JSON 401 for XHR/fetch calls (checked via Accept
 // header) so the front-end JS can show an inline error instead of navigating.
-function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
   if (!ipAllowed(req)) {
     return res.status(403).json({ error: 'Your IP is not on the admin allowlist' });
   }
@@ -211,8 +265,9 @@ function requireAdmin(req, res, next) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
   try {
-    const decoded = jwt.verify(token, process.env.ADMIN_SECRET);
+    const decoded = jwt.verify(token, process.env.ADMIN_SECRET, JWT_OPTS);
     if (!ADMIN_ROLES.includes(decoded.role)) throw new Error('wrong role');
+    if (!(await sessionStillValid(decoded))) throw new Error('session revoked');
     req.admin = decoded;
     if (isConfigured) {
       supabase
@@ -244,13 +299,14 @@ function requireSuperAdmin(req, res, next) {
 
 // Applied to page routes (the .html files) so hitting them directly without a
 // valid session bounces to the login screen instead of a bare 401.
-function requirePageAuth(req, res, next) {
+async function requirePageAuth(req, res, next) {
   if (!ipAllowed(req)) return res.status(403).send('Forbidden - IP not allowlisted');
   const token = getToken(req);
   if (!token) return res.redirect('/login.html');
   try {
-    const decoded = jwt.verify(token, process.env.ADMIN_SECRET);
+    const decoded = jwt.verify(token, process.env.ADMIN_SECRET, JWT_OPTS);
     if (!ADMIN_ROLES.includes(decoded.role)) throw new Error('wrong role');
+    if (!(await sessionStillValid(decoded))) throw new Error('session revoked');
     req.admin = decoded;
     next();
   } catch (e) {
@@ -275,4 +331,7 @@ module.exports = {
   requireAdmin,
   requireSuperAdmin,
   requirePageAuth,
+  revokeSessions,
+  sessionStillValid,
+  JWT_OPTS,
 };

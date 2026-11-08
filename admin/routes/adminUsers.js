@@ -3,7 +3,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
-const { requireSuperAdmin, logAdminActivity, MASTER_ADMIN_EMAIL, clientIp } = require('../lib/auth');
+const { requireSuperAdmin, logAdminActivity, MASTER_ADMIN_EMAIL, clientIp, revokeSessions } = require('../lib/auth');
 
 function router() {
   const r = express.Router();
@@ -88,6 +88,8 @@ function router() {
       }
 
       await supabase.from('admin_users').update({ is_active: false }).eq('id', req.params.id);
+      // End their sessions now rather than at the 8 h token expiry.
+      await revokeSessions({ username: target.email });
       await logAdminActivity({
         adminId: req.admin.id || null,
         adminEmail: req.admin.email || req.admin.username,
