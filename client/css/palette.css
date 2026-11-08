@@ -6,9 +6,8 @@
      <html data-theme="light">    -> Light
    Old saved values ('midnight', 'combat') fall through to Dark.
 
-   data-palette picks the brand palette (navy | indigo | slate). It exists
-   while we choose; the chosen one becomes the bare :root default and the
-   attribute can go.
+   Brand palette: Navy (chosen Nov 2026; the Indigo and Slate trial
+   palettes were removed).
 
    Token roles:
      canvas   page background          deep    sunken areas, inputs
@@ -20,8 +19,8 @@
      spike / crush  trading up / down  gold  coins & premium only
    ============================================================ */
 
-/* ---------- DARK · NAVY (default) ---------- */
-:root, :root[data-palette='navy'] {
+/* ---------- DARK (default) ---------- */
+:root {
   color-scheme: dark;
   --c-canvas: #0b1220; --c-deep: #0e1628; --c-elev: #131d33; --c-card: #19253f; --c-card-2: #21304f;
   --c-hair: rgba(160, 182, 222, 0.14); --c-hair-2: rgba(160, 182, 222, 0.26);
@@ -32,26 +31,8 @@
   --c-focus: #ffffff; --c-shadow: rgba(2, 6, 18, 0.55);
 }
 
-/* ---------- DARK · INDIGO ---------- */
-:root[data-palette='indigo'] {
-  --c-canvas: #12112a; --c-deep: #161433; --c-elev: #1c1a40; --c-card: #24214f; --c-card-2: #2d2a62;
-  --c-hair: rgba(186, 176, 255, 0.15); --c-hair-2: rgba(186, 176, 255, 0.28);
-  --c-on: #f4f3ff; --c-body: rgba(236, 233, 255, 0.76); --c-mute: rgba(206, 200, 245, 0.58);
-  --c-blue: #7b61ff; --c-blue-press: #6a4ff0; --c-blue-deep: #5236d6; --c-link: #ab9cff;
-  --c-shadow: rgba(8, 4, 30, 0.55);
-}
-
-/* ---------- DARK · SLATE ---------- */
-:root[data-palette='slate'] {
-  --c-canvas: #1a1d23; --c-deep: #1e2128; --c-elev: #252930; --c-card: #2c3139; --c-card-2: #353b45;
-  --c-hair: rgba(222, 228, 238, 0.12); --c-hair-2: rgba(222, 228, 238, 0.24);
-  --c-on: #f3f5f8; --c-body: rgba(236, 240, 245, 0.76); --c-mute: rgba(214, 220, 230, 0.56);
-  --c-blue: #3b82f6; --c-blue-press: #2f6fdb; --c-blue-deep: #2459b8; --c-link: #7ab4ff;
-  --c-shadow: rgba(0, 0, 0, 0.45);
-}
-
-/* ---------- LIGHT · NAVY (default light) ---------- */
-:root[data-theme='light'], :root[data-theme='light'][data-palette='navy'] {
+/* ---------- LIGHT ---------- */
+:root[data-theme='light'] {
   color-scheme: light;
   --c-canvas: #f3f6fb; --c-deep: #e9eef6; --c-elev: #ffffff; --c-card: #f6f8fc; --c-card-2: #e8eef7;
   --c-hair: rgba(16, 32, 64, 0.12); --c-hair-2: rgba(16, 32, 64, 0.22);
@@ -60,16 +41,4 @@
   --c-blue: #0b63e5; --c-blue-press: #0a55c4; --c-blue-deep: #08449e; --c-link: #0b63e5;
   --c-spike: #0e9a62; --c-crush: #dc2547; --c-gold: #b7791f; --c-commerce: #c94a12; --c-commerce-press: #a63c0d;
   --c-focus: #0b1220; --c-shadow: rgba(16, 32, 64, 0.14);
-}
-:root[data-theme='light'][data-palette='indigo'] {
-  --c-canvas: #f5f4ff; --c-deep: #ecebfb; --c-card: #f8f7ff; --c-card-2: #ebe8ff;
-  --c-hair: rgba(40, 30, 110, 0.12); --c-hair-2: rgba(40, 30, 110, 0.22);
-  --c-on: #16143a; --c-body: rgba(22, 20, 58, 0.74); --c-mute: rgba(22, 20, 58, 0.54);
-  --c-blue: #5b3ff0; --c-blue-press: #4a2fd6; --c-blue-deep: #3a22b0; --c-link: #5b3ff0; --c-focus: #16143a;
-}
-:root[data-theme='light'][data-palette='slate'] {
-  --c-canvas: #f4f5f7; --c-deep: #eceef1; --c-card: #f8f9fa; --c-card-2: #eceff3;
-  --c-hair: rgba(20, 24, 30, 0.12); --c-hair-2: rgba(20, 24, 30, 0.22);
-  --c-on: #15181d; --c-body: rgba(21, 24, 29, 0.74); --c-mute: rgba(21, 24, 29, 0.54);
-  --c-blue: #2563eb; --c-blue-press: #1d4fd0; --c-blue-deep: #173fa8; --c-link: #2563eb; --c-focus: #15181d;
 }
