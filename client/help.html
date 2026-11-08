@@ -102,10 +102,14 @@
           <p>The spread is the gap between the buy (ask) price and the sell (bid) price. It's the built-in cost of opening a trade - you pay it once, immediately, the moment you enter a position. Tighter spreads are cheaper to trade.</p>
           <h3>What Is Stop Loss / Take Profit?</h3>
           <p><strong>Stop Loss (SL)</strong> automatically closes your trade once price moves a set amount against you, capping your downside. <strong>Take Profit (TP)</strong> automatically closes your trade once price reaches a target in your favour, locking in a win before it can reverse. Both can be set in pips or at an exact price, and dragged directly on the chart mid-trade.</p>
-          <h3>What Are the Loss Limits?</h3>
-          <p>Two limits protect your account. If you lose 20% of your starting capital within a 2-minute window, you can't open new trades until the next window begins. If you lose 50% overall, all your positions are closed and your trading ends for that match. You get a warning when you are down 40%.</p>
-          <h3>Is There Leverage?</h3>
-          <p>There is no leverage setting to choose. Lot size controls how big a position is and how much each price move is worth, up to the 10-lot maximum per trade.</p>
+          <h3>What Is Leverage?</h3>
+          <p>Every player trades at 100:1 leverage, so a position only ties up 1% of its full value as margin. There is no lot limit: how big you can go depends on your free margin. On EUR/USD near 1.08, one lot needs about $1,080 of margin, so $10,000 opens about 9 lots.</p>
+          <h3>What Is Margin?</h3>
+          <p><strong>Margin used</strong> is what your open positions tie up. <strong>Free margin</strong> is your equity minus margin used, and it decides what you can still open. <strong>Margin level</strong> is equity divided by margin used, as a percentage.</p>
+          <h3>Margin Call and Stop Out</h3>
+          <p>At a <strong>100%</strong> margin level you get a margin call: a warning, and no new trades until it recovers. At <strong>50%</strong> you are stopped out: your biggest losing position is closed, then the next, until the level recovers. You keep trading with what is left. You can hold up to 10 positions at once.</p>
+          <h3>Loss Limits</h3>
+          <p>Two limits apply as well. Lose 20% of your starting capital within a 2-minute window and new trades pause until the next window. Lose 50% overall and all your positions close and your trading ends for that match. You get a warning when you are down 40%.</p>
         </section>
 
         <section class="help-section" id="game-modes">
@@ -259,16 +263,16 @@
       ['What\'s the difference between War Rating, Grand War rating, and Solo rating?', 'They\'re tracked separately. Quick War affects your main War Rating; Grand War and Solo Ranked each have their own independent rating. Blitz, Private, Async and Tournament War matches don\'t change any rating.'],
       ['Do cosmetics affect gameplay?', 'No. Avatar frames, nameplate effects, and profile backgrounds are purely visual.'],
       ['What happens if two players tie?', "They share the combined prize and rating change of every rank position their tie spans - see the Draw Rules section above."],
-      ['Can I change my username?', 'Username changes aren\'t currently supported after registration - contact support if you need help with your account.'],
+      ['Can I change my username?', 'Yes, in Settings. You will need your current password to confirm the change.'],
       ['How is Solo Ranked different from playing AI in other modes?', "Every mode can AI-fill empty human slots, but Solo Ranked is built entirely around a human-vs-AI match and tracks its own separate rating."],
       ['Why did my War Rating change by a different amount than expected?', "There's a small additional adjustment (±5) based on the average rating of the opponents you played against, on top of the base amount for your finishing position."],
       ['Do I need to complete the tutorial?', 'No - it can be skipped at any time and replayed later from Settings → Help if you want to revisit it.'],
       ['What is the platform fee on match prize pools?', "The platform keeps 15% of every match's prize pool; the remaining 85% is distributed by finishing position."],
-      ['Can I cancel my Battle Pass subscription?', 'Yes, from the Wallet page. It continues automatically until cancelled; rewards you already earned are kept permanently.'],
+      ['Can I cancel my Battle Pass subscription?', 'Yes. Open the support chat and choose Talk to a human, and the team will cancel it for you. It renews monthly until cancelled, and rewards you already earned are kept permanently.'],
       ['Is there a mobile app?', 'Spike & Crush runs in your mobile browser - there is no separate native app in this build.'],
       ['What instruments can I trade?', "Each match uses a random selection of instruments (forex pairs, metals, indices, and more depending on mode) - the exact set is shown before and during the match."],
       ['Can I practice without spending coins?', "Yes - Solo Ranked is completely free."],
-      ['How do I report another player?', "Use the report option from their profile or from a match's post-game screen."],
+      ['How do I report another player?', 'Open the support chat, choose Talk to a human and tell us the player\'s username and what happened. A human agent will review it.'],
       ['Where can I see my match history?', 'Your Profile page lists recent matches with mode, result, and P&L for each.'],
     ];
     document.getElementById('faqList').innerHTML = FAQS.map(([q, a], i) => `

@@ -41,7 +41,7 @@ window.TW = window.TW || {};
     },
     margin: {
       title: 'Margin Used',
-      body: 'How much of your $10,000 virtual capital is tied up as collateral for open positions. If margin used gets too high you risk a margin call, which force-closes positions. Keep it manageable.',
+      body: 'How much of your equity is tied up by open positions, at 100:1 leverage. Margin level is equity divided by margin used. At 100% you get a margin call and cannot open new trades. At 50% you are stopped out: your biggest losing position is closed, then the next, until the level recovers.',
     },
     'battle-pass-xp': {
       title: 'Battle Pass XP',

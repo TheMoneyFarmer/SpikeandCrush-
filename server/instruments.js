@@ -421,11 +421,20 @@ function getSpread(symbol) {
   return cfg.spread;
 }
 
+// USD/JPY, USD/CHF, USD/CAD: prices are in the second currency, so a profit
+// has to be converted back to dollars at the current rate. Without this a
+// USD/JPY pip paid about $1,000 a lot instead of about $9.
+function isUsdBase(symbol) {
+  const cfg = getInstrument(symbol);
+  return Boolean(cfg && cfg.category === 'forex' && symbol.startsWith('USD'));
+}
+
 function calculatePnL(direction, lots, entryPrice, currentPrice, symbol) {
   const cfg = getInstrument(symbol);
   if (!cfg) throw new Error(`Unknown instrument: ${symbol}`);
   const diff = direction === 'BUY' ? currentPrice - entryPrice : entryPrice - currentPrice;
-  return diff * lots * cfg.contractSize;
+  const pnl = diff * lots * cfg.contractSize;
+  return isUsdBase(symbol) ? pnl / currentPrice : pnl;
 }
 
 function getPipValue(symbol, lots) {
@@ -481,6 +490,7 @@ module.exports = {
   getFullLiveSeries,
   getSpread,
   calculatePnL,
+  isUsdBase,
   getPipValue,
   preloadAll,
   getTickerSnapshot,

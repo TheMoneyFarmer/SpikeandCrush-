@@ -27,6 +27,8 @@ const { TEMPLATES } = require('../../compEngine');
 const { CARDS } = require('../../sabotage');
 const shop = require('../../shop');
 const battlepass = require('../../battlepass');
+const instruments = require('../../instruments');
+const { LEVERAGE, MARGIN_CALL_LEVEL, STOP_OUT_LEVEL, positionMargin, maxAffordableLots } = require('../../marginRules');
 const { COIN_PACKAGES, BATTLE_PASS_PRICE_USD } = require('../../coinPackages');
 
 const CONTACT_EMAIL = 'hello@spikeandcrush.com';
@@ -67,6 +69,9 @@ function ordinal(n) {
 
 function buildArticles() {
   const rules = GAME_RULES;
+  const eurPrice = instruments.getInstrument('EURUSD').basePrice;
+  const eurMargin = Math.round(positionMargin('EURUSD', 1, eurPrice));
+  const eurMax = Math.floor(maxAffordableLots('EURUSD', eurPrice, rules.STARTING_CAPITAL));
   const lossFloor = rules.STARTING_CAPITAL * (1 - rules.HARD_LOSS_PCT);
   const ratingTable4 = [1, 2, 3, 4].map((p) => `${ordinal(p)}: ${sign(baseRatingForPosition(p, 4))}`).join(', ');
   const ratingTable6 = [1, 2, 3, 4, 5, 6].map((p) => `${ordinal(p)}: ${sign(baseRatingForPosition(p, 6))}`).join(', ');
@@ -102,38 +107,50 @@ It is a game, not real trading. The capital is virtual and resets every match. T
     },
     {
       slug: 'match-rules-limits',
-      title: 'Starting capital, lot limits and open positions',
+      title: 'Starting capital, position limit and lot size',
       category: 'rules',
-      tags: ['starting capital', 'lot limit', 'max lots', 'max positions', 'rules', 'limits'],
+      tags: ['starting capital', 'lot limit', 'max lots', 'lot size', 'max positions', 'how many lots', 'rules', 'limits'],
       body: `Every match uses the same core rules:
 
 - Starting capital: ${money(rules.STARTING_CAPITAL)} (virtual, resets every match)
-- Maximum size per trade: ${rules.MAX_LOTS} lots (some instruments have a lower maximum of their own; the lower one applies)
 - Maximum open positions at once: ${rules.MAX_POSITIONS}
+- Lot size: **there is no lot limit**. How big you can trade depends on your leverage and free margin (see "Leverage and margin").
 
-Long-form competitions use the same starting capital, lot limit and position limit.`,
+Two sabotage cards can cap your lot size for a short time: Lot Limiter and Liquidity Drain.
+
+Long-form competitions use the same capital, position limit and margin rules.`,
     },
     {
       slug: 'loss-limits',
       title: 'Loss limits: the 50% max loss rule and the 2-minute lock',
       category: 'rules',
       tags: ['max loss', 'loss limit', 'eliminated', 'margin call', 'auto close', '50%', 'locked', 'lockout'],
-      body: `There are two loss limits in a match.
+      body: `These apply on top of the margin rules.
 
 **Hard limit (${pct(rules.HARD_LOSS_PCT)} max loss).** If your equity falls to ${pct(rules.HARD_LOSS_PCT)} below your starting capital (${money(lossFloor)} or less from ${money(rules.STARTING_CAPITAL)}), all your open positions are closed automatically and you are eliminated from trading for the rest of that match. You get a warning when you are down 40%.
 
 **Soft limit (2-minute lock).** If you lose ${pct(SOFT_LOSS_PCT)} of starting capital within one ${minutes(SOFT_LOSS_WINDOW_SECONDS)} window, you cannot open new trades until the next window starts. Windows run every ${minutes(SOFT_LOSS_WINDOW_SECONDS)} from the start of the match.
 
-In long-form competitions, reaching the ${pct(rules.HARD_LOSS_PCT)} loss locks the account at its final equity for the rest of the competition.
-
-There is no separate margin call or leverage setting; the loss limits above are what protect your account. (Margin Call is also the name of a sabotage card, which closes a target's open positions.)`,
+In long-form competitions, reaching the ${pct(rules.HARD_LOSS_PCT)} loss locks the account at its final equity for the rest of the competition. The 2-minute lock applies to matches only.`,
     },
     {
       slug: 'leverage',
-      title: 'Leverage and margin',
+      title: 'Leverage, margin, margin call and stop-out',
       category: 'rules',
-      tags: ['leverage', 'margin', 'margin call'],
-      body: `The game does not use a leverage setting. Position size is controlled by lot size (up to ${rules.MAX_LOTS} lots per trade) and risk is capped by the loss limits: a ${pct(SOFT_LOSS_PCT)} loss within ${minutes(SOFT_LOSS_WINDOW_SECONDS)} pauses new trades, and a ${pct(rules.HARD_LOSS_PCT)} total loss ends your trading for the match.`,
+      tags: ['leverage', 'margin', 'margin call', 'stop out', 'stop-out', 'margin level', 'free margin', 'how many lots', 'lot limit'],
+      body: `Every player trades at **${LEVERAGE}:1 leverage**. There is no lot limit: free margin decides how much you can open.
+
+- **Margin used**: the value of your open positions divided by ${LEVERAGE}.
+- **Free margin**: equity minus margin used. A new trade must fit inside it.
+- **Margin level**: equity divided by margin used, as a percentage.
+
+Example: on EUR/USD near ${eurPrice}, one lot needs about ${money(eurMargin)} of margin, so ${money(rules.STARTING_CAPITAL)} opens about ${eurMax} lots.
+
+**Margin call at ${MARGIN_CALL_LEVEL}%.** You get a warning and cannot open new trades until the level recovers.
+
+**Stop-out at ${STOP_OUT_LEVEL}%.** Your biggest losing position is closed, then the next, until the level recovers. You keep trading with what is left.
+
+The loss limits apply as well (see "Loss limits"). Margin Call is also the name of a sabotage card, which closes a target's open positions.`,
     },
     {
       slug: 'game-modes',
@@ -205,10 +222,10 @@ ${EXPERIENCE_LEVELS.map((l) => `- ${l.label}: ${l.max === Infinity ? `${l.min}+`
 ${['daily', 'weekly', 'weekend', 'monthly'].map(compTemplateBlock).join('\n\n')}
 
 **How they work**
-- You pay the entry fee once and get one account with ${money(rules.STARTING_CAPITAL)}, the same lot and position limits as matches.
+- You pay the entry fee once and get one account with ${money(rules.STARTING_CAPITAL)}, with the same leverage, margin rules and position limit as matches.
 - Your account lives between sessions, so closing the page changes nothing.
 - Ranking is by equity at the end. Ties are broken by fewer trades, then by who entered first.
-- Losing ${pct(rules.HARD_LOSS_PCT)} locks your account at its final equity.
+- Reaching the ${STOP_OUT_LEVEL}% margin level closes your biggest losers first. Losing ${pct(rules.HARD_LOSS_PCT)} locks your account at its final equity.
 - When a competition ends it is settled: final ranks are set, prize coins are credited automatically, and your War Rating is adjusted by your finishing position. Disqualified accounts get no rank or prize.
 - An admin can set different prizes for a specific event; the competition page shows the real prizes for that event.
 
@@ -219,14 +236,11 @@ ${NO_CASH} Competition prizes are coins only.`,
       title: 'Market data and replays',
       category: 'competitions',
       tags: ['replay', 'historical data', 'market data', 'real prices', 'session'],
-      needsReview: true,
       body: `All prices in Spike & Crush are real historical market data, replayed. They are not live market prices.
 
 - **Matches** replay a window of history for the match's instruments.
-- **Competitions** replay real market history on a competition clock. The play screen shows which trading session that moment belongs to (Asian, London, London / New York, New York).
-- **Match replays**: finished matches can be watched again from the replay page, and short clips can be shared.
-
-(Marked for review: the exact replay speed per competition is set per event.)`,
+- **Competitions** replay real market history on a competition clock, normally at real-time speed. The play screen shows which trading session that moment belongs to (Asian, London, London / New York, New York).
+- **Match replays**: finished matches can be watched again from the replay page, and short clips can be shared.`,
     },
     {
       slug: 'sabotage-cards',
@@ -285,9 +299,9 @@ ${NO_CASH}`,
       title: 'Battle Pass',
       category: 'progression',
       tags: ['battle pass', 'season', 'xp', 'challenges', 'premium', 'subscription', 'cancel'],
-      body: `The Battle Pass runs in seasons of 30 days with tiers you unlock with XP (${battlepass.XP_PER_TIER} XP per tier). Matches give XP and daily and weekly challenges give XP and coins.
+      body: `The Battle Pass runs in seasons of ${battlepass.SEASON_DAYS} days with tiers you unlock with XP (${battlepass.XP_PER_TIER} XP per tier). Matches give XP and daily and weekly challenges give XP and coins.
 
-Everyone has the free track. Premium costs $${BATTLE_PASS_PRICE_USD.toFixed(2)} a month (Stripe subscription) and unlocks a second track with extra cosmetics and coins. It renews monthly until you cancel it from the Wallet page. Rewards you already claimed stay yours.
+Everyone has the free track. Premium costs $${BATTLE_PASS_PRICE_USD.toFixed(2)} a month (Stripe subscription) and unlocks a second track with extra cosmetics and coins. It renews monthly until cancelled. There is no cancel button yet, so to cancel, ask for a human agent in this chat and the team will do it. Rewards you already claimed stay yours.
 
 Tiers cannot be bought directly.`,
     },
@@ -311,7 +325,7 @@ Cosmetics are visual only and never change gameplay. Equip them from the shop or
       tags: ['friends', 'friend request', 'invite', 'spectate', 'watch', 'private war', 'room code', 'block'],
       body: `- **Friends:** search for a player and send a friend request. Friends see when you are online or in a match, can invite you to their lobby and can watch your matches.
 - **Invites** to a lobby expire after 60 seconds if not answered.
-- **Spectating:** you can watch live matches from the spectate page.
+- **Spectating:** you can watch live matches from the spectate page. Private matches can only be watched by their own players.
 - **Private War:** create a room and share the 6-digit room code. The host pays ${coins(PRIVATE_WAR_HOST_FEE)} when the match starts; invited players join free.
 - **Blocking:** blocked players are managed in Settings, Privacy.`,
     },
@@ -320,12 +334,11 @@ Cosmetics are visual only and never change gameplay. Equip them from the shop or
       title: 'Referrals and partners',
       category: 'social',
       tags: ['referral', 'partner', 'broker', 'affiliate', 'link', 'code'],
-      needsReview: true,
       body: `Partner referral links look like spikeandcrush.com/r/CODE. Opening one remembers the partner for 30 days, and if you sign up in that time your new account is credited to that partner.
 
-The referral programme is for partners (brokers, prop firms, creators). For partner or business enquiries, ask for a human agent or email ${CONTACT_EMAIL}.
+The referral programme is for partners (brokers, prop firms, creators). There are no referral rewards for players inviting friends.
 
-(Marked for review: player-to-player referral rewards are not described in the code.)`,
+For partner or business enquiries, ask for a human agent or email ${CONTACT_EMAIL}.`,
     },
     {
       slug: 'discord',
@@ -365,24 +378,24 @@ If the page looks wrong, refresh it and make sure your browser is up to date.`,
       slug: 'account-signup-login',
       title: 'Account: sign up, log in and password reset',
       category: 'account',
-      tags: ['sign up', 'register', 'login', 'log in', 'google', 'apple', 'password', 'reset password', 'forgot password', 'email', '2fa', 'two factor'],
+      tags: ['sign up', 'register', 'login', 'log in', 'google', 'apple', 'password', 'reset password', 'forgot password', 'email', '2fa', 'two factor', 'change username', 'username'],
       body: `- **Sign up** with email and password, or continue with Google. Sign in with Apple is not available.
 - **Forgot your password?** Use "Forgot password" on the login screen and enter your email. If an account exists for that email, a reset link is sent. Follow the link to set a new password.
 - **Two-factor authentication** can be turned on in Settings, Security.
 - **Sessions and login history** are in Settings, Security, where you can sign other devices out.
-- **Username changes** are not supported after registration.`,
+- **Changing your username, email or password** is done in Settings, and needs your current password.`,
     },
     {
       slug: 'account-deletion',
       title: 'Deleting your account and data requests',
       category: 'account',
       tags: ['delete account', 'deletion', 'close account', 'gdpr', 'data', 'privacy', 'remove my data'],
-      needsReview: true,
-      body: `You can delete your account from **Settings**. You must confirm with your password. Deletion is permanent and removes your player record and sign-in.
+      body: `You can delete your account from **Settings**, in the Delete Account section. Deletion is permanent and removes your player record and sign-in.
 
-If you signed up with Google and have no password, or for any other data request (a copy of your data, corrections), ask for a human agent. Support will create a ticket and the team will handle it.
+- If you sign in with a password, confirm with your password.
+- If you sign in with Google, confirm by typing your username.
 
-(Marked for review: Google-only accounts cannot pass the password check in the self-service delete.)`,
+For any other data request (a copy of your data, corrections), ask for a human agent. Support will create a ticket and the team will handle it.`,
     },
     {
       slug: 'sponsors',
@@ -398,7 +411,7 @@ Businesses interested in sponsoring can use the Sponsor page on the site or ask 
       title: 'Fair play, reports and bans',
       category: 'safety',
       tags: ['cheating', 'report', 'report player', 'ban', 'banned', 'suspended', 'appeal', 'harassment', 'fair play'],
-      body: `- **Reporting a player:** use the report option on their profile or on the match results screen.
+      body: `- **Reporting a player:** there is no report button yet. Ask for a human agent in this chat and give the player's username and what happened. A human will review it.
 - **Harassment or safety concerns:** tell support and ask for a human. These are always passed to the team.
 - **Bans and suspensions** are decided by the team. A banned account cannot log in or play while the ban lasts, but can still use this support chat. Support (including this assistant) cannot ban, unban or change a ban. If you want to appeal, ask for a human agent and a ticket will be opened.`,
     },

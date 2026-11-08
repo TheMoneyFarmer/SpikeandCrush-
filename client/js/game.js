@@ -26,10 +26,13 @@ window.TW = window.TW || {};
     XAGUSD: 0.001, NAS100: 0.1, US30: 0.1, UK100: 0.1, GER40: 0.1, BRENT: 0.01, USOIL: 0.01,
     BTCUSD: 0.01, ETHUSD: 0.01, USTUSD: 0.0001, AAPL: 0.01,
   };
+  const USD_BASE = new Set(['USDJPY', 'USDCHF', 'USDCAD']);
   let sltpMode = 'pips';
   function liveClosePnl(direction, lots, entryPrice, exitPrice, symbol) {
     const size = CONTRACT_SIZE[symbol] || 0;
     const diff = direction === 'BUY' ? exitPrice - entryPrice : entryPrice - exitPrice;
+    // USD-first pairs are converted back to dollars (server/instruments.js).
+    if (USD_BASE.has(symbol)) return (diff * lots * size) / exitPrice;
     return diff * lots * size;
   }
 
@@ -192,15 +195,10 @@ window.TW = window.TW || {};
   }
 
   // FIX: match rules summary shown once, right after the first match:state
-  // arrives (chart/positions render underneath while this is up). MAX_LOTS,
-  // MAX_POSITIONS and the margin-call threshold below mirror the real,
-  // match-mode-independent constants in server/gameEngine.js (MAX_LOTS = 10,
-  // MAX_POSITIONS = 10, HARD_LOSS_PCT = 0.5 of the $10,000 starting capital)
-  // - update both places together if those ever change.
+  // arrives (chart/positions render underneath while this is up). The numbers
+  // come from the server (state.rules), not a second copy here.
   function showMatchRules(state) {
-    const RULES_MAX_LOTS = 10.0;
-    const RULES_MAX_POSITIONS = 10;
-    const RULES_MARGIN_CALL_EQUITY = 5000;
+    const rules = state.rules || {};
 
     const overlay = document.createElement('div');
     overlay.className = 'match-rules-overlay';
@@ -215,9 +213,11 @@ window.TW = window.TW || {};
         <div class="rules-grid">
           <div class="rule-item"><div class="rule-label">Starting Capital</div><div class="rule-value">$10,000</div></div>
           <div class="rule-item"><div class="rule-label">Duration</div><div class="rule-value">${formatClock(state.durationSeconds)} Minutes</div></div>
-          <div class="rule-item"><div class="rule-label">Max Lot Size</div><div class="rule-value">${RULES_MAX_LOTS.toFixed(1)} Lots</div></div>
-          <div class="rule-item"><div class="rule-label">Max Open Positions</div><div class="rule-value">${RULES_MAX_POSITIONS} Positions</div></div>
-          <div class="rule-item"><div class="rule-label">Margin Call</div><div class="rule-value">Below $${RULES_MARGIN_CALL_EQUITY.toLocaleString()} equity</div></div>
+          <div class="rule-item"><div class="rule-label">Leverage</div><div class="rule-value">${rules.leverage}:1, no lot limit</div></div>
+          <div class="rule-item"><div class="rule-label">Max Open Positions</div><div class="rule-value">${rules.maxPositions} Positions</div></div>
+          <div class="rule-item"><div class="rule-label">Margin Call</div><div class="rule-value">${rules.marginCallLevel}% margin level</div></div>
+          <div class="rule-item"><div class="rule-label">Stop Out</div><div class="rule-value">${rules.stopOutLevel}% margin level</div></div>
+          <div class="rule-item"><div class="rule-label">Loss Limits</div><div class="rule-value" style="font-size:12px;">-${rules.hardLossPct * 100}% ends your trading; -${rules.softLossPct * 100}% in ${rules.softLossWindowSeconds / 60} min pauses new trades</div></div>
           <div class="rule-item"><div class="rule-label">Sabotage Cards</div><div class="rule-value">${state.cardsPerPlayer} Cards — 1 use each</div></div>
           <div class="rule-item" style="grid-column:1 / -1;"><div class="rule-label">Instruments</div><div class="rule-value" style="font-size:12px;">${(state.instruments || []).join(' · ')}</div></div>
           <div class="rule-item"><div class="rule-label">Entry Cost</div><div class="rule-value">${state.entryCoins ?? 0} Coins</div></div>
@@ -282,14 +282,18 @@ window.TW = window.TW || {};
 
   function renderAccountSummary() {
     const equity = computeEquity();
+    // Mirrors server/marginRules.js (positionMargin); the server decides for real.
+    const leverage = (lastState && lastState.rules && lastState.rules.leverage) || 100;
     const marginUsed = myAccount.positions.reduce((sum, pos) => {
       const price = lastPrices[pos.symbol];
-      const notional = pos.lots * (CONTRACT_SIZE[pos.symbol] || 0) * (price ? price.mid : pos.entryPrice);
-      return sum + notional / 100; // display-only, assumes 100:1 leverage
+      const lotValue = pos.lots * (CONTRACT_SIZE[pos.symbol] || 0);
+      return sum + (USD_BASE.has(pos.symbol) ? lotValue : lotValue * (price ? price.mid : pos.entryPrice)) / leverage;
     }, 0);
     document.getElementById('summaryBalance').textContent = TW.formatMoney(myAccount.balance);
     document.getElementById('summaryEquity').textContent = TW.formatMoney(equity);
     document.getElementById('summaryMargin').textContent = TW.formatMoney(marginUsed);
+    document.getElementById('summaryFreeMargin').textContent = TW.formatMoney(equity - marginUsed);
+    document.getElementById('summaryMarginLevel').textContent = marginUsed > 0 ? `${Math.round((equity / marginUsed) * 100)}%` : '-';
   }
 
   // Keyed by position id so the SL/TP inputs are created once and never
@@ -606,7 +610,8 @@ window.TW = window.TW || {};
   function pipValueForLots(symbol, lots) {
     const pip = PIP_SIZE[symbol] || 0;
     const size = CONTRACT_SIZE[symbol] || 0;
-    return pip * size * lots;
+    const price = lastPrices[symbol];
+    return (USD_BASE.has(symbol) && price ? (pip * size) / price.mid : pip * size) * lots;
   }
 
   function updateRiskCalc() {
@@ -729,12 +734,18 @@ window.TW = window.TW || {};
         riskLocked = true;
         persistent = true;
         break;
+      case 'margin_call':
+        text = `⚠️ Margin call: margin level ${payload.marginLevel}%. No new trades until it recovers. Close positions or you may be stopped out.`;
+        break;
+      case 'stop_out':
+        text = `🚨 Stopped out: your biggest losing position${payload.closed === 1 ? ' was' : 's were'} closed to protect your account (${payload.closed}). Equity $${payload.equity}`;
+        break;
       case 'window_reset':
         text = '✅ Trading unlocked for the new 2-minute window';
         riskLocked = false;
         break;
       default:
-        text = `⚠️ Getting crushed. Add margin or exit. (equity $${payload.equity})`;
+        text = `⚠️ Getting crushed. You are down 40%; at 50% your trading ends. (equity $${payload.equity})`;
         break;
     }
     banner.className = 'margin-banner ' + (payload.level === 'window_reset' ? 'positive' : 'negative');
@@ -1465,7 +1476,9 @@ window.TW = window.TW || {};
   });
 
   socket.on('trade:closed', (data) => {
-    if (data.reason === 'stop_loss') {
+    if (data.reason === 'stop_out') {
+      TW.toast(`Stopped out: position closed at ${TW.formatMoney(data.pnl)}`, 'warning');
+    } else if (data.reason === 'stop_loss') {
       TW.showMatchNotification(`💥 Stop loss hit — ${TW.formatMoney(Math.abs(data.pnl))} lost`);
       TW.Sound.play('sl_hit');
     } else if (data.reason === 'take_profit') {

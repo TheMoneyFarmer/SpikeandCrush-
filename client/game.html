@@ -120,7 +120,7 @@
             <button class="lot-chip" data-lot="5.0">5.0</button>
             <div class="lot-chip custom-chip" id="customLotChip">
               <span>Custom</span>
-              <input type="number" id="customLotInput" min="0.01" max="10" step="0.01" placeholder="0.0" />
+              <input type="number" id="customLotInput" min="0.01" step="0.01" placeholder="0.0" />
             </div>
           </div>
         </div>
@@ -173,6 +173,14 @@
           <div class="stat">
             <div class="label">Margin Used <button type="button" class="help-btn" data-help="margin" title="What is margin used?">?</button></div>
             <div class="value" id="summaryMargin">$0.00</div>
+          </div>
+          <div class="stat">
+            <div class="label">Free Margin</div>
+            <div class="value" id="summaryFreeMargin">$10,000.00</div>
+          </div>
+          <div class="stat">
+            <div class="label">Margin Level</div>
+            <div class="value" id="summaryMarginLevel">-</div>
           </div>
         </div>
       </div>

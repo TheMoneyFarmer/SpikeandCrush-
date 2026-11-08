@@ -307,7 +307,7 @@
         <div class="danger-zone">
           <h3 style="color:var(--sell);margin-top:0;">Delete Account</h3>
           <p>This permanently deletes your account and all match history. This cannot be undone.</p>
-          <input type="password" id="deletePasswordInput" placeholder="Enter your password" style="min-height:44px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:8px 12px;width:100%;max-width:300px;margin-bottom:10px;" />
+          <input type="password" id="deletePasswordInput" aria-label="Your password, or your username if you sign in with Google" placeholder="Your password (Google sign-in: your username)" autocomplete="off" style="min-height:44px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:8px 12px;width:100%;max-width:300px;margin-bottom:10px;" />
           <br />
           <button class="btn btn-sell" id="deleteAccountBtn">Delete My Account</button>
         </div>

@@ -434,6 +434,10 @@
       TW.Sound.play('tpHit');
       loadView().catch(() => {});
     });
+    socket.on('comp:stop_out', (e) => {
+      TW.toast(`Stopped out: ${e.closed} losing position${e.closed === 1 ? '' : 's'} closed. Equity ${TW.formatMoney(e.equity)}`, 'danger');
+      loadView();
+    });
     socket.on('comp:loss_limit', (e) => {
       if (e.competitionId !== compId) return;
       TW.Sound.play('lossLimit');

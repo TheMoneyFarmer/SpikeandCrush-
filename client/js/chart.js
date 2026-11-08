@@ -104,7 +104,9 @@ TW.Chart = (function () {
 
   function dollarAmount(symbol, lots, priceA, priceB) {
     const size = CONTRACT_SIZE[symbol] || 0;
-    return Math.abs(priceA - priceB) * lots * size;
+    const amount = Math.abs(priceA - priceB) * lots * size;
+    // USD-first pairs are converted back to dollars (server/instruments.js).
+    return ['USDJPY', 'USDCHF', 'USDCAD'].includes(symbol) ? amount / priceB : amount;
   }
 
   function currentPriceFor(symbol) {

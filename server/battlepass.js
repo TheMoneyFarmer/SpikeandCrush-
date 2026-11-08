@@ -119,6 +119,7 @@ function buildTrack(tierCurrent, isPremium) {
 }
 
 module.exports = {
+  SEASON_DAYS,
   XP_PER_TIER,
   currentSeason,
   seasonExpiry,

@@ -1094,7 +1094,13 @@ app.delete('/api/player/me', requireDb, authenticate, async (req, res) => {
   try {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
-    if (!(await verifyPasswordViaSupabase(player.email, req.body?.password || ''))) {
+    // Google sign-ins have no password to check, so they confirm by typing their username.
+    const providers = req.user?.app_metadata?.providers || [];
+    if (providers.length && !providers.includes('email')) {
+      if ((req.body?.password || '').trim() !== player.username) {
+        return res.status(401).json({ error: 'Type your exact username to confirm' });
+      }
+    } else if (!(await verifyPasswordViaSupabase(player.email, req.body?.password || ''))) {
       return res.status(401).json({ error: 'Incorrect password' });
     }
     await db.deletePlayer(player.id);

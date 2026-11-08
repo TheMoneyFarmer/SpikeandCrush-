@@ -9,9 +9,10 @@
 
 const { GAME_RULES, MODE_DURATIONS, MATCH_MODES, SOFT_LOSS_PCT, SOFT_LOSS_WINDOW_SECONDS, RECONNECT_GRACE_SECONDS, TIERS, PRIVATE_WAR_HOST_FEE } = require('../gameEngine');
 const { TEMPLATES } = require('../compEngine');
+const { LEVERAGE, MARGIN_CALL_LEVEL, STOP_OUT_LEVEL } = require('../marginRules');
 const { NO_CASH, CONTACT_EMAIL } = require('./knowledge/articles');
 
-const PROMPT_VERSION = 'support-agent-v1.0 (2026-11-07)';
+const PROMPT_VERSION = 'support-agent-v1.1 (2026-11-08)';
 
 function liveRules() {
   const modes = Object.keys(MATCH_MODES)
@@ -24,7 +25,8 @@ function liveRules() {
   const comps = Object.values(TEMPLATES)
     .map((t) => `- ${t.title}: entry ${t.entryFee} coins; default prizes ${t.payouts.map((p) => `#${p.rank} ${p.coins}`).join(', ')} coins`)
     .join('\n');
-  return `Starting capital $${GAME_RULES.STARTING_CAPITAL} (virtual). Max ${GAME_RULES.MAX_LOTS} lots per trade. Max ${GAME_RULES.MAX_POSITIONS} open positions.
+  return `Starting capital $${GAME_RULES.STARTING_CAPITAL} (virtual). Leverage ${LEVERAGE}:1. No lot limit: size is decided by free margin. Max ${GAME_RULES.MAX_POSITIONS} open positions.
+Margin level = equity / margin used x 100. Margin call at ${MARGIN_CALL_LEVEL}%: warning and no new trades. Stop-out at ${STOP_OUT_LEVEL}%: the biggest losing position is closed, then the next, until the level recovers; the player keeps trading.
 Hard loss limit: losing ${GAME_RULES.HARD_LOSS_PCT * 100}% of starting capital closes all positions and ends your trading for the match.
 Soft limit: losing ${SOFT_LOSS_PCT * 100}% within a ${SOFT_LOSS_WINDOW_SECONDS / 60}-minute window blocks new trades until the next window.
 Disconnect: ${RECONNECT_GRACE_SECONDS}s to reconnect, then it counts as leaving (positions closed, placed last).

@@ -40,10 +40,10 @@ A full month of markets. The long game — patience and risk control win this on
 - Default prizes (coins): 1st: 2500 coins, 2nd: 1250 coins, 3rd: 600 coins, 4th: 100 coins, 5th: 100 coins, 6th: 100 coins, 7th: 100 coins, 8th: 100 coins, 9th: 100 coins, 10th: 100 coins
 
 **How they work**
-- You pay the entry fee once and get one account with $10,000, the same lot and position limits as matches.
+- You pay the entry fee once and get one account with $10,000, with the same leverage, margin rules and position limit as matches.
 - Your account lives between sessions, so closing the page changes nothing.
 - Ranking is by equity at the end. Ties are broken by fewer trades, then by who entered first.
-- Losing 50% locks your account at its final equity.
+- Reaching the 50% margin level closes your biggest losers first. Losing 50% locks your account at its final equity.
 - When a competition ends it is settled: final ranks are set, prize coins are credited automatically, and your War Rating is adjusted by your finishing position. Disqualified accounts get no rank or prize.
 - An admin can set different prizes for a specific event; the competition page shows the real prizes for that event.
 

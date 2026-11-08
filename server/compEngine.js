@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const db = require('./database');
 const csvLoader = require('./csvLoader');
 const instruments = require('./instruments');
+const marginRules = require('./marginRules');
 const replayClock = require('./replayClock');
 const { GAME_RULES, baseRatingForPosition, tierForRating } = require('./gameEngine');
 
@@ -311,14 +312,14 @@ function createCompEngine({ io, notifyPlayer }) {
       compTime: dataTime + shift,
       session: sessionLabel(dataTime + shift),
       rules: {
-        maxLots: GAME_RULES.MAX_LOTS,
+        ...marginRules.MARGIN_RULES,
         maxPositions: GAME_RULES.MAX_POSITIONS,
         lossLimitPct: GAME_RULES.HARD_LOSS_PCT,
       },
       instrumentInfo: Object.fromEntries(
         (comp.instruments || []).map((sym) => {
           const cfg = instruments.getInstrument(sym);
-          return [sym, { name: cfg.name, pipSize: cfg.pipSize, decimals: cfg.decimals, minLot: cfg.minLot, maxLot: Math.min(cfg.maxLot, GAME_RULES.MAX_LOTS) }];
+          return [sym, { name: cfg.name, pipSize: cfg.pipSize, decimals: cfg.decimals, minLot: cfg.minLot }];
         })
       ),
     };
@@ -365,10 +366,10 @@ function createCompEngine({ io, notifyPlayer }) {
 
   function validateLots(symbol, lots) {
     const cfg = instruments.getInstrument(symbol);
-    const max = Math.min(GAME_RULES.MAX_LOTS, cfg.maxLot);
     const n = Number(lots);
-    if (!Number.isFinite(n) || n < cfg.minLot || n > max) {
-      throw Object.assign(new Error(`Lot size must be between ${cfg.minLot} and ${max}`), { status: 400 });
+    // No upper limit: size is decided by free margin when the trade opens.
+    if (!Number.isFinite(n) || n < cfg.minLot) {
+      throw Object.assign(new Error(`Lot size must be at least ${cfg.minLot}`), { status: 400 });
     }
     return Math.round(n * 100) / 100;
   }
@@ -416,13 +417,19 @@ function createCompEngine({ io, notifyPlayer }) {
     const quote = replayClock.getPriceAt(symbol, dataTime);
     if (!quote || quote.marketClosed) throw Object.assign(new Error('Market closed - you can still close trades'), { status: 400 });
 
-    // There's no separate margin requirement in this game - the risk rule is
-    // the loss limit. Refuse new risk once equity is already at it.
-    const equity = equityOf(account, open, quotesFor(comp, dataTime));
+    // Refuse new risk once equity is at the loss limit, or if it won't fit in free margin.
+    const allQuotes = quotesFor(comp, dataTime);
+    const equity = equityOf(account, open, allQuotes);
     if (equity <= Number(account.starting_capital) * (1 - GAME_RULES.HARD_LOSS_PCT)) {
       throw Object.assign(new Error('Equity is at the loss limit'), {
         status: 400,
       });
+    }
+    const usedNow = marginRules.usedMargin(open, (p) => (allQuotes[p.symbol] ? marginRules.mid(allQuotes[p.symbol]) : Number(p.entry_price)));
+    const freeMargin = equity - usedNow;
+    if (marginRules.positionMargin(symbol, size, marginRules.mid(quote)) > freeMargin) {
+      const most = marginRules.maxAffordableLots(symbol, marginRules.mid(quote), freeMargin);
+      throw Object.assign(new Error(most > 0 ? `Not enough free margin. You can open up to ${most} lots of ${symbol} right now` : 'No free margin left. Close a position to open a new one'), { status: 400 });
     }
 
     const entryPrice = dir === 'BUY' ? quote.ask : quote.bid;
@@ -577,8 +584,26 @@ function createCompEngine({ io, notifyPlayer }) {
         continue;
       }
 
-      const equity = equityAt(t);
+      let equity = equityAt(t);
       if (equity > floor) {
+        // Margin stop-out: close the biggest loser, then the next, until the
+        // margin level recovers. Stored as 'loss_limit' (the table has no
+        // stop_out reason), but the account stays open and the player is told.
+        const usedAt = () => marginRules.usedMargin(live, (p) => marginRules.mid(replayClock.getPriceAt(p.symbol, t)));
+        let level = marginRules.marginLevel(equity, usedAt());
+        let closed = 0;
+        while (level !== null && level <= marginRules.STOP_OUT_LEVEL && live.length) {
+          const scored = live.map((p) => ({ p, ...positionPnl(p, replayClock.getPriceAt(p.symbol, t)) })).sort((a, b) => a.pnl - b.pnl);
+          const { p: worst, exit, pnl } = scored[0];
+          live = live.filter((p) => p !== worst);
+          if (await db.compClosePosition(worst.id, exit, 'loss_limit', pnl)) {
+            balance += pnl;
+            closed += 1;
+          }
+          equity = equityAt(t);
+          level = marginRules.marginLevel(equity, usedAt());
+        }
+        if (closed) emit(comp.id, acc.player_id, 'comp:stop_out', { closed, equity: round2(equity) });
         prev = { t, equity };
         continue;
       }
@@ -845,7 +870,7 @@ function createCompEngine({ io, notifyPlayer }) {
       id,
       title,
       description,
-      rules: `Starting capital $${GAME_RULES.STARTING_CAPITAL.toLocaleString()}. Max ${GAME_RULES.MAX_LOTS} lots per trade, ${GAME_RULES.MAX_POSITIONS} open positions. Losing ${GAME_RULES.HARD_LOSS_PCT * 100}% of starting capital locks your account at its final equity. Replays real historical market data. ${NO_CASH_VALUE_LINE}`,
+      rules: `Starting capital $${GAME_RULES.STARTING_CAPITAL.toLocaleString()}. Leverage ${marginRules.LEVERAGE}:1, up to ${GAME_RULES.MAX_POSITIONS} open positions, no lot limit (size is set by free margin). Margin call at ${marginRules.MARGIN_CALL_LEVEL}%, stop-out at ${marginRules.STOP_OUT_LEVEL}%. Losing ${GAME_RULES.HARD_LOSS_PCT * 100}% of starting capital locks your account at its final equity. Replays real historical market data. ${NO_CASH_VALUE_LINE}`,
       type: 'native',
       prize_pool: 0,
       prize_pool_coins: totalCoins,

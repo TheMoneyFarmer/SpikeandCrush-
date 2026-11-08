@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const instruments = require('./instruments');
+const marginRules = require('./marginRules');
 const sabotage = require('./sabotage');
 const db = require('./database');
 const battlepass = require('./battlepass');
@@ -11,7 +12,6 @@ const personas = require('./personas');
 const MAX_PLAYERS = 8; // raised from 6 so Grand War's 8-player lobbies fit the same player-cap check everywhere
 const MIN_PLAYERS = 2;
 const STARTING_CAPITAL = 10000;
-const MAX_LOTS = 10.0;
 const MAX_POSITIONS = 10;
 const SOFT_LOSS_WINDOW_SECONDS = 120; // 2 minutes
 const SOFT_LOSS_PCT = 0.2; // 20% of starting capital lost within the current window -> locked out until it resets
@@ -19,7 +19,7 @@ const RECONNECT_GRACE_MS = 60000; // disconnect grace before a mid-match forfeit
 const HARD_LOSS_PCT = 0.5; // 50% of starting capital lost overall -> eliminated for the rest of the match
 // The core trading rules, shared with long-form competitions (compEngine.js)
 // so both play by the same numbers.
-const GAME_RULES = { STARTING_CAPITAL, MAX_LOTS, MAX_POSITIONS, HARD_LOSS_PCT };
+const GAME_RULES = { STARTING_CAPITAL, MAX_POSITIONS, HARD_LOSS_PCT, ...marginRules.MARGIN_RULES };
 const ALLOWED_CHAT_MESSAGES = ['GL HF', "Let's go", 'May the best trader win', 'Ready to war'];
 
 // Private War stays free to join for invited friends - MATCH_MODES.private's
@@ -393,6 +393,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       hostId: match.hostId || null,
       cardsPerPlayer: match.config.cardsPerPlayer,
       entryCoins: match.config.entryCoins,
+      rules: { ...marginRules.MARGIN_RULES, maxPositions: MAX_POSITIONS, hardLossPct: HARD_LOSS_PCT, softLossPct: SOFT_LOSS_PCT, softLossWindowSeconds: SOFT_LOSS_WINDOW_SECONDS },
       cardCatalog: sabotage.getCardCatalog(),
       feed: match.feed.slice(-30),
       players: Object.values(match.players).map((p) => publicPlayer(p, p.id === viewerId)),
@@ -510,6 +511,46 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       equity += instruments.calculatePnL(pos.direction, pos.lots, pos.entryPrice, exitPrice, pos.symbol);
     }
     return equity;
+  }
+
+  function marginStats(match, player, elapsedSeconds, nowMs) {
+    const equity = computeEquity(match, player, elapsedSeconds, nowMs);
+    const used = marginRules.usedMargin(player.positions, (pos) => marginRules.mid(getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs, player.id)));
+    return { equity, used, level: marginRules.marginLevel(equity, used) };
+  }
+
+  // Stop-out closes the biggest loser, then the next, until the margin level
+  // recovers. The player keeps trading with what's left.
+  function applyMarginRules(match, player, elapsedSeconds, nowMs) {
+    let m = marginStats(match, player, elapsedSeconds, nowMs);
+    let closed = 0;
+    while (m.level !== null && m.level <= marginRules.STOP_OUT_LEVEL && player.positions.length) {
+      let worst = null;
+      let worstPnl = Infinity;
+      for (const pos of player.positions) {
+        const px = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs, player.id);
+        const pnl = instruments.calculatePnL(pos.direction, pos.lots, pos.entryPrice, pos.direction === 'BUY' ? px.bid : px.ask, pos.symbol);
+        if (pnl < worstPnl) {
+          worstPnl = pnl;
+          worst = pos;
+        }
+      }
+      if (!closeTrade(match.id, player.id, worst.id, 'stop_out').success) break;
+      closed += 1;
+      m = marginStats(match, player, elapsedSeconds, nowMs);
+    }
+    if (closed) {
+      pushFeed(match, `${player.username} was stopped out - ${closed} position${closed === 1 ? '' : 's'} closed`, { type: 'margin_warning', timestamp: elapsedSeconds, playerId: player.id, pnl: Math.round(m.equity - STARTING_CAPITAL) });
+      emitToPlayer(match, player.id, 'margin:warning', { level: 'stop_out', closed, equity: Math.round(m.equity) });
+    }
+    if (m.level !== null && m.level <= marginRules.MARGIN_CALL_LEVEL) {
+      if (!player.marginCalled) {
+        player.marginCalled = true;
+        emitToPlayer(match, player.id, 'margin:warning', { level: 'margin_call', equity: Math.round(m.equity), marginLevel: Math.round(m.level) });
+      }
+    } else {
+      player.marginCalled = false;
+    }
   }
 
   // ---- lifecycle: creation, joining, lobby, countdown --------------------
@@ -658,6 +699,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       tradesMade: 0,
       effects: sabotage.createPlayerEffects(),
       marginWarned: false,
+      marginCalled: false,
       eliminated: false,
       softLocked: false,
       riskWindowIndex: 0,
@@ -901,10 +943,15 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     const liquidityDrained =
       nowMs < match.marketEffects.liquidityDrainUntil && match.marketEffects.liquidityDrainCasterId !== playerId;
     const lotLimited = player.effects.lot_limiter && nowMs < player.effects.lot_limiter.until;
-    const maxLot = Math.min(liquidityDrained ? 0.1 : MAX_LOTS, lotLimited ? 0.05 : MAX_LOTS);
+    // No lot limit of its own: size is decided by free margin below. Only these
+    // two sabotage cards still cap it, for as long as they last.
+    const cardLotCap = Math.min(liquidityDrained ? 0.1 : Infinity, lotLimited ? 0.05 : Infinity);
     const numLots = Number(lots);
-    if (!Number.isFinite(numLots) || numLots <= 0 || numLots > maxLot) {
-      return { success: false, error: `Lot size must be between 0 and ${maxLot}` };
+    if (!Number.isFinite(numLots) || numLots <= 0) {
+      return { success: false, error: 'Enter a lot size above 0' };
+    }
+    if (numLots > cardLotCap) {
+      return { success: false, error: `A sabotage card limits your lot size to ${cardLotCap} right now` };
     }
     if (player.positions.length >= MAX_POSITIONS) {
       return { success: false, error: 'Maximum open positions reached' };
@@ -912,6 +959,14 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
 
     const price = getEffectivePrice(match, symbol, elapsedSeconds, nowMs, playerId);
     const entryPrice = direction === 'BUY' ? price.ask : price.bid;
+
+    const margin = marginStats(match, player, elapsedSeconds, nowMs);
+    const freeMargin = margin.equity - margin.used;
+    const required = marginRules.positionMargin(symbol, numLots, marginRules.mid(price));
+    if (required > freeMargin) {
+      const most = marginRules.maxAffordableLots(symbol, marginRules.mid(price), freeMargin);
+      return { success: false, error: most > 0 ? `Not enough free margin. You can open up to ${most} lots of ${symbol} right now` : 'No free margin left. Close a position to open a new one' };
+    }
 
     // SL/TP may arrive as an absolute price or as a pip distance from entry
     // (the client can't know the real fill price in advance, so "pips" lets
@@ -1509,6 +1564,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   //  - Soft limit: lose SOFT_LOSS_PCT (20%) of starting capital within the
   //    current SOFT_LOSS_WINDOW_SECONDS (2 min) window -> locked out of new
   //    trades until the window rolls over (every 2 minutes, from match start).
+  //  - Margin rules on top of these: see applyMarginRules / marginRules.js.
   //  - Hard limit: lose HARD_LOSS_PCT (50%) of starting capital overall ->
   //    all positions force-closed and the player is permanently eliminated
   //    from trading for the rest of the match.
@@ -1561,6 +1617,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     } else {
       player.marginWarned = false;
     }
+    if (!player.eliminated) applyMarginRules(match, player, elapsedSeconds, nowMs);
   }
 
   // ---- tick / leaderboard / end -------------------------------------------

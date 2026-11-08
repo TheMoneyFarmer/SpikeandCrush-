@@ -2,7 +2,7 @@
 slug: account-signup-login
 title: "Account: sign up, log in and password reset"
 category: account
-tags: ["sign up", "register", "login", "log in", "google", "apple", "password", "reset password", "forgot password", "email", "2fa", "two factor"]
+tags: ["sign up", "register", "login", "log in", "google", "apple", "password", "reset password", "forgot password", "email", "2fa", "two factor", "change username", "username"]
 source: code
 needs_review: false
 ---
@@ -13,4 +13,4 @@ needs_review: false
 - **Forgot your password?** Use "Forgot password" on the login screen and enter your email. If an account exists for that email, a reset link is sent. Follow the link to set a new password.
 - **Two-factor authentication** can be turned on in Settings, Security.
 - **Sessions and login history** are in Settings, Security, where you can sign other devices out.
-- **Username changes** are not supported after registration.
+- **Changing your username, email or password** is done in Settings, and needs your current password.

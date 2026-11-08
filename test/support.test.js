@@ -197,7 +197,9 @@ test('guests only get search_kb, create_ticket and escalate_to_human', () => {
 test('KB articles and prompt quote the live constants', () => {
   const all = buildArticles().map((a) => a.body).join('\n');
   assert.ok(all.includes(`$${GAME_RULES.STARTING_CAPITAL.toLocaleString('en-US')}`));
-  assert.ok(all.includes(`${GAME_RULES.MAX_LOTS} lots`));
+  assert.ok(all.includes(`${GAME_RULES.leverage}:1 leverage`));
+  assert.ok(all.includes('no lot limit'));
+  assert.ok(!/Marked for review/.test(all), 'unresolved review note');
   assert.ok(all.includes(`${GAME_RULES.HARD_LOSS_PCT * 100}%`));
   assert.ok(all.includes(`${RECONNECT_GRACE_SECONDS} seconds`));
   for (const key of Object.keys(MATCH_MODES)) assert.ok(all.includes(`| ${MATCH_MODES[key].label} | ${MODE_DURATIONS[key] / 60} minute`), key);
@@ -219,7 +221,8 @@ test('last place always costs 25 rating, whatever the table size', () => {
 
 test('the Help page no longer contradicts the game rules', () => {
   const help = require('fs').readFileSync(require('path').join(__dirname, '../client/help.html'), 'utf8');
-  assert.ok(!/What Is Margin\?|Your open positions stay in the match|Quick War, Blitz, and Private/.test(help));
+  assert.ok(!/Your open positions stay in the match|Quick War, Blitz, and Private|from the Wallet page\. It continues|report option|aren\\'t currently supported/.test(help));
+  assert.ok(help.includes(`${GAME_RULES.leverage}:1 leverage`));
   assert.ok(help.includes(`${RECONNECT_GRACE_SECONDS} seconds to reconnect`));
 });
 
@@ -242,4 +245,30 @@ test('bridge: right secret and place only; remote mode needs a long secret', () 
   assert.ok(!bridgeCallAllowed(req('short', '10.0.0.5')), 'short secret refused in remote mode');
   if (saved.s === undefined) delete process.env.INTERNAL_ADMIN_SECRET; else process.env.INTERNAL_ADMIN_SECRET = saved.s;
   if (saved.r === undefined) delete process.env.SUPPORT_BRIDGE_ALLOW_REMOTE; else process.env.SUPPORT_BRIDGE_ALLOW_REMOTE = saved.r;
+});
+
+test('margin rules: leverage decides size, USD-first pairs price correctly', () => {
+  const m = require('../server/marginRules');
+  const i = require('../server/instruments');
+  assert.strictEqual(m.LEVERAGE, 100);
+  assert.strictEqual(Math.round(m.positionMargin('EURUSD', 1, 1.08)), 1080);
+  assert.strictEqual(m.positionMargin('USDJPY', 1, 149.5), 1000, 'one lot of USD/JPY is $100,000 notional');
+  assert.strictEqual(m.maxAffordableLots('EURUSD', 1.08, 10000), 9.25);
+  assert.strictEqual(m.maxAffordableLots('EURUSD', 1.08, 0), 0);
+  assert.strictEqual(m.marginLevel(5000, 10000), 50);
+  assert.strictEqual(m.marginLevel(5000, 0), null);
+  const pip = (sym, entry, step) => i.calculatePnL('BUY', 1, entry, entry + step, sym);
+  assert.ok(Math.abs(pip('USDJPY', 149.5, 0.01) - 6.69) < 0.01, `USD/JPY pip ${pip('USDJPY', 149.5, 0.01)}`);
+  assert.ok(Math.abs(pip('USDCAD', 1.36, 0.0001) - 7.35) < 0.01);
+  assert.ok(Math.abs(pip('EURUSD', 1.08, 0.0001) - 10) < 0.001, 'USD-quoted pairs unchanged');
+});
+
+test('every screen quotes the same rules', () => {
+  const m = require('../server/marginRules');
+  const read = (f) => require('fs').readFileSync(require('path').join(__dirname, '..', f), 'utf8');
+  const lobby = read('client/lobby.html');
+  assert.ok(lobby.includes(`Leverage ${m.LEVERAGE}:1`) && lobby.includes(`Max ${GAME_RULES.MAX_POSITIONS} positions`) && lobby.includes(`Margin call ${m.MARGIN_CALL_LEVEL}%`) && lobby.includes(`Stop out ${m.STOP_OUT_LEVEL}%`));
+  const tip = read('client/js/help-tooltips.js');
+  assert.ok(tip.includes(`${m.LEVERAGE}:1 leverage`) && tip.includes(`At ${m.MARGIN_CALL_LEVEL}%`) && tip.includes(`At ${m.STOP_OUT_LEVEL}%`));
+  assert.ok(!/max="10"/.test(read('client/game.html')), 'no lot cap on the custom lot box');
 });
