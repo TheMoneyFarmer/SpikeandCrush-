@@ -7,7 +7,7 @@
 // isn't set, so the rest of the claim-processing flow keeps working in an
 // environment that hasn't configured email yet - the in-app notification
 // still goes out either way.
-async function sendEmail({ to, subject, html }) {
+async function sendEmail({ to, subject, html, text }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL || 'Spike & Crush <hello@spikeandcrush.com>';
   if (!apiKey) {
@@ -21,7 +21,7 @@ async function sendEmail({ to, subject, html }) {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from, to, subject, html }),
+      body: JSON.stringify(text ? { from, to, subject, html, text } : { from, to, subject, html }),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {

@@ -3,137 +3,315 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Support Tickets — Spike & Crush Admin</title>
+<title>Support Inbox — Spike & Crush Admin</title>
 <link rel="stylesheet" href="css/admin-base.css" />
 <link rel="stylesheet" href="css/admin-tables.css" />
 <link rel="stylesheet" href="css/admin-components.css" />
-<style>
-  .ticket-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 14px; border-bottom: 1px solid var(--border, #2a2a3a); cursor: pointer; }
-  .ticket-row:hover { background: rgba(255,255,255,0.03); }
-  .ticket-row.active { background: rgba(0,168,124,0.08); }
-  .ticket-subject { font-weight: 700; }
-  .ticket-meta { font-size: 11px; color: var(--text-secondary, #999); margin-top: 2px; }
-  .support-layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
-  @media (max-width: 900px) { .support-layout { grid-template-columns: 1fr; } }
-  .ticket-detail { padding: 16px; }
-  .ticket-message { white-space: pre-wrap; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 12px; margin: 10px 0; }
-  .ticket-response { white-space: pre-wrap; background: rgba(0,168,124,0.08); border-radius: 8px; padding: 12px; margin: 10px 0; }
-</style>
+<link rel="stylesheet" href="css/admin-support.css" />
 </head>
 <body>
   <div class="admin-shell">
-    <aside class="admin-sidebar" id="adminSidebar" data-active="support-tickets"></aside>
+    <aside class="admin-sidebar" id="adminSidebar" data-active="support-inbox"></aside>
     <main class="admin-main">
       <div class="admin-topbar" id="adminTopbar"></div>
       <div class="admin-content">
-        <div class="admin-table-toolbar">
-          <select id="statusFilter">
-            <option value="">All statuses</option>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="resolved">Resolved</option>
-          </select>
-        </div>
-        <div class="support-layout">
-          <div class="panel" id="ticketListWrap" style="padding:0;max-height:70vh;overflow-y:auto;">Loading…</div>
-          <div class="panel ticket-detail" id="ticketDetailWrap">
-            <div class="empty-state">Select a ticket to view it</div>
-          </div>
+        <div class="sup-layout" id="supLayout">
+          <section class="sup-col" aria-label="Conversations">
+            <div class="sup-tabs" role="tablist">
+              <button class="sup-tab active" data-tab="waiting" role="tab">Waiting <span class="sup-count" id="cWaiting">0</span></button>
+              <button class="sup-tab" data-tab="mine" role="tab">Mine <span class="sup-count zero" id="cMine">0</span></button>
+              <button class="sup-tab" data-tab="open" role="tab">All open <span class="sup-count zero" id="cOpen">0</span></button>
+              <button class="sup-tab" data-tab="resolved" role="tab">Resolved</button>
+            </div>
+            <div class="sup-search"><input id="supSearch" type="search" placeholder="Search handle, email or SC-000123" aria-label="Search conversations" /></div>
+            <div class="sup-list" id="supList"><div class="sup-empty">Loading</div></div>
+          </section>
+
+          <section class="sup-col" aria-label="Conversation" id="supCenter">
+            <div class="sup-empty" style="margin:auto">Select a conversation</div>
+          </section>
+
+          <aside class="sup-col sup-right" aria-label="User details" id="supRight">
+            <div class="sup-empty">User details appear here</div>
+          </aside>
         </div>
       </div>
     </main>
   </div>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script src="js/time-ago.js"></script>
+  <script src="js/support-markdown.js"></script>
   <script src="js/admin-api.js"></script>
   <script src="js/admin-auth.js"></script>
+  <script src="js/admin-socket.js"></script>
   <script src="js/admin-nav.js"></script>
   <script>
+  (function () {
     Admin.renderNav();
-    Admin.renderTopbar('Support Tickets');
+    Admin.renderTopbar('Support Inbox');
+    const esc = Admin.escapeHtml;
+    const md = (t) => TW.supportMarkdown.render(t);
+    const ago = (t) => (t ? TW.timeAgo(t) : '');
+    const $ = (id) => document.getElementById(id);
 
-    let tickets = [];
-    let activeId = null;
+    let tab = 'waiting';
+    let list = [];
+    let activeId = new URLSearchParams(location.search).get('c');
+    let detail = null;
+    let canned = [];
+    let admins = [];
+    let me = null;
+    let noteMode = false;
+    let pendingAttachment = null;
 
-    function statusLabel(s) {
-      return { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved' }[s] || s;
+    const STATUS = { ai: 'AI', waiting_human: 'Waiting', human: 'Human', resolved: 'Resolved', closed: 'Closed' };
+
+    async function loadCounts() {
+      try {
+        const c = await Admin.api('/support/counts');
+        me = c.me;
+        for (const [id, n] of [['cWaiting', c.waiting], ['cMine', c.mine], ['cOpen', c.open]]) {
+          $(id).textContent = n;
+          $(id).classList.toggle('zero', !n);
+        }
+        if (Admin.setSupportBadge) Admin.setSupportBadge(c.waiting);
+      } catch (e) { /* toast on list load instead */ }
+    }
+
+    async function loadList() {
+      try {
+        const q = $('supSearch').value.trim();
+        const data = await Admin.api(`/support/conversations?tab=${tab}${q ? `&q=${encodeURIComponent(q)}` : ''}`);
+        list = data.conversations;
+        renderList();
+      } catch (e) {
+        $('supList').innerHTML = `<div class="sup-empty">${esc(e.message)}</div>`;
+      }
     }
 
     function renderList() {
-      const filter = document.getElementById('statusFilter').value;
-      const filtered = filter ? tickets.filter((t) => t.status === filter) : tickets;
-      const wrap = document.getElementById('ticketListWrap');
-      if (!filtered.length) { wrap.innerHTML = '<div class="empty-state">No tickets</div>'; return; }
-      wrap.innerHTML = filtered.map((t) => `
-        <div class="ticket-row ${t.id === activeId ? 'active' : ''}" data-id="${t.id}">
-          <div>
-            <div class="ticket-subject">${Admin.escapeHtml(t.subject)}</div>
-            <div class="ticket-meta">${Admin.escapeHtml(t.player?.username || 'Guest')} · ${Admin.timeAgo(t.created_at)}</div>
+      if (!list.length) {
+        $('supList').innerHTML = `<div class="sup-empty">${tab === 'waiting' ? 'Nobody is waiting for a human' : 'No conversations'}</div>`;
+        return;
+      }
+      $('supList').innerHTML = list.map((c) => `
+        <button class="sup-item ${c.id === activeId ? 'active' : ''}" data-id="${esc(c.id)}">
+          <div class="sup-item-top"><strong>${esc(c.ticketRef || 'No ticket')} · ${esc(c.user)}</strong><span class="text-secondary" style="font-size:12px;white-space:nowrap">${esc(ago(tab === 'waiting' ? c.escalatedAt : c.lastAt))}</span></div>
+          <div class="sup-item-prev">${esc(c.preview || c.reason || '')}</div>
+          <div class="sup-tags">
+            <span class="sup-tag s-${esc(c.status)}">${esc(STATUS[c.status] || c.status)}</span>
+            ${c.priority !== 'normal' ? `<span class="sup-tag p-${esc(c.priority)}">${esc(c.priority)}</span>` : ''}
+            <span class="sup-tag h-${esc(c.handledBy)}">${c.handledBy === 'human' ? 'Human handled' : 'AI handled'}</span>
+            ${c.assignedAdminName ? `<span class="sup-tag">${esc(c.assignedAdminName)}</span>` : ''}
           </div>
-          <span class="status-pill">${statusLabel(t.status)}</span>
-        </div>
-      `).join('');
-      wrap.querySelectorAll('.ticket-row').forEach((el) => el.addEventListener('click', () => selectTicket(el.dataset.id)));
+        </button>`).join('');
     }
 
-    function selectTicket(id) {
+    async function openConversation(id) {
       activeId = id;
+      history.replaceState(null, '', `?c=${id}`);
       renderList();
-      const t = tickets.find((x) => x.id === id);
-      const wrap = document.getElementById('ticketDetailWrap');
-      if (!t) { wrap.innerHTML = '<div class="empty-state">Select a ticket to view it</div>'; return; }
-      wrap.innerHTML = `
-        <h3 style="margin-top:0;">${Admin.escapeHtml(t.subject)}</h3>
-        <div class="ticket-meta">From ${Admin.escapeHtml(t.player?.username || 'Guest')}${t.player?.email ? ' · ' + Admin.escapeHtml(t.player.email) : ''} · ${Admin.formatDate(t.created_at)}</div>
-        <div class="ticket-message">${Admin.escapeHtml(t.message)}</div>
-        ${t.admin_response ? `<div class="ticket-meta">Response by ${Admin.escapeHtml(t.responded_by || 'admin')}</div><div class="ticket-response">${Admin.escapeHtml(t.admin_response)}</div>` : ''}
-        <div class="field" style="margin-top:14px;">
-          <label>Reply</label>
-          <textarea id="responseInput" rows="4" style="width:100%;padding:8px;border-radius:6px;background:var(--surface-2,#1a1a2a);border:1px solid var(--border,#2a2a3a);color:inherit;">${t.admin_response ? '' : ''}</textarea>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button class="btn btn-primary" id="sendReplyBtn">Send Reply</button>
-          <button class="btn btn-primary" id="sendReplyResolveBtn">Send Reply &amp; Resolve</button>
-          ${t.status !== 'resolved' ? '<button class="btn" id="resolveOnlyBtn">Mark Resolved</button>' : ''}
-        </div>
-      `;
-      document.getElementById('sendReplyBtn').addEventListener('click', () => respond(t.id, false));
-      document.getElementById('sendReplyResolveBtn').addEventListener('click', () => respond(t.id, true));
-      const resolveBtn = document.getElementById('resolveOnlyBtn');
-      if (resolveBtn) resolveBtn.addEventListener('click', () => resolveOnly(t.id));
-    }
-
-    async function respond(id, resolve) {
-      const response = document.getElementById('responseInput').value.trim();
-      if (!response) return Admin.toast('Write a reply first', 'warning');
       try {
-        await Admin.api(`/support/tickets/${id}/respond`, { method: 'POST', body: { response, resolve } });
-        Admin.toast('Reply sent', 'success');
-        await loadTickets();
-        selectTicket(id);
+        detail = await Admin.api(`/support/conversations/${id}`);
+        me = detail.me;
+        renderCenter();
+        loadRight(id);
       } catch (e) {
-        Admin.toast(e.message, 'danger');
+        $('supCenter').innerHTML = `<div class="sup-empty">${esc(e.message)}</div>`;
       }
     }
 
-    async function resolveOnly(id) {
+    function msgHtml(m) {
+      if (m.sender_type === 'system') return `<div class="sup-sys">${esc(m.body)} · ${esc(ago(m.created_at))}</div>`;
+      const who = { user: 'Player', ai: 'AI assistant', human: `Team: ${m.sender_name || ''}`, note: `Internal note: ${m.sender_name || ''}` }[m.sender_type];
+      const meta = m.meta || {};
+      const tools = (meta.tool_calls || []).map((t) => `${t.name}${t.ok ? '' : ' (failed)'}`).join(', ');
+      const attach = (m.attachments || []).map((a) => `<div><a href="/api/support/attachments/${esc(m.id)}/${a.index}" target="_blank" rel="noopener">View image</a></div>`).join('');
+      return `<div class="sup-msg ${esc(m.sender_type)}">
+        <div class="sup-msg-meta"><strong>${esc(who)}</strong><span>${esc(ago(m.created_at))}</span>${meta.helpful === false ? '<span class="sup-tag p-high">marked not helpful</span>' : ''}${meta.kind ? `<span class="sup-tag">${esc(meta.kind)}</span>` : ''}</div>
+        ${md(m.body)}${attach}
+        ${m.sender_type === 'ai' && (tools || meta.kb_article_ids) ? `<div class="sup-tools">${tools ? `Tools: ${esc(tools)}` : 'No tools'}${meta.kb_article_ids ? ` · ${meta.kb_article_ids.length} KB articles` : ''}${meta.retrieval_weak ? ' · weak retrieval' : ''}${meta.model ? ` · ${esc(meta.model)}` : ''}</div>` : ''}
+      </div>`;
+    }
+
+    // Live events redraw this pane, so an agent's unsent draft is carried across
+    // every redraw and only cleared after a successful send or when switching
+    // to another conversation.
+    let draftFor = null;
+    function renderCenter() {
+      const keepDraft = draftFor === activeId && $('supReply') ? $('supReply').value : '';
+      draftFor = activeId;
+      const c = detail.conversation;
+      const t = detail.ticket;
+      const closed = ['resolved', 'closed'].includes(c.status);
+      $('supCenter').innerHTML = `
+        <div class="sup-head">
+          <h2>${esc(t ? t.ref : 'No ticket yet')} · ${esc(c.user)}${c.guest_email ? ` <span class="text-secondary" style="font-weight:400">(${esc(c.guest_email)})</span>` : ''}</h2>
+          <span class="sup-tag s-${esc(c.status)}">${esc(STATUS[c.status] || c.status)}</span>
+          <select id="supPriority" aria-label="Priority">${['low', 'normal', 'high', 'urgent'].map((p) => `<option ${p === c.priority ? 'selected' : ''}>${p}</option>`).join('')}</select>
+          <select id="supReassign" aria-label="Reassign"><option value="">${c.assigned_admin_name ? `Assigned: ${esc(c.assigned_admin_name)}` : 'Unassigned'}</option>${admins.map((a) => `<option value="${esc(a.id)}">Reassign to ${esc(a.name || a.email)}</option>`).join('')}</select>
+          <button class="btn btn-sm btn-outline" id="supShowUser">User</button>
+        </div>
+        ${c.escalation_reason ? `<div class="sup-banner">Escalated: ${esc(c.escalation_reason)}${c.escalation_summary ? ` · ${esc(c.escalation_summary)}` : ''}</div>` : ''}
+        <div class="sup-thread" id="supThread" aria-live="polite">${detail.messages.map(msgHtml).join('')}</div>
+        <div class="sup-compose ${noteMode ? 'note-mode' : ''}" id="supCompose">
+          <textarea id="supReply" placeholder="${noteMode ? 'Internal note (only admins see this)' : 'Reply to the player'}" aria-label="Reply"></textarea>
+          <div class="sup-row">
+            <select id="supCanned" aria-label="Insert canned response"><option value="">Insert canned response</option>${canned.map((x) => `<option value="${esc(x.id)}">${esc(x.category)}: ${esc(x.title)}</option>`).join('')}</select>
+            <button class="btn btn-sm btn-outline" id="supSuggest">Suggest reply</button>
+            <label class="btn btn-sm btn-outline" style="cursor:pointer">Attach image<input type="file" id="supFile" accept="image/png,image/jpeg,image/webp" hidden /></label>
+            <span id="supAttachName" class="text-secondary" style="font-size:12px"></span>
+          </div>
+          <div class="sup-row">
+            ${c.status === 'waiting_human' || (c.status !== 'human' && !c.assigned_admin_name) ? '<button class="btn btn-sm" id="supAssign">Take it</button>' : ''}
+            ${c.status !== 'ai' && !closed ? '<button class="btn btn-sm btn-outline" id="supHandback">Back to AI</button>' : ''}
+            ${!closed ? '<button class="btn btn-sm btn-outline" id="supResolve">Resolve</button>' : ''}
+            <span class="sup-spacer"></span>
+            <button class="btn btn-sm btn-outline" id="supNoteToggle">${noteMode ? 'Write a reply instead' : 'Internal note'}</button>
+            <button class="btn btn-sm btn-primary" id="supSend">${noteMode ? 'Save note' : 'Send to player'}</button>
+          </div>
+        </div>`;
+      const th = $('supThread');
+      th.scrollTop = th.scrollHeight;
+      $('supReply').value = keepDraft;
+      bindCenter();
+    }
+
+    function bindCenter() {
+      const id = activeId;
+      const act = async (path, body, okMsg) => {
+        try {
+          await Admin.api(`/support/conversations/${id}/${path}`, { method: 'POST', body });
+          if (okMsg) Admin.toast(okMsg, 'success');
+          await openConversation(id);
+          loadList();
+          loadCounts();
+        } catch (e) { Admin.toast(e.message, 'error'); }
+      };
+      $('supPriority').onchange = (e) => act('priority', { priority: e.target.value }, 'Priority updated');
+      $('supReassign').onchange = (e) => e.target.value && act('reassign', { targetId: e.target.value }, 'Reassigned');
+      $('supShowUser').onclick = () => $('supLayout').classList.toggle('sup-show-right');
+      if ($('supAssign')) $('supAssign').onclick = () => act('assign', {}, 'Assigned to you');
+      if ($('supHandback')) $('supHandback').onclick = () => act('handback', {}, 'Handed back to AI');
+      if ($('supResolve')) $('supResolve').onclick = () => act('resolve', {}, 'Resolved');
+      $('supNoteToggle').onclick = () => { noteMode = !noteMode; renderCenter(); };
+      $('supCanned').onchange = (e) => {
+        const c = canned.find((x) => x.id === e.target.value);
+        if (c) { const ta = $('supReply'); ta.value = ta.value ? `${ta.value}\n\n${c.body}` : c.body; ta.focus(); }
+        e.target.value = '';
+      };
+      $('supSuggest').onclick = async () => {
+        const b = $('supSuggest');
+        b.disabled = true; b.textContent = 'Drafting';
+        try {
+          const r = await Admin.api(`/support/conversations/${id}/suggest`, { method: 'POST' });
+          $('supReply').value = r.draft || '';
+          $('supReply').focus();
+          Admin.toast('Draft ready. Edit it before sending.', 'info');
+        } catch (e) { Admin.toast(e.message, 'error'); }
+        b.disabled = false; b.textContent = 'Suggest reply';
+      };
+      $('supFile').onchange = async (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        if (f.size > 3 * 1024 * 1024) return Admin.toast('Images must be 3 MB or smaller', 'error');
+        try {
+          const res = await fetch(`/api/support/conversations/${id}/attachments`, { method: 'POST', headers: { 'Content-Type': f.type || 'application/octet-stream' }, credentials: 'include', body: f });
+          const j = await res.json();
+          if (!res.ok) throw new Error(j.error || 'Upload failed');
+          pendingAttachment = j.attachment;
+          $('supAttachName').textContent = `${f.name} attached`;
+        } catch (err) { Admin.toast(err.message, 'error'); }
+      };
+      $('supSend').onclick = async () => {
+        const body = $('supReply').value.trim();
+        if (!body && !pendingAttachment) return;
+        $('supSend').disabled = true;
+        // Clear now, not after the response: live events can redraw this pane
+        // and the agent may already be typing the next message by then.
+        $('supReply').value = '';
+        try {
+          const r = await Admin.api(`/support/conversations/${id}/reply`, { method: 'POST', body: { body, note: noteMode, attachments: pendingAttachment ? [pendingAttachment] : [] } });
+          pendingAttachment = null;
+          if (!noteMode && r.delivery) Admin.toast(r.delivery.online ? 'Delivered live to the player' : `Player offline${r.delivery.email ? ` - emailed ${r.delivery.email}` : ''}${r.delivery.bell ? ' + bell notification' : ''}`, 'success');
+          await openConversation(id);
+          loadList();
+        } catch (e) {
+          Admin.toast(e.message, 'error');
+          if ($('supReply') && !$('supReply').value) $('supReply').value = body; // give the text back
+          if ($('supSend')) $('supSend').disabled = false;
+        }
+      };
+    }
+
+    async function loadRight(id) {
+      $('supRight').innerHTML = '<div class="sup-empty">Loading</div>';
       try {
-        await Admin.api(`/support/tickets/${id}/resolve`, { method: 'POST' });
-        Admin.toast('Ticket resolved', 'success');
-        await loadTickets();
-        selectTicket(id);
+        const d = await Admin.api(`/support/conversations/${id}/user-panel`);
+        if (d.guest) {
+          $('supRight').innerHTML = `<div class="sup-sec"><h3>Guest</h3><div>Not signed in.${d.email ? ` Email: ${esc(d.email)}` : ' No email yet.'}</div></div>`;
+          return;
+        }
+        const p = d.player;
+        $('supRight').innerHTML = `
+          <div class="sup-sec"><h3>Player</h3><div class="sup-kv">
+            <span>Handle</span><span><a href="/player-detail.html?id=${esc(p.id)}">${esc(p.handle)}</a></span>
+            <span>Email</span><span>${esc(p.email || '')}</span>
+            <span>Tier</span><span>${esc(p.tier)} (${esc(p.rating)})</span>
+            <span>Coins</span><span>${Admin.formatNumber(p.coins)}</span>
+            <span>Status</span><span class="${p.status === 'suspended' ? 'text-danger' : ''}">${esc(p.status)}${p.banReason ? `: ${esc(p.banReason)}` : ''}${p.flagged ? ' · flagged' : ''}</span>
+            <span>Created</span><span>${esc(Admin.formatDate(p.created))}</span>
+            <span>Discord</span><span>${p.discordLinked ? 'Linked' : 'Not linked'}</span>
+            <span>Matches</span><span>${esc(p.matchesPlayed)}</span>
+          </div></div>
+          <div class="sup-sec"><h3>Last 10 matches</h3>${d.matches.length ? `<table class="sup-mini">${d.matches.map((m) => `<tr><td>${esc(m.mode)} · ${esc(ago(m.created_at))}</td><td>#${esc(m.final_rank ?? '-')} ${m.rating_change ? `(${m.rating_change > 0 ? '+' : ''}${esc(m.rating_change)})` : ''} ${m.end_reason ? esc(m.end_reason) : ''}</td></tr>`).join('')}</table>` : '<div class="text-secondary">None</div>'}</div>
+          <div class="sup-sec"><h3>Coin ledger (last 20)</h3>${d.ledger.length ? `<table class="sup-mini">${d.ledger.map((l) => `<tr><td>${esc(l.type)} · ${esc(ago(l.created_at))}</td><td>${l.amount > 0 ? '+' : ''}${esc(l.amount)}</td></tr>`).join('')}</table>` : '<div class="text-secondary">None</div>'}</div>
+          <div class="sup-sec"><h3>Open tickets</h3>${d.openTickets.length ? d.openTickets.map((t) => `<div>${esc(t.ref)} · ${esc(t.subject)} <span class="text-secondary">(${esc(t.status)})</span></div>`).join('') : '<div class="text-secondary">None</div>'}</div>
+          <div class="sup-sec"><h3>Bans and flags</h3>${d.moderation.length ? d.moderation.map((m) => `<div>${esc(m.action_type)} · ${esc(ago(m.created_at))}${m.reason ? ` · ${esc(m.reason)}` : ''}</div>`).join('') : '<div class="text-secondary">None</div>'}</div>`;
       } catch (e) {
-        Admin.toast(e.message, 'danger');
+        $('supRight').innerHTML = `<div class="sup-empty">${esc(e.message)}</div>`;
       }
     }
 
-    async function loadTickets() {
-      tickets = await Admin.api('/support/tickets');
-      renderList();
-    }
+    document.querySelectorAll('.sup-tab').forEach((b) => b.addEventListener('click', () => {
+      document.querySelectorAll('.sup-tab').forEach((x) => x.classList.toggle('active', x === b));
+      tab = b.dataset.tab;
+      loadList();
+    }));
+    let searchTimer;
+    $('supSearch').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadList, 250); });
+    $('supList').addEventListener('click', (e) => { const b = e.target.closest('.sup-item'); if (b) openConversation(b.dataset.id); });
 
-    document.getElementById('statusFilter').addEventListener('change', renderList);
-    loadTickets();
+    // Live updates pushed by the game server through the admin socket.
+    let refreshTimer;
+    Admin.socket.on('support:event', (ev) => {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => { loadList(); loadCounts(); }, 200);
+      if (ev.type === 'waiting') Admin.toast(`Waiting for a human: ${ev.ticketRef || ''} ${ev.reason || ''}`, 'warning');
+      if (activeId && ev.conversationId === activeId && detail) {
+        if (ev.type === 'message' && ev.message && !detail.messages.some((m) => m.id === ev.message.id)) {
+          detail.messages.push(ev.message);
+          const th = $('supThread');
+          if (th) { th.insertAdjacentHTML('beforeend', msgHtml(ev.message)); th.scrollTop = th.scrollHeight; }
+        } else if (ev.type === 'status') {
+          openConversation(activeId);
+        }
+      }
+    });
+
+    (async () => {
+      try {
+        [canned, admins] = await Promise.all([
+          Admin.api('/support/canned').then((r) => r.canned).catch(() => []),
+          Admin.api('/support/admins').then((r) => r.admins).catch(() => []),
+        ]);
+      } catch (e) { /* optional */ }
+      await Promise.all([loadCounts(), loadList()]);
+      if (activeId) openConversation(activeId);
+      setInterval(loadCounts, 30000);
+    })();
+  })();
   </script>
 </body>
 </html>

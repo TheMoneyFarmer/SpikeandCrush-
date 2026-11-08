@@ -40,7 +40,10 @@ window.Admin = window.Admin || {};
       { key: 'mon-partners', label: 'Referral Partners', href: '/partners.html' },
     ]},
     { group: 'Support', icon: '💬', items: [
-      { key: 'support-tickets', label: 'Tickets', href: '/support.html' },
+      { key: 'support-inbox', label: 'Inbox', href: '/support.html', badge: 'support' },
+      { key: 'support-kb', label: 'Knowledge Base', href: '/support-kb.html' },
+      { key: 'support-canned', label: 'Canned Responses', href: '/support-canned.html' },
+      { key: 'support-analytics', label: 'Support Analytics', href: '/support-analytics.html' },
     ]},
     { group: 'Analytics', icon: '📈', items: [
       { key: 'an-players', label: 'Player Analytics', href: '/analytics.html?tab=players' },
@@ -91,7 +94,7 @@ window.Admin = window.Admin || {};
         ${NAV_SECTIONS.map((section) => `
           <div class="admin-nav-group">${section.icon} ${section.group}</div>
           ${section.items.map((item) => `
-            <a href="${item.href}" class="admin-nav-item ${item.key === active ? 'active' : ''}">${item.label}</a>
+            <a href="${item.href}" class="admin-nav-item ${item.key === active ? 'active' : ''}">${item.label}${item.badge ? '<span class="sup-badge-nav" id="admSupportBadge" aria-label="conversations waiting for a human"></span>' : ''}</a>
           `).join('')}
         `).join('')}
       </nav>
@@ -137,6 +140,25 @@ window.Admin = window.Admin || {};
     if (me) mount.querySelector('#admTopbarUsername').textContent = me.username;
   }
 
-  Admin.renderNav = render;
+  // Support "waiting for a human" badge: polled every 30s, and refreshed
+  // instantly on live support events when the page has the admin socket.
+  Admin.setSupportBadge = (n) => {
+    const el = document.getElementById('admSupportBadge');
+    if (el) el.textContent = n > 0 ? String(n) : '';
+  };
+  function refreshSupportBadge() {
+    if (!Admin.api) return;
+    Admin.api('/support/counts').then((c) => Admin.setSupportBadge(c.waiting)).catch(() => {});
+  }
+  function startSupportBadge() {
+    refreshSupportBadge();
+    setInterval(refreshSupportBadge, 30000);
+    if (Admin.socket && Admin.socket.on) Admin.socket.on('support:event', () => setTimeout(refreshSupportBadge, 300));
+  }
+
+  Admin.renderNav = (...args) => {
+    render(...args);
+    startSupportBadge();
+  };
   Admin.renderTopbar = renderTopbar;
 })();

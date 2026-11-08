@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Canned Responses — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-support.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="support-canned"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+        <div class="admin-table-toolbar"><span class="sup-spacer"></span><button class="btn btn-primary" id="cNew" hidden>New canned response</button></div>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Title</th><th>Category</th><th>Text</th><th></th></tr></thead><tbody id="cRows"><tr><td colspan="4">Loading</td></tr></tbody></table></div>
+        <div class="panel" id="cEditor" hidden style="margin-top:16px"></div>
+      </div>
+    </main>
+  </div>
+  <script src="js/time-ago.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+  (function () {
+    Admin.renderNav();
+    Admin.renderTopbar('Canned Responses');
+    const esc = Admin.escapeHtml;
+    const $ = (id) => document.getElementById(id);
+    let rows = [];
+    let canEdit = false;
+    async function load() {
+      const d = await Admin.api('/support/canned');
+      rows = d.canned;
+      canEdit = d.canEdit;
+      $('cNew').hidden = !canEdit;
+      $('cRows').innerHTML = rows.map((r) => `<tr><td><strong>${esc(r.title)}</strong></td><td>${esc(r.category)}</td><td style="max-width:520px;white-space:pre-wrap">${esc(r.body.slice(0, 240))}${r.body.length > 240 ? '…' : ''}</td>
+        <td style="white-space:nowrap">${canEdit ? `<button class="btn btn-sm" data-edit="${esc(r.id)}">Edit</button> <button class="btn btn-sm btn-danger" data-del="${esc(r.id)}">Delete</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="4">No canned responses yet</td></tr>';
+    }
+    function edit(r) {
+      const ed = $('cEditor');
+      ed.hidden = false;
+      ed.innerHTML = `<h3 style="margin-top:0">${r ? 'Edit' : 'New'} canned response</h3>
+        <div class="field-row"><div class="field" style="flex:2"><label>Title</label><input id="cTitle" value="${esc(r ? r.title : '')}" /></div><div class="field"><label>Category</label><input id="cCat" value="${esc(r ? r.category : 'general')}" /></div></div>
+        <div class="field"><label>Text (markdown)</label><textarea id="cBody" rows="8" style="width:100%">${esc(r ? r.body : '')}</textarea></div>
+        <div class="sup-row"><span class="sup-spacer"></span><button class="btn" id="cClose">Close</button><button class="btn btn-primary" id="cSave">Save</button></div>`;
+      $('cClose').onclick = () => { ed.hidden = true; };
+      $('cSave').onclick = async () => {
+        try {
+          await Admin.api(r ? `/support/canned/${r.id}` : '/support/canned', { method: r ? 'PUT' : 'POST', body: { title: $('cTitle').value, category: $('cCat').value, body: $('cBody').value } });
+          ed.hidden = true; Admin.toast('Saved', 'success'); load();
+        } catch (e) { Admin.toast(e.message, 'error'); }
+      };
+    }
+    $('cNew').onclick = () => edit(null);
+    $('cRows').addEventListener('click', async (e) => {
+      const ed = e.target.closest('[data-edit]');
+      if (ed) return edit(rows.find((r) => r.id === ed.dataset.edit));
+      const del = e.target.closest('[data-del]');
+      if (del && (await Admin.confirmModal({ title: 'Delete canned response', body: 'This cannot be undone.', confirmLabel: 'Delete', danger: true }))) {
+        try { await Admin.api(`/support/canned/${del.dataset.del}`, { method: 'DELETE' }); load(); } catch (err) { Admin.toast(err.message, 'error'); }
+      }
+    });
+    load().catch((e) => { $('cRows').innerHTML = `<tr><td colspan="4">${esc(e.message)}</td></tr>`; });
+  })();
+  </script>
+</body>
+</html>

@@ -36,7 +36,7 @@ function router() {
     if (!isConfigured) return res.status(503).json({ error: 'Database not configured' });
     const { email, name, role } = req.body || {};
     if (!email || !name || !role) return res.status(400).json({ error: 'email, name, and role are required' });
-    if (!['super_admin', 'admin', 'moderator'].includes(role)) return res.status(400).json({ error: 'role must be super_admin, admin, or moderator' });
+    if (!['super_admin', 'admin', 'moderator', 'support'].includes(role)) return res.status(400).json({ error: 'role must be super_admin, admin, moderator, or support' });
 
     const normalizedEmail = String(email).toLowerCase().trim();
     const tempPassword = 'SC' + Math.random().toString(36).slice(2, 10).toUpperCase();

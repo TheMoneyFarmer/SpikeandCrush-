@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Support Analytics — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-support.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="support-analytics"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+        <div class="admin-table-toolbar">
+          <select id="aDays" aria-label="Period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select>
+          <span class="sup-spacer"></span>
+          <a class="btn btn-outline" id="aExport" hidden>Export CSV</a>
+        </div>
+        <div id="aBody"><div class="sup-empty">Loading</div></div>
+      </div>
+    </main>
+  </div>
+  <script src="js/time-ago.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+  (function () {
+    Admin.renderNav();
+    Admin.renderTopbar('Support Analytics');
+    const esc = Admin.escapeHtml;
+    const $ = (id) => document.getElementById(id);
+    const fmt = (v, unit = '') => (v === null || v === undefined ? '—' : `${v}${unit}`);
+    const mins = (m) => (m === null || m === undefined ? '—' : m < 120 ? `${m} min` : `${Math.round(m / 60)} h`);
+    async function load() {
+      const days = $('aDays').value;
+      try {
+        const d = await Admin.api(`/support/analytics?days=${days}`);
+        $('aExport').hidden = !d.canExport;
+        $('aExport').href = `/api/support/analytics-export?days=${days}`;
+        const max = Math.max(1, ...d.perDay.map((p) => p.count));
+        $('aBody').innerHTML = `
+          <div class="kpi-grid">
+            <div class="kpi-card"><div class="kpi-label">Conversations</div><div class="kpi-value">${fmt(d.totalConversations)}</div></div>
+            <div class="kpi-card"><div class="kpi-label">Solved by AI without a human</div><div class="kpi-value">${fmt(d.aiOnlyPct, '%')}</div></div>
+            <div class="kpi-card"><div class="kpi-label">Escalation rate</div><div class="kpi-value">${fmt(d.escalationRatePct, '%')}</div></div>
+            <div class="kpi-card"><div class="kpi-label">Median first human response</div><div class="kpi-value">${mins(d.medianFirstResponseMinutes)}</div></div>
+            <div class="kpi-card"><div class="kpi-label">Median resolution time</div><div class="kpi-value">${mins(d.medianResolutionMinutes)}</div></div>
+            <div class="kpi-card"><div class="kpi-label">CSAT (thumbs up)</div><div class="kpi-value">${fmt(d.csatPositivePct, '%')}</div><div class="kpi-sub">${d.csatResponses} responses</div></div>
+          </div>
+          <div class="panel" style="margin-top:16px"><h3 style="margin-top:0">Conversations per day</h3>
+            ${d.perDay.length ? `<div class="sup-bars" role="img" aria-label="Conversations per day">${d.perDay.map((p) => `<div title="${esc(p.day)}: ${p.count}" style="height:${Math.round((p.count / max) * 100)}%"></div>`).join('')}</div>` : '<div class="text-secondary">No conversations in this period</div>'}
+          </div>
+          <div class="charts-grid" style="margin-top:16px">
+            <div class="panel"><h3 style="margin-top:0">Top escalation reasons</h3>${d.topEscalationReasons.length ? `<table class="sup-mini">${d.topEscalationReasons.map((r) => `<tr><td>${esc(r.reason)}</td><td>${r.count}</td></tr>`).join('')}</table>` : '<div class="text-secondary">None</div>'}</div>
+            <div class="panel"><h3 style="margin-top:0">Top KB gaps</h3>${d.topGaps.length ? `<table class="sup-mini">${d.topGaps.map((g) => `<tr><td>${esc(g.question)}</td><td>${g.count}</td></tr>`).join('')}</table>` : '<div class="text-secondary">None</div>'}<div style="margin-top:8px"><a href="/support-kb.html?tab=gaps">Open KB gaps</a></div></div>
+          </div>`;
+      } catch (e) {
+        $('aBody').innerHTML = `<div class="sup-empty">${esc(e.message)}</div>`;
+      }
+    }
+    $('aDays').addEventListener('change', load);
+    load();
+  })();
+  </script>
+</body>
+</html>

@@ -16,7 +16,6 @@ const multer = require('multer');
 const QRCode = require('qrcode');
 const { Server } = require('socket.io');
 const Stripe = require('stripe');
-const Anthropic = require('@anthropic-ai/sdk');
 
 const db = require('./database');
 const { sendEmail, renderTemplate } = require('../admin/lib/email');
@@ -30,6 +29,7 @@ const battlepass = require('./battlepass');
 const coaching = require('./coaching');
 const tournament = require('./tournament');
 const presence = require('./presence');
+const { BATTLE_PASS_PRICE_USD } = require('./coinPackages');
 
 const PORT = process.env.PORT || 3000;
 
@@ -58,8 +58,6 @@ const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABAS
 const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== 'your_value');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
 
-const anthropicConfigured = Boolean(process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your_value');
-const anthropic = anthropicConfigured ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
 // ALLOWED_ORIGIN restricts CORS to the real domain(s) in production - unset
 // (dev/local) falls back to wide-open, since local testing hits this from
@@ -1700,7 +1698,7 @@ app.post('/api/battlepass/subscribe', requireDb, authenticate, async (req, res) 
           price_data: {
             currency: 'usd',
             product_data: { name: 'Spike & Crush - Battle Pass (Premium)' },
-            unit_amount: 499,
+            unit_amount: Math.round(BATTLE_PASS_PRICE_USD * 100),
             recurring: { interval: 'month' },
           },
           quantity: 1,
@@ -2457,83 +2455,11 @@ app.all(['/api/withdraw', '/api/withdrawals', '/api/withdrawal-requests', '/api/
   res.status(403).json({ error: NO_CASH_VALUE_MESSAGE });
 });
 
-// ---- support: AI chat + tickets ----------------------------------------------------
-
-const SUPPORT_SYSTEM_PROMPT = `You are the support assistant for Spike & Crush, a skill-based competitive trading game (not real trading - simulated accounts, historical market data, entertainment only).
-
-Real game facts you can rely on:
-- Starting capital per match: $10,000 simulated. Max position size: 10 lots. Max open positions: 10.
-- A player is eliminated from a match if their loss reaches 50% of starting capital.
-- Match modes: Quick War (10 coins entry, ~10 min), Blitz War (5 coins, ~3 min), Grand War (25 coins, ~20 min), Private War (1 coin to host, charged only to the room creator when the match starts - free for invited friends), Solo Ranked (free, vs AI), Tournament War (bracket-based, entry set per tournament).
-- War Rating tiers: Recruit (0-999), Trader (1000-1499), Broker (1500-1999), Analyst (2000-2499), Veteran (2500-2999), Elite (3000-3499), War Lord (3500+).
-- Coins are virtual in-game currency for entertainment use only. They have no real-world cash value and cannot be withdrawn, redeemed, or converted back to real money - they exist only to be spent on match entries, cosmetics, and other in-game purchases. The one exception: coins won specifically by finishing 1st in a Tournament War can be claimed for a real payout (bank transfer or crypto) from the Wallet page, processed manually by an admin.
-- Coin purchases are final and non-refundable.
-
-Answer player questions about game mechanics, coins, wallet, tournaments, and account issues concisely and accurately using only the facts above. For anything account-specific (billing disputes, bans, bugs) or anything you're not sure about, tell the player to submit a support ticket instead of guessing.`;
-
-app.post('/api/support/chat', async (req, res) => {
-  if (!anthropicConfigured) return res.status(503).json({ error: 'Support chat is unavailable right now - try submitting a ticket instead.' });
-  try {
-    const { message, history } = req.body || {};
-    if (!message || typeof message !== 'string') return res.status(400).json({ error: 'message is required' });
-
-    const messages = Array.isArray(history)
-      ? history.slice(-8).filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-      : [];
-    messages.push({ role: 'user', content: message.slice(0, 2000) });
-
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 400,
-      system: SUPPORT_SYSTEM_PROMPT,
-      messages,
-    });
-    const reply = response.content.find((block) => block.type === 'text')?.text || "Sorry, I couldn't come up with a reply - please try again or submit a support ticket.";
-    res.json({ reply });
-  } catch (e) {
-    console.error('[support chat]', e);
-    res.status(500).json({ error: 'Support chat is temporarily unavailable' });
-  }
-});
-
-app.get('/api/support/tickets/mine', requireDb, authenticate, async (req, res) => {
-  try {
-    const tickets = await db.listPlayerSupportTickets(req.tokenPlayer.id);
-    res.json({ tickets });
-  } catch (e) {
-    console.error('[support tickets mine]', e);
-    res.status(500).json({ error: 'Could not load your tickets' });
-  }
-});
-
-// Works for both logged-in players (authenticate is best-effort here, not
-// required) and logged-out visitors on public pages that carry the support
-// widget - a ticket with no player_id is still visible/actionable in admin.
-app.post('/api/support/ticket', requireDb, async (req, res) => {
-  try {
-    const { subject, message } = req.body || {};
-    if (!subject || !message) return res.status(400).json({ error: 'subject and message are required' });
-
-    let playerId = null;
-    const header = req.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-    if (token) {
-      try {
-        const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-        if (user) {
-          const player = await db.getPlayerBySupabaseUserId(user.id);
-          if (player) playerId = player.id;
-        }
-      } catch (e) { /* anonymous ticket is fine */ }
-    }
-
-    const ticket = await db.createSupportTicket({ playerId, subject: subject.slice(0, 200), message: message.slice(0, 4000) });
-    res.json({ success: true, ticket });
-  } catch (e) {
-    console.error('[support ticket]', e);
-    res.status(500).json({ error: 'Could not submit ticket' });
-  }
-});
+// ---- support: AI agent + human handoff + tickets ----------------------------------
+// Everything lives in server/support/ (see support/index.js for the routes,
+// the /support socket namespace and the admin bridge).
+const { mountSupport } = require('./support');
+mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp });
 
 app.get('/api/version', (req, res) => {
   res.json({ version: require('../package.json').version });
@@ -2779,12 +2705,7 @@ app.get('/api/leaderboard', requireDb, async (req, res) => {
 
 // ---- coins / stripe -----------------------------------------------------------
 
-const COIN_PACKAGES = {
-  100: { coins: 100, priceUsd: 0.99 },
-  500: { coins: 500, priceUsd: 3.99 },
-  1500: { coins: 1500, priceUsd: 9.99 },
-  5000: { coins: 5000, priceUsd: 24.99 },
-};
+const { COIN_PACKAGES } = require('./coinPackages');
 
 app.post('/api/coins/purchase', requireDb, authenticate, async (req, res) => {
   try {

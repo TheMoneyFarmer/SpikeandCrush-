@@ -28,7 +28,27 @@ async function callInternal(path, { method = 'GET', body } = {}) {
   return json;
 }
 
+// Raw image upload for an agent attachment (binary body, not JSON).
+async function supportUpload(conversationId, buffer, mime) {
+  const res = await fetch(`${GAME_SERVER_URL}/internal/support/conversations/${conversationId}/attachments`, {
+    method: 'POST',
+    headers: { 'Content-Type': mime || 'application/octet-stream', 'x-internal-secret': SECRET || '' },
+    body: buffer,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(json.error || `Game server returned ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return json;
+}
+
 module.exports = {
+  // Support system actions that must reach a live user (socket push, email,
+  // bell) run on the game server - see server/support/index.js.
+  support: (path, body) => callInternal(`/internal/support${path}`, { method: body === undefined ? 'GET' : 'POST', body }),
+  supportUpload,
   getLiveState: () => callInternal('/internal/admin/state'),
   getConfig: () => callInternal('/internal/admin/config'),
   getErrors: () => callInternal('/internal/admin/errors'),

@@ -15,6 +15,7 @@ const MAX_LOTS = 10.0;
 const MAX_POSITIONS = 10;
 const SOFT_LOSS_WINDOW_SECONDS = 120; // 2 minutes
 const SOFT_LOSS_PCT = 0.2; // 20% of starting capital lost within the current window -> locked out until it resets
+const RECONNECT_GRACE_MS = 60000; // disconnect grace before a mid-match forfeit (startDisconnectGrace)
 const HARD_LOSS_PCT = 0.5; // 50% of starting capital lost overall -> eliminated for the rest of the match
 // The core trading rules, shared with long-form competitions (compEngine.js)
 // so both play by the same numbers.
@@ -92,6 +93,17 @@ const MATCH_MODES = {
     fillMethod: 'none',
   },
 };
+
+// Read-only view of each mode's match length in seconds, for code that must
+// quote the real rules (the support assistant's knowledge). Getters read
+// MATCH_MODES live, so admin config overrides (applyConfigOverrides mutates
+// MATCH_MODES in place) are reflected without a second copy of the numbers.
+const MODE_DURATIONS = Object.freeze(
+  Object.keys(MATCH_MODES).reduce((acc, mode) => {
+    Object.defineProperty(acc, mode, { enumerable: true, get: () => MATCH_MODES[mode].durationSeconds });
+    return acc;
+  }, {})
+);
 
 // Rank-based share of the 85%-of-pool prize (15% platform cut) - replaces the
 // old flat MATCH_COIN_REWARDS table now that entry fees vary by mode.
@@ -313,7 +325,6 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   const roomCodeIndex = new Map(); // roomCode -> matchId
   const socketSessions = new Map(); // socketId -> { matchId, playerId }
   const disconnectTimers = new Map(); // "matchId:playerId" -> Timeout, while a grace period is counting down
-  const RECONNECT_GRACE_MS = 60000;
 
   function roomName(matchId) {
     return `match:${matchId}`;
@@ -1854,6 +1865,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
               split_count: r.splitCount,
               combined_prize_percentage: r.combinedPrizePercentage,
             });
+            // Separate, best-effort: why the match ended (support answers).
+            // Never allowed to block results or prize coins below.
+            db.updateMatchPlayer(match.dbMatchId, r.playerId, { end_reason: p && p.eliminated ? 'loss_limit' : 'completed' }).catch(() => {});
           }
           if (r.coinsAwarded > 0) {
             await db.creditCoins(r.playerId, r.coinsAwarded, { type: 'prize_won', matchId: match.dbMatchId });
@@ -2139,7 +2153,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       // means bindSocket already cleared this timer, but the closure could
       // still fire on the old timer in a narrow race, so check again here.
       if (stillPlayer && !stillPlayer.socketId) {
-        leaveMatch(match.id, playerId).catch((e) => console.error('[gameEngine] disconnect forfeit failed:', e.message));
+        leaveMatch(match.id, playerId, 'disconnect').catch((e) => console.error('[gameEngine] disconnect forfeit failed:', e.message));
       }
     }, RECONNECT_GRACE_MS);
     disconnectTimers.set(key, timer);
@@ -2299,7 +2313,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     return { success: true, refunded, left: 'lobby' };
   }
 
-  async function leaveMatch(matchId, playerId) {
+  async function leaveMatch(matchId, playerId, endReason = 'left') {
     const match = matches.get(matchId);
     if (!match) return { success: false, error: 'Match not found' };
     const player = match.players[playerId];
@@ -2347,6 +2361,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
             trades_made: player.tradesMade,
             rating_change: ratingChange,
           });
+          db.updateMatchPlayer(match.dbMatchId, playerId, { end_reason: endReason }).catch(() => {});
         }
       } catch (e) {
         console.warn('[gameEngine] leaveMatch persistence failed:', e.message);
@@ -2442,4 +2457,4 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   };
 }
 
-module.exports = { createGameEngine, GAME_RULES, baseRatingForPosition, tierForRating, TIERS, computeMatchResults, groupByTiedPnl, samePnl, getExperienceLevel, EXPERIENCE_LEVELS, PRIVATE_WAR_HOST_FEE };
+module.exports = { createGameEngine, GAME_RULES, MODE_DURATIONS, MATCH_MODES, SOFT_LOSS_PCT, SOFT_LOSS_WINDOW_SECONDS, RECONNECT_GRACE_SECONDS: RECONNECT_GRACE_MS / 1000, MAX_PLAYERS, PRIZE_SHARE_BY_RANK, baseRatingForPosition, tierForRating, TIERS, computeMatchResults, groupByTiedPnl, samePnl, getExperienceLevel, EXPERIENCE_LEVELS, PRIVATE_WAR_HOST_FEE };

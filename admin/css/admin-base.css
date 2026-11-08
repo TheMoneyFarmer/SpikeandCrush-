@@ -404,3 +404,7 @@ a { color: inherit; }
   padding: 6px 10px;
   cursor: pointer;
 }
+
+/* Support inbox "waiting for a human" badge in the sidebar (admin-nav.js) */
+.sup-badge-nav { display: inline-block; margin-left: 6px; background: var(--danger); color: #fff; border-radius: 999px; font-size: 10px; padding: 0 6px; line-height: 16px; vertical-align: middle; }
+.sup-badge-nav:empty { display: none; }

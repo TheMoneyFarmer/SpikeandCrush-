@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Knowledge Base — Spike & Crush Admin</title>
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-support.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="support-kb"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-tab="articles">Articles</button>
+          <button class="admin-tab" data-tab="gaps">KB gaps</button>
+        </div>
+
+        <div id="tabArticles">
+          <div class="admin-table-toolbar">
+            <input id="kbFilter" type="search" placeholder="Filter articles" aria-label="Filter articles" />
+            <select id="kbShow" aria-label="Show"><option value="">All</option><option value="review">Needs review</option><option value="unpublished">Unpublished</option><option value="admin">Admin-written</option><option value="code">From code</option></select>
+            <span class="sup-spacer"></span>
+            <button class="btn btn-outline" id="kbRegen" hidden>Regenerate from code</button>
+            <button class="btn btn-primary" id="kbNew" hidden>New article</button>
+          </div>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Title</th><th>Category</th><th>Source</th><th>Status</th><th>Updated</th></tr></thead><tbody id="kbRows"><tr><td colspan="5">Loading</td></tr></tbody></table></div>
+          <div class="panel" id="kbEditor" hidden style="margin-top:16px"></div>
+        </div>
+
+        <div id="tabGaps" hidden>
+          <div class="admin-table-toolbar">
+            <select id="gapStatus" aria-label="Gap status"><option value="open">Open</option><option value="answered">Answered</option><option value="ignored">Ignored</option></select>
+          </div>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Question</th><th>Times asked</th><th>Last asked</th><th></th></tr></thead><tbody id="gapRows"></tbody></table></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/time-ago.js"></script>
+  <script src="js/support-markdown.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+  (function () {
+    Admin.renderNav();
+    Admin.renderTopbar('Knowledge Base');
+    const esc = Admin.escapeHtml;
+    const $ = (id) => document.getElementById(id);
+    let articles = [];
+    let canEdit = false;
+
+    document.querySelectorAll('.admin-tab').forEach((t) => t.addEventListener('click', () => {
+      document.querySelectorAll('.admin-tab').forEach((x) => x.classList.toggle('active', x === t));
+      $('tabArticles').hidden = t.dataset.tab !== 'articles';
+      $('tabGaps').hidden = t.dataset.tab !== 'gaps';
+      if (t.dataset.tab === 'gaps') loadGaps();
+    }));
+    if (new URLSearchParams(location.search).get('tab') === 'gaps') document.querySelector('[data-tab="gaps"]').click();
+
+    async function load() {
+      const d = await Admin.api('/support/kb');
+      articles = d.articles;
+      canEdit = d.canEdit;
+      $('kbNew').hidden = !canEdit;
+      $('kbRegen').hidden = !d.canRegenerate;
+      renderRows();
+    }
+    function renderRows() {
+      const f = $('kbFilter').value.toLowerCase();
+      const show = $('kbShow').value;
+      const rows = articles.filter((a) => (!f || a.title.toLowerCase().includes(f) || (a.tags || []).join(' ').includes(f))
+        && (!show || (show === 'review' && a.needs_review) || (show === 'unpublished' && !a.published) || a.source === show));
+      $('kbRows').innerHTML = rows.map((a) => `<tr data-id="${esc(a.id)}" style="cursor:pointer">
+        <td><strong>${esc(a.title)}</strong>${a.needs_review ? ' <span class="sup-tag p-high">needs review</span>' : ''}</td>
+        <td>${esc(a.category)}</td>
+        <td><span class="sup-tag ${a.source === 'admin' ? 'h-human' : 's-ai'}">${esc(a.source)}</span>${a.overrides_slug ? ` <span class="text-secondary" style="font-size:11px">overrides ${esc(a.overrides_slug)}</span>` : ''}</td>
+        <td>${a.published ? 'Published' : '<span class="text-warning">Unpublished</span>'}</td>
+        <td>${esc(TW.timeAgo(a.updated_at))}${a.updated_by ? ` · ${esc(a.updated_by)}` : ''}</td></tr>`).join('') || '<tr><td colspan="5">No articles</td></tr>';
+    }
+    $('kbFilter').addEventListener('input', renderRows);
+    $('kbShow').addEventListener('change', renderRows);
+    $('kbRows').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr) openEditor(tr.dataset.id); });
+    $('kbNew').addEventListener('click', () => openEditor(null));
+    $('kbRegen').addEventListener('click', async () => {
+      if (!(await Admin.confirmModal({ title: 'Regenerate from code', body: 'Rebuilds the code-generated articles from the game code. Articles edited by an admin are left alone.', confirmLabel: 'Regenerate' }))) return;
+      try {
+        const r = await Admin.api('/support/kb-regenerate', { method: 'POST' });
+        Admin.toast(`Regenerated ${r.written.length} articles${r.skippedAdminEdited.length ? `, kept ${r.skippedAdminEdited.length} admin edits` : ''}`, 'success');
+        load();
+      } catch (e) { Admin.toast(e.message, 'error'); }
+    });
+
+    async function openEditor(id, prefill) {
+      const a = id ? await Admin.api(`/support/kb/${id}`) : { title: prefill || '', body_md: '', category: 'general', tags: [], published: true, needs_review: false, source: 'admin', overrides_slug: null };
+      const ro = !canEdit;
+      const ed = $('kbEditor');
+      ed.hidden = false;
+      ed.innerHTML = `
+        <h3 style="margin-top:0">${id ? 'Edit article' : 'New article'} ${a.source === 'code' && id ? '<span class="text-secondary" style="font-size:12px;font-weight:400">(generated from code: saving a content change makes it an admin article that regeneration will not overwrite)</span>' : ''}</h3>
+        <div class="field-row">
+          <div class="field" style="flex:2"><label>Title</label><input id="edTitle" value="${esc(a.title)}" ${ro ? 'disabled' : ''} /></div>
+          <div class="field"><label>Category</label><input id="edCat" value="${esc(a.category)}" ${ro ? 'disabled' : ''} /></div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="flex:2"><label>Tags (comma separated)</label><input id="edTags" value="${esc((a.tags || []).join(', '))}" ${ro ? 'disabled' : ''} /></div>
+          <div class="field"><label>Replaces code article (slug, optional)</label><input id="edOverride" value="${esc(a.overrides_slug || '')}" ${ro ? 'disabled' : ''} placeholder="e.g. disconnects" /></div>
+        </div>
+        <div class="sup-kb-grid">
+          <div><label class="text-secondary" style="font-size:12px">Markdown</label><textarea id="edBody" ${ro ? 'disabled' : ''}>${esc(a.body_md)}</textarea></div>
+          <div><label class="text-secondary" style="font-size:12px">Preview</label><div class="sup-md-preview" id="edPreview"></div></div>
+        </div>
+        <div class="sup-row" style="margin-top:12px">
+          <label><input type="checkbox" id="edPub" ${a.published ? 'checked' : ''} ${ro ? 'disabled' : ''} /> Published</label>
+          <label><input type="checkbox" id="edReview" ${a.needs_review ? 'checked' : ''} ${ro ? 'disabled' : ''} /> Needs review</label>
+          <span class="sup-spacer"></span>
+          <button class="btn" id="edClose">Close</button>
+          ${ro ? '' : '<button class="btn btn-primary" id="edSave">Save</button>'}
+        </div>`;
+      const preview = () => { $('edPreview').innerHTML = TW.supportMarkdown.render($('edBody').value); };
+      preview();
+      $('edBody').addEventListener('input', preview);
+      $('edClose').onclick = () => { ed.hidden = true; };
+      if (!ro) $('edSave').onclick = async () => {
+        const body = { title: $('edTitle').value, body_md: $('edBody').value, category: $('edCat').value, tags: $('edTags').value, published: $('edPub').checked, needs_review: $('edReview').checked, overrides_slug: $('edOverride').value.trim() || null };
+        try {
+          await Admin.api(id ? `/support/kb/${id}` : '/support/kb', { method: id ? 'PUT' : 'POST', body });
+          Admin.toast('Saved', 'success');
+          ed.hidden = true;
+          load();
+        } catch (e) { Admin.toast(e.message, 'error'); }
+      };
+      ed.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function loadGaps() {
+      const d = await Admin.api(`/support/gaps?status=${$('gapStatus').value}`);
+      $('gapRows').innerHTML = d.gaps.map((g) => `<tr>
+        <td>${esc(g.question)}</td><td>${esc(g.count)}</td><td>${esc(TW.timeAgo(g.updated_at))}</td>
+        <td style="white-space:nowrap">${d.canEdit ? `<button class="btn btn-sm btn-primary" data-write="${esc(g.id)}" data-q="${esc(g.question)}">Write article</button> <button class="btn btn-sm" data-status="answered" data-id="${esc(g.id)}">Answered</button> <button class="btn btn-sm" data-status="ignored" data-id="${esc(g.id)}">Ignore</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="4">No gaps</td></tr>';
+    }
+    $('gapStatus').addEventListener('change', loadGaps);
+    $('gapRows').addEventListener('click', async (e) => {
+      const w = e.target.closest('[data-write]');
+      if (w) {
+        document.querySelector('[data-tab="articles"]').click();
+        return openEditor(null, w.dataset.q);
+      }
+      const s = e.target.closest('[data-status]');
+      if (s) {
+        try { await Admin.api(`/support/gaps/${s.dataset.id}`, { method: 'POST', body: { status: s.dataset.status } }); loadGaps(); } catch (err) { Admin.toast(err.message, 'error'); }
+      }
+    });
+
+    load().catch((e) => { $('kbRows').innerHTML = `<tr><td colspan="5">${esc(e.message)}</td></tr>`; });
+  })();
+  </script>
+</body>
+</html>

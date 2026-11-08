@@ -13,7 +13,9 @@ const LOCKOUT_WINDOW_MINUTES = 15;
 // (invite/deactivate require super_admin). This can never be deleted,
 // demoted, or deactivated - see seedMasterAdmin() and the admin_users
 // routes' own checks against this exact email.
-const ADMIN_ROLES = ['super_admin', 'admin', 'moderator'];
+// 'support' = support agents: reply and resolve only (admin/server.js confines
+// them to the support API; routes/support.js gates KB edits and exports).
+const ADMIN_ROLES = ['super_admin', 'admin', 'moderator', 'support'];
 const MASTER_ADMIN_EMAIL = 'thandolwenkosimceeyah@gmail.com';
 
 function clientIp(req) {

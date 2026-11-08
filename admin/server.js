@@ -120,6 +120,19 @@ app.post('/api/auth/logout', (req, res) => {
 
 // ---- static + page auth -----------------------------------------------------
 
+// Live support events pushed by the game server (new waiting conversation,
+// new message, status change). Same shared secret + localhost rule as the
+// game server's own internal bridge; re-broadcast to signed-in admin sockets.
+app.post('/internal/support-event', (req, res) => {
+  const ip = (req.socket.remoteAddress || '').replace('::ffff:', '');
+  const localOk = process.env.SUPPORT_BRIDGE_ALLOW_REMOTE === '1' || ip === '127.0.0.1' || ip === '::1';
+  if (!process.env.INTERNAL_ADMIN_SECRET || req.headers['x-internal-secret'] !== process.env.INTERNAL_ADMIN_SECRET || !localOk) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  io.emit('support:event', req.body || {});
+  res.json({ ok: true });
+});
+
 const PUBLIC_FILES = new Set(['/login.html', '/css/admin-base.css', '/css/admin-components.css', '/favicon.ico']);
 
 app.use((req, res, next) => {
@@ -131,11 +144,19 @@ app.use((req, res, next) => {
 
 // The game site's relative-time helper, so both panels format times the same way.
 app.get('/js/time-ago.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'js', 'time-ago.js')));
+app.get('/js/support-markdown.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'js', 'support-markdown.js')));
 app.use(express.static(path.join(__dirname)));
 
 // ---- api routes ---------------------------------------------------------------
 
 app.use('/api', requireAdmin);
+// Support agents (role 'support') may use the support inbox and nothing else.
+app.use('/api', (req, res, next) => {
+  if (req.admin && req.admin.role === 'support' && !req.path.startsWith('/support') && !req.path.startsWith('/admins/change-password')) {
+    return res.status(403).json({ error: 'Support agents can only use the Support section' });
+  }
+  next();
+});
 app.use('/api/dashboard', require('./routes/dashboard')());
 app.use('/api/players', require('./routes/players')());
 app.use('/api/matches', require('./routes/matches')());
