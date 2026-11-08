@@ -21,7 +21,12 @@ if (!isConfigured) {
 }
 
 // Service role key bypasses RLS - this client must never be sent to the browser.
-const supabase = isConfigured ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY) : null;
+// Every DB call gets a timeout so a stalled request can't hang a player's
+// request or the competition tick forever (audit item 2).
+const DB_TIMEOUT_MS = Number(process.env.DB_TIMEOUT_MS || 15000);
+const fetchWithTimeout = (url, opts = {}) =>
+  fetch(url, { ...opts, signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(DB_TIMEOUT_MS)]) : AbortSignal.timeout(DB_TIMEOUT_MS) });
+const supabase = isConfigured ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { global: { fetch: fetchWithTimeout } }) : null;
 
 function assertConfigured() {
   if (!isConfigured) {
@@ -96,35 +101,47 @@ async function recordCoinTransaction({ playerId, type, amount, balanceAfter, mat
   return data;
 }
 
-async function creditCoins(id, amount, { type = 'prize_won', matchId = null } = {}) {
+// ---- coins: every movement goes through the coin_apply() SQL function ----------------
+// One statement moves the balance (never below zero) and writes the ledger row
+// in the same transaction (supabase/migrations/20261108100000_security_ledger.sql).
+// The old read-modify-write here lost updates under concurrency and could
+// leave the ledger and the balance disagreeing (audit Proofs A-C).
+// `idempotencyKey` makes a call safe to retry: the same key never moves coins twice.
+async function applyCoins(id, delta, { type, matchId = null, idempotencyKey = null }) {
   assertConfigured();
-  const player = await getPlayerById(id);
-  if (!player) throw new Error('Player not found');
-  const newBalance = player.coins + amount;
-  const updated = await updatePlayer(id, {
-    coins: newBalance,
-    coins_earned_total: (player.coins_earned_total || 0) + amount,
+  const { data, error } = await supabase.rpc('coin_apply', {
+    p_player: id,
+    p_delta: delta,
+    p_type: type,
+    p_match: matchId,
+    p_key: idempotencyKey,
   });
-  await recordCoinTransaction({ playerId: id, type, amount, balanceAfter: newBalance, matchId });
-  return updated;
-}
-
-async function debitCoins(id, amount, { type = 'match_entry', matchId = null } = {}) {
-  assertConfigured();
-  const player = await getPlayerById(id);
-  if (!player) throw new Error('Player not found');
-  if (player.coins < amount) {
+  if (error) {
+    // A concurrent call with the same key won the race: already applied once.
+    if (error.hint === 'duplicate' || /duplicate key/i.test(error.message || '')) {
+      return { ...(await getPlayerById(id)), duplicate: true };
+    }
+    throw error;
+  }
+  if (data?.error === 'player_not_found') throw new Error('Player not found');
+  if (data?.error === 'insufficient_coins') {
     const err = new Error('Insufficient coins');
     err.code = 'INSUFFICIENT_COINS';
+    err.balance = data.balance;
     throw err;
   }
-  const newBalance = player.coins - amount;
-  const updated = await updatePlayer(id, {
-    coins: newBalance,
-    coins_spent_total: (player.coins_spent_total || 0) + amount,
-  });
-  await recordCoinTransaction({ playerId: id, type, amount: -amount, balanceAfter: newBalance, matchId });
-  return updated;
+  const player = await getPlayerById(id);
+  return { ...player, duplicate: Boolean(data?.duplicate) };
+}
+
+async function creditCoins(id, amount, { type = 'prize_won', matchId = null, idempotencyKey = null } = {}) {
+  if (!(amount > 0)) throw new Error('creditCoins amount must be positive');
+  return applyCoins(id, Math.round(amount), { type, matchId, idempotencyKey });
+}
+
+async function debitCoins(id, amount, { type = 'match_entry', matchId = null, idempotencyKey = null } = {}) {
+  if (!(amount > 0)) throw new Error('debitCoins amount must be positive');
+  return applyCoins(id, -Math.round(amount), { type, matchId, idempotencyKey });
 }
 
 // ---- battle pass -----------------------------------------------------------
@@ -1298,19 +1315,48 @@ async function recordCoinPurchase({ playerId, packageCoins, amountUsd, stripeSes
   return data;
 }
 
+// Exactly-once completion: the SQL function flips pending -> completed and
+// credits in one transaction, so the webhook, /api/coins/verify-session and
+// Stripe redeliveries can all call this safely (audit Proof B).
 async function completeCoinPurchase(stripeSessionId) {
   assertConfigured();
-  const { data: purchase, error: findErr } = await supabase
-    .from('coin_purchases')
-    .select('*')
-    .eq('stripe_session_id', stripeSessionId)
-    .maybeSingle();
-  if (findErr) throw findErr;
-  if (!purchase || purchase.status === 'completed') return purchase ? { ...purchase, alreadyCompleted: true } : null;
+  const { data, error } = await supabase.rpc('complete_coin_purchase', { p_session: stripeSessionId });
+  if (error) throw error;
+  if (data?.error === 'not_found') return null;
+  const { data: purchase } = await supabase.from('coin_purchases').select('*').eq('stripe_session_id', stripeSessionId).maybeSingle();
+  return { ...purchase, alreadyCompleted: Boolean(data?.already) };
+}
 
-  await supabase.from('coin_purchases').update({ status: 'completed' }).eq('id', purchase.id);
-  await creditCoins(purchase.player_id, purchase.package_coins, { type: 'coin_purchase' });
-  return { ...purchase, alreadyCompleted: false };
+// Cheap readiness probe: one indexed row read.
+async function ping() {
+  assertConfigured();
+  const { error } = await supabase.from('players').select('id', { head: true, count: 'exact' }).limit(1);
+  if (error) throw error;
+  return true;
+}
+
+// Stripe webhook event log (de-duplication). Returns the existing row or null
+// after inserting a new one.
+async function recordStripeEvent(id, type) {
+  assertConfigured();
+  const { data } = await supabase.from('stripe_events').select('id, processed_at').eq('id', id).maybeSingle();
+  if (data) return data;
+  const { error } = await supabase.from('stripe_events').insert({ id, type });
+  if (error && error.code !== '23505') throw error;
+  return null;
+}
+async function markStripeEventProcessed(id) {
+  assertConfigured();
+  await supabase.from('stripe_events').update({ processed_at: new Date().toISOString() }).eq('id', id);
+}
+
+// Buy a shop item once and pay once, atomically (audit Proof C).
+// Returns { ok, balance } or { error: 'already_owned' | 'insufficient_coins' | 'player_not_found' }.
+async function shopBuy({ playerId, itemType, itemId, price }) {
+  assertConfigured();
+  const { data, error } = await supabase.rpc('shop_buy', { p_player: playerId, p_item_type: itemType, p_item_id: itemId, p_price: price });
+  if (error) throw error;
+  return data;
 }
 
 async function getCoinTransactions(playerId, limit = 50) {
@@ -1384,7 +1430,15 @@ async function getLargestWinToday() {
 
 // Lifetime total, unlike getCoinsWonToday() above which is scoped to today -
 // used by the landing page's "Total Prizes Distributed" stat. Coins.
+// Summed in SQL (prize_total) instead of pulling every prize row into JS,
+// which was slow and silently wrong past 10,000 rows. Falls back to the old
+// path only if the function isn't deployed yet or seed accounts are shown.
 async function getTotalPrizesDistributed() {
+  assertConfigured();
+  if (!(await showSeedAccounts())) {
+    const { data, error } = await supabase.rpc('prize_total', { p_since: null });
+    if (!error) return Number(data) || 0;
+  }
   return (await listPrizeCredits()).reduce((sum, n) => sum + n, 0);
 }
 
@@ -2094,6 +2148,11 @@ module.exports = {
   recordSabotageEvent,
   recordCoinPurchase,
   completeCoinPurchase,
+  shopBuy,
+  ping,
+  recordStripeEvent,
+  markStripeEventProcessed,
+  applyCoins,
   recordCoinTransaction,
   getCoinTransactions,
   getCoinsWonToday,

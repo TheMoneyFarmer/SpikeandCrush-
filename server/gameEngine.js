@@ -825,7 +825,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       try {
         const host = await db.getPlayerById(match.hostId);
         if (host && host.coins >= PRIVATE_WAR_HOST_FEE) {
-          await db.debitCoins(match.hostId, PRIVATE_WAR_HOST_FEE, { type: 'match_entry', matchId: match.dbMatchId });
+          await db.debitCoins(match.hostId, PRIVATE_WAR_HOST_FEE, { type: 'match_entry', matchId: match.dbMatchId, idempotencyKey: `host_fee:${match.id}` });
         } else {
           notifyPlayer?.(match.hostId, 'system', `Could not charge the ${PRIVATE_WAR_HOST_FEE}-coin Private War hosting fee - insufficient coins.`);
         }
@@ -1732,7 +1732,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       for (const r of results) {
         await db.updateTournamentRegistration(tournamentId, r.playerId, { eliminated_at: new Date().toISOString() });
         if (t.entry_coins > 0) {
-          await db.creditCoins(r.playerId, t.entry_coins, { type: 'tournament_refund', matchId: match.dbMatchId });
+          await db.creditCoins(r.playerId, t.entry_coins, { type: 'tournament_refund', matchId: match.dbMatchId, idempotencyKey: `tournament_refund:${match.id}:${r.playerId}` });
         }
         notifyPlayer?.(
           r.playerId,
@@ -1749,7 +1749,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
         if (championId) {
           await db.updateTournamentRegistration(tournamentId, championId, { final_rank: 1 });
           if (t.prize_pool_coins > 0) {
-            await db.creditCoins(championId, t.prize_pool_coins, { type: 'tournament_prize', matchId: match.dbMatchId });
+            await db.creditCoins(championId, t.prize_pool_coins, { type: 'tournament_prize', matchId: match.dbMatchId, idempotencyKey: `tournament_prize:${t.id}` });
           }
           notifyPlayer?.(championId, 'tournament_champion', `You won the tournament! +${t.prize_pool_coins} coins`);
         }
@@ -1776,7 +1776,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       await db.updateTournament(tournamentId, { status: 'completed', bracket_data: bracketData });
       await db.updateTournamentRegistration(tournamentId, championId, { final_rank: 1 });
       if (t.prize_pool_coins > 0) {
-        await db.creditCoins(championId, t.prize_pool_coins, { type: 'tournament_prize', matchId: match.dbMatchId });
+        await db.creditCoins(championId, t.prize_pool_coins, { type: 'tournament_prize', matchId: match.dbMatchId, idempotencyKey: `tournament_prize:${t.id}` });
       }
       notifyPlayer?.(championId, 'tournament_champion', `You won the tournament! +${t.prize_pool_coins} coins`);
     } else {
@@ -1856,7 +1856,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
             });
           }
           if (r.coinsAwarded > 0) {
-            await db.creditCoins(r.playerId, r.coinsAwarded, { type: 'prize_won', matchId: match.dbMatchId });
+            await db.creditCoins(r.playerId, r.coinsAwarded, { type: 'prize_won', matchId: match.dbMatchId, idempotencyKey: `prize:${match.id}:${r.playerId}` });
           }
           if (!r.isAI) {
             const season = battlepass.currentSeason();
@@ -1875,7 +1875,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
                 if (entry.premiumReward?.coins) tierCoins += entry.premiumReward.coins;
               }
               if (tierCoins > 0) {
-                await db.creditCoins(r.playerId, tierCoins, { type: 'battlepass_tier', matchId: match.dbMatchId });
+                await db.creditCoins(r.playerId, tierCoins, { type: 'battlepass_tier', matchId: match.dbMatchId, idempotencyKey: `bp_tier:${match.id}:${r.playerId}` });
               }
               notifyPlayer?.(r.playerId, 'battlepass_tier', `Battle Pass tier ${newTier} unlocked!`);
             }
@@ -2029,6 +2029,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   function bindSpectator(socket, matchId) {
     const match = matches.get(matchId);
     if (!match) return { success: false, error: 'Match not found' };
+    // Private rooms are invite-only: only their own players may watch
+    // (audit item 10 - any logged-in user with the id could spectate before).
+    const viewerId = socket.data?.player?.id;
+    if (match.mode === 'private' && !(viewerId && match.players[viewerId])) {
+      return { success: false, error: 'This match is private' };
+    }
     socket.join(roomName(matchId));
     io.to(socket.id).emit('match:state', buildMatchStatePayloadFor(match, null));
     return { success: true };
@@ -2230,7 +2236,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       if (player.isAI) continue;
       if (match.config.entryCoins > 0 && db.isConfigured) {
         try {
-          await db.creditCoins(player.id, match.config.entryCoins, { type: 'admin_grant', matchId: match.dbMatchId });
+          await db.creditCoins(player.id, match.config.entryCoins, { type: 'admin_grant', matchId: match.dbMatchId, idempotencyKey: `void_refund:${match.id}:${player.id}` });
         } catch (e) {
           console.warn('[gameEngine] voidMatch refund failed for', player.username, e.message);
         }
@@ -2272,9 +2278,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     if (match.hostId === playerId) match.hostId = humansLeft[0] || null;
 
     let refunded = 0;
-    if (match.config.entryCoins > 0 && db.isConfigured) {
+    // Refund exactly the entry this player paid for this seat (entryPaidKey is
+    // set by the server when the entry debit succeeds), keyed off that payment
+    // so leaving can never refund more than was paid.
+    if (match.config.entryCoins > 0 && db.isConfigured && player?.entryPaidKey) {
       try {
-        await db.creditCoins(playerId, match.config.entryCoins, { type: 'match_refund', matchId: match.dbMatchId });
+        await db.creditCoins(playerId, match.config.entryCoins, { type: 'match_refund', matchId: match.dbMatchId, idempotencyKey: `refund:${player.entryPaidKey}` });
         refunded = match.config.entryCoins;
       } catch (e) {
         console.warn('[gameEngine] leaveLobby refund failed for', player?.username, e.message);

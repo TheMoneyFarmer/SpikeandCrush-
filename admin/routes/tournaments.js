@@ -1,5 +1,7 @@
 'use strict';
 
+const { applyCoins } = require('../lib/coins');
+
 const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const { logAdminAction, requireSuperAdmin, clientIp } = require('../lib/auth');
@@ -110,11 +112,8 @@ function router() {
       if (tournament.entry_coins > 0) {
         const { data: regs } = await supabase.from('tournament_registrations').select('player_id').eq('tournament_id', id);
         for (const reg of regs || []) {
-          const { data: player } = await supabase.from('players').select('coins').eq('id', reg.player_id).single();
-          if (!player) continue;
-          const newBalance = player.coins + tournament.entry_coins;
-          await supabase.from('players').update({ coins: newBalance }).eq('id', reg.player_id);
-          await supabase.from('coin_transactions').insert({ player_id: reg.player_id, type: 'admin_grant', amount: tournament.entry_coins, balance_after: newBalance });
+          // Same key as the game server's own cancellation refund: each registrant is refunded once, ever.
+          await applyCoins(reg.player_id, tournament.entry_coins, 'tournament_refund', `tournament_cancel_refund:${id}:${reg.player_id}`);
         }
       }
       await supabase.from('tournaments').update({ status: 'cancelled' }).eq('id', id);
@@ -153,12 +152,10 @@ function router() {
         if (!reg) continue;
         const amount = Math.round(tournament.prize_pool_coins * (split.percentage / 100));
         if (amount <= 0) continue;
-        const { data: player } = await supabase.from('players').select('coins').eq('id', reg.player_id).single();
-        if (!player) continue;
-        const newBalance = player.coins + amount;
-        await supabase.from('players').update({ coins: newBalance }).eq('id', reg.player_id);
-        await supabase.from('coin_transactions').insert({ player_id: reg.player_id, type: 'prize_won', amount, balance_after: newBalance });
-        results.push({ playerId: reg.player_id, rank: split.rank, amount });
+        // Keyed per tournament/rank/player: pressing Distribute twice pays once.
+        const paid = await applyCoins(reg.player_id, amount, 'prize_won', `admin_tournament_prize:${id}:${split.rank}:${reg.player_id}`);
+        if (paid?.error) continue;
+        results.push({ playerId: reg.player_id, rank: split.rank, amount, duplicate: Boolean(paid.duplicate) });
       }
       await supabase.from('tournaments').update({ status: 'completed' }).eq('id', id);
       await logAdminAction({ adminUsername: req.admin.username, actionType: 'distribute_prizes', targetType: 'tournament', targetId: id, details: { results }, ip: clientIp(req) });

@@ -98,21 +98,21 @@ window.TW = window.TW || {};
     window.location.href = '/';
   };
 
-  TW.escapeHtml = (str) => {
-    const div = document.createElement('div');
-    div.textContent = String(str ?? '');
-    return div.innerHTML;
-  };
+  // Escapes for both text and attribute contexts (quotes included).
+  TW.escapeHtml = (str) =>
+    String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  // /api/discord/connect is a plain navigation, not a fetch(), so it can't
-  // carry an Authorization header - the token rides along as a query param
-  // instead (see the matching comment on that route in server/index.js).
+  // The server issues a one-time Discord authorize URL bound to this player
+  // (POST /api/discord/connect-url), so no token ever goes in a URL.
   TW.connectDiscord = () => {
     if (!TW.getToken()) {
       TW.requireAuth();
       return;
     }
-    window.location.href = '/api/discord/connect?token=' + encodeURIComponent(TW.getToken());
+    // Ask the server for a one-time Discord link (no token in the URL).
+    TW.api('/api/discord/connect-url', { method: 'POST' })
+      .then((r) => { window.location.href = r.url; })
+      .catch(() => TW.toast('Could not start Discord linking - please try again.', 'danger'));
   };
 
   // ---- theme: one main theme in two modes - 'default' (Dark) or 'light' ------

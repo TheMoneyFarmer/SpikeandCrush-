@@ -1,0 +1,25 @@
+# Tests + dependency audit on every push and pull request (audit item 40).
+# Runs alongside safe-deploy.yml; with Railway's "Wait for CI" on, a failing
+# check here also blocks the deploy.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Syntax check every server file
+        run: for f in server/*.js admin/*.js admin/lib/*.js admin/routes/*.js; do node --check "$f"; done
+      - run: npm test
+      - name: Dependency audit (fails on high or critical)
+        run: npm audit --omit=dev --audit-level=high

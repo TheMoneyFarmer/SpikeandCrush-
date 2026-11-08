@@ -17,8 +17,9 @@ const {
   signAdminToken, signAdminUserToken, seedMasterAdmin,
   requireAdmin, requireSuperAdmin, requirePageAuth,
   logAdminAction, logAdminActivity, recordLoginAttempt, isLockedOut,
-  clientIp, ipAllowed, SESSION_HOURS,
+  clientIp, ipAllowed, SESSION_HOURS, revokeSessions, JWT_OPTS,
 } = require('./lib/auth');
+const { securityHeaders } = require('../server/securityHeaders');
 const internal = require('./lib/internalGameServer');
 
 // Railway (and most PaaS hosts) inject PORT and require the service to bind
@@ -38,9 +39,13 @@ const app = express();
 // use X-Forwarded-For safely.
 app.set('trust proxy', 1);
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: true, credentials: true } });
+// Same-origin only: the panel's own pages are the only legitimate socket client
+// (was `origin: true` with credentials, i.e. any site).
+const io = new Server(server, { cors: { origin: false } });
 
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(securityHeaders({ admin: true }));
+app.use(express.json({ limit: '200kb' }));
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 
@@ -58,11 +63,15 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   if (!ipAllowed(req)) return res.status(403).json({ error: 'Your IP is not on the admin allowlist' });
   if (!identifier || !password) return res.status(400).json({ error: 'Username/email and password are required' });
 
-  if (await isLockedOut(identifier)) {
+  if (await isLockedOut(identifier, ip)) {
     return res.status(429).json({ error: 'Too many failed attempts - locked out for 15 minutes' });
   }
 
-  const legacyValid = identifier === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD;
+  const safeEqual = (x, y) => {
+    const a1 = Buffer.from(String(x)); const b1 = Buffer.from(String(y || ''));
+    return a1.length === b1.length && require('crypto').timingSafeEqual(a1, b1);
+  };
+  const legacyValid = safeEqual(identifier, process.env.ADMIN_USERNAME) && safeEqual(password, process.env.ADMIN_PASSWORD);
   let adminUser = null;
   let dbValid = false;
 
@@ -86,22 +95,28 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
   const email = adminUser ? adminUser.email : identifier;
-  const token = adminUser ? signAdminUserToken(adminUser) : signAdminToken(identifier);
-  res.cookie('admin_token', token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: SESSION_HOURS * 60 * 60 * 1000,
-  });
 
+  // The session row is created first so the token can name it (sid): logout and
+  // deactivation revoke that row and the token stops working immediately.
   let lastLogin = null;
+  let sid = null;
   if (isConfigured) {
     const { data: prevSession } = await supabase.from('admin_sessions').select('started_at').eq('admin_username', email).order('started_at', { ascending: false }).limit(1).maybeSingle();
     lastLogin = prevSession?.started_at || null;
-    await supabase.from('admin_sessions').insert({
+    const { data: sess, error: sessErr } = await supabase.from('admin_sessions').insert({
       admin_username: email, ip_address: ip, expires_at: new Date(Date.now() + SESSION_HOURS * 60 * 60 * 1000).toISOString(),
-    });
+    }).select('id').single();
+    if (sessErr || !sess) return res.status(503).json({ error: 'Could not start a session' });
+    sid = sess.id;
     if (adminUser) await supabase.from('admin_users').update({ last_login: new Date().toISOString() }).eq('id', adminUser.id);
   }
+  const token = adminUser ? signAdminUserToken(adminUser, sid) : signAdminToken(identifier, sid);
+  res.cookie('admin_token', token, {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: req.secure || process.env.NODE_ENV === 'production',
+    maxAge: SESSION_HOURS * 60 * 60 * 1000,
+  });
   await logAdminAction({ adminUsername: email, actionType: 'login', ip });
   await logAdminActivity({ adminId: adminUser?.id || null, adminEmail: email, action: 'LOGIN', ip });
 
@@ -113,7 +128,12 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   });
 });
 
-app.post('/api/auth/logout', (req, res) => {
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const token = require('./lib/auth').getToken(req);
+    const decoded = token ? jwt.verify(token, process.env.ADMIN_SECRET, JWT_OPTS) : null;
+    if (decoded?.sid) await revokeSessions({ sid: decoded.sid });
+  } catch (e) { /* expired/invalid token: nothing to revoke */ }
   res.clearCookie('admin_token');
   res.json({ success: true });
 });
@@ -131,7 +151,19 @@ app.use((req, res, next) => {
 
 // The game site's relative-time helper, so both panels format times the same way.
 app.get('/js/time-ago.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'js', 'time-ago.js')));
-app.use(express.static(path.join(__dirname)));
+
+// Static files: ONLY the browser assets and the top-level .html pages. This
+// used to be express.static(__dirname), which served the server's own source
+// (lib/auth.js, server.js, routes/*) to anyone - audit URGENT 1.
+const STATIC_OPTS = { dotfiles: 'deny', index: false, fallthrough: true };
+app.use('/css', express.static(path.join(__dirname, 'css'), STATIC_OPTS));
+app.use('/js', express.static(path.join(__dirname, 'js'), STATIC_OPTS));
+app.use('/components', express.static(path.join(__dirname, 'components'), STATIC_OPTS));
+app.get(/^\/[a-z0-9-]+\.html$/, (req, res, next) => {
+  const file = path.join(__dirname, req.path);
+  if (path.dirname(file) !== __dirname) return next();
+  res.sendFile(file, (err) => { if (err) next(); });
+});
 
 // ---- api routes ---------------------------------------------------------------
 
@@ -154,21 +186,25 @@ app.use('/api/partners', require('./routes/partners')());
 app.use('/api/support', require('./routes/support')());
 app.use('/api/sponsors', require('./routes/sponsors')());
 
+// Anything not matched above (e.g. /lib/auth.js, /server.js) is a 404.
+app.use((req, res) => res.status(404).send('Not found'));
+
 // ---- live socket relay --------------------------------------------------------
 // Polls the game server's internal bridge every 5s and re-emits real data to
 // admin panel browser clients - see lib/internalGameServer.js. Instant events
 // (new registration, match started/ended, payment, ban) are pushed the
 // moment the admin API itself performs the relevant write, right below.
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   try {
     const cookies = (socket.handshake.headers.cookie || '').split(';').reduce((acc, part) => {
       const idx = part.indexOf('=');
       if (idx > -1) acc[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
       return acc;
     }, {});
-    const decoded = jwt.verify(cookies.admin_token, process.env.ADMIN_SECRET);
+    const decoded = jwt.verify(cookies.admin_token, process.env.ADMIN_SECRET, JWT_OPTS);
     if (!ADMIN_ROLES.includes(decoded.role)) throw new Error('not admin');
+    if (!(await require('./lib/auth').sessionStillValid(decoded))) throw new Error('session revoked');
     next();
   } catch (e) {
     next(new Error('unauthorized'));

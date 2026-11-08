@@ -5,6 +5,8 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { validateAvatar } = require('./imageValidation');
+const { securityHeaders } = require('./securityHeaders');
 const express = require('express');
 const compression = require('compression');
 const http = require('http');
@@ -56,7 +58,8 @@ const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABAS
   auth: { autoRefreshToken: false, persistSession: false },
 });
 const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== 'your_value');
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
+// Timeout + safe retries (the Stripe SDK adds idempotency keys to retried requests).
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', { timeout: 15000, maxNetworkRetries: 2 });
 
 const anthropicConfigured = Boolean(process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your_value');
 const anthropic = anthropicConfigured ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
@@ -69,6 +72,11 @@ const allowedOrigins = (process.env.ALLOWED_ORIGIN || '')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
+// In production an unset ALLOWED_ORIGIN must not silently mean "any site".
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+  console.error('[config] ALLOWED_ORIGIN must be set in production - refusing to start.');
+  process.exit(1);
+}
 const corsOrigin = allowedOrigins.length > 0 ? allowedOrigins : '*';
 
 const app = express();
@@ -77,8 +85,24 @@ const app = express();
 // express-rate-limit refuses to start (it throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
 // rather than risk keying rate limits off a client-spoofable header).
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
+// Security headers on every response, including the Stripe webhook and static files.
+app.use(securityHeaders());
+
+// Liveness / readiness for Railway and an uptime monitor (audit item 42).
+app.get('/health', (req, res) => res.json({ ok: true, uptime: Math.round(process.uptime()) }));
+app.get('/ready', async (req, res) => {
+  if (!db.isConfigured) return res.status(503).json({ ok: false, db: 'not configured' });
+  try {
+    await db.ping();
+    res.json({ ok: true, db: 'ok' });
+  } catch (e) {
+    res.status(503).json({ ok: false, db: 'unreachable' });
+  }
+});
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: corsOrigin } });
+// 100 KB message cap (default 1 MB); no client message needs more.
+const io = new Server(server, { cors: { origin: corsOrigin }, maxHttpBufferSize: 100 * 1024 });
 
 // Global playerId -> Set<socketId> registry (independent of match sessions) so
 // the notification bell works on any page, not just while inside a match.
@@ -171,20 +195,14 @@ const INVITE_TTL_MS = 60 * 1000;
 
 const AVATAR_DIR = path.join(__dirname, '..', 'client', 'uploads', 'avatars');
 fs.mkdirSync(AVATAR_DIR, { recursive: true });
+// Avatars are held in memory, validated by their bytes (server/imageValidation.js)
+// and written with an extension derived from the detected type - never the
+// client's filename or MIME label (audit URGENT 2).
 const avatarUpload = multer({
-  storage: multer.diskStorage({
-    destination: AVATAR_DIR,
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, `${req.tokenPlayer.id}-${Date.now()}${ext}`);
-    },
-  }),
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB per FIX 6 spec
-  fileFilter: (req, file, cb) => {
-    if (!/^image\/(png|jpe?g|webp|gif)$/.test(file.mimetype)) return cb(new Error('Only image files are allowed'));
-    cb(null, true);
-  },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024, files: 1 },
 });
+const AVATAR_BUCKET = 'avatars';
 
 function sanitizePlayer(p) {
   const { password_hash, totp_secret, ...rest } = p;
@@ -234,6 +252,15 @@ async function verifyPasswordViaSupabase(email, password) {
 // req.tokenPlayer with the FULL player row (not just a JWT payload) - every
 // existing call site only ever read `.id` (or `.sid`, handled separately),
 // so this is a safe superset, not a breaking change to that contract.
+// Bans set in the admin panel (players.is_banned / banned_until) were never
+// checked by the game server (audit item 26). A ban with no end date is
+// permanent; an expired ban no longer applies.
+function activeBan(player) {
+  if (!player?.is_banned) return null;
+  if (player.banned_until && new Date(player.banned_until).getTime() <= Date.now()) return null;
+  return { until: player.banned_until || null, reason: player.ban_reason || null };
+}
+
 async function authenticate(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -247,6 +274,8 @@ async function authenticate(req, res, next) {
 
     const player = await db.getPlayerBySupabaseUserId(user.id);
     if (!player) return res.status(401).json({ error: 'Player record not found' });
+    const ban = activeBan(player);
+    if (ban) return res.status(403).json({ error: 'This account is banned', bannedUntil: ban.until, reason: ban.reason });
 
     req.user = user;
     req.tokenPlayer = player;
@@ -304,37 +333,47 @@ app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), async
     return res.status(400).send(`Webhook Error: ${e.message}`);
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    if (session.metadata?.type === 'battlepass') {
-      try {
+  // De-duplicate: Stripe redelivers events. Record the event id first; a
+  // replay of a fully processed event is acknowledged without doing anything.
+  // (Every credit below is also idempotent on its own, so a crash between the
+  // credit and marking the event processed is safe to retry.)
+  let seen = null;
+  try {
+    seen = await db.recordStripeEvent(event.id, event.type);
+  } catch (e) {
+    console.error('[stripe webhook] event log unavailable:', e.message);
+  }
+  if (seen?.processed_at) return res.json({ received: true, duplicate: true });
+
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      if (session.metadata?.type === 'battlepass') {
         await db.setBattlePassPremium(session.metadata.playerId, session.metadata.season, {
           stripeSubscriptionId: session.subscription,
           expiresAt: battlepass.seasonExpiry(),
         });
         notifyPlayer(session.metadata.playerId, 'battlepass_premium', 'Battle Pass Premium activated!');
-      } catch (e) {
-        console.error('[stripe webhook] failed to activate battle pass:', e.message);
-      }
-    } else if (session.metadata?.type === 'coaching') {
-      try {
+      } else if (session.metadata?.type === 'coaching') {
         const row = await db.updateCoachingSession(session.metadata.sessionId, { status: 'scheduled' });
         notifyPlayer(row.student_id, 'coaching_booked', 'Your coaching session is confirmed!');
         notifyPlayer(row.coach_id, 'coaching_booked', 'You have a new coaching session booked!');
-      } catch (e) {
-        console.error('[stripe webhook] failed to confirm coaching session:', e.message);
-      }
-    } else {
-      try {
+      } else {
         const purchase = await db.completeCoinPurchase(session.id);
-        if (session.metadata?.playerId) {
-          notifyPlayer(session.metadata.playerId, 'coin_purchase', `${session.metadata.coins || ''} coins added to your wallet!`);
+        if (purchase && !purchase.alreadyCompleted) {
+          if (session.metadata?.playerId) {
+            notifyPlayer(session.metadata.playerId, 'coin_purchase', `${session.metadata.coins || ''} coins added to your wallet!`);
+          }
+          await sendReceiptEmail(purchase).catch((e) => console.error('[stripe webhook] receipt email failed:', e.message));
         }
-        if (purchase && !purchase.alreadyCompleted) await sendReceiptEmail(purchase);
-      } catch (e) {
-        console.error('[stripe webhook] failed to complete purchase:', e.message);
       }
     }
+    await db.markStripeEventProcessed(event.id).catch((e) => console.error('[stripe webhook] could not mark processed:', e.message));
+  } catch (e) {
+    // Fail loudly so Stripe retries (it backs off for up to 3 days). Before,
+    // a failed credit was logged and acknowledged with 200, so it was lost.
+    console.error('[stripe webhook] processing failed, Stripe will retry:', event.id, e.message);
+    return res.status(500).json({ error: 'processing failed' });
   }
   res.json({ received: true });
 });
@@ -343,7 +382,7 @@ app.use(cors({ origin: corsOrigin }));
 // Mostly for /api/match/:id/history, which carries several hundred KB of
 // price history per instrument - gzip cuts that ~5x on mobile connections.
 app.use(compression());
-app.use(express.json());
+app.use(express.json({ limit: '200kb' }));
 
 // Safe deploys: pause new matches and let live ones finish before a restart
 // (see server/deployDrain.js and .github/workflows/safe-deploy.yml).
@@ -353,7 +392,11 @@ deployDrain.mount(app);
 // index:false - without it, static's default directory-index behavior would
 // serve client/index.html for a bare "/" request before the explicit
 // app.get('/') route below (landing.html) is ever reached.
-app.use(express.static(path.join(__dirname, '..', 'client'), { index: false }));
+// Uploaded avatars: only image files are ever served from /uploads (a file
+// uploaded before validation existed can't be served as HTML).
+app.use('/uploads', (req, res, next) => (/\.(png|jpe?g|gif|webp)$/i.test(req.path) ? next() : res.status(404).end()));
+// Short browser cache (assets aren't fingerprinted yet) + ETag revalidation.
+app.use(express.static(path.join(__dirname, '..', 'client'), { index: false, maxAge: '5m', dotfiles: 'ignore' }));
 
 // Clean URL routes for the new pages (kept alongside the original .html
 // paths, which existing client-side navigation still uses unchanged).
@@ -412,6 +455,10 @@ app.get('/r/:code', async (req, res) => {
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+// Paid AI calls and spam-prone endpoints get their own, tighter limits (audit item 1).
+const supportChatLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many messages - please wait a few minutes.' } });
+const supportTicketLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many tickets - please wait before opening another.' } });
+const clickLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
 app.use('/api', apiLimiter);
 
 // Internal-only bridge for the separate admin panel (port 3003) - secret +
@@ -505,6 +552,17 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
     }
     if (username.length < 3 || username.length > 20) {
       return res.status(400).json({ error: 'Username must be 3-20 characters' });
+    }
+    // Letters, numbers and underscores only: names are shown all over the game,
+    // so markup characters are never allowed in them (defence in depth, item 34).
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) {
+      return res.status(400).json({ error: 'Username can only use letters, numbers and underscores' });
+    }
+    if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Enter a valid email address' });
+    }
+    if (typeof password !== 'string' || password.length > 200) {
+      return res.status(400).json({ error: 'Password is too long' });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
@@ -607,6 +665,8 @@ app.post('/api/auth/login', authLimiter, requireDb, async (req, res) => {
 
     const { data: signIn, error: signInErr } = await supabaseAdmin.auth.signInWithPassword({ email: player.email, password });
     if (signInErr || !signIn.session) return res.status(401).json({ error: 'Invalid username or password' });
+    const ban = activeBan(player);
+    if (ban) return res.status(403).json({ error: ban.until ? `This account is banned until ${new Date(ban.until).toUTCString()}` : 'This account is banned', reason: ban.reason });
 
     if (player.totp_enabled) {
       if (!totpCode) return res.status(401).json({ error: 'Two-factor code required', requiresTotp: true });
@@ -684,7 +744,7 @@ app.post('/api/auth/reset-password', authLimiter, requireDb, async (req, res) =>
 // OAuth user. Deliberately does NOT use the `authenticate` middleware: that
 // middleware 401s when no player record exists yet, which is exactly the
 // case this endpoint has to handle (a brand new OAuth user).
-app.post('/api/auth/oauth-callback', requireDb, async (req, res) => {
+app.post('/api/auth/oauth-callback', authLimiter, requireDb, async (req, res) => {
   try {
     const header = req.headers.authorization || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -729,38 +789,44 @@ app.post('/api/auth/oauth-callback', requireDb, async (req, res) => {
 // the token travels as a query param instead and is verified the exact same
 // way authenticate() verifies it, just for this one entry point. The real
 // authenticate() middleware is intentionally left header-only everywhere else.
-app.get('/api/discord/connect', requireDb, async (req, res) => {
-  try {
-    const token = req.query.token;
-    if (!token) return res.redirect('/settings?discord=error');
-    const {
-      data: { user },
-      error,
-    } = await supabaseAdmin.auth.getUser(token);
-    if (error || !user) return res.redirect('/settings?discord=error');
-    const player = await db.getPlayerBySupabaseUserId(user.id);
-    if (!player) return res.redirect('/settings?discord=error');
+// Discord linking (audit item 27). The OAuth `state` is a random single-use
+// value held server-side for 10 minutes and bound to the player who asked for
+// it; it used to be the player's id (predictable, so anyone could link their
+// Discord to someone else's account) and the Supabase access token was passed
+// in the page URL (ending up in logs and browser history).
+const discordStates = new Map(); // state -> { playerId, expires }
+const DISCORD_STATE_TTL_MS = 10 * 60 * 1000;
+function takeDiscordState(state) {
+  const entry = state ? discordStates.get(state) : null;
+  if (entry) discordStates.delete(state);
+  for (const [k, v] of discordStates) if (v.expires < Date.now()) discordStates.delete(k);
+  return entry && entry.expires > Date.now() ? entry.playerId : null;
+}
 
-    const params = new URLSearchParams({
-      client_id: process.env.DISCORD_CLIENT_ID,
-      redirect_uri: process.env.SITE_URL + '/api/discord/callback',
-      response_type: 'code',
-      scope: 'identify guilds.join',
-      state: player.id,
-    });
-    res.redirect('https://discord.com/oauth2/authorize?' + params.toString());
-  } catch (e) {
-    console.error('[discord connect]', e);
-    res.redirect('/settings?discord=error');
-  }
+app.post('/api/discord/connect-url', requireDb, authenticate, (req, res) => {
+  const state = crypto.randomBytes(24).toString('hex');
+  discordStates.set(state, { playerId: req.tokenPlayer.id, expires: Date.now() + DISCORD_STATE_TTL_MS });
+  const params = new URLSearchParams({
+    client_id: process.env.DISCORD_CLIENT_ID,
+    redirect_uri: process.env.SITE_URL + '/api/discord/callback',
+    response_type: 'code',
+    scope: 'identify guilds.join',
+    state,
+  });
+  res.json({ url: 'https://discord.com/oauth2/authorize?' + params.toString() });
 });
 
+// Old entry point (took the access token in the query string): no longer used.
+app.get('/api/discord/connect', (req, res) => res.redirect('/settings?discord=error'));
+
 app.get('/api/discord/callback', requireDb, async (req, res) => {
-  const { code, state: playerId } = req.query;
-  if (!code) return res.redirect('/settings?discord=error');
+  const { code, state } = req.query;
+  const playerId = takeDiscordState(state);
+  if (!code || !playerId) return res.redirect('/settings?discord=error');
 
   try {
     const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      signal: AbortSignal.timeout(10000),
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -776,6 +842,7 @@ app.get('/api/discord/callback', requireDb, async (req, res) => {
     if (!accessToken) throw new Error('No access token returned: ' + JSON.stringify(tokenData));
 
     const userRes = await fetch('https://discord.com/api/users/@me', {
+      signal: AbortSignal.timeout(10000),
       headers: { Authorization: 'Bearer ' + accessToken },
     });
     const discordUser = await userRes.json();
@@ -787,6 +854,7 @@ app.get('/api/discord/callback', requireDb, async (req, res) => {
     const joinRes = await fetch(
       `https://discord.com/api/guilds/${process.env.DISCORD_SERVER_ID}/members/${discordUser.id}`,
       {
+      signal: AbortSignal.timeout(10000),
         method: 'PUT',
         headers: {
           Authorization: 'Bot ' + process.env.DISCORD_BOT_TOKEN,
@@ -801,7 +869,8 @@ app.get('/api/discord/callback', requireDb, async (req, res) => {
 
     const roleRes = await fetch(
       `https://discord.com/api/guilds/${process.env.DISCORD_SERVER_ID}/members/${discordUser.id}/roles/${process.env.DISCORD_MEMBER_ROLE_ID}`,
-      { method: 'PUT', headers: { Authorization: 'Bot ' + process.env.DISCORD_BOT_TOKEN } }
+      {
+      signal: AbortSignal.timeout(10000), method: 'PUT', headers: { Authorization: 'Bot ' + process.env.DISCORD_BOT_TOKEN } }
     );
     if (!roleRes.ok && roleRes.status !== 204) {
       console.warn('[discord callback] role assign responded', roleRes.status, await roleRes.text().catch(() => ''));
@@ -832,6 +901,32 @@ const MATCHMAKING_BY_MODE = {
   async: (playerInfo) => matchmaking.asyncPlay(gameEngine, playerInfo),
   private: (playerInfo) => matchmaking.createPrivateWar(gameEngine, playerInfo),
 };
+
+// ---- match entry fees ---------------------------------------------------------------
+// Charge first (unique key per attempt), then seat the player; if seating fails
+// or they had already paid for that seat, refund that exact payment. Replaces
+// "join, then debit", which let a failed debit leave a player seated unpaid.
+async function chargeEntryFee(playerId, entryCoins, dbMatchId = null) {
+  if (!(entryCoins > 0)) return { key: null };
+  const key = `entry:${playerId}:${crypto.randomUUID()}`;
+  await db.debitCoins(playerId, entryCoins, { type: 'match_entry', matchId: dbMatchId, idempotencyKey: key });
+  return { key };
+}
+async function refundEntryFee(playerId, entryCoins, key, dbMatchId = null) {
+  if (!key || !(entryCoins > 0)) return;
+  try {
+    await db.creditCoins(playerId, entryCoins, { type: 'match_refund', matchId: dbMatchId, idempotencyKey: `refund:${key}` });
+  } catch (e) {
+    console.error('[entry refund] failed for', playerId, key, e.message);
+  }
+}
+function recordEntryPaid(matchId, playerId, key, entryCoins) {
+  const seat = gameEngine.getMatch(matchId)?.players?.[playerId];
+  if (!seat) return false;
+  if (seat.entryPaidKey) return false; // already paid for this seat: caller refunds the new charge
+  seat.entryPaidKey = key;
+  return true;
+}
 
 app.post('/api/match/create', deployDrain.blockNewMatches, requireDb, authenticate, async (req, res) => {
   try {
@@ -866,12 +961,26 @@ app.post('/api/match/create', deployDrain.blockNewMatches, requireDb, authentica
       solo_rating: player.solo_rating,
       tier: player.tier,
     };
-    const result = await MATCHMAKING_BY_MODE[mode](playerInfo, req.body);
-
-    if (!result.success) return res.status(400).json(result);
-    if (entryCoins > 0) {
-      const dbMatchId = gameEngine.getMatch(result.matchId)?.dbMatchId || null;
-      await db.debitCoins(player.id, entryCoins, { type: 'match_entry', matchId: dbMatchId });
+    let entry;
+    try {
+      entry = await chargeEntryFee(player.id, entryCoins);
+    } catch (e) {
+      if (e.code === 'INSUFFICIENT_COINS') return res.status(400).json({ error: `Not enough coins - ${modeConfig.label} costs ${entryCoins} coins` });
+      throw e;
+    }
+    let result;
+    try {
+      result = await MATCHMAKING_BY_MODE[mode](playerInfo, req.body);
+    } catch (e) {
+      await refundEntryFee(player.id, entryCoins, entry.key);
+      throw e;
+    }
+    if (!result.success) {
+      await refundEntryFee(player.id, entryCoins, entry.key);
+      return res.status(400).json(result);
+    }
+    if (entry.key && !recordEntryPaid(result.matchId, player.id, entry.key, entryCoins)) {
+      await refundEntryFee(player.id, entryCoins, entry.key); // already seated and paid
     }
     res.json(result);
   } catch (e) {
@@ -930,8 +1039,8 @@ app.patch('/api/player/me', requireDb, authenticate, async (req, res) => {
     const updates = {};
 
     if (username && username !== player.username) {
-      if (username.length < 3 || username.length > 20) {
-        return res.status(400).json({ error: 'Username must be 3-20 characters' });
+      if (typeof username !== 'string' || !/^[A-Za-z0-9_]{3,20}$/.test(username)) {
+        return res.status(400).json({ error: 'Username must be 3-20 letters, numbers or underscores' });
       }
       const existing = await db.getPlayerByUsername(username);
       if (existing && existing.id !== player.id) return res.status(409).json({ error: 'Username already taken' });
@@ -1096,10 +1205,27 @@ app.post('/api/notifications/coaching-notify', requireDb, authenticate, async (r
   }
 });
 
-app.post('/api/player/avatar', requireDb, authenticate, avatarUpload.single('avatar'), async (req, res) => {
+const avatarUploadMw = (req, res, next) =>
+  avatarUpload.single('avatar')(req, res, (err) => (err ? res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Avatar must be 2 MB or smaller' : 'Upload failed' }) : next()));
+app.post('/api/player/avatar', requireDb, authenticate, avatarUploadMw, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const check = validateAvatar(req.file.buffer);
+    if (!check.ok) return res.status(400).json({ error: check.error });
+    const filename = `${req.tokenPlayer.id}-${Date.now()}.${check.ext}`;
+    let avatarUrl = null;
+    // Prefer Supabase Storage (survives redeploys; Railway's disk does not).
+    if (db.isConfigured) {
+      const { error: upErr } = await supabaseAdmin.storage
+        .from(AVATAR_BUCKET)
+        .upload(filename, req.file.buffer, { contentType: check.contentType, upsert: false, cacheControl: '31536000' });
+      if (!upErr) avatarUrl = supabaseAdmin.storage.from(AVATAR_BUCKET).getPublicUrl(filename).data.publicUrl;
+      else console.warn('[avatar upload] storage unavailable, using local disk:', upErr.message);
+    }
+    if (!avatarUrl) {
+      fs.writeFileSync(path.join(AVATAR_DIR, filename), req.file.buffer);
+      avatarUrl = `/uploads/avatars/${filename}`;
+    }
     const updated = await db.updatePlayer(req.tokenPlayer.id, { avatar_url: avatarUrl });
     res.json({ avatarUrl: updated.avatar_url });
   } catch (e) {
@@ -1588,19 +1714,17 @@ app.post('/api/shop/purchase', requireDb, authenticate, async (req, res) => {
     const item = shop.findItem(itemId);
     if (!item) return res.status(404).json({ error: 'Unknown item' });
 
-    const owned = await db.listShopPurchases(req.tokenPlayer.id);
-    if (owned.some((o) => o.item_id === itemId)) return res.status(400).json({ error: 'Already owned' });
-
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (item.requiresTier && tierForRating(player.war_rating) !== item.requiresTier) {
       return res.status(403).json({ error: `Requires ${item.requiresTier} tier` });
     }
-    if (player.coins < item.price) {
-      return res.status(400).json({ error: 'Not enough coins', required: item.price, balance: player.coins });
+    // One atomic call: own once, pay once (a double click can't buy or charge twice).
+    const result = await db.shopBuy({ playerId: player.id, itemType: item.type, itemId: item.id, price: item.price });
+    if (result?.error === 'already_owned') return res.status(400).json({ error: 'Already owned' });
+    if (result?.error === 'insufficient_coins') {
+      return res.status(400).json({ error: 'Not enough coins', required: item.price, balance: result.balance });
     }
-
-    if (item.price > 0) await db.debitCoins(player.id, item.price, { type: 'shop_purchase' });
-    await db.recordShopPurchase({ playerId: player.id, itemType: item.type, itemId: item.id, coinsSpent: item.price });
+    if (!result?.ok) throw new Error(result?.error || 'shop_buy failed');
     notifyPlayer(player.id, 'shop_purchase', `Purchased ${item.name}!`);
     res.json({ success: true, item });
   } catch (e) {
@@ -1645,7 +1769,7 @@ async function grantBattlePassXp(playerId, season, xpGained) {
       if (entry.freeReward?.coins) tierCoins += entry.freeReward.coins;
       if (entry.premiumReward?.coins) tierCoins += entry.premiumReward.coins;
     }
-    if (tierCoins > 0) await db.creditCoins(playerId, tierCoins, { type: 'battlepass_tier' });
+    if (tierCoins > 0) await db.creditCoins(playerId, tierCoins, { type: 'battlepass_tier', idempotencyKey: `bp_tier:${playerId}:${season}:${oldTier}-${newTier}` });
   }
   return newTier;
 }
@@ -1747,7 +1871,7 @@ app.post('/api/battlepass/challenge/claim', requireDb, authenticate, async (req,
       challengeType: isDaily ? 'daily' : 'weekly',
       coinsEarned: challenge.coins,
     });
-    await db.creditCoins(req.tokenPlayer.id, challenge.coins, { type: 'battlepass_challenge' });
+    await db.creditCoins(req.tokenPlayer.id, challenge.coins, { type: 'battlepass_challenge', idempotencyKey: `bp_challenge:${req.tokenPlayer.id}:${season}:${challengeId}:${sinceIso}` });
     const newTier = await grantBattlePassXp(req.tokenPlayer.id, season, Math.round(challenge.coins / 5));
     res.json({ success: true, coinsAwarded: challenge.coins, tier: newTier });
   } catch (e) {
@@ -1874,7 +1998,48 @@ function requireCompetitionId(req, res, next) {
   next();
 }
 
-app.get('/api/competitions', requireDb, async (req, res) => {
+// ---- micro-cache for public, non-personal JSON endpoints (audit items 19/47/48)
+// These answered at 18-46 req/s with multi-second tails because every request
+// made several Supabase round trips. Each URL is now computed at most once per
+// TTL, and concurrent misses share one in-flight computation (no stampede).
+const microCache = new Map(); // url -> { at, status, body }
+const microInflight = new Map(); // url -> Promise<{status, body} | null>
+function cacheJson(ttlMs) {
+  return async (req, res, next) => {
+    const key = req.originalUrl;
+    const hit = microCache.get(key);
+    if (hit && Date.now() - hit.at < ttlMs) {
+      res.set('X-Cache', 'HIT');
+      return res.status(hit.status).json(hit.body);
+    }
+    const pending = microInflight.get(key);
+    if (pending) {
+      const shared = await pending;
+      if (shared) {
+        res.set('X-Cache', 'SHARED');
+        return res.status(shared.status).json(shared.body);
+      }
+      return next();
+    }
+    let settle;
+    microInflight.set(key, new Promise((r) => { settle = r; }));
+    const finish = (val) => { microInflight.delete(key); settle(val); };
+    const origJson = res.json.bind(res);
+    res.json = (body) => {
+      if (res.statusCode < 400) {
+        microCache.set(key, { at: Date.now(), status: res.statusCode, body });
+        if (microCache.size > 500) microCache.delete(microCache.keys().next().value);
+        finish({ status: res.statusCode, body });
+      } else finish(null);
+      res.set('X-Cache', 'MISS');
+      return origJson(body);
+    };
+    res.on('close', () => { if (microInflight.has(key)) finish(null); });
+    next();
+  };
+}
+
+app.get('/api/competitions', cacheJson(10000), requireDb, async (req, res) => {
   try {
     const rows = await db.listPublishedCompetitions();
     res.json({ competitions: rows.map(competitionSummary) });
@@ -1896,7 +2061,7 @@ app.get('/api/competitions/:id', requireDb, requireCompetitionId, async (req, re
 });
 
 // Fire-and-forget CTA click counter - never fails the caller.
-app.post('/api/competitions/:id/click', requireDb, requireCompetitionId, async (req, res) => {
+app.post('/api/competitions/:id/click', clickLimiter, requireDb, requireCompetitionId, async (req, res) => {
   try {
     await db.incrementCompetitionClicks(req.params.id);
   } catch (e) {
@@ -2048,7 +2213,7 @@ async function checkAndCloseSignup(t) {
 
   if (Date.now() >= new Date(t.starts_at).getTime()) {
     for (const r of regs) {
-      if (t.entry_coins > 0) await db.creditCoins(r.player_id, t.entry_coins, { type: 'tournament_refund' });
+      if (t.entry_coins > 0) await db.creditCoins(r.player_id, t.entry_coins, { type: 'tournament_refund', idempotencyKey: `tournament_cancel_refund:${t.id}:${r.player_id}` });
     }
     return db.updateTournament(t.id, { status: 'cancelled' });
   }
@@ -2137,11 +2302,26 @@ app.post('/api/tournament/:id/register', requireDb, authenticate, async (req, re
     if (regs.length >= t.bracket_size) return res.status(400).json({ error: 'Tournament is full' });
 
     const player = await db.getPlayerById(req.tokenPlayer.id);
+    // Charge with a per-attempt key, then register; the (tournament, player)
+    // unique constraint stops a double click registering twice, and the losing
+    // attempt's charge is refunded exactly once.
+    let entryKey = null;
     if (t.entry_coins > 0) {
-      if (player.coins < t.entry_coins) return res.status(400).json({ error: 'Not enough coins' });
-      await db.debitCoins(player.id, t.entry_coins, { type: 'tournament_entry' });
+      entryKey = `tournament_entry:${t.id}:${player.id}:${crypto.randomUUID()}`;
+      try {
+        await db.debitCoins(player.id, t.entry_coins, { type: 'tournament_entry', idempotencyKey: entryKey });
+      } catch (e) {
+        if (e.code === 'INSUFFICIENT_COINS') return res.status(400).json({ error: 'Not enough coins' });
+        throw e;
+      }
     }
-    await db.registerForTournament({ tournamentId: t.id, playerId: player.id, seed: regs.length + 1 });
+    try {
+      await db.registerForTournament({ tournamentId: t.id, playerId: player.id, seed: regs.length + 1 });
+    } catch (e) {
+      if (entryKey) await db.creditCoins(player.id, t.entry_coins, { type: 'tournament_refund', idempotencyKey: `refund:${entryKey}` }).catch((err) => console.error('[tournament register] refund failed', err.message));
+      if (e.code === '23505') return res.status(400).json({ error: 'Already registered' });
+      throw e;
+    }
 
     let updated = await db.getTournament(t.id);
     updated = await checkAndCloseSignup(updated);
@@ -2471,7 +2651,7 @@ Real game facts you can rely on:
 
 Answer player questions about game mechanics, coins, wallet, tournaments, and account issues concisely and accurately using only the facts above. For anything account-specific (billing disputes, bans, bugs) or anything you're not sure about, tell the player to submit a support ticket instead of guessing.`;
 
-app.post('/api/support/chat', async (req, res) => {
+app.post('/api/support/chat', supportChatLimiter, async (req, res) => {
   if (!anthropicConfigured) return res.status(503).json({ error: 'Support chat is unavailable right now - try submitting a ticket instead.' });
   try {
     const { message, history } = req.body || {};
@@ -2509,7 +2689,7 @@ app.get('/api/support/tickets/mine', requireDb, authenticate, async (req, res) =
 // Works for both logged-in players (authenticate is best-effort here, not
 // required) and logged-out visitors on public pages that carry the support
 // widget - a ticket with no player_id is still visible/actionable in admin.
-app.post('/api/support/ticket', requireDb, async (req, res) => {
+app.post('/api/support/ticket', supportTicketLimiter, requireDb, async (req, res) => {
   try {
     const { subject, message } = req.body || {};
     if (!subject || !message) return res.status(400).json({ error: 'subject and message are required' });
@@ -2549,7 +2729,7 @@ app.get('/api/config/public', (req, res) => {
   res.json({
     supabaseUrl: process.env.SUPABASE_URL || null,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
-    devCoinGrantsEnabled: !stripeWebhookConfigured && allowedOrigins.length === 0,
+    devCoinGrantsEnabled: process.env.NODE_ENV !== 'production' && !stripeWebhookConfigured && allowedOrigins.length === 0,
   });
 });
 
@@ -2561,7 +2741,7 @@ app.use(
 
 // ---- home page stats --------------------------------------------------------------
 
-app.get('/api/stats/home', async (req, res) => {
+app.get('/api/stats/home', cacheJson(10000), async (req, res) => {
   try {
     const live = await gameEngine.getHomeStats();
     if (!db.isConfigured) return res.json({ ...live, largestWinToday: 0, coinsWonToday: 0 });
@@ -2579,7 +2759,7 @@ app.get('/api/stats/home', async (req, res) => {
 // connected to the site (playerSockets, the same in-memory socket registry
 // index.js already uses for presence pushes), and it also wants a lifetime
 // total rather than /api/stats/home's today-scoped coinsWonToday.
-app.get('/api/stats/live', async (req, res) => {
+app.get('/api/stats/live', cacheJson(10000), async (req, res) => {
   try {
     const activePlayers = playerSockets.size;
     const { matchesToday } = await gameEngine.getHomeStats();
@@ -2637,7 +2817,7 @@ app.get('/api/stats/ticker', (req, res) => {
   }
 });
 
-app.get('/api/stats/activity', async (req, res) => {
+app.get('/api/stats/activity', cacheJson(10000), async (req, res) => {
   try {
     if (!db.isConfigured) return res.json({ activity: [] });
     const activity = await db.getRecentActivity(15);
@@ -2708,7 +2888,7 @@ async function optionalViewerId(req) {
   }
 }
 
-app.get('/api/leaderboard', requireDb, async (req, res) => {
+app.get('/api/leaderboard', cacheJson(10000), requireDb, async (req, res) => {
   try {
     const limit = Math.min(200, Number(req.query.limit) || 10);
     const tierFilter = req.query.tier && req.query.tier !== 'All' ? req.query.tier : null;
@@ -2846,7 +3026,7 @@ app.post('/api/dev/add-coins', requireDb, authenticate, async (req, res) => {
   // this faucet on any locked-down deployment even before Stripe itself is
   // configured there - without it, a live prod site with Stripe still
   // pending would otherwise let any signed-up user free-mint coins.
-  if (stripeWebhookConfigured || allowedOrigins.length > 0) {
+  if (process.env.NODE_ENV === 'production' || stripeWebhookConfigured || allowedOrigins.length > 0) {
     return res.status(403).json({ error: 'Dev coin grants are disabled on this deployment' });
   }
   try {
@@ -2910,6 +3090,7 @@ io.use(async (socket, next) => {
 
     const player = await db.getPlayerBySupabaseUserId(user.id);
     if (!player) return next(new Error('unauthorized'));
+    if (activeBan(player)) return next(new Error('banned'));
 
     // socket.data.player keeps the shape every existing handler already
     // expects (`.id`, `.username`) - the extra userId/playerId/username
@@ -2925,7 +3106,30 @@ io.use(async (socket, next) => {
   }
 });
 
+// Per-socket token bucket (audit items 1/10): bursts of 40 events, refilling
+// 15/s; sabotage and chat have a tighter 4/s. Over the limit the event is
+// dropped and any ack gets an error, so a script can't flood the match loop.
+function socketRateLimiter(socket) {
+  const buckets = {};
+  const LIMITS = { default: { cap: 40, rate: 15 }, 'sabotage:play': { cap: 4, rate: 1 }, 'lobby:chat': { cap: 4, rate: 1 } };
+  return ([event, ...args], next) => {
+    const lim = LIMITS[event] || LIMITS.default;
+    const key = LIMITS[event] ? event : 'default';
+    const now = Date.now();
+    const b = (buckets[key] ||= { tokens: lim.cap, at: now });
+    b.tokens = Math.min(lim.cap, b.tokens + ((now - b.at) / 1000) * lim.rate);
+    b.at = now;
+    if (b.tokens >= 1) {
+      b.tokens -= 1;
+      return next();
+    }
+    const ack = args[args.length - 1];
+    if (typeof ack === 'function') ack({ success: false, error: 'Slow down - too many actions' });
+  };
+}
+
 io.on('connection', (socket) => {
+  socket.use(socketRateLimiter(socket));
   const notifyPid = socket.data.player?.id;
 
   // Long-form competitions: live updates go to comp:{id}:{playerId}, joined
@@ -3216,11 +3420,20 @@ io.on('connection', (socket) => {
       }
 
       const playerInfo = { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, grand_war_rating: player.grand_war_rating, solo_rating: player.solo_rating, tier: tierForRating(player.war_rating) };
+      let entry;
+      try {
+        entry = await chargeEntryFee(player.id, entryCoins, match.dbMatchId);
+      } catch (e) {
+        if (e.code === 'INSUFFICIENT_COINS') return ack?.({ success: false, error: `Not enough coins - this lobby costs ${entryCoins} coins to join` });
+        throw e;
+      }
       const result = gameEngine.joinMatch(match, playerInfo, socket.id);
-      if (!result.success) return ack?.({ success: false, error: result.error });
-
-      if (entryCoins > 0) {
-        await db.debitCoins(player.id, entryCoins, { type: 'match_entry', matchId: match.dbMatchId });
+      if (!result.success) {
+        await refundEntryFee(player.id, entryCoins, entry.key, match.dbMatchId);
+        return ack?.({ success: false, error: result.error });
+      }
+      if (entry.key && !recordEntryPaid(match.id, player.id, entry.key, entryCoins)) {
+        await refundEntryFee(player.id, entryCoins, entry.key, match.dbMatchId);
       }
       gameEngine.pushSystemFeed(match.id, `${player.username} joined via invite`);
 
