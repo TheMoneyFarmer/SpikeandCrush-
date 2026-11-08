@@ -111,7 +111,7 @@ TW.Sound = (function () {
     match_bell: 'sfx/bell.mp3',
     ui_click: 'sfx/click.mp3',
     notify: 'sfx/notify.mp3',
-    ambient: '377793__little_wall__collectable-videogame-sound-compilation.wav',
+    ambient: 'music/lobby-loop.wav', // 64s seamless loop, 120 bpm A minor (WAV: MP3 padding would gap the loop)
     card_slap: 'sfx/card_place.mp3',
     margin_alert: 'sfx/margin.mp3',
     match_timer: '626908__muzakplz__marktimer.wav',
