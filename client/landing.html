@@ -77,6 +77,7 @@ button { font: inherit; }
 .nav-links a { color: var(--body); text-decoration: none; font-size: 15px; font-weight: 500; padding: 10px 14px; border-radius: 9999px; }
 .nav-links a:hover { color: var(--on); background: var(--ghost); }
 .nav-right { display: flex; align-items: center; gap: 8px; }
+.nav-login, .nav .btn { white-space: nowrap; }
 .nav-login { background: none; border: 0; color: var(--on); font-weight: 600; padding: 10px 14px; cursor: pointer; border-radius: 9999px; }
 .nav-login:hover { background: var(--ghost); }
 @media (max-width: 860px) { .nav-links { display: none; } .nav .wrap { justify-content: space-between; } }
@@ -165,65 +166,216 @@ button { font: inherit; }
 .tile-body p { margin: 6px 0 0; font-size: 14px; color: var(--body); line-height: 1.5; }
 .tile-meta { display: flex; gap: 14px; margin-top: 12px; font-size: 13px; color: var(--mute); }
 
-/* how it works: scroll story (light chapter, pinned dark game screen) */
-.story { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 56px; align-items: start; }
-.story-stage { position: sticky; top: 96px; }
-.story-steps { display: flex; flex-direction: column; }
-.story-step { min-height: 62vh; display: flex; flex-direction: column; justify-content: center; gap: 10px; opacity: .35; transition: opacity 300ms var(--ease); }
-.story-step:last-child { min-height: 50vh; }
-.story-step.on { opacity: 1; }
-.story-step .h3 { font-size: 28px; font-weight: 300; }
-.story-step p { margin: 0; color: var(--ink-body); font-size: 18px; max-width: 420px; }
-.step-n { font: 500 13px var(--mono); color: var(--blue); }
+/* how a match works: static by default, upgraded to the 3D flight by js/how-world.js */
+.how { background: var(--deep); padding: var(--section) 0; scroll-margin-top: 64px; }
+.how-stage { position: relative; }
+.how-stack { max-width: var(--max); margin: 0 auto; padding: 0 var(--gut); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.how-head { grid-column: 1 / -1; margin-bottom: 16px; }
+.how-head .lede { margin-top: 12px; }
+.how-head .cta-row { margin-top: 24px; }
+.how-cue, .how-lede-3d { display: none; }
+.how-3d .how-lede-static { display: none; }
+.how-3d .how-lede-3d { display: block; }
+.how-step { background: var(--elev); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.how-pic { display: block; aspect-ratio: 16 / 10; background: var(--card-2); }
+.how-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.how-body { padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 8px; }
+.step-n { font: 500 13px var(--mono); color: var(--link); }
+.how-body h3 { margin: 0; font-weight: 300; font-size: 24px; line-height: 1.25; }
+.how-body > p { margin: 0; color: var(--body); font-size: 16px; }
+.how-play, .how-hud, .how-nav, .how-tools, .how-loader, .how-pops, .how-poster, .how-canvas { display: none; }
+.how-static-cta { max-width: var(--max); margin: 28px auto 0; padding: 0 var(--gut); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.how-static-cta .fine { margin: 0; }
+@media (max-width: 860px) { .how-stack { grid-template-columns: minmax(0, 1fr); } }
 
-.stage { position: relative; aspect-ratio: 16 / 11; background: #0b0c0e; border-radius: 16px; overflow: hidden; color: #fff; display: flex; flex-direction: column; padding: 16px; gap: 12px; box-shadow: 0 30px 80px rgba(0,0,0,.25); }
-.st-top { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; }
-.st-timer { font: 500 13px var(--mono); background: #1f2024; padding: 4px 10px; border-radius: 9999px; }
-.st-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 12px; }
-.st-chart { position: relative; background: #000; border-radius: 8px; overflow: hidden; }
-.st-chart canvas { width: 100%; height: 100%; }
-.st-pos { position: absolute; left: 10px; top: 10px; font: 500 12px var(--mono); background: rgba(31,211,138,.16); color: var(--spike); padding: 4px 8px; border-radius: 6px; opacity: 0; transform: translateY(-4px); transition: all 300ms var(--ease); }
-.st-board { display: flex; flex-direction: column; gap: 6px; }
-.st-row { position: relative; display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: center; padding: 9px 10px; border-radius: 8px; background: #121314; font-size: 13px; transition: transform 450ms var(--ease), background 300ms; overflow: hidden; }
-.st-row.me { background: rgba(0,112,209,.22); }
-.st-rk { font: 500 12px var(--mono); color: var(--mute); }
-.st-nm { font-weight: 600; }
-.st-pnl { font: 500 13px var(--mono); }
-.st-frozen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 600; background: #8cb4ff; color: #001530; opacity: 0; transition: opacity 250ms; }
-.st-bottom { display: flex; gap: 12px; align-items: flex-end; }
-.st-hand { display: flex; gap: 8px; flex: 1; min-width: 0; transform: translateY(70%); opacity: .4; transition: transform 450ms var(--ease), opacity 450ms; }
-.st-card { flex: 1; min-width: 0; background: #1f2024; border: 1px solid rgba(255,61,92,.4); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; transition: transform 650ms var(--ease), opacity 400ms, box-shadow 300ms; }
-.st-card b { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.st-card span { font-size: 11px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.st-trade { display: flex; gap: 6px; }
-.st-btn { font-size: 13px; font-weight: 700; padding: 10px 16px; border-radius: 9999px; transition: transform 150ms, box-shadow 200ms; }
-.st-btn.buy { background: var(--spike); color: #00140c; }
-.st-btn.sell { background: var(--crush); }
-.st-toast { position: absolute; left: 50%; top: 52px; transform: translate(-50%, -8px); background: #1f2024; border-radius: 9999px; padding: 8px 14px; font-size: 13px; white-space: nowrap; opacity: 0; transition: all 300ms var(--ease); }
-.st-toast b { color: var(--crush); }
-.st-win { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: rgba(0,0,0,.72); opacity: 0; transition: opacity 400ms; pointer-events: none; }
-.st-win span { font-size: 18px; font-weight: 300; }
-.st-win b { font-size: 44px; font-weight: 300; color: var(--gold); transform: scale(.8); transition: transform 500ms var(--ease); }
+/* 3D flight */
+.how-3d .how { padding: 0; background: #0a1226; }
+.how-3d .how-track { height: 420vh; height: 420svh; }
+.how-3d .how-stage { position: sticky; top: 64px; height: calc(100vh - 64px); height: calc(100svh - 64px); overflow: hidden; background: #0a1226; color: #f2f5fa;
+  --on: #f2f5fa; --body: rgba(232,238,248,.82); --mute: rgba(200,212,232,.68); --plate: rgba(11,18,38,.9); --line: rgba(160,182,222,.22); --link: #6cb2ff; --blue: #2d7ff9; --blue-press: #1f6ae0; --gold: #f5b83d; --spike: #1fd38a; --crush: #ff4d6a; --hair-2: rgba(160,182,222,.3); }
+.how-3d .how-canvas { display: block; position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.how-3d .how-poster { display: block; position: absolute; inset: 0; z-index: 1; transition: opacity 400ms var(--ease); pointer-events: none; }
+.how-3d .how-poster img { width: 100%; height: 100%; object-fit: cover; }
+.how-3d .is-ready .how-poster { opacity: 0; visibility: hidden; transition: opacity 400ms var(--ease), visibility 0s 400ms; }
+.how-3d .how-loader { display: block; position: absolute; z-index: 3; left: 50%; top: 18px; transform: translateX(-50%); font-size: 13px; font-weight: 500; background: var(--plate); padding: 6px 14px; border-radius: 9999px; }
+.how-3d .how-loader[hidden] { display: none; }
+.how-3d .how-stack { --pl: max(24px, calc((100vw - var(--max)) / 2 + var(--gut))); position: absolute; z-index: 4; left: 0; bottom: 24px; width: min(calc(var(--pl) + 340px), 100%); margin: 0; padding: 0 0 0 var(--pl); display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; align-items: end; pointer-events: none; }
+.how-3d .how-head, .how-3d .how-step { grid-area: 1 / 1; margin: 0; background: var(--plate); border: 1px solid var(--line); border-radius: 12px; opacity: 0; transform: translateY(10px); transition: opacity 220ms ease-in, transform 220ms ease-in; pointer-events: none; color: var(--on); overflow: visible; }
+.how-3d .how-head.on, .how-3d .how-step.on { opacity: 1; transform: none; pointer-events: auto; transition: opacity 280ms var(--ease) 80ms, transform 280ms var(--ease) 80ms; }
+.how-3d .how-head { padding: 24px; }
+.how-3d .how-head .eyebrow { color: var(--mute); }
+.how-3d .how-head .lede { color: var(--body); font-size: 17px; }
+.how-3d .how-cue { display: block; margin: 16px 0 0; font-size: 14px; font-weight: 600; color: var(--on); }
+.how-3d .how-pic { display: none; }
+.how-3d .how-body { padding: 20px 22px; }
+.how-3d .how-body h3 { font-size: 28px; }
+.how-3d .how-play { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.how-3d .how-play[hidden] { display: none; }
+.how-btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.how-btnrow[hidden] { display: none; }
+.how-trade { flex: 1 1 96px; min-height: 48px; border: 0; border-radius: 9999px; font: 700 16px var(--font); cursor: pointer; transition: transform 120ms var(--ease), filter 120ms; }
+.how-trade:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.how-trade:active { transform: scale(.96); }
+.how-trade.buy { background: var(--spike); color: #00140c; }
+.how-trade.sell { background: var(--crush); color: #1d0208; }
+.how-trade.close { background: #f2f5fa; color: #0b1220; font-variant-numeric: tabular-nums; flex-basis: 100%; }
+.how-trade[hidden] { display: none; }
+.how-msg { margin: 0; min-height: 1.5em; font-size: 14px; color: var(--on); }
+.how-hand { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.how-card { position: relative; min-height: 84px; padding: 12px 10px 10px; text-align: left; background: #182749; color: var(--on); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; gap: 4px; font: 400 12px/1.3 var(--font); transition: transform 150ms var(--ease), border-color 150ms, opacity 200ms; }
+.how-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--crush); }
+.how-card b { font-size: 13px; font-weight: 700; }
+.how-card span { color: var(--body); }
+.how-card:hover:not(:disabled) { transform: translateY(-5px); border-color: #fff; }
+.how-card:active:not(:disabled) { transform: translateY(-1px) scale(.97); }
+.how-card:disabled { opacity: .36; cursor: default; }
+.how-card.dealt { animation: howDeal 280ms var(--ease) backwards; }
+@keyframes howDeal { from { transform: translateY(28px); opacity: 0; } }
+.how-target { margin: 0; font-size: 14px; color: var(--body); }
+.how-target b { color: var(--crush); }
+.how-hint { margin: 0; font-size: 13px; color: var(--mute); }
+.how-hint:empty { display: none; }
+.how-result { margin: 0; font-size: 18px; color: var(--on); }
+.how-result b { color: var(--gold); font-weight: 600; }
+.how-3d .how-nav { display: flex; position: absolute; z-index: 5; left: max(24px, calc((100vw - var(--max)) / 2 + var(--gut))); top: 20px; gap: 4px; background: var(--plate); border: 1px solid var(--line); border-radius: 9999px; padding: 4px; }
+.how-nav button { border: 0; background: transparent; color: var(--body); min-height: 40px; padding: 0 16px; border-radius: 9999px; font: 600 14px var(--font); cursor: pointer; }
+.how-nav button:hover { color: var(--on); }
+.how-nav button[aria-current] { background: #f2f5fa; color: #0b1220; }
+.how-3d .how-hud { display: block; position: absolute; z-index: 5; right: max(24px, calc((100vw - var(--max)) / 2 + var(--gut))); top: 20px; width: 264px; background: var(--plate); border: 1px solid var(--line); border-radius: 12px; padding: 12px; transition: opacity 240ms var(--ease); }
+.how-stage[data-chapter="-1"] .how-hud { opacity: 0; pointer-events: none; }
+.how-stage[data-chapter="-1"] .how-nav { opacity: 1; }
+.how-hud-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+.how-ex { font-size: 12px; font-weight: 500; color: var(--mute); }
+.how-timer { font: 500 13px var(--mono); background: #21304f; padding: 3px 9px; border-radius: 9999px; }
+.how-timer.tock { animation: howTock 300ms var(--ease); }
+@keyframes howTock { 0% { transform: scale(1.25); background: var(--crush); } }
+.how-rows { position: relative; height: 144px; }
+.how-row { position: absolute; left: 0; right: 0; top: 0; height: 36px; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; gap: 6px; align-items: center; padding: 0 8px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--on); font: 500 14px var(--font); text-align: left; cursor: default; transition: transform 300ms var(--ease), background 200ms, border-color 150ms; }
+.how-row:not(:disabled):not(.me) { cursor: pointer; }
+.how-row:not(:disabled):not(.me):hover { background: rgba(255,255,255,.07); }
+.how-row.me { font-weight: 700; background: rgba(45,127,249,.2); }
+.how-row.target { border-color: var(--crush); }
+.how-row .rk { font: 500 12px var(--mono); color: var(--mute); }
+.how-row .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.how-row .tag { font-size: 11px; font-weight: 600; color: #8cc4ff; white-space: nowrap; }
+.how-row .pn { font: 500 13px var(--mono); }
+.how-row .up { color: var(--spike); } .how-row .dn { color: var(--crush); }
+.how-row.bump .pn { animation: howBump 320ms var(--ease); }
+@keyframes howBump { 30% { transform: scale(1.28); } }
+.how-pos { display: inline-block; align-self: flex-start; font: 500 12px var(--mono); color: var(--on); background: rgba(45,127,249,.28); padding: 4px 8px; border-radius: 6px; }
+.how-pos[hidden] { display: none; }
+.how-toast { margin-top: 0; font-size: 13px; line-height: 1.35; color: var(--on); max-height: 0; overflow: hidden; opacity: 0; transition: opacity 180ms, max-height 220ms var(--ease), margin 220ms; }
+.how-toast.show { max-height: 60px; margin-top: 8px; opacity: 1; }
+.how-toast b { color: var(--crush); }
+.how-3d .how-tools { display: flex; align-items: center; gap: 8px; position: absolute; z-index: 5; right: max(88px, calc((100vw - var(--max)) / 2 + var(--gut))); bottom: 24px; flex-wrap: wrap; justify-content: flex-end; }
+.how-skip, .how-sound { min-height: 44px; padding: 0 16px; display: inline-flex; align-items: center; border-radius: 9999px; border: 1px solid var(--line); background: var(--plate); color: var(--on); font: 600 14px var(--font); text-decoration: none; cursor: pointer; }
+.how-skip:hover, .how-sound:hover { border-color: #fff; }
+.how-tools .pulse { animation: howPulse 1.3s var(--ease) 3; }
+@keyframes howPulse { 50% { box-shadow: 0 0 0 10px rgba(45,127,249,.28); } }
+.how-3d .how-pops { display: block; position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
+.how-pop { position: absolute; left: 0; top: 0; opacity: 0; font: 700 26px var(--mono); text-shadow: 0 2px 10px rgba(0,0,0,.8), 0 0 2px #000; will-change: transform; }
+.how-pop.up { color: var(--spike); } .how-pop.dn { color: var(--crush); }
+.how-sizes { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--body); }
+.how-sizes[hidden] { display: none; }
+.how-sizes button { min-height: 40px; min-width: 44px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--hair-2); background: transparent; color: var(--on); font: 600 13px var(--mono); cursor: pointer; }
+.how-sizes button[aria-pressed='true'] { background: #f2f5fa; color: #0b1220; border-color: #f2f5fa; }
+.how-trade.close.in-profit { box-shadow: inset 0 0 0 2px var(--spike); }
+.how-trade.close.in-loss { box-shadow: inset 0 0 0 2px var(--crush); }
+.how-card.deny { animation: howDeny 300ms var(--ease); }
+@keyframes howDeny { 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+.how-story { margin: 0; font-size: 15px; color: var(--on); }
+.how-tip { margin: 0; font-size: 14px; color: var(--body); }
+.how-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.how-stats[hidden] { display: none; }
+.how-stats span { font: 500 14px var(--mono); color: var(--on); }
+.how-stats i { display: block; font: 500 11px var(--font); color: var(--mute); white-space: nowrap; }
+.how-result b.none { color: var(--crush); }
+.how-dock { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.how-stage[data-chapter="-1"] .how-dock { display: none; }
+.how-dock-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.how-price { font: 500 12px var(--mono); color: var(--on); white-space: nowrap; }
+.how-price.ice { color: #8cc4ff; }
+#howSpark { width: 80px; height: 22px; flex: none; }
+.how-dock-trade { display: flex; gap: 6px; }
+.how-dock-trade[hidden] { display: none; }
+.how-mini { flex: 1; min-height: 40px; border: 0; border-radius: 9999px; font: 700 13px var(--font); cursor: pointer; font-variant-numeric: tabular-nums; }
+.how-mini[hidden] { display: none; }
+.how-mini.buy { background: var(--spike); color: #00140c; }
+.how-mini.sell { background: var(--crush); color: #1d0208; }
+.how-mini.close { background: #f2f5fa; color: #0b1220; }
+.how-mini.close.in-profit { box-shadow: inset 0 0 0 2px var(--spike); }
+.how-mini.close.in-loss { box-shadow: inset 0 0 0 2px var(--crush); }
+.how-row .tag.ice { color: #8cc4ff; } .how-row .tag.long { color: var(--spike); } .how-row .tag.short { color: var(--crush); }
+.how-nav .pulse { animation: howPulse 1.3s var(--ease) infinite; }
+.how-3d .has-result .how-step.on .how-body > p:not([id]) { display: none; }
+.how-3d .has-result .how-body h3 { font-size: 26px; }
+.how-3d .has-result .how-play .how-btnrow .how-trade.close { flex: 1 1 auto; }
+.how-3d .how-static-cta { display: none; }
+.how-stage :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
-/* scene states (set by script) */
-.stage.pos-on .st-pos { opacity: 1; transform: none; }
-.stage.buy-press #stBuy { transform: scale(.9); box-shadow: 0 0 0 6px rgba(31,211,138,.35); }
-.stage.hand-up .st-hand { transform: none; opacity: 1; }
-.stage.ghost-lift #stGhost { transform: translateY(-14px); box-shadow: 0 0 0 2px #fff; }
-.stage.ghost-fly #stGhost { transform: translate(120%, -360%) scale(.6) rotate(8deg); opacity: 0; }
-.stage.frozen .st-frozen { opacity: 1; }
-.stage.toast-on .st-toast { opacity: 1; transform: translate(-50%, 0); }
-.stage.win-on .st-win { opacity: 1; }
-.stage.win-on .st-win b { transform: none; }
-
-@media (max-width: 900px) {
-  .story { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .story-stage { top: 72px; z-index: 2; padding-bottom: 12px; background: var(--light); }
-  .stage { aspect-ratio: 4 / 3.4; padding: 12px; }
-  .story-step { min-height: 55vh; }
-  .st-card span { display: none; }
+/* phone and portrait: a bottom sheet, a compact board, the scene between them */
+@media (max-width: 860px), (max-aspect-ratio: 11/10) {
+  .how-3d .how-stack { left: 0; right: 0; bottom: 64px; width: 100%; padding: 0 10px; }
+  .how-3d .how-body { padding: 12px 14px 14px; gap: 5px; }
+  .how-3d .how-head { padding: 16px; }
+  .how-3d .how-body h3 { font-size: 21px; }
+  .how-3d .how-body > p { font-size: 14px; line-height: 1.4; }
+  .how-3d .step-n { display: none; }
+  .how-3d .how-nav { left: 10px; top: 10px; }
+  .how-nav button { min-height: 36px; padding: 0 10px; font-size: 13px; }
+  .how-3d .how-hud { right: 10px; top: 56px; width: 172px; padding: 8px; }
+  .how-ex { display: none; }
+  .how-hud-top { margin-bottom: 4px; font-size: 12px; }
+  .how-rows { height: 104px; }
+  .how-row { height: 26px; font-size: 12px; padding: 0 5px; gap: 4px; grid-template-columns: 12px minmax(0, 1fr) auto; }
+  .how-row .tag { display: none; }
+  .how-row .pn { font-size: 12px; }
+  .how-pos { font-size: 11px; }
+  #howSpark { width: 48px; }
+  .how-stats span { font-size: 12px; }
+  .how-story { font-size: 14px; }
+  .how-tip { font-size: 13px; }
+  .how-3d .how-tools { left: 10px; right: 72px; bottom: 10px; justify-content: stretch; flex-wrap: nowrap; }
+  .how-tools .btn { flex: 1 1 auto; min-height: 44px; padding: 8px 12px; }
+  .how-skip, .how-sound { padding: 0 12px; font-size: 13px; white-space: nowrap; }
+  .how-card { min-height: 44px; padding: 9px 7px 6px; }
+  .how-card span { display: none; }
+  .how-card b { font-size: 12px; }
+  .how-trade { min-height: 44px; }
+  .how-pop { font-size: 21px; }
+  .how-result { font-size: 16px; }
 }
-@media (max-width: 480px) { .st-body { grid-template-columns: 1fr 1fr; } .st-row { padding: 7px 8px; font-size: 12px; } .st-row:nth-child(n+3) { display: none; } }
+@media (max-height: 680px) {
+  .how-3d .how-body > p { display: none; }
+  .how-3d .how-head .lede { display: none; }
+  .how-3d .how-body h3 { font-size: 19px; }
+}
+/* short portrait screens: keep the result itself and the buttons */
+@media (max-height: 680px) and (max-aspect-ratio: 11/10) {
+  .how-3d .has-result .how-stats, .how-3d .has-result .how-dock { display: none; }
+  .how-3d .has-result .how-rows { height: 78px; }
+  .how-3d .has-result .how-row { height: 19px; }
+  .how-3d .has-result .how-body h3 { font-size: 21px; }
+}
+/* phone on its side: panel left, board right, scene between */
+@media (max-height: 500px) and (min-aspect-ratio: 11/10) {
+  .how-3d .how-stack { left: 8px; right: auto; bottom: 8px; width: 300px; padding: 0; }
+  .how-3d .how-body { padding: 8px 12px 10px; gap: 3px; }
+  .how-3d .how-head { padding: 12px; }
+  .how-3d .how-head .h2 { font-size: 22px; }
+  .how-3d .how-cue { margin-top: 6px; }
+  .how-3d .how-nav { display: none; }
+  .how-3d .how-hud { right: 8px; top: 8px; width: 170px; padding: 6px 8px; }
+  .how-rows { height: 88px; }
+  .how-row { height: 22px; font-size: 12px; }
+  .how-3d .how-tools { left: auto; right: 72px; bottom: 8px; width: auto; }
+  .how-skip, .how-sound, .how-tools .btn { min-height: 40px; }
+  .how-sound { display: none; }
+  .how-trade, .how-card { min-height: 40px; }
+  .how-msg, .how-hint { font-size: 12px; min-height: 0; }
+  .how-result { font-size: 14px; }
+  .how-target { font-size: 12px; }
+}
 
 /* sabotage (dark chapter) */
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
@@ -386,47 +538,118 @@ button { font: inherit; }
 
 <div class="ticker" aria-hidden="true"><div class="tick-inner" id="tickInner"></div></div>
 
-<!-- HOW IT WORKS: scroll story - a pinned game screen plays each step like a video -->
-<section class="chapter light" id="how" aria-labelledby="howTitle">
-  <div class="wrap">
-    <div class="chapter-head">
-      <div>
-        <p class="eyebrow">How a match works</p>
-        <h2 class="h2" id="howTitle">Three moves. Ten minutes.</h2>
-        <p class="lede">Scroll to watch a match play out.</p>
-      </div>
-    </div>
-    <div class="story">
-      <div class="story-stage">
-        <div class="stage" id="stage" data-step="0" aria-hidden="true">
-          <div class="st-top"><span class="st-mode">Quick War</span><span class="st-timer" id="stTimer">04:12</span></div>
-          <div class="st-body">
-            <div class="st-chart"><canvas id="stChart"></canvas><div class="st-pos" id="stPos">EURUSD · Buy 1.0 lot</div></div>
-            <div class="st-board">
-              <div class="st-row me" id="stMe"><span class="st-rk">1</span><span class="st-nm">You</span><span class="st-pnl up" id="stMePnl">+120</span></div>
-              <div class="st-row" id="stRival"><span class="st-rk">2</span><span class="st-nm">Rival</span><span class="st-pnl up" id="stRivalPnl">+164</span><span class="st-frozen">Chart frozen · <b id="stFreeze">10</b>s</span></div>
-              <div class="st-row"><span class="st-rk">3</span><span class="st-nm">Player 3</span><span class="st-pnl dn">−38</span></div>
-              <div class="st-row"><span class="st-rk">4</span><span class="st-nm">Player 4</span><span class="st-pnl dn">−95</span></div>
-            </div>
+<!-- HOW A MATCH WORKS: a static page by default. js/how-world.js turns this same markup into the 3D flight. -->
+<section class="how" id="how" aria-labelledby="howTitle">
+  <div class="how-track" id="howTrack">
+    <div class="how-stage" id="howStage" data-chapter="-1">
+      <div class="how-poster" aria-hidden="true"><picture><source media="(max-width: 760px)" srcset="/assets/how/overview-phone.webp"><img src="/assets/how/overview.webp" alt=""></picture></div>
+      <span class="how-loader" id="howLoader" role="status">Loading the match…</span>
+      <div class="how-pops" id="howPops" aria-hidden="true"></div>
+
+      <nav class="how-nav" aria-label="Jump to a move">
+        <button type="button" data-how-go>Trade</button>
+        <button type="button" data-how-go>Sabotage</button>
+        <button type="button" data-how-go>Win</button>
+      </nav>
+
+      <aside class="how-hud" aria-label="Example match leaderboard">
+        <div class="how-hud-top"><span>Quick War <span class="how-ex">Example</span></span><span class="how-timer" id="howTimer">01:15</span></div>
+        <div class="how-rows" id="howRows"></div>
+        <div class="how-dock" id="howDock">
+          <div class="how-dock-top"><span class="how-price" id="howPrice">EURUSD 100.00</span><canvas id="howSpark" width="160" height="28" aria-hidden="true"></canvas></div>
+          <div class="how-dock-trade" id="howDockTrade" hidden>
+            <button class="how-mini sell" type="button" id="howDockSell">Sell</button>
+            <button class="how-mini buy" type="button" id="howDockBuy">Buy</button>
           </div>
-          <div class="st-bottom">
-            <div class="st-hand">
-              <div class="st-card" id="stGhost"><b>Chart Ghost</b><span>Freeze a chart 10s</span></div>
-              <div class="st-card"><b>Force Close</b><span>Close their best trade</span></div>
-              <div class="st-card"><b>Pip Theft</b><span>Steal 150</span></div>
-            </div>
-            <div class="st-trade"><span class="st-btn sell">Sell</span><span class="st-btn buy" id="stBuy">Buy</span></div>
-          </div>
-          <div class="st-toast" id="stToast"></div>
-          <div class="st-win" id="stWin"><span>1st place</span><b>+85 coins</b></div>
+          <button class="how-mini close" type="button" id="howDockClose" hidden>Close</button>
+          <button class="how-mini close" type="button" id="howSeeResult" hidden>See the result</button>
         </div>
+        <div class="how-toast" id="howToast" role="status"></div>
+      </aside>
+
+      <div class="how-stack">
+        <header class="how-head on" id="howHead">
+          <p class="eyebrow">How a match works</p>
+          <h2 class="h2" id="howTitle">Three moves. Ten minutes.</h2>
+          <p class="lede how-lede-static">Trade the market, wreck your rivals, take the coins.</p>
+          <p class="lede how-lede-3d">A real round, sped up. Trade, sabotage, and see where you finish. You can lose.</p>
+          <p class="how-cue">Scroll to fly in ↓</p>
+        </header>
+
+        <article class="how-step">
+          <picture class="how-pic"><source media="(max-width: 760px)" srcset="/assets/how/trade-phone.webp"><img src="/assets/how/trade.webp" alt="A live candle chart on the trading floor, with desks in front of it" loading="lazy" width="1440" height="836"></picture>
+          <div class="how-body">
+            <span class="step-n">01</span>
+            <h3>Trade the market</h3>
+            <p>Everyone starts with the same virtual capital and the same real price history. Read the chart, buy or sell, size up.</p>
+            <div class="how-play">
+              <div class="how-sizes" id="howSizes" role="group" aria-label="Trade size">
+                <span>Size</span>
+                <button type="button" data-lots="0.5" aria-pressed="false">0.5</button>
+                <button type="button" data-lots="1" aria-pressed="true">1.0</button>
+                <button type="button" data-lots="2" aria-pressed="false">2.0</button>
+                <span>lots</span>
+              </div>
+              <div class="how-btnrow" id="howTradeBtns">
+                <button class="how-trade sell" type="button" id="howSell">Sell</button>
+                <button class="how-trade buy" type="button" id="howBuy">Buy</button>
+              </div>
+              <span class="how-pos" id="howPos" hidden></span>
+              <button class="how-trade close" type="button" id="howClose" hidden>Close trade</button>
+              <p class="how-msg" id="howTradeMsg" role="status">Try it: Buy or Sell. Watch for the turn.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="how-step">
+          <picture class="how-pic"><source media="(max-width: 760px)" srcset="/assets/how/sabotage-phone.webp"><img src="/assets/how/sabotage.webp" alt="Four player towers in an arena, one of them hit by a sabotage card" loading="lazy" width="1440" height="836"></picture>
+          <div class="how-body">
+            <span class="step-n">02</span>
+            <h3>Sabotage your rivals</h3>
+            <p>Every match deals you cards. Freeze a rival's chart, close their best trade, steal their capital. It's all in the rules.</p>
+            <div class="how-play">
+              <p class="how-target">Target: <b id="howTarget">Rival</b>. Tap a tower to switch.</p>
+              <div class="how-hand">
+                <button class="how-card" type="button" data-how-card><b>Chart Ghost</b><span>Freeze 10s</span></button>
+                <button class="how-card" type="button" data-how-card><b>Force Close</b><span>Shut their trade</span></button>
+                <button class="how-card" type="button" data-how-card><b>Pip Theft</b><span>Steal 150</span></button>
+              </div>
+              <p class="how-hint" id="howPlayHint" role="status"></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="how-step">
+          <picture class="how-pic"><source media="(max-width: 760px)" srcset="/assets/how/win-phone.webp"><img src="/assets/how/win.webp" alt="A podium under falling gold coins, with a bell above it" loading="lazy" width="1440" height="836"></picture>
+          <div class="how-body">
+            <span class="step-n">03</span>
+            <h3>Finish on top</h3>
+            <p>Highest balance at the bell wins the pot in coins. Ranked wins move you from Recruit to War Lord.</p>
+            <div class="how-play">
+              <p class="how-result" id="howResult" role="status">Reach the bell and the final seconds begin. Highest balance wins.</p>
+              <p class="how-story" id="howStory" hidden></p>
+              <p class="how-tip" id="howTip" hidden></p>
+              <div class="how-stats" id="howStats" hidden></div>
+              <div class="how-btnrow">
+                <button class="how-trade close" type="button" id="howCollect" hidden>Collect coins</button>
+                <button class="how-skip" type="button" id="howAgain" hidden>Play again</button>
+              </div>
+              <p class="how-hint" id="howFine">Example match, sped up. Coins have no cash value.</p>
+            </div>
+          </div>
+        </article>
       </div>
-      <div class="story-steps">
-        <article class="story-step" data-step="0"><span class="step-n">01</span><h3 class="h3">Trade the market</h3><p>Everyone starts with the same virtual capital and the same real price history. Read the chart, buy or sell, size up.</p></article>
-        <article class="story-step" data-step="1"><span class="step-n">02</span><h3 class="h3">Sabotage your rivals</h3><p>Every match deals you cards. Freeze a rival's chart, close their best trade, steal their capital. It's all in the rules.</p></article>
-        <article class="story-step" data-step="2"><span class="step-n">03</span><h3 class="h3">Finish on top</h3><p>Highest balance at the bell wins the pot in coins. Ranked wins move you from Recruit to War Lord.</p></article>
+
+      <div class="how-tools">
+        <button class="how-sound" type="button" id="howSound" aria-pressed="true">Sound on</button>
+        <a class="how-skip" href="#modes">Skip</a>
+        <button class="btn btn-primary" type="button" id="howCtaFinal" onclick="openPanel('register')">Play free</button>
       </div>
     </div>
+  </div>
+  <div class="how-static-cta">
+    <button class="btn btn-primary" type="button" onclick="openPanel('register')">Play free</button>
+    <p class="fine">500 free coins when you sign up. Coins have no cash value.</p>
   </div>
 </section>
 
@@ -726,80 +949,6 @@ document.getElementById('cardGrid').innerHTML = CARDS.map(([n, d, k]) => `<artic
   document.getElementById('offerArt').innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="cg" x1="0" x2="1"><stop offset="0" stop-color="#ffce21"/><stop offset=".5" stop-color="#f5a623"/><stop offset="1" stop-color="#ee8e00"/></linearGradient></defs>${coins}<text x="200" y="${222 - 6 * 22 + 6}" fill="#3a2600" font-family="Inter" font-weight="800" font-size="22" text-anchor="middle">500</text></svg>`;
 })();
 
-// ── HOW IT WORKS: scroll story. Each step plays a short looping scene. ──
-(function () {
-  const stage = document.getElementById('stage');
-  const steps = [...document.querySelectorAll('.story-step')];
-  const $ = id => document.getElementById(id);
-  const canvas = $('stChart'), ctx = canvas.getContext('2d');
-  let timers = [], active = -1, pts = [], tick = null;
-  const later = (ms, fn) => timers.push(setTimeout(fn, ms));
-  const clear = () => { timers.forEach(clearTimeout); timers = []; clearInterval(tick); tick = null;
-    stage.className = 'stage'; $('stToast').textContent = ''; };
-  function chart(trend) {
-    const dpr = Math.min(devicePixelRatio || 1, 2), W = canvas.clientWidth, H = canvas.clientHeight;
-    if (!W) return;
-    canvas.width = W * dpr; canvas.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const mn = Math.min(...pts), mx = Math.max(...pts), y = v => H * .12 + (1 - (v - mn) / (mx - mn || 1)) * H * .76;
-    ctx.clearRect(0, 0, W, H);
-    const cw = W / 34;
-    pts.slice(-34).forEach((v, i, a) => { if (!i) return; const up = v >= a[i - 1];
-      ctx.fillStyle = ctx.strokeStyle = up ? '#1fd38a' : '#ff3d5c';
-      const x = i * cw; ctx.fillRect(x - cw * .32, Math.min(y(v), y(a[i - 1])), cw * .64, Math.max(2, Math.abs(y(v) - y(a[i - 1]))));
-    });
-  }
-  function seed(drift) { pts = [50]; for (let i = 0; i < 40; i++) pts.push(pts[i] + (Math.random() - .5 + drift) * 4); }
-  function count(el, from, to, ms) { const st = performance.now(); const f = n => { const p = Math.min(1, (n - st) / ms);
-      const v = Math.round(from + (to - from) * p); el.textContent = (v >= 0 ? '+' : '−') + Math.abs(v); el.className = 'st-pnl ' + (v >= 0 ? 'up' : 'dn'); if (p < 1 && active >= 0) requestAnimationFrame(f); }; requestAnimationFrame(f); }
-  function setRows(meFirst) { $('stMe').querySelector('.st-rk').textContent = meFirst ? '1' : '2'; $('stRival').querySelector('.st-rk').textContent = meFirst ? '2' : '1';
-    $('stMe').style.transform = meFirst ? 'none' : 'translateY(calc(100% + 6px))'; $('stRival').style.transform = meFirst ? 'none' : 'translateY(calc(-100% - 6px))'; }
-
-  const SCENES = [
-    function trade() { // price rises, you buy, P&L climbs
-      setRows(false); $('stMePnl').textContent = '+40'; $('stRivalPnl').textContent = '+164'; $('stTimer').textContent = '06:30';
-      seed(.05); chart(); tick = setInterval(() => { pts.push(pts[pts.length - 1] + (Math.random() - .3) * 4); chart(); }, 260);
-      later(900, () => stage.classList.add('buy-press'));
-      later(1200, () => { stage.classList.remove('buy-press'); stage.classList.add('pos-on'); count($('stMePnl'), 40, 210, 2600); });
-      later(3000, () => setRows(true));
-    },
-    function sabotage() { // card lifts, flies, rival freezes and drops
-      setRows(true); $('stMePnl').textContent = '+210'; $('stRivalPnl').textContent = '+188'; $('stTimer').textContent = '02:05';
-      stage.classList.add('pos-on'); seed(0); chart();
-      later(300, () => stage.classList.add('hand-up'));
-      later(1100, () => stage.classList.add('ghost-lift'));
-      later(1800, () => stage.classList.add('ghost-fly'));
-      later(2300, () => { stage.classList.add('frozen', 'toast-on'); $('stToast').innerHTML = 'You played <b>Chart Ghost</b> on Rival';
-        let n = 10; $('stFreeze').textContent = n; tick = setInterval(() => { n = Math.max(0, n - 1); $('stFreeze').textContent = n; }, 400);
-        count($('stRivalPnl'), 188, 22, 2400); });
-      later(4200, () => stage.classList.remove('toast-on'));
-    },
-    function win() { // bell, board settles, coins
-      setRows(true); $('stMePnl').textContent = '+312'; $('stRivalPnl').textContent = '+22'; seed(.02); chart();
-      let t = 4; $('stTimer').textContent = '00:04';
-      tick = setInterval(() => { t = Math.max(0, t - 1); $('stTimer').textContent = '00:0' + t; if (!t) { clearInterval(tick); stage.classList.add('win-on'); } }, 450);
-    },
-  ];
-  const END = ['pos-on', 'pos-on hand-up frozen', 'win-on'];
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function play(i) {
-    if (i === active) return;
-    clear(); active = i;
-    stage.dataset.step = i;
-    steps.forEach((s, k) => s.classList.toggle('on', k === i));
-    if (reduced) { SCENES[i](); timers.forEach(clearTimeout); timers = []; clearInterval(tick); stage.className = 'stage ' + END[i]; return; }
-    SCENES[i]();
-    later(6200, () => { active = -1; play(i); }); // loop the scene while it's on screen
-  }
-  const io = new IntersectionObserver(es => {
-    es.forEach(e => { if (e.isIntersecting) play(Number(e.target.dataset.step)); });
-  }, { rootMargin: '-45% 0px -45% 0px' });
-  steps.forEach(s => io.observe(s));
-  // start on the first scene so the screen never sits empty
-  play(0);
-  addEventListener('resize', () => chart());
-})();
-
 // ── PARTNERS (real data only: GET /api/stats/broker-partners) ──
 (async function loadPartners() {
   try {
@@ -927,7 +1076,7 @@ function countUp(el, target) {
   try {
     const data = await (await fetch('/api/stats/live')).json();
     const n = Number(data.activePlayers || 0);
-    document.getElementById('heroBadgeText').textContent = `Live · ${n.toLocaleString()} ${n === 1 ? 'player' : 'players'} online`;
+    document.getElementById('heroBadgeText').textContent = n > 0 ? `Live · ${n.toLocaleString()} ${n === 1 ? 'player' : 'players'} online` : 'Live';
     if (data.totalPlayers > 0) document.getElementById('spJoinCount').textContent = `Join ${Number(data.totalPlayers).toLocaleString()} players.`;
     countUp(document.getElementById('sv1'), data.activePlayers);
     countUp(document.getElementById('sv2'), data.matchesToday);
@@ -939,6 +1088,8 @@ function countUp(el, target) {
 <script src="/js/shader-bg.js"></script>
 <script src="/js/card-art.js"></script>
 <script src="/js/card-showcase.js"></script>
+<script src="/js/how-match.js"></script>
+<script src="/js/how-world.js"></script>
 <script src="js/support-widget.js"></script>
 </body>
 </html>

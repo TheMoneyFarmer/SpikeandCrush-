@@ -2459,11 +2459,12 @@ app.get('/api/stats/home', cacheJson(10000), async (req, res) => {
 // from /api/stats/home above: activePlayers there only counts players inside
 // a live match, but the landing page's hero badge wants everyone currently
 // connected to the site (playerSockets, the same in-memory socket registry
-// index.js already uses for presence pushes), and it also wants a lifetime
+// index.js already uses for presence pushes) plus every filled seat in a live
+// match, as one number by owner decision, and it also wants a lifetime
 // total rather than /api/stats/home's today-scoped coinsWonToday.
 app.get('/api/stats/live', cacheJson(10000), async (req, res) => {
   try {
-    const activePlayers = playerSockets.size;
+    const activePlayers = playerSockets.size + gameEngine.getFilledSeatsInPlay();
     const { matchesToday } = await gameEngine.getHomeStats();
     if (!db.isConfigured) {
       return res.json({ activePlayers, matchesToday, largestWinToday: 0, totalPrizesDistributed: 0, totalPlayers: 0 });

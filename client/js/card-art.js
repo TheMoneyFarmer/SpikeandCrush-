@@ -1,6 +1,6 @@
 'use strict';
 // Sabotage card artwork, drawn to a canvas so it stays sharp and uses real game
-// text. Used by the 3D card showcase.
+// text. Shared by the 3D card showcase and the "How a match works" flight.
 // ADD A CARD HERE: id (matches its picture in /assets/showcase), name, effect, icon.
 window.SCCardArt = (function () {
   const CARDS = [

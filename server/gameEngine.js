@@ -2136,6 +2136,17 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     return { matchesToday, activePlayers: activePlayerIds.size };
   }
 
+  // Filled seats in matches being played right now. Added to the connected
+  // count for the public "players online" number.
+  function getFilledSeatsInPlay() {
+    let seats = 0;
+    for (const match of matches.values()) {
+      if (match.status !== 'active' && match.status !== 'countdown') continue;
+      seats += Object.values(match.players).filter((p) => p.isAI).length;
+    }
+    return seats;
+  }
+
   function getFeaturedMatch() {
     const nowMs = Date.now();
     for (const match of matches.values()) {
@@ -2507,6 +2518,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     getSession,
     handleDisconnect,
     getHomeStats,
+    getFilledSeatsInPlay,
     getFeaturedMatch,
     buildMatchStatePayloadFor,
     tierForRating,

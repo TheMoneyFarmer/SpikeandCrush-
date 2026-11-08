@@ -144,9 +144,9 @@ function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets,
     }));
     return {
       matchesToday: out.matchesToday || 0,
-      // Connected players right now. Personas never hold a socket, so this
-      // is real people only.
-      activePlayers: playerSockets.size,
+      // Same number as the landing page: connected players plus filled seats
+      // in live matches.
+      activePlayers: playerSockets.size + gameEngine.getFilledSeatsInPlay(),
       largestWinCoins: out.largestWinCoins || 0,
       coinsWonToday: out.coinsWonToday || 0,
       emptyMessage: settings.emptyMessage,
