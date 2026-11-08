@@ -222,3 +222,24 @@ test('the Help page no longer contradicts the game rules', () => {
   assert.ok(!/What Is Margin\?|Your open positions stay in the match|Quick War, Blitz, and Private/.test(help));
   assert.ok(help.includes(`${RECONNECT_GRACE_SECONDS} seconds to reconnect`));
 });
+
+test('bridge: right secret and place only; remote mode needs a long secret', () => {
+  const { bridgeCallAllowed } = require('../server/bridgeAuth');
+  const saved = { s: process.env.INTERNAL_ADMIN_SECRET, r: process.env.SUPPORT_BRIDGE_ALLOW_REMOTE };
+  const req = (secret, ip) => ({ headers: { 'x-internal-secret': secret }, socket: { remoteAddress: ip } });
+  const long = 'x'.repeat(48);
+  process.env.INTERNAL_ADMIN_SECRET = long;
+  delete process.env.SUPPORT_BRIDGE_ALLOW_REMOTE;
+  assert.ok(bridgeCallAllowed(req(long, '127.0.0.1')));
+  assert.ok(bridgeCallAllowed(req(long, '::ffff:127.0.0.1')));
+  assert.ok(!bridgeCallAllowed(req(long, '10.0.0.5')), 'remote refused by default');
+  assert.ok(!bridgeCallAllowed(req('y'.repeat(48), '127.0.0.1')), 'wrong secret');
+  assert.ok(!bridgeCallAllowed(req(undefined, '127.0.0.1')), 'no secret');
+  process.env.SUPPORT_BRIDGE_ALLOW_REMOTE = '1';
+  assert.ok(bridgeCallAllowed(req(long, '10.0.0.5')), 'remote allowed when switched on');
+  assert.ok(!bridgeCallAllowed(req('y'.repeat(48), '10.0.0.5')));
+  process.env.INTERNAL_ADMIN_SECRET = 'short';
+  assert.ok(!bridgeCallAllowed(req('short', '10.0.0.5')), 'short secret refused in remote mode');
+  if (saved.s === undefined) delete process.env.INTERNAL_ADMIN_SECRET; else process.env.INTERNAL_ADMIN_SECRET = saved.s;
+  if (saved.r === undefined) delete process.env.SUPPORT_BRIDGE_ALLOW_REMOTE; else process.env.SUPPORT_BRIDGE_ALLOW_REMOTE = saved.r;
+});

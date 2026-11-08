@@ -376,7 +376,9 @@ function router() {
     const since = new Date(Date.now() - days * 86400000).toISOString();
     const rows = await q(supabase.from('support_conversations').select('id, status, priority, topic, escalation_reason, created_at, escalated_at, first_human_response_at, resolved_at, csat').gte('created_at', since).order('created_at').limit(10000));
     const cols = ['id', 'status', 'priority', 'topic', 'escalation_reason', 'created_at', 'escalated_at', 'first_human_response_at', 'resolved_at', 'csat'];
-    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    // A leading = + - @ would run as a formula when the CSV is opened in a
+    // spreadsheet, and some of this text comes from players.
+    const esc = (v) => `"${String(v ?? '').replace(/^[=+\-@\t\r]/, "'$&").replace(/"/g, '""')}"`;
     await log(req, 'support_analytics_export', 'support', null, { days, rows: rows.length });
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="support-${days}d.csv"`);

@@ -8,26 +8,11 @@
 // itself (see admin/lib/supabaseAdmin.js) - this router only exists for
 // state Supabase doesn't have.
 const express = require('express');
-
-function requireInternalSecret(req, res, next) {
-  const expected = process.env.INTERNAL_ADMIN_SECRET;
-  if (!expected || req.headers['x-internal-secret'] !== expected) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  // Belt-and-braces: this bridge should only ever be called from the admin
-  // server on the same machine, never reachable from the public internet.
-  const ip = (req.socket.remoteAddress || '').replace('::ffff:', '');
-  // In production the admin panel is a separate service, so it can't be on
-  // localhost: SUPPORT_BRIDGE_ALLOW_REMOTE=1 relies on the secret alone.
-  if (process.env.SUPPORT_BRIDGE_ALLOW_REMOTE !== '1' && ip !== '127.0.0.1' && ip !== '::1' && ip !== 'localhost') {
-    return res.status(403).json({ error: 'Forbidden - internal endpoint, localhost only' });
-  }
-  next();
-}
+const { requireBridgeSecret } = require('./bridgeAuth');
 
 function createInternalAdminRouter({ gameEngine, compEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }) {
   const router = express.Router();
-  router.use(requireInternalSecret);
+  router.use(requireBridgeSecret);
 
   // Read-only reference/config data for the Game Config admin pages - pulled
   // straight from the running process's live objects (post any config

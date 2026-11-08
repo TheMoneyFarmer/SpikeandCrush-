@@ -21,6 +21,7 @@ const {
 } = require('./lib/auth');
 const { securityHeaders } = require('../server/securityHeaders');
 const internal = require('./lib/internalGameServer');
+const { bridgeCallAllowed } = require('../server/bridgeAuth');
 const twoFactor = require('./lib/twoFactor');
 const QRCode = require('qrcode');
 
@@ -236,11 +237,7 @@ app.post('/api/auth/logout', async (req, res) => {
 // new message, status change). Same shared secret + localhost rule as the
 // game server's own internal bridge; re-broadcast to signed-in admin sockets.
 app.post('/internal/support-event', (req, res) => {
-  const ip = (req.socket.remoteAddress || '').replace('::ffff:', '');
-  const localOk = process.env.SUPPORT_BRIDGE_ALLOW_REMOTE === '1' || ip === '127.0.0.1' || ip === '::1';
-  if (!process.env.INTERNAL_ADMIN_SECRET || req.headers['x-internal-secret'] !== process.env.INTERNAL_ADMIN_SECRET || !localOk) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
+  if (!bridgeCallAllowed(req)) return res.status(403).json({ error: 'Forbidden' });
   io.emit('support:event', req.body || {});
   res.json({ ok: true });
 });
@@ -275,19 +272,20 @@ app.get(/^\/[a-z0-9-]+\.html$/, (req, res, next) => {
 
 app.use('/api', requireAdmin);
 // Support agents (role 'support') may use the support inbox and nothing else.
-app.use('/api', (req, res, next) => {
-  if (req.admin && req.admin.role === 'support' && !req.path.startsWith('/support') && !req.path.startsWith('/admins/change-password')) {
+const supportAgentGuard = (req, res, next) => {
+  if (req.admin && req.admin.role === 'support' && !(req.baseUrl === '/api' && (req.path.startsWith('/support') || req.path.startsWith('/admins/change-password')))) {
     return res.status(403).json({ error: 'Support agents can only use the Support section' });
   }
   next();
-});
+};
+app.use('/api', supportAgentGuard);
 app.use('/api/dashboard', require('./routes/dashboard')());
 app.use('/api/players', require('./routes/players')());
 app.use('/api/matches', require('./routes/matches')());
 app.use('/api/tournaments', require('./routes/tournaments')());
 // Spec path for the test creator is /admin/api/comps/test - same router.
 app.use('/api/competitions', require('./routes/competitions')());
-app.use('/admin/api/comps', requireAdmin, require('./routes/competitions')());
+app.use('/admin/api/comps', requireAdmin, supportAgentGuard, require('./routes/competitions')());
 app.use('/api/monetisation', require('./routes/monetisation')());
 app.use('/api/analytics', require('./routes/analytics')());
 app.use('/api/config', require('./routes/gameConfig')());

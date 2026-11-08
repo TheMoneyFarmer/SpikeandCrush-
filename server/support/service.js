@@ -352,6 +352,9 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
       if (!conv || conv.user_id) return { error: 'Conversation not found.', status: 404 };
       const e = String(email || '').trim().toLowerCase();
       if (!EMAIL_RE.test(e)) return { error: 'Please enter a valid email address.', status: 400 };
+      // One address per conversation: otherwise replies could be redirected, and
+      // one conversation could send emails to a list of other people's addresses.
+      if (conv.guest_email) return conv.guest_email === e ? { conversation: conv } : { error: 'This conversation already has an email address.', status: 400 };
       let updated = await store.updateConversation(conv.id, { guest_email: e });
       await say(updated, 'system', `Thanks. We will email you at ${safety.maskEmail(e)}.`);
       const meta = updated.meta || {};
@@ -397,7 +400,7 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
     async createGuestTicket({ email, subject, message, category }) {
       const e = String(email || '').trim().toLowerCase();
       if (!EMAIL_RE.test(e)) return { error: 'Please enter a valid email address.', status: 400 };
-      const t = await store.createTicket({ guestEmail: e, subject, message: safety.maskPII(message).text, category: category || 'other' });
+      const t = await store.createTicket({ guestEmail: e, subject: safety.maskPII(subject).text, message: safety.maskPII(message).text, category: category || 'other' });
       const ref = store.ticketRef(t);
       await emails.ticketReceived({ to: e, ticketRef: ref, subject: t.subject });
       adminBridge.emit('ticket', { ticketRef: ref });

@@ -7,8 +7,8 @@
 // Identity: a Supabase access token (players) or a random guest token kept in
 // the browser (guests). The player id always comes from the verified token.
 
-const crypto = require('crypto');
 const express = require('express');
+const { requireBridgeSecret } = require('../bridgeAuth');
 const multer = require('multer');
 const { createSupportService } = require('./service');
 const { syncToDatabase } = require('./kbSync');
@@ -32,20 +32,6 @@ function createAdminBridge() {
       }).catch(() => {}); // admin panel may be down; the inbox reloads from the DB anyway
     },
   };
-}
-
-// Shared-secret bridge between the game server and the admin panel. By default
-// callers must also be on this machine. In production the two run as separate
-// services, so SUPPORT_BRIDGE_ALLOW_REMOTE=1 relies on the secret alone (use
-// HTTPS URLs for GAME_SERVER_INTERNAL_URL / ADMIN_INTERNAL_URL).
-function requireInternalSecret(req, res, next) {
-  const expected = process.env.INTERNAL_ADMIN_SECRET;
-  const given = String(req.headers['x-internal-secret'] || '');
-  const ok = expected && given.length === expected.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
-  if (!ok) return res.status(403).json({ error: 'Forbidden' });
-  const ip = (req.socket.remoteAddress || '').replace('::ffff:', '');
-  if (process.env.SUPPORT_BRIDGE_ALLOW_REMOTE !== '1' && ip !== '127.0.0.1' && ip !== '::1') return res.status(403).json({ error: 'Forbidden - internal endpoint, localhost only' });
-  next();
 }
 
 function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp, limiters = {} }) {
@@ -189,8 +175,11 @@ function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp, limi
     })
   );
 
+  // Each email address given here can trigger emails, so this has the strict
+  // ticket limit (5 an hour per IP) to stop it being used to bomb an inbox.
   router.post(
     '/guest-email',
+    ticketLimiter,
     withOwner(async (req, res, o) => {
       if (o.playerId) return res.status(400).json({ error: 'Signed-in players are emailed at their account address.' });
       const r = await service.setGuestEmail(o, req.body?.conversationId, req.body?.email);
@@ -286,7 +275,7 @@ function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp, limi
       if (!safety.checkRateLimit({ conversationId: null, actorKey }).ok) return res.status(429).json({ error: 'Too many requests. Please try again later.' });
       const cat = require('./tools').CATEGORIES.includes(category) ? category : 'other';
       if (o && o.playerId) {
-        const t = await store.createTicket({ playerId: o.playerId, subject, message: safety.maskPII(message).text, category: cat });
+        const t = await store.createTicket({ playerId: o.playerId, subject: safety.maskPII(subject).text, message: safety.maskPII(message).text, category: cat });
         adminBridge.emit('ticket', { ticketRef: store.ticketRef(t) });
         return res.json({ success: true, ticket: store.ticketRef(t) });
       }
@@ -334,7 +323,7 @@ function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp, limi
 
   // ---- internal bridge for the admin server -------------------------------
   const internal = express.Router();
-  internal.use(requireInternalSecret);
+  internal.use(requireBridgeSecret);
   const adminOf = (req) => ({ id: UUID_RE.test(req.body?.admin?.id || '') ? req.body.admin.id : null, name: String(req.body?.admin?.name || 'Support').slice(0, 80) });
   const wrap = (fn) => async (req, res) => {
     try {
