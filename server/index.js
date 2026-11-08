@@ -92,7 +92,9 @@ const app = express();
 // X-Forwarded-For - without telling Express to trust exactly that one hop,
 // express-rate-limit refuses to start (it throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
 // rather than risk keying rate limits off a client-spoofable header).
-app.set('trust proxy', 1);
+// Proxies between the visitor and this process: 1 = Railway only. Set TRUST_PROXY_HOPS=2
+// when Cloudflare is in front, or every visitor shares Cloudflare's IP in rate limits.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
 app.disable('x-powered-by');
 // Security headers on every response, including the Stripe webhook and static files.
 app.use(securityHeaders());
@@ -296,8 +298,8 @@ async function authenticate(req, res, next) {
 }
 
 function clientIp(req) {
-  const forwarded = req.headers['x-forwarded-for'];
-  return (forwarded ? forwarded.split(',')[0].trim() : null) || req.socket.remoteAddress || 'unknown';
+  // req.ip follows trust proxy. The first X-Forwarded-For entry is whatever the caller sent.
+  return String(req.ip || req.socket.remoteAddress || 'unknown').replace('::ffff:', '');
 }
 
 // No cookie-parser middleware is installed anywhere in this server (only

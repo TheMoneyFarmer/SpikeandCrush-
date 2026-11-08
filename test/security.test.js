@@ -52,3 +52,48 @@ test('CSP blocks framing, plugins and unknown script hosts', () => {
   assert.match(csp, /connect-src [^;]*https:\/\/abc\.supabase\.co/);
   assert.doesNotMatch(csp.match(/script-src[^;]*/)[0], /\*/);
 });
+
+test('admin 2FA: a code matches its time step, and only around now', () => {
+  const { generateSecret, generateTotp, matchTotpStep } = require('../server/totp');
+  const secret = generateSecret();
+  const at = 1800000000000;
+  const step = Math.floor(at / 30000);
+  assert.strictEqual(matchTotpStep(secret, generateTotp(secret, { at }), { at }), step);
+  assert.strictEqual(matchTotpStep(secret, generateTotp(secret, { at: at - 30000 }), { at }), step - 1);
+  assert.strictEqual(matchTotpStep(secret, generateTotp(secret, { at: at - 300000 }), { at }), null);
+  assert.strictEqual(matchTotpStep(secret, 'abcdef', { at }), null);
+});
+
+test('admin 2FA: secret is encrypted at rest and bound to ADMIN_SECRET', () => {
+  process.env.ADMIN_SECRET = 'test-secret-a';
+  const tf = require('../admin/lib/twoFactor');
+  const stored = tf.encryptSecret('JBSWY3DPEHPK3PXP');
+  assert.ok(!stored.includes('JBSWY3DPEHPK3PXP'));
+  assert.strictEqual(tf.decryptSecret(stored), 'JBSWY3DPEHPK3PXP');
+  process.env.ADMIN_SECRET = 'test-secret-b';
+  assert.throws(() => tf.decryptSecret(stored));
+});
+
+test('admin 2FA: a setup token is not an admin session', () => {
+  process.env.ADMIN_SECRET = 'test-secret-a';
+  const jwt = require('jsonwebtoken');
+  const tf = require('../admin/lib/twoFactor');
+  const token = tf.signSetupToken('admin-1');
+  assert.strictEqual(tf.readSetupToken(token), 'admin-1');
+  assert.strictEqual(jwt.decode(token).role, undefined);
+  const session = jwt.sign({ username: 'x', role: 'admin' }, process.env.ADMIN_SECRET);
+  assert.strictEqual(tf.readSetupToken(session), null);
+  assert.strictEqual(tf.readSetupToken('garbage'), null);
+});
+
+test('admin 2FA: wrong codes are capped per account', () => {
+  const tf = require('../admin/lib/twoFactor');
+  const now = 1000000;
+  for (let i = 0; i < 9; i++) tf.noteCodeFailure('a', now);
+  assert.strictEqual(tf.codeAttemptsBlocked('a', now), false);
+  tf.noteCodeFailure('a', now);
+  assert.strictEqual(tf.codeAttemptsBlocked('a', now), true);
+  assert.strictEqual(tf.codeAttemptsBlocked('a', now + 16 * 60 * 1000), false);
+  tf.clearCodeFailures('a');
+  assert.strictEqual(tf.codeAttemptsBlocked('a', now), false);
+});

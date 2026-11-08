@@ -46,13 +46,13 @@ All "after" results were measured on the fixed code running locally (game :3030,
 | Item | What to do | Why |
 |---|---|---|
 | **Rotate the master admin password** | Railway → admin service → Variables → set `MASTER_ADMIN_PASSWORD` to a new 16+ character value; redeploy | The old fallback is public in git history and was downloadable from prod |
-| Backups / PITR (23) | Supabase prod → Database → Backups: confirm daily backups, enable Point-in-Time Recovery, do one test restore into a scratch project | Not visible to code |
-| WAF / DDoS (30) | Put Cloudflare (free plan) in front of `www.` and `admin.` | Origin is exposed |
-| Admin IP allowlist | Set `ADMIN_ALLOWED_IPS` on the admin service (now spoof-proof) | Strongly recommended for the panel |
+| Backups (23) | Supabase Pro includes daily backups kept 7 days. Point-in-Time Recovery is **deliberately off** (owner decision, about $100 a month). Do one test restore into a scratch project | A disaster can lose up to about 24 hours of data. Free plan has no automatic backups |
+| WAF / DDoS (30) | Put Cloudflare (free plan) in front of `www.` and `admin.`, and set `TRUST_PROXY_HOPS=2` on both Railway services at the same time | Origin is exposed. Without the variable every visitor shares Cloudflare's IP in rate limits |
+| Admin two-factor login | Run `20261108120000_admin_2fa.sql`, log in with the master email and scan the QR code, then set `ADMIN_REQUIRE_2FA=1` on the admin service | Replaces an IP allowlist (owner travels and uses many machines). The shared login bypasses 2FA until the variable is set |
 | Railway env | Confirm `NODE_ENV=production`, `ALLOWED_ORIGIN`, `STRIPE_WEBHOOK_SECRET` set on the game service | Several guards key off them |
 | Leaked-password protection | Supabase → Auth → enable HaveIBeenPwned check | Advisor warning |
 | Monitoring (46) | Point an uptime checker (e.g. Better Stack free) at `/health`; add Sentry when ready | No alerting exists |
-| Apex redirect (29) | GoDaddy forwarding for `spikeandcrush.com` should 301 to `https://www.` | Answers 405 over http |
+| Apex redirect (29) | Cloudflare redirect rule: `spikeandcrush.com/*` 301 to `https://www.spikeandcrush.com/$1`, once Cloudflare is active | GoDaddy forwarding sends to http and returns 404 for any path |
 | Railway "Wait for CI" | Turn on for the game service so `ci.yml` + `safe-deploy.yml` gate deploys | |
 
 ## F3. Money proofs after the fix (dev, fixed code)

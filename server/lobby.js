@@ -26,8 +26,8 @@ const IP_HASH_SECRET = process.env.IP_HASH_SECRET || crypto.randomBytes(32).toSt
 if (!process.env.IP_HASH_SECRET) console.warn('[lobby] IP_HASH_SECRET not set - using a per-process random salt for ip hashes');
 
 function clientIp(req) {
-  const fwd = req.headers['x-forwarded-for'];
-  return (fwd ? String(fwd).split(',')[0].trim() : req.socket.remoteAddress || '').replace('::ffff:', '');
+  // req.ip follows trust proxy. The first X-Forwarded-For entry is whatever the caller sent.
+  return String(req.ip || req.socket.remoteAddress || '').replace('::ffff:', '');
 }
 
 function ipHash(req) {

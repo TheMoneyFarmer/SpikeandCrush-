@@ -21,6 +21,8 @@ const {
 } = require('./lib/auth');
 const { securityHeaders } = require('../server/securityHeaders');
 const internal = require('./lib/internalGameServer');
+const twoFactor = require('./lib/twoFactor');
+const QRCode = require('qrcode');
 
 // Railway (and most PaaS hosts) inject PORT and require the service to bind
 // to exactly that value - ADMIN_PORT stays as the local-dev override for
@@ -37,7 +39,9 @@ const app = express();
 // Same reasoning as the game server - Railway is a single reverse-proxy hop
 // in front of this service, so express-rate-limit needs trust proxy set to
 // use X-Forwarded-For safely.
-app.set('trust proxy', 1);
+// Proxies between the visitor and this process: 1 = Railway only. Set TRUST_PROXY_HOPS=2
+// when Cloudflare is in front, or every visitor shares Cloudflare's IP in rate limits.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
 const server = http.createServer(app);
 // Same-origin only: the panel's own pages are the only legitimate socket client
 // (was `origin: true` with credentials, i.e. any site).
@@ -71,7 +75,9 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     const a1 = Buffer.from(String(x)); const b1 = Buffer.from(String(y || ''));
     return a1.length === b1.length && require('crypto').timingSafeEqual(a1, b1);
   };
-  const legacyValid = safeEqual(identifier, process.env.ADMIN_USERNAME) && safeEqual(password, process.env.ADMIN_PASSWORD);
+  // The shared login has no phone attached, so requiring 2FA switches it off.
+  const legacyValid = !twoFactor.twoFactorRequired()
+    && safeEqual(identifier, process.env.ADMIN_USERNAME) && safeEqual(password, process.env.ADMIN_PASSWORD);
   let adminUser = null;
   let dbValid = false;
 
@@ -91,9 +97,62 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   }
 
   const valid = legacyValid || dbValid;
-  await recordLoginAttempt(identifier, ip, valid);
-  if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+  if (!valid) {
+    await recordLoginAttempt(identifier, ip, false);
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
 
+  if (adminUser) {
+    // undefined = the 2FA columns don't exist yet (migration not run).
+    if (adminUser.totp_enabled === undefined) {
+      if (twoFactor.twoFactorRequired()) return res.status(503).json({ error: 'Two-factor login is not set up on the database yet' });
+    } else if (adminUser.totp_enabled) {
+      const code = String(req.body?.code || '').trim();
+      // Nothing is recorded yet: a success row would reset the lockout count.
+      if (!code) return res.status(401).json({ needCode: true, error: 'Enter the 6-digit code from your authenticator app' });
+      const check = await acceptCode(adminUser, code);
+      if (!check.ok) {
+        await recordLoginAttempt(identifier, ip, false);
+        return res.status(check.status).json({ needCode: true, error: check.error });
+      }
+    } else {
+      return res.json({ setup2fa: true, setupToken: twoFactor.signSetupToken(adminUser.id) });
+    }
+  }
+
+  await recordLoginAttempt(identifier, ip, true);
+  const payload = await startSession(req, res, adminUser, identifier);
+  if (!payload) return res.status(503).json({ error: 'Could not start a session' });
+  res.json(payload);
+});
+
+// Checks a code and burns its time step, so a code seen once can't be replayed.
+async function acceptCode(adminUser, code) {
+  if (twoFactor.codeAttemptsBlocked(adminUser.id)) {
+    return { ok: false, status: 429, error: 'Too many wrong codes - wait 15 minutes' };
+  }
+  let step = null;
+  try {
+    step = twoFactor.matchTotpStep(twoFactor.decryptSecret(adminUser.totp_secret), code);
+  } catch (e) {
+    console.error('[admin login] 2FA secret could not be read for', adminUser.email, '- was ADMIN_SECRET changed?');
+  }
+  if (step !== null) {
+    const { data: claimed, error } = await supabase.from('admin_users').update({ totp_last_step: step })
+      .eq('id', adminUser.id).or(`totp_last_step.is.null,totp_last_step.lt.${step}`).select('id');
+    if (error) return { ok: false, status: 503, error: 'Could not check the code - try again' };
+    if (claimed && claimed.length) {
+      twoFactor.clearCodeFailures(adminUser.id);
+      return { ok: true, step };
+    }
+  }
+  twoFactor.noteCodeFailure(adminUser.id);
+  return { ok: false, status: 401, error: 'That code is wrong or was already used - wait for the next one' };
+}
+
+// Issues the admin_token cookie. Returns the login response, or null if no session row.
+async function startSession(req, res, adminUser, identifier) {
+  const ip = clientIp(req);
   const email = adminUser ? adminUser.email : identifier;
 
   // The session row is created first so the token can name it (sid): logout and
@@ -106,7 +165,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     const { data: sess, error: sessErr } = await supabase.from('admin_sessions').insert({
       admin_username: email, ip_address: ip, expires_at: new Date(Date.now() + SESSION_HOURS * 60 * 60 * 1000).toISOString(),
     }).select('id').single();
-    if (sessErr || !sess) return res.status(503).json({ error: 'Could not start a session' });
+    if (sessErr || !sess) return null;
     sid = sess.id;
     if (adminUser) await supabase.from('admin_users').update({ last_login: new Date().toISOString() }).eq('id', adminUser.id);
   }
@@ -120,12 +179,45 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   await logAdminAction({ adminUsername: email, actionType: 'login', ip });
   await logAdminActivity({ adminId: adminUser?.id || null, adminEmail: email, action: 'LOGIN', ip });
 
-  res.json({
+  return {
     success: true,
     username: email,
     lastLogin,
     admin: adminUser ? { id: adminUser.id, email: adminUser.email, name: adminUser.name, role: adminUser.role, is_master: adminUser.is_master } : { email, role: 'super_admin', is_master: false },
-  });
+  };
+}
+
+// First login with a password and no 2FA yet: both endpoints need the setup token
+// from that login, and neither touches an account that already has 2FA on.
+async function adminForSetup(token) {
+  const adminId = twoFactor.readSetupToken(token);
+  if (!adminId) return null;
+  const { data } = await supabase.from('admin_users').select('*').eq('id', adminId).eq('is_active', true).maybeSingle();
+  return data && data.totp_enabled === false ? data : null;
+}
+
+app.post('/api/auth/2fa/setup', loginLimiter, async (req, res) => {
+  const adminUser = await adminForSetup(req.body?.setupToken);
+  if (!adminUser) return res.status(401).json({ error: 'Setup expired - log in again' });
+  const secret = twoFactor.generateSecret();
+  const { error } = await supabase.from('admin_users').update({ totp_secret: twoFactor.encryptSecret(secret) }).eq('id', adminUser.id).eq('totp_enabled', false);
+  if (error) return res.status(503).json({ error: 'Could not start setup - try again' });
+  const uri = twoFactor.buildOtpAuthUri({ secret, accountName: adminUser.email, issuer: 'Spike & Crush Admin' });
+  res.json({ secret, qr: await QRCode.toDataURL(uri, { width: 240, margin: 2 }) });
+});
+
+app.post('/api/auth/2fa/confirm', loginLimiter, async (req, res) => {
+  const adminUser = await adminForSetup(req.body?.setupToken);
+  if (!adminUser || !adminUser.totp_secret) return res.status(401).json({ error: 'Setup expired - log in again' });
+  const check = await acceptCode(adminUser, String(req.body?.code || '').trim());
+  if (!check.ok) return res.status(check.status).json({ error: check.error });
+  const { error } = await supabase.from('admin_users').update({ totp_enabled: true }).eq('id', adminUser.id);
+  if (error) return res.status(503).json({ error: 'Could not turn on two-factor login - try again' });
+  await logAdminActivity({ adminId: adminUser.id, adminEmail: adminUser.email, action: 'ADMIN_2FA_ENABLED', ip: clientIp(req) });
+  await recordLoginAttempt(adminUser.email, clientIp(req), true);
+  const payload = await startSession(req, res, adminUser, adminUser.email);
+  if (!payload) return res.status(503).json({ error: 'Could not start a session' });
+  res.json(payload);
 });
 
 app.post('/api/auth/logout', async (req, res) => {

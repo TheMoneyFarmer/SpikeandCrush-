@@ -60,13 +60,19 @@ function generateTotp(secretBase32, { step = 30, at = Date.now() } = {}) {
 
 // Accepts a code from the current window or one step before/after to absorb
 // clock drift between the server and the user's device.
-function verifyTotp(secretBase32, token, { step = 30, window = 1, at = Date.now() } = {}) {
-  if (!/^\d{6}$/.test(String(token || ''))) return false;
+function verifyTotp(secretBase32, token, options = {}) {
+  return matchTotpStep(secretBase32, token, options) !== null;
+}
+
+// The time step the code belongs to, or null. Storing the last accepted step is
+// what stops one code being used twice.
+function matchTotpStep(secretBase32, token, { step = 30, window = 1, at = Date.now() } = {}) {
+  if (!/^\d{6}$/.test(String(token || ''))) return null;
   const counter = Math.floor(at / 1000 / step);
   for (let errorWindow = -window; errorWindow <= window; errorWindow++) {
-    if (hotp(secretBase32, counter + errorWindow) === String(token)) return true;
+    if (hotp(secretBase32, counter + errorWindow) === String(token)) return counter + errorWindow;
   }
-  return false;
+  return null;
 }
 
 function buildOtpAuthUri({ secret, accountName, issuer = 'Spike & Crush' }) {
@@ -75,4 +81,4 @@ function buildOtpAuthUri({ secret, accountName, issuer = 'Spike & Crush' }) {
   return `otpauth://totp/${label}?${params.toString()}`;
 }
 
-module.exports = { generateSecret, generateTotp, verifyTotp, buildOtpAuthUri };
+module.exports = { generateSecret, generateTotp, verifyTotp, matchTotpStep, buildOtpAuthUri };
