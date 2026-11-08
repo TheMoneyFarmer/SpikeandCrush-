@@ -57,6 +57,16 @@ console.error = (...args) => {
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+// Password sign-ins get their own throwaway client. Calling signInWithPassword
+// on supabaseAdmin stored that player's session on the shared service client,
+// so later supabaseAdmin calls (e.g. Storage uploads) ran as that player and
+// hit row-level security - and one request's sign-in could leak into another.
+function passwordSignIn(credentials) {
+  const client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  return client.auth.signInWithPassword(credentials);
+}
 const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== 'your_value');
 // Timeout + safe retries (the Stripe SDK adds idempotency keys to retried requests).
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', { timeout: 15000, maxNetworkRetries: 2 });
@@ -242,7 +252,7 @@ async function withEquippedCosmetics(player) {
 // deletion, disabling 2FA. Returns true/false, never throws.
 async function verifyPasswordViaSupabase(email, password) {
   if (!email || !password) return false;
-  const { error } = await supabaseAdmin.auth.signInWithPassword({ email, password });
+  const { error } = await passwordSignIn({ email, password });
   return !error;
 }
 
@@ -612,7 +622,7 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
     await db.recordCoinTransaction({ playerId: player.id, type: 'welcome_bonus', amount: player.coins, balanceAfter: player.coins });
     sendWelcomeEmail(player);
 
-    const { data: signIn, error: signInErr } = await supabaseAdmin.auth.signInWithPassword({ email, password });
+    const { data: signIn, error: signInErr } = await passwordSignIn({ email, password });
     if (signInErr || !signIn.session) {
       console.error('[register] account created but immediate sign-in failed:', signInErr?.message);
       return res.status(500).json({ error: 'Account created but sign-in failed - please log in.' });
@@ -663,7 +673,7 @@ app.post('/api/auth/login', authLimiter, requireDb, async (req, res) => {
       player = await db.updatePlayer(player.id, { supabase_user_id: created.user.id });
     }
 
-    const { data: signIn, error: signInErr } = await supabaseAdmin.auth.signInWithPassword({ email: player.email, password });
+    const { data: signIn, error: signInErr } = await passwordSignIn({ email: player.email, password });
     if (signInErr || !signIn.session) return res.status(401).json({ error: 'Invalid username or password' });
     const ban = activeBan(player);
     if (ban) return res.status(403).json({ error: ban.until ? `This account is banned until ${new Date(ban.until).toUTCString()}` : 'This account is banned', reason: ban.reason });

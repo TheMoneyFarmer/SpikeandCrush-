@@ -2,7 +2,7 @@
 
 > **Fix status, 2026-11-08** (branch `security-fixes`). The original read-only audit follows below, unchanged, from section 0.
 >
-> **DEPLOY ORDER (critical):** apply `supabase/migrations/20261108100000_security_ledger.sql` to the database **before** deploying this code to it. The coin code now calls `coin_apply`, `complete_coin_purchase` and `shop_buy`; on a database without them, every coin movement fails. Dev: not yet applied (the migration tool approval was declined three times). Prod: not applied.
+> **Migration status:** `supabase/migrations/20261108100000_security_ledger.sql` is **applied on dev and prod** (2026-11-08, by the owner in the SQL editor; verified read-only: 4 functions present and not callable by anon/authenticated, coins>=0 validated, unique keys, 7 indexes, `avatars` bucket; prod had 0 shop rows so the duplicate clean-up removed nothing). The live site (old code) was checked healthy afterwards. This branch can now be deployed.
 
 ## F1. Before / after (what was proven broken, and the same test after the fix)
 
@@ -13,11 +13,13 @@ All "after" results were measured on the fixed code running locally (game :3030,
 | U1 | Admin source code publicly served (incl. default master password) | `GET /lib/auth.js` → **200** on prod admin and :3003 | `admin/server.js`: static only `/css`, `/js`, `/components` and top-level `*.html`; everything else 404 | `/lib/auth.js`, `/server.js`, `/routes/system.js`, `/lib/supabaseAdmin.js`, `/lib/coins.js`, `/package.json`, `/../.env` → **404**; login page and assets → 200 | **Fixed in code** (prod needs deploy) |
 | U1b | Hard-coded fallback master password `SpikeAndCrush2026!` | `admin/lib/auth.js:138` reset the super-admin to it on every start when the env var was unset | Fallback removed; a missing/short (<12) `MASTER_ADMIN_PASSWORD` now skips the sync and logs an error | Code review + startup log | **Fixed in code**. **You must rotate the password** (it is public in git history) |
 | U2 | Avatar upload stored XSS (session theft) | `audit.html` declared `image/png` → saved as `.html`, served `200 text/html` | `server/imageValidation.js`: type from file bytes (PNG/JPEG/GIF/WebP only, polyglot check), extension from detected type, memory upload, Supabase Storage `avatars` bucket (local disk fallback), `/uploads` serves image extensions only, `nosniff` everywhere | Same HTML → **400** "Avatar must be a PNG, JPEG, GIF or WebP image"; real PNG named `evil.html` → saved `.png`, served `image/png` + `nosniff`; `/uploads/avatars/x.html` → **404** | **Fixed** |
-| A | Coin balance lost updates | 5 concurrent +1 → balance **+1** (Proof A) | All coin moves via SQL `coin_apply()` (single statement, never < 0, ledger in same transaction, idempotency key); `creditCoins`/`debitCoins` and all 3 admin coin paths rewritten | Needs migration → see F3 | **Fixed in code, untested** |
-| B | Stripe purchase double credit | 2 concurrent completions → credit ran **twice** (Proof B) | `complete_coin_purchase()` flips pending→completed and credits in one transaction (key `purchase:<session>`); unique `coin_purchases.stripe_session_id`; webhook dedupes by `stripe_events.id`, returns **500** on failure so Stripe retries | Needs migration | **Fixed in code, untested** |
-| C | Shop double purchase / charge | 2 simultaneous buys → **2 purchases**, ledger ≠ balance (Proof C) | `shop_buy()` own-once/pay-once + unique `(player_id, item_id)` | Needs migration | **Fixed in code, untested** |
+| A | Coin balance lost updates | 5 concurrent +1 → balance **+1** (Proof A) | All coin moves via SQL `coin_apply()` (single statement, never < 0, ledger in same transaction, idempotency key); `creditCoins`/`debitCoins` and all 3 admin coin paths rewritten | 5 concurrent +1 → **+5**; 5 concurrent with one key → **+1** | **Fixed, verified** |
+| B | Stripe purchase double credit | 2 concurrent completions → credit ran **twice** (Proof B) | `complete_coin_purchase()` flips pending→completed and credits in one transaction (key `purchase:<session>`); unique `coin_purchases.stripe_session_id`; webhook dedupes by `stripe_events.id`, returns **500** on failure so Stripe retries | 3 concurrent completions of one session → **1 credit, +100** | **Fixed, verified** |
+| C | Shop double purchase / charge | 2 simultaneous buys → **2 purchases**, ledger ≠ balance (Proof C) | `shop_buy()` own-once/pay-once + unique `(player_id, item_id)` | 3 simultaneous buys over HTTP → **1 purchase, −150**, 2 × "Already owned" | **Fixed, verified** |
 | 4b | Match entry: seated before paying | Debit after join; failure left player in unpaid | Charge first (unique key), seat, refund exactly that payment if seating fails or the seat was already paid; lobby refund keyed to the seat's payment (closes a pay-once/refund-twice hole found while fixing) | Needs migration | **Fixed in code, untested** |
 | — | Double payouts on retries | Prizes, tournament/battle-pass rewards, cancellation refunds had no dedupe; admin "Distribute prizes" twice paid twice; concurrent tournament cancel refunded twice | Idempotency key on every credit (`prize:<match>:<player>`, `tournament_prize:<id>`, `bp_tier:…`, `bp_challenge:…`, `tournament_cancel_refund:…`, `admin_tournament_prize:…`, `prize_claim_refund:<id>`) | Needs migration | **Fixed in code, untested** |
+| — | Debit below zero | (no guard beyond a JS check) | `coin_apply` refuses + `players.coins >= 0` constraint | Debit of balance+1000 → `INSUFFICIENT_COINS`, balance unchanged | **Fixed, verified** |
+| — | Player sign-in leaked onto the shared service client (found while verifying) | `signInWithPassword` on `supabaseAdmin` made later Storage/DB calls run as the last player who logged in (avatar upload failed with an RLS error) | Each password sign-in uses its own throwaway client (`passwordSignIn`) | Avatar uploaded to the Storage bucket after a login on the same server | **Fixed, verified** |
 | 36 | No security headers | `curl -I` prod: none | `server/securityHeaders.js` on both servers: CSP, nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy, COOP, HSTS (HTTPS) | All present on :3030 and :3031; **0 CSP violations** across 8 pages in Chrome; a deliberate off-list script was **blocked and detected**; lobby fully working | **Fixed** |
 | 26 | Bans not enforced | No reference to `is_banned` anywhere | `activeBan()` checked in `authenticate`, socket handshake and login | Banned dev test account: existing token → **403** "This account is banned"; fresh login → **403**; unbanned afterwards | **Fixed** |
 | 7a | Admin IP allowlist bypass via `X-Forwarded-For` | Spoof header as Railway delivers it (`fake, real`) → passed allowlist (old code: 401 auth prompt) | `clientIp()` uses proxy-verified `req.ip` | Same header → **403** "Your IP is not on the admin allowlist"; genuine allowlisted IP still passes | **Fixed** |
@@ -44,7 +46,6 @@ All "after" results were measured on the fixed code running locally (game :3030,
 | Item | What to do | Why |
 |---|---|---|
 | **Rotate the master admin password** | Railway → admin service → Variables → set `MASTER_ADMIN_PASSWORD` to a new 16+ character value; redeploy | The old fallback is public in git history and was downloadable from prod |
-| Apply the migration | Dev then prod: Supabase → SQL editor → paste `supabase/migrations/20261108100000_security_ledger.sql` → Run. Or approve the migration tool | Required before deploying (see banner) |
 | Backups / PITR (23) | Supabase prod → Database → Backups: confirm daily backups, enable Point-in-Time Recovery, do one test restore into a scratch project | Not visible to code |
 | WAF / DDoS (30) | Put Cloudflare (free plan) in front of `www.` and `admin.` | Origin is exposed |
 | Admin IP allowlist | Set `ADMIN_ALLOWED_IPS` on the admin service (now spoof-proof) | Strongly recommended for the panel |
@@ -54,9 +55,16 @@ All "after" results were measured on the fixed code running locally (game :3030,
 | Apex redirect (29) | GoDaddy forwarding for `spikeandcrush.com` should 301 to `https://www.` | Answers 405 over http |
 | Railway "Wait for CI" | Turn on for the game service so `ci.yml` + `safe-deploy.yml` gate deploys | |
 
-## F3. Still to verify after the migration is applied
+## F3. Money proofs after the fix (dev, fixed code)
 
-Re-run `race-proof.js` (Proofs A/B) and the double shop request (Proof C) against dev; expected: A +5, B one credit, C one purchase. Also: stripe event dedupe, entry-fee refund on failed seating, avatar upload to the Storage bucket.
+```
+A.  5 concurrent creditCoins(+1): expected +5, moved +5 -> PASS
+A2. 5 concurrent credits with ONE idempotency key: expected +1, moved +1 -> PASS
+B.  completeCoinPurchase x3 concurrently on one 100-coin session: credits = 1, moved +100 -> PASS
+D.  debit more than the balance: INSUFFICIENT_COINS, balance unchanged -> PASS
+C.  3 simultaneous buys of one 150-coin item (HTTP): 1 x 200, 2 x "Already owned", balance 470 -> 320 -> PASS
+```
+Not yet exercised end to end: a real Stripe webhook redelivery (needs Stripe test mode + the CLI) and an entry-fee refund on a failed seat.
 
 ## F4. Deliberately not changed
 
