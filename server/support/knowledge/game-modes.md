@@ -19,7 +19,7 @@ needs_review: false
 | Private War | 10 minutes | 1 coin for the host, free for invited players | 2-8 | 3 | no |
 | Tournament War | 15 minutes | set per tournament | 2-2 | 4 | no |
 
-- **Quick War**: the standard match. Empty seats are filled with AI opponents.
+- **Quick War**: the standard match.
 - **Blitz War**: a short, cheap, unranked sprint.
 - **Grand War**: the long mode. You choose your card deck before the match.
 - **Solo Ranked**: free, against AI opponents only, with its own rating.

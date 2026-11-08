@@ -51,7 +51,7 @@
     const body = overlay.querySelector('#ecBody');
     TW.api('/api/referrals/me').then((d) => {
       body.innerHTML = `
-        <p>You get <strong>${d.rewardCoins} coins</strong> for each friend who signs up with your link and finishes a match against other real players. Matches against only bots or AI don't count.</p>
+        <p>You get <strong>${d.rewardCoins} coins</strong> for each friend who signs up with your link and finishes a match against other real players.</p>
         <div class="ec-link">
           <input id="ecLink" readonly aria-label="Your invite link" />
           <button class="btn btn-primary" id="ecCopy">Copy</button>

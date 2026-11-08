@@ -11,7 +11,7 @@ needs_review: false
 
 The player with the highest profit (P&L) when the timer ends wins.
 
-**Prize pool.** Each seat's entry fee goes into the pool (AI-filled seats count as paid seats so a win pays fairly). The platform keeps 15% and the rest is split by finishing position: 1st: 50%, 2nd: 25%, 3rd: 15%, 4th: 10%. Lower positions get no prize. AI opponents never receive coins.
+**Prize pool.** Each seat's entry fee goes into the pool. The platform keeps 15% and the rest is split by finishing position: 1st: 50%, 2nd: 25%, 3rd: 15%, 4th: 10%. Lower positions get no prize.
 
 Prize coins are added to your balance automatically when the match ends. Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money.
 

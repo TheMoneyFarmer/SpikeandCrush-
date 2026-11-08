@@ -157,7 +157,7 @@ Margin Call is also the name of a sabotage card, which closes a target's open po
 |---|---|---|---|---|---|
 ${MODE_ORDER.map(modeRow).join('\n')}
 
-- **${MATCH_MODES.quick.label}**: the standard match. Empty seats are filled with AI opponents.
+- **${MATCH_MODES.quick.label}**: the standard match.
 - **${MATCH_MODES.blitz.label}**: a short, cheap, unranked sprint.
 - **${MATCH_MODES.grand.label}**: the long mode. You choose your card deck before the match.
 - **${MATCH_MODES.solo.label}**: free, against AI opponents only, with its own rating.
@@ -172,7 +172,7 @@ ${MODE_ORDER.map(modeRow).join('\n')}
       tags: ['prize pool', 'scoring', 'winner', 'payout', 'coins won', 'draw', 'tie'],
       body: `The player with the highest profit (P&L) when the timer ends wins.
 
-**Prize pool.** Each seat's entry fee goes into the pool (AI-filled seats count as paid seats so a win pays fairly). The platform keeps 15% and the rest is split by finishing position: ${shares}. Lower positions get no prize. AI opponents never receive coins.
+**Prize pool.** Each seat's entry fee goes into the pool. The platform keeps 15% and the rest is split by finishing position: ${shares}. Lower positions get no prize.
 
 Prize coins are added to your balance automatically when the match ends. ${NO_CASH}
 
@@ -327,7 +327,7 @@ Cosmetics are visual only and never change gameplay. Equip them from the shop or
       tags: ['invite', 'invite link', 'referral', 'refer a friend', 'earn coins', 'free coins', 'friend bonus', 'referral reward'],
       body: `Share your invite link and earn ${INVITE_REWARD_COINS} coins for each friend who joins and plays. Find your link on the Wallet page under Invite friends.
 
-**When you get paid:** when your friend finishes their first match against at least one other real player. Matches against only bots or AI do not count. Your friend has to stay until the end and make at least one trade. Until then the invite shows as waiting.
+**When you get paid:** when your friend finishes their first match against at least one other real player. Your friend has to stay until the end and make at least one trade. Until then the invite shows as waiting.
 
 **The rules:**
 - Your friend must create a new account after opening your link, within 30 days. Existing accounts cannot be added later.

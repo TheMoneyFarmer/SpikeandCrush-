@@ -11,7 +11,7 @@ needs_review: false
 
 Share your invite link and earn 100 coins for each friend who joins and plays. Find your link on the Wallet page under Invite friends.
 
-**When you get paid:** when your friend finishes their first match against at least one other real player. Matches against only bots or AI do not count. Your friend has to stay until the end and make at least one trade. Until then the invite shows as waiting.
+**When you get paid:** when your friend finishes their first match against at least one other real player. Your friend has to stay until the end and make at least one trade. Until then the invite shows as waiting.
 
 **The rules:**
 - Your friend must create a new account after opening your link, within 30 days. Existing accounts cannot be added later.
