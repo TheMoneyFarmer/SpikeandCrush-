@@ -416,6 +416,11 @@ window.TW = window.TW || {};
     notifInitDone = true;
     loadNotificationHistory();
     const socket = TW.connectSocket();
+    // Safe deploys (server/deployDrain.js): new matches pause before an update;
+    // matches already running are never interrupted.
+    socket.on('server:updating', (d) => {
+      if (d && d.updating && d.message && TW.toast) TW.toast(d.message, 'info');
+    });
     socket.on('notification', (payload) => {
       notifications.unshift({ ...payload, id: `live-${Date.now()}-${Math.random().toString(36).slice(2)}`, read: false });
       if (notifications.length > 20) notifications.length = 20;

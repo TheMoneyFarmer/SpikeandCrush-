@@ -1,0 +1,97 @@
+# Safe deploy gate for the game server.
+#
+# Live matches only exist in the running server's memory, so a restart would
+# drop every match in progress. With Railway's "Wait for CI" turned on for the
+# game service, Railway only deploys a commit on main after this check passes:
+#
+#   1. Pause NEW matches on the live server (players see "update in a few
+#      minutes"; matches already running carry on normally).
+#   2. Wait until no match or lobby is left running.
+#   3. Pass -> Railway builds and deploys. The pause expires on its own after
+#      15 minutes, and the new server starts un-paused anyway.
+#
+# If matches are still running after 50 minutes, the pause is lifted, this
+# check fails and Railway skips the deploy (re-run the workflow later).
+#
+# Needs repository secret DEPLOY_DRAIN_TOKEN (same value as the Railway env
+# var DEPLOY_DRAIN_TOKEN). Optional repository variable SITE_URL.
+
+name: Safe deploy gate
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: safe-deploy
+  cancel-in-progress: true
+
+jobs:
+  wait-for-live-matches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Pause new matches and wait for live ones to finish
+        env:
+          SITE: ${{ vars.SITE_URL || 'https://www.spikeandcrush.com' }}
+          TOKEN: ${{ secrets.DEPLOY_DRAIN_TOKEN }}
+        run: |
+          set -u
+          MAX_WAIT=$((50 * 60))
+          START=$(date +%s)
+          elapsed() { echo $(( $(date +%s) - START )); }
+
+          code=$(curl -s -o status.json -w '%{http_code}' --max-time 20 "$SITE/api/deploy/status" || echo 000)
+
+          if [ "$code" = "000" ] || [ "$code" -ge 500 ]; then
+            echo "Live server not reachable ($code): nothing running to protect, deploying."
+            exit 0
+          fi
+
+          if [ "$code" = "404" ]; then
+            # First rollout only: the live server predates the drain switch.
+            # Best available signal is the public connected-player count.
+            echo "Live server has no drain switch yet. Waiting until nobody is connected."
+            zero=0
+            while [ "$(elapsed)" -lt "$MAX_WAIT" ]; do
+              players=$(curl -s --max-time 20 "$SITE/api/stats/live" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("activePlayers", -1))' 2>/dev/null || echo -1)
+              echo "$(elapsed)s: connected players = $players"
+              if [ "$players" = "0" ]; then zero=$((zero + 1)); else zero=0; fi
+              if [ "$zero" -ge 2 ]; then echo "Nobody connected. Safe to deploy."; exit 0; fi
+              sleep 15
+            done
+            echo "::error::Players stayed connected for 50 minutes. Deploy skipped; re-run this workflow at a quieter time."
+            exit 1
+          fi
+
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Repository secret DEPLOY_DRAIN_TOKEN is not set, so new matches can't be paused. Deploy skipped."
+            exit 1
+          fi
+
+          drain() {
+            curl -s --max-time 20 -X POST "$SITE/api/deploy/drain" \
+              -H "Content-Type: application/json" -H "x-deploy-token: $TOKEN" \
+              -d "{\"on\": $1, \"ttlSeconds\": $2, \"reason\": \"deploy ${GITHUB_SHA::7}\"}"
+            echo
+          }
+
+          echo "Pausing new matches on $SITE"
+          drain true 3300
+
+          while [ "$(elapsed)" -lt "$MAX_WAIT" ]; do
+            s=$(curl -s --max-time 20 "$SITE/api/deploy/status" || echo '{}')
+            echo "$(elapsed)s: $s"
+            safe=$(echo "$s" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("safeToDeploy", False))' 2>/dev/null || echo False)
+            if [ "$safe" = "True" ]; then
+              echo "No live matches or lobbies. Keeping new matches paused for up to 15 minutes while Railway deploys."
+              drain true 900
+              exit 0
+            fi
+            sleep 15
+          done
+
+          echo "::error::Matches were still running after 50 minutes. New matches resumed and this deploy was skipped; re-run the workflow later."
+          drain false 60
+          exit 1

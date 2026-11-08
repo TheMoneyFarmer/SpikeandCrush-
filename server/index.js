@@ -344,6 +344,12 @@ app.use(cors({ origin: corsOrigin }));
 // price history per instrument - gzip cuts that ~5x on mobile connections.
 app.use(compression());
 app.use(express.json());
+
+// Safe deploys: pause new matches and let live ones finish before a restart
+// (see server/deployDrain.js and .github/workflows/safe-deploy.yml).
+const { createDeployDrain } = require('./deployDrain');
+const deployDrain = createDeployDrain({ gameEngine, io, notifyPlayer });
+deployDrain.mount(app);
 // index:false - without it, static's default directory-index behavior would
 // serve client/index.html for a bare "/" request before the explicit
 // app.get('/') route below (landing.html) is ever reached.
@@ -827,7 +833,7 @@ const MATCHMAKING_BY_MODE = {
   private: (playerInfo) => matchmaking.createPrivateWar(gameEngine, playerInfo),
 };
 
-app.post('/api/match/create', requireDb, authenticate, async (req, res) => {
+app.post('/api/match/create', deployDrain.blockNewMatches, requireDb, authenticate, async (req, res) => {
   try {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -2146,7 +2152,7 @@ app.post('/api/tournament/:id/register', requireDb, authenticate, async (req, re
   }
 });
 
-app.post('/api/tournament/:id/play', requireDb, authenticate, async (req, res) => {
+app.post('/api/tournament/:id/play', deployDrain.blockNewMatches, requireDb, authenticate, async (req, res) => {
   try {
     const t = await db.getTournament(req.params.id);
     if (!t || t.status !== 'active') return res.status(400).json({ error: 'Tournament is not active' });
