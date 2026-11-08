@@ -76,7 +76,7 @@ test('rate limits: 20 per conversation per 10 minutes, 100 per day', () => {
 test('guest IP is hashed with a daily salt, never stored raw', () => {
   const h = safety.hashIp('203.0.113.9');
   assert.match(h, /^[a-f0-9]{64}$/);
-  assert.ok(!h.includes('203'));
+  assert.ok(!h.includes('203.0.113.9')); // not just '203': a random hash can contain those digits
   assert.strictEqual(h, safety.hashIp('203.0.113.9'));
   assert.notStrictEqual(h, safety.hashIp('203.0.113.10'));
 });
