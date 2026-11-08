@@ -97,3 +97,11 @@ test('admin 2FA: wrong codes are capped per account', () => {
   tf.clearCodeFailures('a');
   assert.strictEqual(tf.codeAttemptsBlocked('a', now), false);
 });
+
+test('Cloudflare Web Analytics is allowed on the player site, not the admin panel', () => {
+  const site = buildCsp({});
+  assert.match(site.match(/script-src[^;]*/)[0], /https:\/\/static\.cloudflareinsights\.com/);
+  assert.match(site.match(/connect-src[^;]*/)[0], /https:\/\/cloudflareinsights\.com/);
+  const admin = buildCsp({ admin: true });
+  assert.doesNotMatch(admin, /cloudflareinsights/);
+});

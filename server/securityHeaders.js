@@ -13,14 +13,15 @@ function buildCsp({ supabaseUrl = process.env.SUPABASE_URL || '', admin = false 
   let supabaseHost = '';
   try { supabaseHost = new URL(supabaseUrl).host; } catch (e) { /* unset in tests */ }
   const supa = supabaseHost ? [`https://${supabaseHost}`, `wss://${supabaseHost}`] : [];
+  // Cloudflare Web Analytics runs on the player site only, not the admin panel.
   const directives = {
     'default-src': ["'self'"],
-    'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://unpkg.com'],
+    'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://unpkg.com', ...(admin ? [] : ['https://static.cloudflareinsights.com'])],
     'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
     'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
     'img-src': ["'self'", 'data:', 'blob:', 'https:'],
     'media-src': ["'self'", 'blob:'],
-    'connect-src': ["'self'", ...supa, 'https://cdn.jsdelivr.net'],
+    'connect-src': ["'self'", ...supa, 'https://cdn.jsdelivr.net', ...(admin ? [] : ['https://cloudflareinsights.com'])],
     'frame-src': ["'none'"],
     'frame-ancestors': ["'none'"],
     'object-src': ["'none'"],
