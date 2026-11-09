@@ -61,7 +61,7 @@ const MATCH_MODES = {
   blitz: {
     label: 'Blitz War', idealPlayers: 4, minPlayers: 2, maxPlayers: 6,
     lobbyTimeoutMs: 20000, countdownSeconds: 10, durationSeconds: 180,
-    instrumentCount: 3, cardsPerPlayer: 1, entryCoins: 5, ranked: false, ratingKey: null,
+    instrumentCount: 5, cardsPerPlayer: 3, entryCoins: 5, ranked: false, ratingKey: null,
     fillMethod: 'ai',
   },
   grand: {

@@ -92,7 +92,7 @@ TW.Sound = (function () {
     duckTimer = setTimeout(() => { if (ambientEl) fadeAudioEl(ambientEl, full, 600); }, ms);
   }
   // Sounds that repeat a lot get a slight random pitch so they don't grate.
-  const VARY = new Set(['coin_earn', 'coin_big', 'sabotage_play', 'sabotage_receive', 'card_slap', 'ui_click', 'countdown']);
+  const VARY = new Set(['coin_earn', 'coin_big', 'sabotage_play', 'sabotage_receive', 'card_slap', 'countdown']);
   const DUCK = new Set(['sabotage_receive', 'win_fanfare', 'margin_alert']);
 
   // ---- real sound files (coin/countdown/win-fanfare/sabotage/ambient) -----------
@@ -109,7 +109,6 @@ TW.Sound = (function () {
     sabotage_play: 'sfx/whoosh.mp3',
     sabotage_receive: 'sfx/hit.mp3',
     match_bell: 'sfx/bell.mp3',
-    ui_click: 'sfx/click.mp3',
     notify: 'sfx/notify.mp3',
     ambient: 'music/lobby-loop.wav', // 64s seamless loop, 120 bpm A minor (WAV: MP3 padding would gap the loop)
     card_slap: 'sfx/card_place.mp3',
@@ -316,7 +315,6 @@ TW.Sound = (function () {
       chime([784, 988, 1318, 1568], 60, { gain: 0.22 });
     },
 
-    buttonClick: () => { if (!playFile('ui_click', 'ui')) tone({ freq: 680 + Math.random() * 40, duration: 0.05, type: 'square', gain: 0.08, category: 'ui' }); },
     tabSwitch: () => tone({ freq: 500, freqEnd: 700, duration: 0.12, type: 'sine', gain: 0.08 }),
     leaderboardChange: () => tone({ freq: 1200, duration: 0.08, type: 'sine', gain: 0.1 }),
 
@@ -370,7 +368,6 @@ TW.Sound = (function () {
     slHit: () => effects.sl_hit(),
     tpHit: () => effects.tp_hit(),
     cardPlayed: () => effects.card_play(),
-    click: () => effects.buttonClick(),
     navigate: () => effects.tabSwitch(),
     coinReceived: () => effects.coin(),
     finalTick: () => effects.countdown(),

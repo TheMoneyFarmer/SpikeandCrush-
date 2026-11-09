@@ -28,15 +28,15 @@ window.TW = window.TW || {};
     blitz: {
       icon: 'bolt', name: 'Blitz War', tagline: 'Three minutes of pure chaos.', color: 'var(--warning)',
       duration: '3 Minutes', players: '2 to 6 Players', entry: '5 Coins', ranked: 'No — casual only',
-      instruments: '3 Random Instruments', cards: '1 Random Sabotage Card',
+      instruments: '5 Random Instruments', cards: '3 Random Sabotage Cards',
       sections: [
         { title: 'How It Works', content: 'Same as Quick War but 3 minutes only. No time to be patient. No time to wait for the perfect setup. You must act fast. The entire match can flip in the last 30 seconds.' },
-        { title: 'One Card Only', content: 'Each player gets exactly one random sabotage card. You do not choose when to get it. You do choose when to play it. One card. One moment. Make it count.' },
+        { title: 'Three Cards, Three Minutes', content: 'Each player gets 3 random sabotage cards, the same as Quick War, but only 3 minutes to use them. You can play each card once, so every one you hold at the buzzer is wasted.' },
         { title: 'Why Play Blitz', content: 'It is the fastest way to earn coins. A 3-minute match means you can play several Blitz Wars in the time it takes to play one Quick War. Perfect for short sessions or fast action.' },
       ],
       tips: [
         'Move fast - every second counts',
-        'Play your sabotage card in the first minute',
+        'Do not hold your sabotage cards too long - unused cards do nothing',
         'Take profits early - do not wait for perfect exits',
         'High leverage is higher risk in 3 minutes',
       ],

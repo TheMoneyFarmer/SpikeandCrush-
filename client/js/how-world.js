@@ -510,7 +510,6 @@
     [...sizeRow.querySelectorAll('button')].forEach((b) => b.addEventListener('click', () => {
       state.lots = Number(b.dataset.lots);
       sizeRow.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      Sfx('click', 0.5);
     }));
     function syncTradeUi() {
       const pos = match.players[0].pos, over = match.ended;
@@ -593,7 +592,6 @@
     const targetLabel = $('howTarget'), playHint = $('howPlayHint');
     function setTarget(i, byUser) {
       state.target = i;
-      if (byUser) Sfx('click', 0.6);
       rowEls.forEach((r, k) => { r.b.classList.toggle('target', state.chapter === 1 && k === i); r.b.setAttribute('aria-pressed', String(k === i)); });
       targetLabel.textContent = nameOf(i);
     }
@@ -608,7 +606,7 @@
       const id = HAND[slot], you = match.players[0], tIndex = state.target, target = match.players[tIndex];
       if (match.ended || !you.hand.includes(id) || state.chapter !== 1) return;
       if (id === 'force-close' && !target.pos) { // the real game refuses this and keeps the card
-        playHint.textContent = `${target.name} has no open trade. You keep the card.`; const b = handBtns[slot]; b.classList.remove('deny'); void b.offsetWidth; b.classList.add('deny'); Sfx('click', 0.4);
+        playHint.textContent = `${target.name} has no open trade. You keep the card.`; const b = handBtns[slot]; b.classList.remove('deny'); void b.offsetWidth; b.classList.add('deny');
         return;
       }
       const btn = handBtns[slot]; btn.disabled = true; btn.classList.add('played');
@@ -672,7 +670,7 @@
       for (let k = 0; k < evs.length; k++) {
         const ev = evs[k];
         if (ev.type === 'open' && ev.i === 0) {
-          cam.fovKick = -1.6; addTrauma(0.16); Sfx('click');
+          cam.fovKick = -1.6; addTrauma(0.16);
           const colour = ev.dir > 0 ? COLORS.spike : COLORS.crush;
           v.set(A.x + chart.span / 2, chartY(chart.price), A.z + chart.z);
           if (state.chapter === 0) { ring(v, colour, 3, 0.45, false); burst(v.x, v.y, v.z, colour, 12, 5, { g: 4 }); }

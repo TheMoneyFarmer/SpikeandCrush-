@@ -450,10 +450,6 @@ window.TW = window.TW || {};
 
   document.addEventListener('DOMContentLoaded', () => {
     TW.updateHeader();
-    // Delegated so it covers buttons rendered later by nav.js/page scripts too.
-    document.addEventListener('click', (e) => {
-      if (e.target.closest('button, .btn') && window.TW.Sound) TW.Sound.play('buttonClick');
-    });
     const authLink = document.getElementById('headerAuthLink');
     authLink?.addEventListener('click', (e) => {
       if (TW.getPlayer()) {

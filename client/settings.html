@@ -567,7 +567,6 @@
     document.getElementById('uiVolume').addEventListener('input', (e) => {
       TW.Sound.updateSettings({ ui: Number(e.target.value) });
       document.getElementById('uiVolLabel').textContent = `${e.target.value}%`;
-      TW.Sound.play('buttonClick');
     });
     document.getElementById('soundEnabled').addEventListener('change', (e) => {
       TW.Sound.updateSettings({ muted: !e.target.checked });
@@ -577,18 +576,15 @@
     document.getElementById('masterVolume').addEventListener('input', (e) => {
       TW.Sound.updateSettings({ master: Number(e.target.value) });
       document.getElementById('masterVolLabel').textContent = `${e.target.value}%`;
-      TW.Sound.play('buttonClick');
     });
     document.querySelectorAll('[data-test-sound]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
-        e.stopPropagation(); // skip main.js's generic click blip so only the sample plays
         TW.Sound.play(btn.dataset.testSound);
       });
     });
     document.getElementById('effectsVolume').addEventListener('input', (e) => {
       TW.Sound.updateSettings({ effects: Number(e.target.value) });
       document.getElementById('effectsVolLabel').textContent = `${e.target.value}%`;
-      TW.Sound.play('buttonClick');
     });
     document.getElementById('musicVolume').addEventListener('input', (e) => {
       TW.Sound.updateSettings({ music: Number(e.target.value) });

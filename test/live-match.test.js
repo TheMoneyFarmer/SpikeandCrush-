@@ -149,3 +149,14 @@ test('history sends played prices but nothing past the clock', async (t) => {
   assert.ok(played.length >= 30);
   assert.ok(Math.max(...played.map((x) => x.t)) <= 31);
 });
+
+test('Blitz War deals 5 instruments and 3 cards, like Quick War, in 3 minutes', async () => {
+  await instruments.preloadAll?.();
+  const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
+  const match = await engine.createMatch('blitz');
+  engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000 });
+  assert.strictEqual(match.config.durationSeconds, 180);
+  assert.strictEqual(match.instruments.length, 5);
+  assert.strictEqual(new Set(match.instruments).size, 5);
+  assert.strictEqual(match.players.p1.cards.length, 3);
+});

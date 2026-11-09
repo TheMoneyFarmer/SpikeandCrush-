@@ -12,7 +12,7 @@ needs_review: false
 | Mode | Match length | Entry | Players | Cards | Ranked |
 |---|---|---|---|---|---|
 | Quick War | 10 minutes | 10 coins | 2-6 | 3 | yes (War Rating) |
-| Blitz War | 3 minutes | 5 coins | 2-6 | 1 | no |
+| Blitz War | 3 minutes | 5 coins | 2-6 | 3 | no |
 | Grand War | 20 minutes | 25 coins | 4-8 | 5 | yes (separate Grand War rating) |
 | Solo Ranked | 10 minutes | free | 1-4 | 3 | yes (separate Solo rating) |
 | Async Daily Challenge | 10 minutes | 5 coins | 1-1 | 0 | no |
