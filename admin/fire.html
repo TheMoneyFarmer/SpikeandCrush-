@@ -189,7 +189,7 @@
       el.innerHTML = `<div class="panel fx-section"><h4>Status: ${rs.enabled ? '<span class="fx-ok">ON</span>' : '<span class="fx-bad">OFF</span> (all ranked players share one pool)'}</h4>
         <p class="fx-note">Applies to ranked public matches only (Quick War, Grand War). Suggested trigger: ${esc(rs.suggestedTrigger)}.</p>
         <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mode</th><th>Lobby tier</th><th>Players waiting</th></tr></thead><tbody>${rs.lobbies.map((l) => `<tr><td>${esc(l.mode)}</td><td>${esc(l.tier)}</td><td>${l.players}</td></tr>`).join('') || '<tr><td colspan="3">No ranked lobbies open right now</td></tr>'}</tbody></table></div></div>` +
-        jsonEditor('rankSplit', 'enabled, tiers [{ id, label, ranks }], joinUpTiers, emptyLobbyFallbackSeconds. Tier edits apply to new lobbies only. To move one player, change their rating tier in Players.');
+        jsonEditor('rankSplit', 'enabled, tiers [{ id, label, ranks }], joinUpTiers. Tier edits apply to new lobbies only. To move one player, change their rating tier in Players.');
       bindSaves(el);
     }
 
@@ -203,7 +203,7 @@
         <div class="panel fx-section"><h4>Privacy adoption (players online now, sample ${a.sample})</h4><div class="fx-grid">
           <div class="fx-kpi"><b>${a.appearOffline ?? '-'}%</b><span>Appear offline</span></div><div class="fx-kpi"><b>${a.statusFriendsOrNobody ?? '-'}%</b><span>Status not public</span></div>
           <div class="fx-kpi"><b>${a.hiddenFromDiscover ?? '-'}%</b><span>Hidden from Discover</span></div><div class="fx-kpi"><b>${a.requestsNotEveryone ?? '-'}%</b><span>Requests limited</span></div></div>
-          <p class="fx-note">Reports and blocks: <a href="/players.html?tab=reports">the existing reports queue</a>.</p></div>` + jsonEditor('discover', 'enabled (switch Discover off), weights (suggestion order; proximity uses only the self-chosen country and is never shown), rate limits.');
+          <p class="fx-note">Reports and blocks: <a href="/players.html?tab=reports">the existing reports queue</a>.</p></div>` + jsonEditor('discover', 'enabled (switch Discover off), weights (suggestion order; proximity uses only the self-chosen country and is never shown), pageSize, suggestionCacheSeconds.');
       bindSaves(el);
     }
 

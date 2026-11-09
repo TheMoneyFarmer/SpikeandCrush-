@@ -1086,9 +1086,11 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   // per-match and per-day caps.
   function missionProgress(match, player, ev) {
     if (player.isAI || !player.missions || !player.missions.length) return;
+    const before = player.missions.map((m) => m.progress).join(',');
     const done = cardRules.missionEvent(player, ev);
     if (!done.length) {
-      if (ev.type !== 'tick') emitToPlayer(match, player.id, 'missions:update', { missions: player.missions });
+      // Only when a chip actually moved (not on every trade).
+      if (player.missions.map((m) => m.progress).join(',') !== before) emitToPlayer(match, player.id, 'missions:update', { missions: player.missions });
       return;
     }
     const m = gameFeel.get().missions;

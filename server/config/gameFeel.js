@@ -102,7 +102,6 @@ const DEFAULTS = {
       { id: 'warlord', label: 'Warlord', ranks: ['Elite', 'War Lord'] },
     ],
     joinUpTiers: 1,
-    emptyLobbyFallbackSeconds: 60,
     suggestedTriggerConcurrent: 200,
   },
 
@@ -124,7 +123,6 @@ const DEFAULTS = {
     enabled: true,
     leadDataSeconds: 10,
     resultShowSeconds: 4,
-    minGapSecondsLong: 1800,
     topPercent: 1,
   },
   crown: {
@@ -142,13 +140,7 @@ const DEFAULTS = {
     enabled: true,
     pageSize: 30,
     suggestionCacheSeconds: 60,
-    friendRequestsPerHour: 20,
-    invitesPerHour: 30,
-    spamCooldownMinutes: 30,
-    inviteExpiryMinutes: 10,
     weights: { friendsOfFriends: 3, similarRank: 2, sameModes: 1.5, similarHours: 1, playedTogether: 2, proximity: 0.5 },
-    heartbeatSeconds: 25,
-    presenceTimeoutSeconds: 70,
   },
 };
 

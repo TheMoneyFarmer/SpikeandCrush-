@@ -25,6 +25,8 @@ const {
 } = require('../../gameEngine');
 const { TEMPLATES } = require('../../compEngine');
 const { CARDS } = require('../../sabotage');
+const gameFeelCfg = require('../../config/gameFeel');
+const progressionRules = require('../../progression');
 const shop = require('../../shop');
 const battlepass = require('../../battlepass');
 const instruments = require('../../instruments');
@@ -77,8 +79,9 @@ function buildArticles() {
   const shares = Object.entries(PRIZE_SHARE_BY_RANK).map(([r, s]) => `${ordinal(Number(r))}: ${pct(s)}`).join(', ');
   const cat = shop.getCatalog();
   const cardList = Object.values(CARDS)
-    .map((c) => `- **${c.name}** (${c.category}${c.targeted ? ', targets an opponent' : ''}): ${c.description}`)
+    .map((c) => `- **${c.name}** (${c.rarity}, ${c.kind === 'defense' ? 'plays on yourself' : c.kind === 'market' ? 'hits every other unshielded player' : 'targets one player'}; ${progressionRules.BASIC_DECK.includes(c.id) ? 'starter card' : progressionRules.describeUnlock(progressionRules.unlockRule(c.id))}): ${c.description}`)
     .join('\n');
+  const F = gameFeelCfg.get();
 
   return [
     {
@@ -245,12 +248,72 @@ ${NO_CASH} Competition prizes are coins only.`,
       title: 'Sabotage cards and abilities',
       category: 'cards',
       tags: ['cards', 'sabotage', 'abilities', 'deck', 'freeze', 'news bomb'],
-      body: `Each player is dealt sabotage cards at the start of a match (how many depends on the mode, see Game modes). Each card can be played once per match. You can save a deck of up to 5 cards on the Cards page, and every mode with cards deals from it. If a mode deals fewer cards than your deck holds, they are picked from it at random, and empty slots get random cards. With no saved deck, all cards are random. In Grand War you can also change your cards in the match lobby.
+      body: `You hold up to ${F.cards.handSize} cards at once. You are dealt cards at the start of a match (how many depends on the mode and your rank, never more than ${F.cards.handSize}), and you **earn more by winning trades in a row**: see "Earning cards, streaks and Heat". Each card can be played once. Only cards you have unlocked are ever dealt or earned; new players start with ${progressionRules.BASIC_DECK.length} starter cards and unlock the rest by playing (see "Levels, ranks and card unlocks"). You can save a deck of up to 5 unlocked cards on the Cards page.
+
+**How to play one:** tap the card, then pick a player from the live ranking (search, or tap Random, Leader, Above me or Below me). Defensive cards play at once on yourself. Every card changes something real: your rival's spread, fills, stop loss, take profit, trade size, how often they can trade, or their banked profit.
+
+**Protection:** a player hit by a card is protected for ${F.cards.hitShieldSeconds} seconds. A player can have only one timed card effect on them at a time. Shielded and offline players can't be targeted. No card can take a player below ${Math.round(F.cards.floorPctOfCapital * 100)}% of the starting capital in one hit.
 
 There are ${Object.keys(CARDS).length} cards:
 ${cardList}
 
-Card variants (silver, gold) from the shop are cosmetic only.`,
+Card variants (silver, gold) from the shop are cosmetic only. Coins never buy a card.`,
+    },
+    {
+      slug: 'earned-cards-heat',
+      title: 'Earning cards, streaks and Heat',
+      category: 'cards',
+      tags: ['streak', 'heat', 'earn cards', 'new card', 'killstreak', 'refill', 'qualifying win'],
+      body: `Win trades in a row to earn cards. A **qualifying win** is a closed trade with a profit of at least ${(F.cards.minWinPctOfCapital * 100).toFixed(1)}% of your starting capital, held at least ${F.cards.minHoldSeconds} seconds. Your **streak** counts qualifying wins since your last losing close; a losing close resets it to 0 but you keep the cards you hold.
+
+Rewards: streak 1: +${F.cards.streakRewards[1]} card, streak 2: +${F.cards.streakRewards[2]}, streak 3: +${F.cards.streakRewards[3]}, streak ${F.cards.refillAtStreak}: every empty slot is refilled, then +${F.cards.perWinAfterRefill} for each further win. With a full hand an extra card becomes Heat instead. Limits: ${F.cards.maxCardsPerMinute} cards a minute, ${F.cards.maxCardsPerMatch} a match.
+
+**Heat** is a separate score on the result screen: each qualifying win adds Heat times your streak multiplier (${F.heat.multipliers.map((m) => `x${m}`).join(', ')}). Heat never changes your P&L, rank, prizes or rating.
+
+**Crown:** the match leader wears the crown. Overtaking the leader earns one card (Dethrone, at most once a minute), and hitting the leader with a card earns Heat.`,
+    },
+    {
+      slug: 'missions-and-spikes',
+      title: 'Quick missions and spike alerts',
+      category: 'matches',
+      tags: ['missions', 'quick missions', 'spike', 'spike alert', 'alert', 'countdown'],
+      body: `**Quick missions:** each match shows two small missions above the chart (for example "Hold a trade for 60 seconds" or "Close two trades in profit"). Finishing one pays ${F.missions.coinsPerMission} coins, at most ${F.missions.perMatchCoinCap} a match and ${F.missions.perDayCoinCap} a day. Tiny trades don't count.
+
+**Spike alerts:** before a real big move in the market data, the strip above the chart shows "Spike incoming in ${F.spikeAlerts.leadDataSeconds}s". It never says which way or how big, and it never covers the chart. After the move it shows the real change for a few seconds. Alerts only come from real moves in the historical data: nothing is invented.`,
+    },
+    {
+      slug: 'market-speed',
+      title: 'The live market and the MARKET badge',
+      category: 'matches',
+      tags: ['market', 'flat', 'quiet', 'speed', 'market x', 'badge', 'replay', 'not moving'],
+      body: `Matches replay real market data, chosen from the busiest stretches of each instrument so the price keeps moving in every match. Only the most active instruments are offered. Every player in a match sees exactly the same prices.
+
+If a mode ever replays the market faster than real time, a small "MARKET x2" (or similar) badge shows the real multiplier next to the clock. The clock always shows real match time. Right now every mode plays at 1x.`,
+    },
+    {
+      slug: 'levels-unlocks',
+      title: 'Levels, ranks and card unlocks',
+      category: 'cards',
+      tags: ['level', 'xp', 'unlock', 'locked card', 'rank', 'warlord', 'trader', 'benefits', 'collection'],
+      body: `You earn XP by playing: finishing matches, wins and podiums, qualifying wins, your best streak, missions and profit (capped per match at ${F.progression.xp.perMatchCap} XP and per day at ${F.progression.xp.perDayCap} XP). Matches left in the first minute and solo practice give no XP. XP raises your **level** (1 to ${F.progression.levelThresholds.length}); levels unlock cards. Unlocks come only from playing - coins never buy a card.
+
+Your **rank** is your rating tier (Recruit, Trader, Broker, Analyst, Veteran, Elite, War Lord). Higher ranks start matches with extra cards and unlock cosmetics. See the Rank page and the Card collection for exactly what unlocks each card.`,
+    },
+    {
+      slug: 'ghost-challenge',
+      title: 'Ghost challenges and rematches',
+      category: 'matches',
+      tags: ['challenge', 'ghost', 'share', 'beat my score', 'rematch', 'same market'],
+      body: `On the result screen, **Challenge a friend** makes a link (valid ${F.ghostChallenge.expiryDays} days) to the exact market you just played: the same instruments and the same seconds of price. Your friend plays it and sees your result to beat. Challenges are free, unranked and don't count as wins or losses. **Rematch** opens a private room and invites everyone from your match who is still online.`,
+    },
+    {
+      slug: 'discover-privacy',
+      title: 'Discover players and privacy',
+      category: 'social',
+      tags: ['discover', 'find players', 'online', 'appear offline', 'privacy', 'location', 'suggested', 'block', 'report'],
+      body: `Discover shows your friends who are online, other players live now, open rooms you can still join, and suggestions. We never show anyone's location.
+
+Privacy settings (Settings, Privacy): appear offline, who can see your status, who can see what you're playing, whether you appear in Discover, who can send you friend requests, and whether others can join your open match. Changes apply at once. Block or report anyone from their row; blocked players disappear from your lists and can't invite you. Suggestions may use the country you picked in Settings to show players near you; it is never shown to anyone.`,
     },
     {
       slug: 'coins',

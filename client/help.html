@@ -159,11 +159,31 @@
 
         <section class="help-section" id="sabotage-cards">
           <h2>Sabotage Cards</h2>
-          <p class="section-sub">All 30 cards. Each can be played once per match.</p>
+          <p class="section-sub">30 attack cards and 2 defensive cards. You hold up to 4 at once; each can be played once. Every attack card changes something real for its target. A player hit by a card is protected for 10 seconds, and no single card can take anyone below half the starting capital.</p>
           <table class="help-table">
             <thead><tr><th>Card</th><th>Type</th><th>Effect</th></tr></thead>
             <tbody id="cardsTableBody"></tbody>
           </table>
+        </section>
+
+        <section class="help-section" id="fire">
+          <h2>Streaks, Heat, Missions and Spikes</h2>
+          <h3>Earning cards</h3>
+          <p>Win trades in a row to earn cards. A win counts when the trade closes in profit of at least 0.2% of your starting capital and was held at least 5 seconds. Streak 1 and 2 give one card each, streak 3 gives two, streak 5 refills every empty slot, and each win after that gives one more. A losing close resets the streak; you keep your cards. With a full hand, the reward becomes Heat.</p>
+          <h3>Heat</h3>
+          <p>Heat is a bonus score shown on the result screen. Your streak multiplies it (x1, x1.5, x2, x3). It never changes your P&amp;L, rank, prizes or rating.</p>
+          <h3>The crown</h3>
+          <p>The match leader wears the crown. Overtake them and you earn one card (at most once a minute). Hitting the leader with a card earns Heat.</p>
+          <h3>Quick missions</h3>
+          <p>Every match shows two small missions above the chart. Each one finished pays a few coins, with a cap per match and per day. Tiny trades don't count.</p>
+          <h3>Spike alerts</h3>
+          <p>Before a real big move in the market data, the strip above the chart shows a countdown. It never says the direction or size, and it never covers the chart. Only real moves from the data are announced.</p>
+          <h3>Market speed</h3>
+          <p>Matches replay the busiest stretches of real market data. If a mode ever plays faster than real time, a MARKET badge next to the clock shows the multiplier. Right now every mode plays at 1x.</p>
+          <h3>Levels and unlocks</h3>
+          <p>New players start with four starter cards. Playing earns XP; levels and wins unlock the rest (see the Rank page and the Card collection). Unlocks are earned by playing only. Coins never buy a card.</p>
+          <h3>Ghost challenges</h3>
+          <p>Challenge a friend to the exact market you just played. They see your result to beat. Challenges are free, unranked, and expire after 7 days.</p>
         </section>
 
         <section class="help-section" id="scoring">
@@ -233,38 +253,13 @@
   <script src="js/main.js"></script>
   <script src="js/help-tooltips.js"></script>
   <script>
-    const CARD_ROWS = [
-      { name: 'News Bomb', type: 'Targeted', effect: "Shows the target a fake breaking news headline for a short time." },
-      { name: 'Chart Ghost', type: 'Targeted', effect: "Freezes the target's price display for a few seconds." },
-      { name: 'False Signal', type: 'Targeted', effect: "Shows a fake technical signal on the target's chart." },
-      { name: 'Smoke Screen', type: 'Market-wide', effect: 'Blurs the leaderboard for everyone for a short time.' },
-      { name: 'Spread Spike', type: 'Market-wide', effect: 'Multiplies the spread on one instrument temporarily.' },
-      { name: 'Volatility Surge', type: 'Market-wide', effect: 'Speeds up price movement on one instrument.' },
-      { name: 'Liquidity Drain', type: 'Market-wide', effect: 'Caps max lot size on one instrument for everyone.' },
-      { name: 'Reversal Flash', type: 'Market-wide', effect: 'Forces a brief sharp price reversal before snapping back.' },
-      { name: 'Position Freeze', type: 'Targeted', effect: 'Blocks the target from opening new trades briefly.' },
-      { name: 'Force Close', type: 'Targeted', effect: "Force-closes the target's best open position at market price." },
-      { name: 'Capital Drain', type: 'Targeted', effect: "Deducts virtual capital directly from the target." },
-      { name: 'Mirror Trade', type: 'Targeted', effect: "Copies your open position onto the target's account." },
-      { name: 'Margin Scare', type: 'Targeted', effect: "Flashes a fake margin-call warning on the target's screen." },
-      { name: 'Phantom Candle', type: 'Targeted', effect: "Injects one fake candle into the target's chart." },
-      { name: 'Blackout', type: 'Targeted', effect: "Blanks out the target's live P&L display briefly." },
-      { name: 'Static Burst', type: 'Targeted', effect: "Covers the target's chart in visual static." },
-      { name: 'Decoy Order', type: 'Targeted', effect: 'Shows the target a fake giant sell-wall alert.' },
-      { name: 'Mirage', type: 'Targeted', effect: "Plants a fake ghost position in the target's position list." },
-      { name: 'Intel Leak', type: 'Targeted', effect: "Reveals the target's real P&L and open positions to you." },
-      { name: 'Double Spread', type: 'Market-wide', effect: 'Doubles the spread on every instrument for everyone else.' },
-      { name: 'Time Warp', type: 'Market-wide', effect: 'Delays the price feed by 3 seconds for everyone else.' },
-      { name: 'Fog of War', type: 'Market-wide', effect: 'Throws random price jitter into the feed for everyone else.' },
-      { name: 'Panic Wave', type: 'Market-wide', effect: 'Forces a synchronized reversal across every instrument at once.' },
-      { name: 'Dead Calm', type: 'Market-wide', effect: 'Freezes price movement on every instrument for everyone else.' },
-      { name: 'Lockout', type: 'Targeted', effect: 'Blocks the target from closing any position briefly.' },
-      { name: 'Margin Call', type: 'Targeted', effect: "Force-closes every one of the target's open positions at market." },
-      { name: 'Lot Limiter', type: 'Targeted', effect: "Caps the target's max lot size for a short time." },
-      { name: 'Pip Theft', type: 'Targeted', effect: "Steals capital directly from the target into yours." },
-      { name: 'Ghost Trade', type: 'Targeted', effect: "Forces a small guaranteed-losing position onto the target's account." },
-      { name: 'Stop Snipe', type: 'Targeted', effect: "Drags the target's best position's stop-loss to break-even." },
-    ];
+    // Built from the live deck (/api/cards/catalog), never a hand-kept copy.
+    let CARD_ROWS = [];
+    fetch('/api/cards/catalog').then((r) => r.json()).then((d) => {
+      CARD_ROWS = (d.cards || []).map((c) => ({ name: TW.escapeHtml(c.name), type: c.kind === 'defense' ? 'Defensive (you)' : c.kind === 'market' ? 'Market-wide' : 'Targeted', effect: `${TW.escapeHtml(c.description)} <span style="opacity:.7">(${TW.escapeHtml(c.rarity)}; ${TW.escapeHtml(c.unlockText)})</span>` }));
+      const body = document.getElementById('cardsTableBody');
+      if (body) body.innerHTML = CARD_ROWS.map((c) => `<tr><td>${c.name}</td><td>${c.type}</td><td>${c.effect}</td></tr>`).join('');
+    }).catch(() => {});
     document.getElementById('cardsTableBody').innerHTML = CARD_ROWS.map((c) => `<tr><td>${c.name}</td><td>${c.type}</td><td>${c.effect}</td></tr>`).join('');
 
     const TIER_ROWS = [

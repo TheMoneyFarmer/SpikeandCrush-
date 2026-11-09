@@ -3101,6 +3101,12 @@ app.put('/api/cards/deck', requireDb, authenticate, async (req, res) => {
 
 // Level, XP, rank (rating tier), rank benefits, the next unlocks and the full
 // card collection for the profile / rank screen.
+// Public card list for the rules page: every card, what it does, its rarity
+// and how it unlocks (built from the live deck, never a hand-kept copy).
+app.get('/api/cards/catalog', (req, res) => {
+  res.json({ cards: progression.collection(progression.standing({})).map(({ id, name, kind, rarity, description, unlockText }) => ({ id, name, kind, rarity, description, unlockText })) });
+});
+
 app.get('/api/progression/me', requireDb, authenticate, async (req, res) => {
   try {
     const player = await db.getPlayerById(req.tokenPlayer.id);
