@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- seo:start -->
+<title>Thanks | Spike &amp; Crush</title>
+<meta name="description" content="Thanks for getting in touch." />
+<meta name="robots" content="noindex, nofollow" />
+<link rel="canonical" href="https://www.spikeandcrush.com/thanks" />
+<meta name="theme-color" content="#14213d" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta property="og:site_name" content="Spike &amp; Crush" />
+<meta property="og:title" content="Thanks | Spike &amp; Crush" />
+<meta property="og:description" content="Thanks for getting in touch." />
+<meta property="og:url" content="https://www.spikeandcrush.com/thanks" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://www.spikeandcrush.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Spike &amp; Crush, the competitive trading game. Up. Then not." />
+<meta name="twitter:card" content="summary_large_image" />
+<!-- seo:end -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/icons/site.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/site-32.png" type="image/png" sizes="32x32" />
+<link rel="alternate icon" href="/favicon.ico" sizes="48x48" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="stylesheet" href="/css/palette.css" />
+<link rel="stylesheet" href="/css/candle-bg.css" />
+<link rel="stylesheet" href="/css/status-page.css" />
+<script src="/js/analytics.js" defer></script>
+</head>
+<body class="status-page" data-candle-bg>
+  <main class="status-card">
+    <a class="status-logo" href="/" aria-label="Spike and Crush home"><span class="s">Spike</span><span class="a">&amp;</span><span class="c">Crush</span></a>
+    <h1 id="thanksTitle">Thanks.</h1>
+    <p class="status-text" id="thanksText">We got your message.</p>
+    <div class="status-actions" id="thanksActions">
+      <a class="status-btn primary" href="/">Home</a>
+    </div>
+  </main>
+  <script src="/js/candle-bg.js"></script>
+  <script>
+    (function () {
+      const pages = {
+        signup: {
+          title: 'Check your email.',
+          text: 'We sent you a link to verify your account. Open it, then log in and your 500 free coins are waiting. Didn’t get it? Check spam, or ask us to send it again.',
+          actions: [['/verify-email', 'Resend the email', true], ['/', 'Home']],
+          event: 'signup_completed',
+        },
+        sponsor: {
+          title: 'We got your enquiry.',
+          text: 'We’ll reply from hello@spikeandcrush.com.',
+          actions: [['/competitions', 'See competitions', true], ['/', 'Home']],
+          event: 'sponsor_form_submitted',
+        },
+        contact: {
+          title: 'We got your message.',
+          text: 'We’ll reply by email from hello@spikeandcrush.com.',
+          actions: [['/', 'Home', true], ['/help', 'Help and rules']],
+          event: 'contact_submitted',
+        },
+      };
+      const key = location.pathname.split('/').pop();
+      const page = pages[key];
+      if (!page) return;
+      document.getElementById('thanksTitle').textContent = page.title;
+      document.getElementById('thanksText').textContent = page.text;
+      const box = document.getElementById('thanksActions');
+      box.textContent = '';
+      for (const [href, label, primary] of page.actions) {
+        const a = document.createElement('a');
+        a.className = primary ? 'status-btn primary' : 'status-btn';
+        a.href = href;
+        a.textContent = label;
+        box.appendChild(a);
+      }
+      window.addEventListener('load', () => window.SCAnalytics && window.SCAnalytics.trackOnce(page.event));
+    })();
+  </script>
+</body>
+</html>

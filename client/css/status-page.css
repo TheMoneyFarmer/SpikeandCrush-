@@ -1,0 +1,28 @@
+/* 404, 500 and thank-you pages. */
+.status-page {
+  margin: 0; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 24px 16px;
+  box-sizing: border-box; position: relative; overflow-x: hidden;
+  background: var(--c-canvas); color: var(--c-on);
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+.status-card {
+  position: relative; z-index: 1; width: 100%; max-width: 520px; padding: 36px 28px; box-sizing: border-box; text-align: center;
+  background: var(--c-elev); border: 1px solid var(--c-hair); border-radius: 16px;
+}
+.status-logo { display: inline-block; font-weight: 700; font-size: 22px; text-decoration: none; margin-bottom: 18px; }
+.status-logo .s { color: var(--c-spike); }
+.status-logo .a { color: var(--c-on); }
+.status-logo .c { color: var(--c-crush); }
+.status-code { margin: 0; font-size: 13px; letter-spacing: .14em; color: var(--c-mute); font-weight: 600; }
+.status-card h1 { margin: 8px 0 12px; font-size: 28px; line-height: 1.2; font-weight: 700; }
+.status-text { margin: 0 0 22px; color: var(--c-body); line-height: 1.55; font-size: 15px; }
+.status-text a { color: var(--c-link); }
+.status-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.status-btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 20px; border-radius: 999px;
+  border: 1px solid var(--c-hair-2); color: var(--c-on); font-weight: 600; font-size: 14px; text-decoration: none;
+}
+.status-btn:hover { background: var(--c-ghost); }
+.status-btn.primary { background: var(--c-blue); border-color: var(--c-blue); color: #fff; }
+.status-btn.primary:hover { background: var(--c-blue-press); }
+.status-btn:focus-visible { outline: 2px solid var(--c-focus); outline-offset: 2px; }
