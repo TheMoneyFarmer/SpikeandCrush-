@@ -92,6 +92,10 @@ const app = express();
 // when Cloudflare is in front, or every visitor shares Cloudflare's IP in rate limits.
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
 app.disable('x-powered-by');
+// Before everything else: traffic must come through Cloudflare (see originLock.js).
+const { originLock, startRangeRefresh } = require('./originLock');
+app.use(originLock());
+startRangeRefresh();
 // Security headers on every response, including static files.
 app.use(securityHeaders());
 
@@ -109,6 +113,8 @@ app.get('/ready', async (req, res) => {
 const server = http.createServer(app);
 // 100 KB message cap (default 1 MB); no client message needs more.
 const io = new Server(server, { cors: { origin: corsOrigin }, maxHttpBufferSize: 100 * 1024 });
+// Sockets skip Express, so they need the same check.
+io.engine.use(originLock());
 
 // Global playerId -> Set<socketId> registry (independent of match sessions) so
 // the notification bell works on any page, not just while inside a match.

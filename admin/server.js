@@ -21,6 +21,7 @@ const {
 } = require('./lib/auth');
 const { securityHeaders } = require('../server/securityHeaders');
 const internal = require('./lib/internalGameServer');
+const { originLock, startRangeRefresh } = require('../server/originLock');
 const { bridgeCallAllowed } = require('../server/bridgeAuth');
 const twoFactor = require('./lib/twoFactor');
 const QRCode = require('qrcode');
@@ -47,8 +48,12 @@ const server = http.createServer(app);
 // Same-origin only: the panel's own pages are the only legitimate socket client
 // (was `origin: true` with credentials, i.e. any site).
 const io = new Server(server, { cors: { origin: false } });
+// Traffic must come through Cloudflare (see originLock.js). Sockets skip Express, so they need it too.
+io.engine.use(originLock());
 
 app.disable('x-powered-by');
+app.use(originLock());
+startRangeRefresh();
 app.use(securityHeaders({ admin: true }));
 app.use(express.json({ limit: '200kb' }));
 
