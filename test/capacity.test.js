@@ -14,18 +14,20 @@ const NOW = Date.parse('2026-11-09T12:00:00Z');
 const ago = (minutes) => new Date(NOW - minutes * 60000).toISOString();
 const CF = '162.158.1.1'; // in Cloudflare's published ranges
 
+// What Railway really sends: [address that connected, Railway's edge].
+const EDGE = '100.64.0.9';
 test('rate limits see the real visitor behind Cloudflare, and it cannot be faked', () => {
-  const via = { 'x-forwarded-for': `203.0.113.9, ${CF}`, 'cf-connecting-ip': '203.0.113.9' };
-  assert.strictEqual(visitorIp({ headers: via, ip: CF }), '203.0.113.9');
+  const via = { 'x-forwarded-for': `${CF}, ${EDGE}`, 'cf-connecting-ip': '203.0.113.9' };
+  assert.strictEqual(visitorIp({ headers: via, ip: EDGE }), '203.0.113.9');
   // Two visitors through the same Cloudflare data centre don't share a bucket.
-  assert.notStrictEqual(visitorIp({ headers: { ...via, 'cf-connecting-ip': '198.51.100.7' }, ip: CF }), visitorIp({ headers: via, ip: CF }));
-  // Direct to the server with a made-up header: the header is ignored.
-  const direct = { 'x-forwarded-for': '8.8.8.8', 'cf-connecting-ip': '1.2.3.4' };
-  assert.strictEqual(visitorIp({ headers: direct, ip: '8.8.8.8' }), '8.8.8.8');
-  // Faked X-Forwarded-For ending in a non-Cloudflare address, likewise.
-  assert.strictEqual(visitorIp({ headers: { 'x-forwarded-for': `${CF}, 9.9.9.9`, 'cf-connecting-ip': '1.2.3.4' }, ip: '9.9.9.9' }), '9.9.9.9');
+  assert.notStrictEqual(visitorIp({ headers: { ...via, 'cf-connecting-ip': '198.51.100.7' }, ip: EDGE }), visitorIp({ headers: via, ip: EDGE }));
+  // Direct to the server: the connecting address, never the made-up header, never Railway's edge.
+  const direct = { 'x-forwarded-for': `8.8.8.8, ${EDGE}`, 'cf-connecting-ip': '1.2.3.4' };
+  assert.strictEqual(visitorIp({ headers: direct, ip: EDGE }), '8.8.8.8');
+  // If Railway ever stopped replacing the header, an extra entry is not believed.
+  assert.notStrictEqual(visitorIp({ headers: { 'x-forwarded-for': `${CF}, 9.9.9.9, ${EDGE}`, 'cf-connecting-ip': '1.2.3.4' }, ip: '9.9.9.9' }), '1.2.3.4');
   // Garbage in the header falls back safely.
-  assert.strictEqual(visitorIp({ headers: { 'x-forwarded-for': CF, 'cf-connecting-ip': 'not-an-ip' }, ip: CF }), CF);
+  assert.strictEqual(visitorIp({ headers: { 'x-forwarded-for': `${CF}, ${EDGE}`, 'cf-connecting-ip': 'not-an-ip' }, ip: EDGE }), CF);
 });
 
 test('a match only counts as lost once it cannot still be running', () => {

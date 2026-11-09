@@ -19,9 +19,10 @@ function run(mode, { url = '/', headers = {}, ip } = {}) {
   return out;
 }
 
-const VIA_CF = { 'x-forwarded-for': '203.0.113.7, 172.70.1.1' };
-const DIRECT = { 'x-forwarded-for': '203.0.113.7' };
-const FAKED = { 'x-forwarded-for': '172.70.1.1, 203.0.113.7' };
+// Railway's real shape, seen on the live site: [address that connected, its edge].
+const VIA_CF = { 'x-forwarded-for': '172.70.1.1, 100.64.0.9', 'cf-connecting-ip': '203.0.113.7' };
+const DIRECT = { 'x-forwarded-for': '203.0.113.7, 100.64.0.9' };
+const FAKED = { 'x-forwarded-for': '172.70.1.1, 203.0.113.7, 100.64.0.9' };
 
 test('Cloudflare addresses are recognised, others are not', () => {
   for (const ip of ['172.70.1.1', '104.21.56.170', '162.158.0.1', '2606:4700::1', '::ffff:172.70.1.1']) assert.ok(isCloudflareIp(ip), ip);
@@ -30,7 +31,7 @@ test('Cloudflare addresses are recognised, others are not', () => {
   assert.strictEqual(CLOUDFLARE_V6.length, 7);
 });
 
-test('only the last hop counts, so a faked Cloudflare address does not pass', () => {
+test('the connecting address decides, and any other header shape is not believed', () => {
   assert.strictEqual(classify(VIA_CF), 'cloudflare');
   assert.strictEqual(classify(DIRECT), 'direct');
   assert.strictEqual(classify(FAKED), 'direct');
@@ -66,7 +67,7 @@ test('report never blocks, and /health shows the result', () => {
   const good = run('report', { url: '/health', headers: VIA_CF, ip: '203.0.113.7' });
   assert.match(good.headers['x-origin-check'], /mode=report; via=cloudflare; visitor-ip-ok=true/);
   assert.doesNotMatch(good.headers['x-origin-check'], /\d+\.\d+\.\d+\.\d+/, 'no addresses in the report');
-  const wrongHops = run('report', { url: '/health', headers: VIA_CF, ip: '172.70.1.1' });
+  const wrongHops = run('report', { url: '/health', headers: { 'x-forwarded-for': VIA_CF['x-forwarded-for'] }, ip: '172.70.1.1' });
   assert.match(wrongHops.headers['x-origin-check'], /via=cloudflare; visitor-ip-ok=false/);
   assert.strictEqual(run('report', { url: '/api/x', headers: DIRECT }).nextCalled, true);
 });
@@ -84,12 +85,12 @@ test('off is the emergency switch, and local development is off by default', () 
 test('with ORIGIN_SECRET set, only the secret header proves Cloudflare', () => {
   process.env.ORIGIN_SECRET = 'a-long-shared-secret';
   try {
-    const forwarded = { 'x-forwarded-for': '203.0.113.9, 162.158.1.1', 'cf-connecting-ip': '203.0.113.9' };
+    const forwarded = { 'x-forwarded-for': '162.158.1.1, 100.64.0.9', 'cf-connecting-ip': '203.0.113.9' };
     assert.strictEqual(classify(forwarded), 'direct', 'a Cloudflare-looking address is not enough');
     assert.strictEqual(classify({ ...forwarded, 'x-origin-secret': 'wrong-secret-of-same-l' }), 'direct');
     assert.strictEqual(classify({ ...forwarded, 'x-origin-secret': 'a-long-shared-secret' }), 'cloudflare');
     assert.strictEqual(visitorIp({ headers: { ...forwarded, 'x-origin-secret': 'a-long-shared-secret' }, ip: '1.1.1.1' }), '203.0.113.9');
-    assert.strictEqual(visitorIp({ headers: forwarded, ip: '198.51.100.1' }), '198.51.100.1', 'a faked header is ignored without the secret');
+    assert.notStrictEqual(visitorIp({ headers: forwarded, ip: '198.51.100.1' }), '203.0.113.9', 'a faked header is ignored without the secret');
     assert.strictEqual(classify({ host: 'healthcheck.railway.app' }), 'internal');
   } finally {
     delete process.env.ORIGIN_SECRET;

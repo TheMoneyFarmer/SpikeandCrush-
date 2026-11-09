@@ -4,9 +4,12 @@
 // straight to Railway with our Host header skips Cloudflare's protection and can
 // fake its IP to dodge rate limits (TRUST_PROXY_HOPS=2 trusts one more hop).
 //
-// Railway appends the address that connected to it, so the LAST X-Forwarded-For
-// entry can't be faked. It's the check: Cloudflare's ranges pass, anything else
-// is direct.
+// Railway replaces X-Forwarded-For with exactly two entries: the address that
+// connected to it, then its own edge. Whatever a caller sends is thrown away, so
+// the FIRST entry can't be faked (checked on the live site: a made-up header sent
+// straight to Railway never reaches us). It's the check: Cloudflare's ranges pass,
+// anything else is direct. Any other shape isn't trusted, so if Railway ever stops
+// replacing the header this fails closed instead of believing a caller.
 //
 // ORIGIN_LOCK=on blocks direct requests, =report only labels /health with the
 // result, =off does nothing (the emergency switch). Default: DEFAULT_MODE in
@@ -52,6 +55,11 @@ function isCloudflareIp(ip) {
 
 // 'cloudflare', 'direct', or 'internal' (no proxy involved: private network,
 // localhost, Railway's health checker).
+const RAILWAY_HOPS = 2;
+function forwardedHops(headers = {}) {
+  return String(headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
+}
+
 function hasOriginSecret(headers = {}) {
   const expected = process.env.ORIGIN_SECRET;
   const given = headers['x-origin-secret'];
@@ -64,26 +72,28 @@ function classify(headers = {}) {
   const forwarded = headers['x-forwarded-for'];
   if (!forwarded) return 'internal';
   if (process.env.ORIGIN_SECRET) return hasOriginSecret(headers) ? 'cloudflare' : 'direct';
-  const hops = String(forwarded).split(',').map((s) => s.trim()).filter(Boolean);
-  return isCloudflareIp(hops[hops.length - 1]) ? 'cloudflare' : 'direct';
+  const hops = forwardedHops(headers);
+  return hops.length === RAILWAY_HOPS && isCloudflareIp(hops[0]) ? 'cloudflare' : 'direct';
 }
 
-// The real visitor's IP, for rate limits and ip hashes. Cloudflare's header is only
-// believed when the request provably came through Cloudflare (see classify), so
-// it can't be faked by going direct, and this works whatever TRUST_PROXY_HOPS is.
-// Without it every visitor behind one Cloudflare data centre would share a limit.
+// The real visitor's IP, for rate limits, ip hashes and logs. Cloudflare's header is
+// only believed when the request provably came through Cloudflare (see classify), so
+// it can't be faked by going direct. Doesn't use req.ip, which on Railway is its edge
+// address, shared by everyone connecting through that edge.
 function visitorIp(req) {
   const headers = req.headers || {};
   if (classify(headers) === 'cloudflare') {
     const ip = String(headers['cf-connecting-ip'] || '').trim();
     if (net.isIP(ip)) return ip;
   }
+  const hops = forwardedHops(headers);
+  if (hops.length === RAILWAY_HOPS && net.isIP(hops[0])) return hops[0];
   return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
 function originReport(req, mode, via) {
   const headers = req.headers || {};
-  const hops = String(headers['x-forwarded-for'] || '').split(',').map((h) => h.trim()).filter(Boolean);
+  const hops = forwardedHops(headers);
   const cfHops = hops.map((h, i) => (isCloudflareIp(h) ? i + 1 : 0)).filter(Boolean);
   const visitorIpOk = via !== 'cloudflare' || !isCloudflareIp(visitorIp(req));
   return [

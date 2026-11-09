@@ -1,6 +1,7 @@
 'use strict';
 
 const jwt = require('jsonwebtoken');
+const { visitorIp } = require('../../server/originLock');
 const bcrypt = require('bcryptjs');
 const { supabase, isConfigured } = require('./supabaseAdmin');
 
@@ -22,7 +23,7 @@ const MASTER_ADMIN_EMAIL = 'thandolwenkosimceeyah@gmail.com';
 // it is the real client address. Reading X-Forwarded-For directly, as before,
 // let anyone put an allowlisted IP in the header and bypass ADMIN_ALLOWED_IPS.
 function clientIp(req) {
-  return String(req.ip || req.socket?.remoteAddress || 'unknown').replace('::ffff:', '');
+  return String(visitorIp(req)).replace('::ffff:', '');
 }
 
 // Optional IP allowlist. Empty/unset ADMIN_ALLOWED_IPS means "allow anything" -
