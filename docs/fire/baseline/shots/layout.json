@@ -1,0 +1,67 @@
+{
+  "errors": [],
+  "layout": {
+    "game-1440x900": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "chart": {
+        "x": 45,
+        "y": 165,
+        "w": 766,
+        "h": 450
+      },
+      "cards": {
+        "x": 17,
+        "y": 689,
+        "w": 686,
+        "h": 182
+      }
+    },
+    "game-390x844": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "chart": {
+        "x": 2,
+        "y": 154,
+        "w": 308,
+        "h": 520
+      }
+    },
+    "game-844x390": {
+      "scrollWidth": 844,
+      "innerWidth": 844,
+      "chart": {
+        "x": 2,
+        "y": 2,
+        "w": 762,
+        "h": 146
+      },
+      "cards": {
+        "x": 308,
+        "y": 72,
+        "w": 230,
+        "h": 70
+      }
+    },
+    "game-360x780": {
+      "scrollWidth": 360,
+      "innerWidth": 360,
+      "chart": {
+        "x": 2,
+        "y": 154,
+        "w": 278,
+        "h": 456
+      }
+    },
+    "game-430x932": {
+      "scrollWidth": 430,
+      "innerWidth": 430,
+      "chart": {
+        "x": 2,
+        "y": 154,
+        "w": 348,
+        "h": 608
+      }
+    }
+  }
+}

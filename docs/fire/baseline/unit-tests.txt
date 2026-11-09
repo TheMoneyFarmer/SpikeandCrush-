@@ -1,0 +1,15 @@
+✔ null, undefined, empty, garbage -> just now (0.535875ms)
+✔ future timestamps -> just now (0.074125ms)
+✔ under a minute -> just now (0.067834ms)
+✔ minutes, hours, days (0.085709ms)
+✔ a week or more -> short date (0.116083ms)
+✔ the 1312h case that triggered the bug -> a date, never "1312h ago" (0.066875ms)
+✔ seconds, milliseconds, numeric strings and ISO all agree (1.161916ms)
+ℹ tests 153
+ℹ suites 0
+ℹ pass 153
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6877.552416
