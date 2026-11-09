@@ -19,3 +19,9 @@ soak: 9 matches, 9 active, 54 bots, 10 minutes
 {"t":"480s","heapMB":22.5,"rssMB":49.5,"loopP99ms":13,"loopMaxMs":30,"handles":0,"events":44675,"actions":9630,"cardsPlayed":235}
 {"t":"510s","heapMB":22.8,"rssMB":49,"loopP99ms":13,"loopMaxMs":16,"handles":0,"events":47218,"actions":10228,"cardsPlayed":235}
 {"t":"540s","heapMB":23.1,"rssMB":50.4,"loopP99ms":13,"loopMaxMs":53,"handles":0,"events":49877,"actions":10850,"cardsPlayed":238}
+{"t":"570s","heapMB":23.6,"rssMB":51.8,"loopP99ms":13,"loopMaxMs":40,"handles":0,"events":52370,"actions":11439,"cardsPlayed":238}
+{"t":"600s","heapMB":23.9,"rssMB":50.9,"loopP99ms":12,"loopMaxMs":15,"handles":0,"events":54864,"actions":12017,"cardsPlayed":238}
+events by type: [["match:feed",14884],["missions:update",14727],["trade:executed",7299],["trade:closed",7230],["price:update",6089],["leaderboard:update",1800],["match:state",1725],["sabotage:incoming",298],["cards:update",292],["sabotage:broadcast",238],["match:countdown",90],["player:joined",54],["sabotage:immune",50],["missions:complete",33]]
+cards played 238, refused by guards 401, trade actions 12017
+heap first 17.4MB, mid 20.5MB, last 23.9MB (second-half growth 3.4MB); handles 0 -> 0; worst loop p99 14ms
+PASS soak: memory, event-loop lag and handles flat
