@@ -299,6 +299,7 @@ app.use('/admin/api/comps', requireAdmin, supportAgentGuard, require('./routes/c
 app.use('/api/monetisation', require('./routes/monetisation')());
 app.use('/api/analytics', require('./routes/analytics')());
 app.use('/api/config', require('./routes/gameConfig')());
+app.use('/api/fire', require('./routes/fire')());
 app.use('/api/branding', require('./routes/branding')());
 app.use('/api/communications', require('./routes/communications')());
 app.use('/api/system', require('./routes/system')());

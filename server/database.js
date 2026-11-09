@@ -2328,6 +2328,22 @@ async function createPlayerReport({ reporterId, reportedId, reason, matchId = nu
   return true;
 }
 
+// Admin config stored by the admin panel (game_config table, key/value).
+async function getGameConfig(key) {
+  if (!isConfigured) return null;
+  const { data, error } = await supabase.from('game_config').select('value').eq('key', key).maybeSingle();
+  if (error) throw error;
+  return data ? data.value : null;
+}
+
+// Unlock-rate report: real players' match history (personas excluded).
+async function listPlayersForUnlockReport(limit = 50000) {
+  assertConfigured();
+  const { data, error } = await supabase.from('players').select('total_matches, wins').eq('is_persona', false).limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
 async function recordMarketStats(row) {
   if (!isConfigured) return null;
   const { error } = await supabase.from('match_market_stats').upsert(row, { onConflict: 'match_id,symbol' });
@@ -2354,6 +2370,8 @@ module.exports = {
   setCardGrant,
   recordMarketStats,
   listFriendIdsForMany,
+  getGameConfig,
+  listPlayersForUnlockReport,
   listRecentCoPlayers,
   createPlayerReport,
   listMarketStats,

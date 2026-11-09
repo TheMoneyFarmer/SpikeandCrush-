@@ -59,6 +59,14 @@ window.Admin = window.Admin || {};
       { key: 'cfg-daily', label: 'Daily Challenges', href: '/game-config.html?tab=daily' },
       { key: 'cfg-async', label: 'Async Daily Setup', href: '/game-config.html?tab=async' },
     ]},
+    { group: 'Fire Gameplay', icon: '🔥', items: [
+      { key: 'fire-market', label: 'Market Curation', href: '/fire.html?tab=market' },
+      { key: 'fire-monitor', label: 'Fire Monitor', href: '/fire.html?tab=monitor' },
+      { key: 'fire-settings', label: 'Cards, Heat, Missions', href: '/fire.html?tab=settings' },
+      { key: 'fire-progression', label: 'Progression and Unlocks', href: '/fire.html?tab=progression' },
+      { key: 'fire-ranksplit', label: 'Rank-Split Lobbies', href: '/fire.html?tab=ranksplit' },
+      { key: 'fire-discover', label: 'Discover', href: '/fire.html?tab=discover' },
+    ]},
     { group: 'Branding', icon: '🎨', items: [
       { key: 'brand-logo', label: 'Logo and Assets', href: '/branding.html?tab=logo' },
       { key: 'brand-colour', label: 'Colour Theme', href: '/branding.html?tab=colour' },

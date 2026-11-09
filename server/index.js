@@ -588,6 +588,16 @@ app.use('/api', apiLimiter);
 // localhost-gated inside the router itself, see server/internalAdmin.js.
 const { createInternalAdminRouter } = require('./internalAdmin');
 app.use('/internal/admin', createInternalAdminRouter({ gameEngine, compEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }));
+// Fire gameplay admin (market curation, Fire monitor, progression, rank split,
+// Discover) on the same secret-gated bridge.
+const fireAdmin = require('./fireAdmin');
+app.use('/internal/admin/fire', require('./bridgeAuth').requireBridgeSecret, fireAdmin.createFireAdminRouter({
+  db,
+  gameEngine,
+  getOnlineSettings: async (ids) => (await discoverRows(ids.slice(0, 5000))).map((p) => p.settings || {}),
+}));
+fireAdmin.loadConfig(db);
+gameEngine.setFlatAlertHandler(fireAdmin.flatAlertHandler);
 
 // ---- auth -----------------------------------------------------------------
 
