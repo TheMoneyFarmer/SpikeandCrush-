@@ -2288,6 +2288,46 @@ async function setCardGrant(playerId, cardId, { revoke = false, reason = '' } = 
   return true;
 }
 
+// Discover: accepted friends of many players at once -> Map(id -> Set(friendIds)).
+async function listFriendIdsForMany(ids) {
+  assertConfigured();
+  const out = new Map(ids.map((id) => [id, new Set()]));
+  if (!ids.length) return out;
+  const list = ids.join(',');
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('requester_id, addressee_id')
+    .eq('status', 'accepted')
+    .or(`requester_id.in.(${list}),addressee_id.in.(${list})`)
+    .limit(20000);
+  if (error) throw error;
+  for (const f of data || []) {
+    if (out.has(f.requester_id)) out.get(f.requester_id).add(f.addressee_id);
+    if (out.has(f.addressee_id)) out.get(f.addressee_id).add(f.requester_id);
+  }
+  return out;
+}
+
+// Discover: real players this player shared a match with recently.
+async function listRecentCoPlayers(playerId, matches = 20) {
+  assertConfigured();
+  const mine = await supabase.from('match_players').select('match_id').eq('player_id', playerId).limit(matches);
+  if (mine.error) throw mine.error;
+  const ids = (mine.data || []).map((r) => r.match_id);
+  if (!ids.length) return [];
+  const { data, error } = await supabase.from('match_players').select('player_id').in('match_id', ids).neq('player_id', playerId).limit(500);
+  if (error) throw error;
+  return [...new Set((data || []).map((r) => r.player_id))];
+}
+
+// A player's report goes to the existing moderation queue (admin "reports").
+async function createPlayerReport({ reporterId, reportedId, reason, matchId = null }) {
+  assertConfigured();
+  const { error } = await supabase.from('player_reports').insert({ reporter_id: reporterId, reported_player_id: reportedId, reason: String(reason).slice(0, 60), match_id: matchId, status: 'open' });
+  if (error) throw error;
+  return true;
+}
+
 async function recordMarketStats(row) {
   if (!isConfigured) return null;
   const { error } = await supabase.from('match_market_stats').upsert(row, { onConflict: 'match_id,symbol' });
@@ -2313,6 +2353,9 @@ module.exports = {
   getCardGrants,
   setCardGrant,
   recordMarketStats,
+  listFriendIdsForMany,
+  listRecentCoPlayers,
+  createPlayerReport,
   listMarketStats,
   fireTablesStatus,
   createPlayer,

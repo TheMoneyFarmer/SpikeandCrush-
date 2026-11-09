@@ -306,6 +306,28 @@
           <div class="meta"><div>Allow match invites from anyone</div><div class="note">When off, only your friends can invite you to a match.</div></div>
           <label class="switch"><input type="checkbox" id="prAllowInvites" checked /><span class="slider-toggle"></span></label>
         </div>
+        <h3 style="margin-top:20px;" id="privacy">Discover</h3>
+        <div class="toggle-row">
+          <div class="meta"><div>Who can see my status</div><div class="note">Online, in a match, away. Anyone not allowed sees you as offline.</div></div>
+          <select id="prStatusVis" style="min-height:44px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:0 10px;"><option value="everyone">Everyone</option><option value="friends">Friends only</option><option value="nobody">Nobody</option></select>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Who can see what I'm playing</div><div class="note">The mode you're in, and a Join button for your open lobby.</div></div>
+          <select id="prActivityVis" style="min-height:44px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:0 10px;"><option value="everyone">Everyone</option><option value="friends">Friends only</option><option value="nobody">Nobody</option></select>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Who can send me friend requests</div><div class="note">Overrides "Allow friend requests" above.</div></div>
+          <select id="prRequestsFrom" style="min-height:44px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:0 10px;"><option value="everyone">Everyone</option><option value="fof">Friends of friends</option><option value="nobody">Nobody</option></select>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Show me in Discover suggestions</div><div class="note">When off, you don't appear in Players live or Suggested for you.</div></div>
+          <label class="switch"><input type="checkbox" id="prShowInDiscover" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Let others join my open match from Discover</div><div class="note">Public matches only, and only before the match starts.</div></div>
+          <label class="switch"><input type="checkbox" id="prJoinFromDiscover" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <p class="note" style="font-size:12px;opacity:.7;margin:8px 0 0;">We never show your location to anyone. We may use the country you picked in Settings to suggest players near you; it is never shown.</p>
         <button class="btn btn-primary" id="savePrivacyBtn" style="margin-top:14px;">Save Privacy Settings</button>
 
         <h3 style="margin-top:24px;">Block List</h3>
@@ -465,6 +487,11 @@
         document.getElementById('prShowOnline').checked = currentSettings.showOnline !== false;
         document.getElementById('prAllowFriends').checked = currentSettings.allowFriends !== false;
         document.getElementById('prAllowInvites').checked = currentSettings.allowInvites !== false;
+        document.getElementById('prStatusVis').value = currentSettings.statusVisibility || 'everyone';
+        document.getElementById('prActivityVis').value = currentSettings.activityVisibility || 'everyone';
+        document.getElementById('prRequestsFrom').value = currentSettings.requestsFrom || (currentSettings.allowFriends === false ? 'nobody' : 'everyone');
+        document.getElementById('prShowInDiscover').checked = currentSettings.showInDiscover !== false;
+        document.getElementById('prJoinFromDiscover').checked = currentSettings.allowJoinFromDiscover !== false;
 
         document.getElementById('nEmailResults').checked = currentSettings.emailResults !== false;
         document.getElementById('nEmailTournament').checked = Boolean(currentSettings.emailTournament);
@@ -667,6 +694,12 @@
               showOnline: document.getElementById('prShowOnline').checked,
               allowFriends: document.getElementById('prAllowFriends').checked,
               allowInvites: document.getElementById('prAllowInvites').checked,
+              appearOffline: !document.getElementById('prShowOnline').checked,
+              statusVisibility: document.getElementById('prStatusVis').value,
+              activityVisibility: document.getElementById('prActivityVis').value,
+              requestsFrom: document.getElementById('prRequestsFrom').value,
+              showInDiscover: document.getElementById('prShowInDiscover').checked,
+              allowJoinFromDiscover: document.getElementById('prJoinFromDiscover').checked,
             },
           },
         });

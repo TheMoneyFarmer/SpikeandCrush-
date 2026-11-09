@@ -33,6 +33,7 @@ const instrumentsRegistry = require('./instruments');
 const shop = require('./shop');
 const battlepass = require('./battlepass');
 const progression = require('./progression');
+const discover = require('./discover');
 const gameFeel = require('./config/gameFeel');
 const tournament = require('./tournament');
 const presence = require('./presence');
@@ -478,6 +479,7 @@ app.get('/wallet', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'wallet.html
 app.get('/cards', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'cards.html')));
 app.get('/challenge/:code', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'challenge.html')));
 app.get('/rank', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'rank.html')));
+app.get('/discover', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'discover.html')));
 app.get('/settings', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'settings.html')));
 app.get('/help', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'help.html')));
 app.get('/terms', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'terms.html')));
@@ -1427,10 +1429,20 @@ app.patch('/api/player/settings', requireDb, authenticate, async (req, res) => {
 
     const { settings, country } = req.body || {};
     const updates = {};
-    if (settings && typeof settings === 'object') updates.settings = { ...player.settings, ...settings };
+    if (settings && typeof settings === 'object') {
+      // Privacy keys (Discover) only in their allowed values; the legacy
+      // showOnline/allowFriends/allowInvites flags are kept in step.
+      const PRIVACY_KEYS = ['appearOffline', 'statusVisibility', 'activityVisibility', 'showInDiscover', 'requestsFrom', 'invitesFrom', 'allowJoinFromDiscover'];
+      const rest = Object.fromEntries(Object.entries(settings).filter(([k]) => !PRIVACY_KEYS.includes(k)));
+      updates.settings = { ...player.settings, ...rest, ...discover.sanitizePrivacyPatch(settings) };
+    }
     if (country !== undefined) updates.country = country;
 
     const updated = await db.updatePlayer(player.id, updates);
+    if (updates.settings) {
+      discoverRowCache.delete(player.id);
+      pushDiscoverPresence(player.id, updated.settings);
+    }
     res.json({
       settings: updated.settings,
       avatarUrl: updated.avatar_url,
@@ -1776,7 +1788,13 @@ async function createFriendRequest(requesterId, targetId) {
     if (existing.status === 'blocked') throw friendsPanelError(400, 'Unable to send request');
     throw friendsPanelError(400, existing.requester_id === targetId ? 'They already sent you a request. Accept it under Requests.' : 'Request already sent');
   }
-  if (targetPlayer.settings?.allowFriends === false) throw friendsPanelError(400, "This player isn't accepting friend requests");
+  // Who may send requests: everyone / friends of friends / nobody (Discover privacy).
+  const reqPrivacy = discover.privacy(targetPlayer.settings).requestsFrom;
+  if (reqPrivacy === 'nobody') throw friendsPanelError(400, "This player isn't accepting friend requests");
+  if (reqPrivacy === 'fof') {
+    const [mine, theirs] = await Promise.all([db.listFriendIds(requesterId), db.listFriendIds(targetId)]);
+    if (!theirs.some((id) => mine.includes(id))) throw friendsPanelError(400, 'This player only accepts requests from friends of friends');
+  }
   if (!friendRequestLimiter(requesterId)) throw friendsPanelError(429, 'You have sent a lot of requests. Try again later.');
 
   const requester = await db.getPlayerById(requesterId);
@@ -1925,14 +1943,196 @@ app.get('/api/players/online', requireDb, authenticate, async (req, res) => {
     const visible = players.filter((p) => !blocks.has(p.id) && !activeBan(p) && p.settings?.showOnline !== false);
     const ranked = friendsHub.rankOnlinePlayers(visible, me).slice(0, 30);
     res.json({
-      players: ranked.map((p) => ({
-        ...friendsPanelPlayer(p, myId, rows),
-        sameCountry: Boolean(me.country) && p.country === me.country,
-      })),
+      // The country only orders this list on the server; whether someone is in
+      // the same country is never sent (Discover privacy rule).
+      players: ranked.map((p) => friendsPanelPlayer(p, myId, rows)),
     });
   } catch (e) {
     console.error('[players online]', e);
     res.status(500).json({ error: 'Could not load players' });
+  }
+});
+
+// ---- Discover (Part 3B) ------------------------------------------------------------
+// Find people to play with right now. Extends the friends system above (same
+// friendships, blocks, invites, limits). Never returns any location data.
+const discoverRowCache = new Map(); // playerId -> { row, at }
+const discoverWatchers = new Map(); // watched playerId -> Set(socketId)
+const discoverWatching = new Map(); // socketId -> Set(watched playerIds)
+const reportLimiter = friendsHub.createWindowLimiter({ max: 10, windowMs: 60 * 60 * 1000 });
+
+async function discoverRows(ids) {
+  const ttl = gameFeel.get().discover.suggestionCacheSeconds * 1000;
+  const now = Date.now();
+  const missing = ids.filter((id) => !discoverRowCache.has(id) || now - discoverRowCache.get(id).at > ttl);
+  for (let i = 0; i < missing.length; i += 300) {
+    const batch = await db.getPlayersForFriendsPanel(missing.slice(i, i + 300));
+    for (const p of batch) discoverRowCache.set(p.id, { row: p, at: now });
+  }
+  if (discoverRowCache.size > 20000) for (const [k, v] of discoverRowCache) if (now - v.at > ttl) discoverRowCache.delete(k);
+  return ids.map((id) => discoverRowCache.get(id)?.row).filter(Boolean);
+}
+
+// Push a watched player's new visible presence to everyone looking at them,
+// each seeing only what the privacy rules allow them to see.
+async function pushDiscoverPresence(playerId, settingsOverride = null) {
+  const watchers = discoverWatchers.get(playerId);
+  if (!watchers || !watchers.size) return;
+  try {
+    const [row] = settingsOverride ? [{ settings: settingsOverride }] : await discoverRows([playerId]);
+    if (!row) return;
+    const p = presence.getPresence(playerId);
+    for (const sid of watchers) {
+      const s = io.sockets.sockets.get(sid);
+      const viewerId = s && s.data && s.data.player && s.data.player.id;
+      if (!viewerId) continue;
+      const friendIds = new Set(await db.listFriendIds(viewerId).catch(() => []));
+      const rel = discover.relation(viewerId, playerId, { friendIds });
+      s.emit('discover:presence', { id: playerId, ...discover.presenceView(p, row.settings, rel) });
+    }
+  } catch (e) {
+    console.warn('[discover] push failed:', e.message);
+  }
+}
+presence.onChange((playerId) => {
+  discoverRowCache.delete(playerId);
+  pushDiscoverPresence(playerId);
+});
+
+function discoverOff(res) {
+  if (gameFeel.get().discover.enabled) return false;
+  res.status(403).json({ error: 'Discover is switched off right now' });
+  return true;
+}
+
+// GET /api/discover?section=friends|live|rooms|suggested&page=0&q=&tier=&level=&mode=&played=1
+app.get('/api/discover', requireDb, authenticate, async (req, res) => {
+  if (discoverOff(res)) return;
+  try {
+    const myId = req.tokenPlayer.id;
+    const section = String(req.query.section || 'live');
+    const [me, friendIdList, blocks] = await Promise.all([db.getPlayerById(myId), db.listFriendIds(myId), db.listBlockRelationIds(myId)]);
+    const friendIds = new Set(friendIdList);
+
+    if (section === 'rooms') {
+      // Public lobbies still open to join (closed once a short game starts).
+      const rooms = ['quick', 'blitz', 'grand']
+        .flatMap((mode) => gameEngine.listWaitingMatchesByMode(mode))
+        .filter((m) => m.status === 'waiting' && Object.keys(m.players).length < m.config.maxPlayers)
+        .filter((m) => !Object.keys(m.players).some((id) => blocks.has(id)))
+        .map((m) => ({ matchId: m.id, mode: m.mode, label: m.config.label, players: Object.values(m.players).length, maxPlayers: m.config.maxPlayers, entryCoins: m.config.entryCoins || 0, lobbyTier: m.lobbyTier || null }));
+      return res.json(discover.paginate(rooms, req.query.page));
+    }
+
+    let ids;
+    if (section === 'friends') ids = friendIdList.filter((id) => playerSockets.has(id));
+    else ids = [...playerSockets.keys()].filter((id) => id !== myId);
+    const rows = (await discoverRows(ids)).filter((c) => (section === 'friends' ? !blocks.has(c.id) && !activeBan(c) : discover.listable(myId, c, { blocked: blocks })));
+
+    const playedWith = new Set(req.query.played || section === 'suggested' ? await db.listRecentCoPlayers(myId).catch(() => []) : []);
+    let list = rows;
+    const q = String(req.query.q || '').trim().toLowerCase();
+    if (q) list = list.filter((c) => c.username.toLowerCase().includes(q));
+    if (req.query.tier) list = list.filter((c) => (c.tier || tierForRating(c.war_rating)) === (me.tier || tierForRating(me.war_rating)));
+    if (req.query.played) list = list.filter((c) => playedWith.has(c.id));
+    if (req.query.mode) list = list.filter((c) => (presence.getPresence(c.id).mode || '') === String(req.query.mode));
+
+    const theirFriends = await db.listFriendIdsForMany(list.slice(0, 400).map((c) => c.id)).catch(() => new Map());
+    const mutual = (id) => [...(theirFriends.get(id) || [])].filter((f) => friendIds.has(f)).length;
+    if (section === 'suggested') {
+      const ctx = { me, fofCount: mutual, playedWith };
+      list = list.filter((c) => !friendIds.has(c.id)).map((c) => ({ c, s: discover.score(c, ctx) })).sort((a, b) => b.s - a.s).map((x) => x.c);
+    } else {
+      list = friendsHub.rankOnlinePlayers(list, me);
+    }
+    if (req.query.level) {
+      const myLevel = progression.standing(me).level;
+      list = list.filter((c) => Math.abs((discoverRowCache.get(c.id)?.level || myLevel) - myLevel) <= 3);
+    }
+    // Anyone this viewer may not see as online is left out entirely: being in
+    // a "live" list would itself reveal that they're online.
+    const visible = list
+      .map((c) => {
+        const rel = discover.relation(myId, c.id, { friendIds, targetFriendIds: theirFriends.get(c.id) });
+        return { c, rel, view: discover.presenceView(presence.getPresence(c.id), c.settings, rel) };
+      })
+      .filter((x) => x.view.state !== 'offline');
+    const page = discover.paginate(visible, req.query.page);
+    page.items = page.items.map(({ c, rel, view }) => discover.row(c, view, { relation: rel, mutualFriends: mutual(c.id), canRequest: rel !== 'friend' && discover.canRequest(c.settings, rel), canInvite: discover.canInvite(c.settings, rel) }));
+    // An honest empty state: no padding with fake or seeded players.
+    page.emptyMessage = page.total ? null : section === 'friends' ? 'None of your friends are online right now.' : 'Not many traders are online right now. Try a ghost challenge or a Solo match.';
+    res.json(page);
+  } catch (e) {
+    console.error('[discover]', e);
+    res.status(500).json({ error: 'Could not load Discover' });
+  }
+});
+
+// Invite to match from Discover: into the inviter's waiting lobby if they're
+// in one, otherwise a new Private War room; same invite rules as the lobby.
+app.post('/api/discover/invite', requireDb, authenticate, async (req, res) => {
+  if (discoverOff(res)) return;
+  try {
+    const { targetId } = req.body || {};
+    const me = await db.getPlayerById(req.tokenPlayer.id);
+    const [friendIdList, blocks, [target]] = await Promise.all([db.listFriendIds(me.id), db.listBlockRelationIds(me.id), db.getPlayersForFriendsPanel([targetId])]);
+    if (!target || blocks.has(targetId)) return res.status(404).json({ error: 'Player not found' });
+    const theirFriends = (await db.listFriendIdsForMany([targetId])).get(targetId);
+    const rel = discover.relation(me.id, targetId, { friendIds: new Set(friendIdList), targetFriendIds: theirFriends });
+    if (!discover.canInvite(target.settings, rel)) return res.status(403).json({ error: 'This player is not accepting invites from you' });
+    const pres = presence.getPresence(me.id);
+    let room = pres.status === 'in_lobby' && pres.lobbyId ? gameEngine.getMatch(pres.lobbyId) : null;
+    if (!room || room.status !== 'waiting' || !room.players[me.id]) {
+      if (gameEngine.isInLiveMatch(me.id)) return res.status(409).json({ error: LIVE_MATCH_BUSY_ERROR });
+      const made = await matchmaking.createPrivateWar(gameEngine, { id: me.id, username: me.username, country: me.country, war_rating: me.war_rating, tier: tierForRating(me.war_rating), ...(await loadCardLoadout(me)) });
+      if (!made.success) return res.status(400).json(made);
+      room = gameEngine.getMatch(made.matchId);
+    }
+    const { sentTo, skipped } = await sendLobbyInvites(room.players[me.id], room, [targetId]);
+    res.json({ matchId: room.id, sent: sentTo.length === 1, reason: skipped[0] ? skipped[0].reason : null });
+  } catch (e) {
+    console.error('[discover invite]', e);
+    res.status(500).json({ error: 'Could not send the invite' });
+  }
+});
+
+// Join an open public lobby from Discover (closed once the game starts; the
+// lobby's own rules - capacity, entry coins, rank split - still apply).
+app.post('/api/discover/join', requireDb, authenticate, async (req, res) => {
+  if (discoverOff(res)) return;
+  try {
+    const { lobbyId } = req.body || {};
+    const match = gameEngine.getMatch(lobbyId);
+    if (!match || match.status !== 'waiting' || !['quick', 'blitz', 'grand'].includes(match.mode)) return res.status(400).json({ error: 'That room is no longer open' });
+    const blocks = await db.listBlockRelationIds(req.tokenPlayer.id);
+    if (Object.keys(match.players).some((id) => blocks.has(id))) return res.status(400).json({ error: 'That room is no longer open' });
+    const result = await joinLobbyWithEntryFee(match, req.tokenPlayer.id);
+    if (!result.success) return res.status(400).json({ error: result.error });
+    res.json({ success: true, matchId: match.id });
+  } catch (e) {
+    console.error('[discover join]', e);
+    res.status(500).json({ error: 'Could not join' });
+  }
+});
+
+app.get('/api/settings/privacy', requireDb, authenticate, async (req, res) => {
+  const player = await db.getPlayerById(req.tokenPlayer.id);
+  res.json(discover.privacy(player && player.settings));
+});
+
+// Block (the existing friends block) and Report (the existing moderation queue).
+app.post('/api/players/report', requireDb, authenticate, async (req, res) => {
+  try {
+    const { targetId, reason, matchId } = req.body || {};
+    const REASONS = ['cheating', 'abusive_name', 'spam', 'harassment', 'underage', 'other'];
+    if (!targetId || targetId === req.tokenPlayer.id) return res.status(400).json({ error: 'Invalid player' });
+    if (!REASONS.includes(reason)) return res.status(400).json({ error: `reason must be one of ${REASONS.join(', ')}` });
+    if (!reportLimiter(req.tokenPlayer.id)) return res.status(429).json({ error: 'Too many reports. Try again later.' });
+    await db.createPlayerReport({ reporterId: req.tokenPlayer.id, reportedId: targetId, reason, matchId: matchId || null });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[report]', e);
+    res.status(500).json({ error: 'Could not send the report' });
   }
 });
 
@@ -3727,8 +3927,44 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ---- Discover: live presence diffs for the rows a player is looking at ----
+  socket.on('discover:watch', ({ ids } = {}) => {
+    if (!socket.data.player) return;
+    const next = new Set((Array.isArray(ids) ? ids : []).filter((x) => typeof x === 'string').slice(0, 60));
+    for (const id of discoverWatching.get(socket.id) || []) {
+      if (next.has(id)) continue;
+      const set = discoverWatchers.get(id);
+      if (set) {
+        set.delete(socket.id);
+        if (!set.size) discoverWatchers.delete(id);
+      }
+    }
+    for (const id of next) {
+      if (!discoverWatchers.has(id)) discoverWatchers.set(id, new Set());
+      discoverWatchers.get(id).add(socket.id);
+    }
+    discoverWatching.set(socket.id, next);
+  });
+  // Away = the app is open but hidden; back to online when it's visible again.
+  socket.on('presence:heartbeat', ({ visible } = {}) => {
+    const id = socket.data.player && socket.data.player.id;
+    if (!id) return;
+    const cur = presence.getPresence(id);
+    if (cur.status === 'in_match' || cur.status === 'in_lobby' || cur.status === 'offline') return;
+    const want = visible === false ? 'away' : 'online';
+    if (cur.status !== want) updatePresence(id, { status: want });
+  });
+
   socket.on('disconnect', () => {
     gameEngine.handleDisconnect(socket.id);
+    for (const id of discoverWatching.get(socket.id) || []) {
+      const set = discoverWatchers.get(id);
+      if (set) {
+        set.delete(socket.id);
+        if (!set.size) discoverWatchers.delete(id);
+      }
+    }
+    discoverWatching.delete(socket.id);
   });
 });
 

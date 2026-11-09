@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Discover Players | Spike &amp; Crush</title>
+<meta name="description" content="Find traders to play with right now." />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#07090F" />
+<script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/icons/play.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/play-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/themes.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<link rel="stylesheet" href="/css/mobile.css">
+<link rel="stylesheet" href="/css/console.css" />
+<style>
+  body { background: #07090F; }
+  .dc-wrap { max-width: 960px; margin: 0 auto; padding: 16px; color: #E8EDF6; }
+  .dc-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .dc-head h1 { font: 700 26px Rajdhani, Inter, sans-serif; margin: 0; }
+  .dc-head a { margin-left: auto; font-size: 13px; color: #F5B83D; }
+  .dc-tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px; }
+  .dc-tabs button { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.09); background: #0E1320; color: #E8EDF6; font: 600 13px Inter, sans-serif; white-space: nowrap; cursor: pointer; }
+  .dc-tabs button.active { border-color: #F5B83D; color: #F5B83D; }
+  .dc-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .dc-search { flex: 1 1 220px; min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.09); background: #0E1320; }
+  .dc-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: #E8EDF6; font: 500 14px Inter, sans-serif; outline: none; }
+  .dc-filter { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.09); background: #0E1320; color: rgba(232,237,246,0.75); font-size: 13px; cursor: pointer; }
+  .dc-filter input { accent-color: #F5B83D; }
+  .dc-list { display: grid; gap: 8px; }
+  .dc-row { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: #0E1320; border: 1px solid rgba(255,255,255,0.07); }
+  .dc-av { width: 40px; height: 40px; border-radius: 50%; background: #141B2D; display: grid; place-items: center; font: 700 16px Rajdhani, Inter, sans-serif; color: #F5B83D; overflow: hidden; }
+  .dc-av img { width: 100%; height: 100%; object-fit: cover; }
+  .dc-name { font-weight: 600; font-size: 14px; }
+  .dc-meta { color: rgba(232,237,246,0.6); font-size: 12px; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+  .dc-state { display: inline-flex; align-items: center; gap: 5px; }
+  .dc-dot { width: 8px; height: 8px; border-radius: 50%; background: #586179; }
+  .st-online .dc-dot { background: #2EE6A6; }
+  .st-in_match .dc-dot { background: #F5B83D; }
+  .st-away .dc-dot { background: #8A93A8; }
+  .dc-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .dc-actions button { min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: #141B2D; color: #E8EDF6; font: 600 12px Inter, sans-serif; cursor: pointer; }
+  .dc-actions button.primary { background: #2EE6A6; color: #07090F; border-color: transparent; }
+  .dc-actions button.ghost { background: transparent; color: rgba(232,237,246,0.6); }
+  .dc-empty { padding: 28px 16px; text-align: center; color: rgba(232,237,246,0.7); background: #0E1320; border-radius: 12px; }
+  .dc-empty a { color: #F5B83D; margin: 0 6px; }
+  .dc-more { margin-top: 10px; min-height: 44px; width: 100%; }
+  .dc-note { margin-top: 14px; font-size: 12px; color: rgba(232,237,246,0.5); }
+  @media (max-width: 560px) { .dc-row { grid-template-columns: 40px 1fr; } .dc-actions { grid-column: 1 / -1; justify-content: flex-start; } }
+</style>
+</head>
+<body data-page="discover">
+  <div id="twNav" data-active="discover"></div>
+  <main class="dc-wrap">
+    <div class="dc-head"><h1>Discover</h1><a href="/settings#privacy">Privacy settings</a></div>
+    <div class="dc-tabs" role="tablist">
+      <button type="button" data-section="friends" class="active">Friends online</button>
+      <button type="button" data-section="live">Players live</button>
+      <button type="button" data-section="rooms">Open rooms</button>
+      <button type="button" data-section="suggested">Suggested for you</button>
+    </div>
+    <div class="dc-tools">
+      <label class="dc-search"><span aria-hidden="true">&#9906;</span><input type="search" id="dcSearch" placeholder="Search by handle" aria-label="Search by handle" /></label>
+      <label class="dc-filter"><input type="checkbox" data-f="tier" /> Same rank</label>
+      <label class="dc-filter"><input type="checkbox" data-f="level" /> Similar level</label>
+      <label class="dc-filter"><input type="checkbox" data-f="played" /> Played before</label>
+    </div>
+    <div class="dc-list" id="dcList"></div>
+    <button type="button" class="btn dc-more" id="dcMore" hidden>Load more</button>
+    <p class="dc-note">We never show anyone's location. Invites and requests carry no messages from strangers. Block or report anyone from their row.</p>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/socket.js"></script>
+  <script>
+    TW.requireAuth();
+    const socket = TW.connectSocket();
+    let section = 'friends';
+    let page = 0;
+    let items = [];
+    const filters = {};
+    const list = document.getElementById('dcList');
+    const more = document.getElementById('dcMore');
+    const STATE = { online: 'Online', in_match: 'In a match', away: 'Away', offline: 'Offline' };
+    const esc = (s) => TW.escapeHtml(String(s ?? ''));
+
+    function rowHtml(p) {
+      const actions = [];
+      if (p.joinLobbyId) actions.push(`<button class="primary" data-act="join" data-lobby="${esc(p.joinLobbyId)}">Join</button>`);
+      if (p.canInvite && p.state !== 'in_match') actions.push(`<button data-act="invite">Invite</button>`);
+      if (p.relation !== 'friend' && p.canRequest) actions.push(`<button data-act="request">Add friend</button>`);
+      actions.push(`<button class="ghost" data-act="block">Block</button><button class="ghost" data-act="report">Report</button>`);
+      return `<div class="dc-row" data-id="${esc(p.id)}">
+        <div class="dc-av">${p.avatarUrl ? `<img src="${esc(p.avatarUrl)}" alt="" />` : esc(p.username[0] || '?').toUpperCase()}</div>
+        <div><div class="dc-name">${esc(p.username)}</div>
+          <div class="dc-meta"><span class="dc-state st-${esc(p.state)}"><span class="dc-dot"></span><span class="dc-st">${STATE[p.state] || 'Online'}${p.mode ? ` · ${esc(p.mode)}` : ''}</span></span>
+          ${p.tier ? `<span>${esc(p.tier)}</span>` : ''}${p.mutualFriends ? `<span>${p.mutualFriends} mutual friend${p.mutualFriends === 1 ? '' : 's'}</span>` : ''}${p.relation === 'friend' ? '<span>Friend</span>' : ''}</div></div>
+        <div class="dc-actions">${actions.join('')}</div></div>`;
+    }
+
+    function roomHtml(r) {
+      return `<div class="dc-row" data-room="${esc(r.matchId)}">
+        <div class="dc-av">${esc(r.players)}</div>
+        <div><div class="dc-name">${esc(r.label)}</div><div class="dc-meta"><span>${r.players} / ${r.maxPlayers} players</span><span>${r.entryCoins ? `${r.entryCoins} coins to enter` : 'Free'}</span>${r.lobbyTier ? `<span>${esc(r.lobbyTier)} lobby</span>` : ''}<span>Open until it starts</span></div></div>
+        <div class="dc-actions"><button class="primary" data-act="joinroom">Join</button></div></div>`;
+    }
+
+    async function load(reset) {
+      if (reset) { page = 0; items = []; }
+      const qs = new URLSearchParams({ section, page });
+      const q = document.getElementById('dcSearch').value.trim();
+      if (q) qs.set('q', q);
+      for (const [k, v] of Object.entries(filters)) if (v) qs.set(k, '1');
+      try {
+        const d = await TW.api(`/api/discover?${qs}`);
+        items = items.concat(d.items);
+        list.innerHTML = items.length ? items.map(section === 'rooms' ? roomHtml : rowHtml).join('') : `<div class="dc-empty">${esc(d.emptyMessage || 'No open rooms right now.')}<br /><a href="/play">Play Solo</a><a href="/play">Async Daily Challenge</a></div>`;
+        more.hidden = !d.hasMore;
+        if (section !== 'rooms' && socket) socket.emit('discover:watch', { ids: items.slice(0, 60).map((p) => p.id) });
+      } catch (e) {
+        list.innerHTML = `<div class="dc-empty">${esc(e.message)}</div>`;
+      }
+    }
+
+    document.querySelectorAll('.dc-tabs button').forEach((b) => b.addEventListener('click', () => {
+      document.querySelectorAll('.dc-tabs button').forEach((x) => x.classList.toggle('active', x === b));
+      section = b.dataset.section;
+      load(true);
+    }));
+    let t = null;
+    document.getElementById('dcSearch').addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => load(true), 250); });
+    document.querySelectorAll('[data-f]').forEach((c) => c.addEventListener('change', () => { filters[c.dataset.f] = c.checked; load(true); }));
+    more.addEventListener('click', () => { page += 1; load(false); });
+
+    list.addEventListener('click', async (e) => {
+      const b = e.target.closest('button[data-act]');
+      if (!b) return;
+      const row = b.closest('.dc-row');
+      const id = row.dataset.id;
+      b.disabled = true;
+      try {
+        if (b.dataset.act === 'request') { await TW.api('/api/friends/request', { method: 'POST', body: { targetId: id } }); TW.toast('Request sent', 'success'); b.remove(); }
+        else if (b.dataset.act === 'invite') { const r = await TW.api('/api/discover/invite', { method: 'POST', body: { targetId: id } }); TW.toast(r.sent ? 'Invite sent - waiting in your room' : 'Could not invite right now', r.sent ? 'success' : 'warning'); if (r.matchId) location.href = `/lobby.html?matchId=${r.matchId}`; }
+        else if (b.dataset.act === 'join') { const r = await TW.api('/api/discover/join', { method: 'POST', body: { lobbyId: b.dataset.lobby } }); location.href = `/lobby.html?matchId=${r.matchId}`; }
+        else if (b.dataset.act === 'joinroom') { const r = await TW.api('/api/discover/join', { method: 'POST', body: { lobbyId: row.dataset.room } }); location.href = `/lobby.html?matchId=${r.matchId}`; }
+        else if (b.dataset.act === 'block') { if (!confirm('Block this player? They will disappear from your lists and cannot invite you.')) { b.disabled = false; return; } await TW.api('/api/friends/block', { method: 'POST', body: { targetId: id } }); row.remove(); TW.toast('Blocked', 'info'); }
+        else if (b.dataset.act === 'report') {
+          const reason = prompt('Report reason: cheating, abusive_name, spam, harassment, underage or other', 'other');
+          if (reason) { await TW.api('/api/players/report', { method: 'POST', body: { targetId: id, reason: reason.trim() } }); TW.toast('Report sent to our moderators', 'success'); }
+        }
+      } catch (err) {
+        TW.toast(err.message || 'Something went wrong', 'danger');
+      }
+      b.disabled = false;
+    });
+
+    if (socket) {
+      socket.on('discover:presence', (p) => {
+        const i = items.findIndex((x) => x.id === p.id);
+        if (i === -1) return;
+        if (p.state === 'offline' && section !== 'suggested') { items.splice(i, 1); list.querySelector(`[data-id="${CSS.escape(p.id)}"]`)?.remove(); return; }
+        Object.assign(items[i], { state: p.state, mode: p.mode || null, joinLobbyId: p.joinLobbyId || null });
+        const el = list.querySelector(`[data-id="${CSS.escape(p.id)}"]`);
+        if (el) el.outerHTML = rowHtml(items[i]);
+      });
+    }
+    load(true);
+  </script>
+</body>
+</html>
