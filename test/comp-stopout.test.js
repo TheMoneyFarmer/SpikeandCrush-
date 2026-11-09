@@ -22,6 +22,8 @@ const fakeDb = new Proxy({
   tryCompJobLock: async () => true,
   listNativeCompetitionsByStatus: async (s) => (s.includes('active') ? [comp] : []),
   listCompPositions: async () => positions.filter((p) => p.status === 'open'),
+  listOpenCompPositions: async () => positions.filter((p) => p.status === 'open'),
+  compApplyTicks: async (rows) => { for (const r of rows) updates[r.id] = { ...updates[r.id], equity: r.equity }; },
   listCompAccounts: async () => accounts,
   compClosePosition: async (id, exit, reason, pnl) => { closes.push({ id, reason, pnl }); positions.find((p) => p.id === id).status = 'closed'; return true; },
   updateCompAccount: async (id, fields) => { updates[id] = { ...updates[id], ...fields }; },

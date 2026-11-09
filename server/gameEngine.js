@@ -31,6 +31,12 @@ const ALLOWED_CHAT_MESSAGES = ['GL HF', "Let's go", 'May the best trader win', '
 // room, only once the match actually activates - see activateMatch().
 const PRIVATE_WAR_HOST_FEE = 1;
 
+// A waiting room with nobody connected for this long is closed and refunded, and
+// no waiting room outlives the second limit even with someone sitting in it.
+const LOBBY_IDLE_MS = (Number(process.env.LOBBY_IDLE_SECONDS) || 180) * 1000;
+const LOBBY_MAX_AGE_MS = (Number(process.env.LOBBY_MAX_AGE_MINUTES) || 60) * 60 * 1000;
+const LOBBY_EXPIRED_MESSAGE = 'This lobby closed because it was left waiting. Any entry coins have been refunded.';
+
 const EXPERIENCE_LEVELS = [
   { min: 0, max: 4, label: 'Beginner' },
   { min: 5, max: 14, label: 'Developing' },
@@ -584,7 +590,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         ? instruments.selectDailyInstruments(dailySeed, modeConfig.instrumentCount)
         : instruments.selectMatchInstruments(modeConfig.instrumentCount);
 
-    for (const symbol of matchInstruments) instruments.assignMatchWindow(matchId, symbol, dailySeed);
+    const liveMinutes = Math.ceil((opts.configOverrides?.durationSeconds ?? modeConfig.durationSeconds) / 60);
+    for (const symbol of matchInstruments) instruments.assignMatchWindow(matchId, symbol, dailySeed, liveMinutes);
 
     const match = {
       id: matchId,
@@ -657,7 +664,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           // Same seed rule as createMatch() - async needs every player to see
           // an identical window, keyed off today's UTC date, not per-match.
           const seed = match.mode === 'async' ? new Date().toISOString().slice(0, 10) : null;
-          instruments.assignMatchWindow(matchId, symbol, seed);
+          instruments.assignMatchWindow(matchId, symbol, seed, Math.ceil(match.config.durationSeconds / 60));
           symbolHistory = instruments.getPreMatchHistory(matchId, symbol);
         }
         // Prices already played, so a player returning mid-match sees their
@@ -2517,6 +2524,61 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     return { success: true, refunded, left: 'lobby' };
   }
 
+  // Closes a waiting room, refunding every seat (leaveLobby keys the refund off
+  // what each player actually paid).
+  async function closeLobby(match, reason, notifyType = 'lobby_closed') {
+    io.to(roomName(match.id)).emit('match:voided', { reason });
+    const humans = match.playerOrder.filter((id) => match.players[id] && !match.players[id].isAI);
+    if (!humans.length) {
+      // Nobody to refund or tell, leaveLobby would never run its clean-up.
+      match.status = 'voided';
+      if (db.isConfigured && match.dbMatchId) db.updateMatch(match.dbMatchId, { status: 'voided', end_time: new Date().toISOString() }).catch(() => {});
+      instruments.releaseMatchWindows(match.id);
+      personas.resetMatchPersonas(match.id);
+      matches.delete(match.id);
+      roomCodeIndex.delete(match.roomCode);
+      return true;
+    }
+    for (const playerId of humans) {
+      const result = await leaveMatch(match.id, playerId).catch((e) => ({ success: false, error: e.message }));
+      if (result && result.success) notifyPlayer?.(playerId, notifyType, reason);
+      else console.warn('[gameEngine] could not close lobby seat', match.id, playerId, result && result.error);
+    }
+    return true;
+  }
+
+  // Waiting rooms never start on their own, so without this one left behind
+  // (tab closed, script that never connected) would hold memory and the player's
+  // entry coins forever. Tournament rounds belong to their bracket and stay.
+  async function sweepIdleLobbies(nowMs = Date.now()) {
+    let closed = 0;
+    for (const match of Array.from(matches.values())) {
+      if (match.status !== 'waiting' || match.mode === 'tournament') continue;
+      const humans = match.playerOrder.filter((id) => match.players[id] && !match.players[id].isAI);
+      if (humans.some((id) => match.players[id].socketId)) match.lastHumanSeenAt = nowMs;
+      const idleFor = nowMs - (match.lastHumanSeenAt || match.createdAt);
+      if (idleFor < LOBBY_IDLE_MS && nowMs - match.createdAt < LOBBY_MAX_AGE_MS) continue;
+      await closeLobby(match, LOBBY_EXPIRED_MESSAGE);
+      closed++;
+    }
+    return closed;
+  }
+
+  // Everything this player is seated in and hasn't left.
+  function openMatchesFor(playerId) {
+    const out = [];
+    for (const match of matches.values()) {
+      if (match.status !== 'waiting' && match.status !== 'countdown' && match.status !== 'active') continue;
+      const seat = match.players[playerId];
+      if (seat && !seat.forfeited) out.push({ id: match.id, mode: match.mode, status: match.status, roomCode: match.roomCode });
+    }
+    return out;
+  }
+
+  function liveMatchCount() {
+    return matches.size;
+  }
+
   async function leaveMatch(matchId, playerId, endReason = 'left') {
     const match = matches.get(matchId);
     if (!match) return { success: false, error: 'Match not found' };
@@ -2621,6 +2683,10 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     STARTING_CAPITAL,
     PRIVATE_WAR_HOST_FEE,
     createMatch,
+    closeLobby,
+    sweepIdleLobbies,
+    openMatchesFor,
+    liveMatchCount,
     getMatch,
     getMatchByRoomCode,
     getPreMatchHistory,

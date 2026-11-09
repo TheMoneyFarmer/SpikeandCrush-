@@ -21,7 +21,7 @@ const {
 } = require('./lib/auth');
 const { securityHeaders } = require('../server/securityHeaders');
 const internal = require('./lib/internalGameServer');
-const { originLock, startRangeRefresh } = require('../server/originLock');
+const { originLock, startRangeRefresh, visitorIp } = require('../server/originLock');
 const { bridgeCallAllowed } = require('../server/bridgeAuth');
 const twoFactor = require('./lib/twoFactor');
 const QRCode = require('qrcode');
@@ -57,7 +57,7 @@ startRangeRefresh();
 app.use(securityHeaders({ admin: true }));
 app.use(express.json({ limit: '200kb' }));
 
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, keyGenerator: (req) => visitorIp(req) });
 
 // ---- auth -------------------------------------------------------------------
 

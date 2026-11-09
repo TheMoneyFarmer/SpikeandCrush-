@@ -62,13 +62,7 @@ function createDeployDrain({ gameEngine, io, notifyPlayer }) {
         if (summary.status !== 'waiting' || summary.mode === 'tournament') continue;
         const match = gameEngine.getMatch(summary.id);
         if (!match || match.status !== 'waiting') continue;
-        io.to(`match:${match.id}`).emit('match:voided', { reason: LOBBY_CLOSED_MESSAGE });
-        const humans = match.playerOrder.filter((id) => match.players[id] && !match.players[id].isAI);
-        for (const pid of humans) {
-          const r = await gameEngine.leaveMatch(match.id, pid).catch((e) => ({ success: false, error: e.message }));
-          if (r && r.success) notifyPlayer?.(pid, 'lobby_closed_update', LOBBY_CLOSED_MESSAGE);
-          else console.warn('[deploy] could not close lobby seat', match.id, pid, r && r.error);
-        }
+        await gameEngine.closeLobby(match, LOBBY_CLOSED_MESSAGE, 'lobby_closed_update');
         closed++;
       }
       if (closed) console.log(`[deploy] closed ${closed} idle lobby(ies) with refunds`);

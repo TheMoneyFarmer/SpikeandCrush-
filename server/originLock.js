@@ -56,6 +56,19 @@ function classify(headers = {}) {
   return isCloudflareIp(hops[hops.length - 1]) ? 'cloudflare' : 'direct';
 }
 
+// The real visitor's IP, for rate limits and ip hashes. Cloudflare's header is only
+// believed when the request provably came through Cloudflare (see classify), so
+// it can't be faked by going direct, and this works whatever TRUST_PROXY_HOPS is.
+// Without it every visitor behind one Cloudflare data centre would share a limit.
+function visitorIp(req) {
+  const headers = req.headers || {};
+  if (classify(headers) === 'cloudflare') {
+    const ip = String(headers['cf-connecting-ip'] || '').trim();
+    if (net.isIP(ip)) return ip;
+  }
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
 function currentMode() {
   const set = String(process.env.ORIGIN_LOCK || '').toLowerCase();
   if (['on', 'report', 'off'].includes(set)) return set;
@@ -106,4 +119,4 @@ function startRangeRefresh() {
   setInterval(refreshCloudflareRanges, 24 * 60 * 60 * 1000).unref();
 }
 
-module.exports = { originLock, startRangeRefresh, classify, isCloudflareIp, isExempt, currentMode, CLOUDFLARE_V4, CLOUDFLARE_V6 };
+module.exports = { originLock, startRangeRefresh, visitorIp, classify, isCloudflareIp, isExempt, currentMode, CLOUDFLARE_V4, CLOUDFLARE_V6 };

@@ -187,7 +187,7 @@ function selectMatchInstruments(count = 5) {
 }
 
 const PRE_MATCH_MINUTES = 120; // 2 hours of 1-minute bars shown as historical context
-const LIVE_MINUTES = 10; // the match itself
+const LIVE_MINUTES = 10; // the default match length; callers pass longer ones
 const WINDOW_MINUTES = PRE_MATCH_MINUTES + LIVE_MINUTES;
 const TICKS_PER_MINUTE = 60; // live minutes get interpolated to 1-second ticks for the existing tick-driven engine
 // A 130-minute window may span at most this much more real time than 130
@@ -195,7 +195,10 @@ const TICKS_PER_MINUTE = 60; // live minutes get interpolated to 1-second ticks 
 const MAX_WINDOW_GAP_RATIO = 1.25;
 const MIN_HISTORY_BARS = 1440;
 
-// matchId -> { [symbol]: { preMatch: [{t,mid,bid,ask}], live: [{t,mid,bid,ask}] } }
+// matchId -> { [symbol]: compact price window } - see assignMatchWindow. A live
+// match's prices are numbers in typed arrays, not one object per second, and the
+// long chart history isn't kept at all (built when a player asks for it). That
+// took a match from about 7 MB to well under 1 MB of memory.
 const MATCH_WINDOWS = new Map();
 
 // A Brownian bridge from `open` to `close`, clamped into [low, high] - keeps
@@ -234,8 +237,8 @@ function buildTick(mid, spread, decimals) {
 // Builds (once, cached) the pre-match + live windows for one instrument in one
 // match: a random valid start offset into that instrument's day of 1-minute
 // bars, sliced into 120 pre-match minutes (shown as-is, one point per minute -
-// consistent with the chart's per-minute pre-match candles elsewhere) and 10
-// live minutes interpolated into 600 one-second ticks for the existing
+// consistent with the chart's per-minute pre-match candles elsewhere) and the
+// match's live minutes interpolated into one-second ticks for the existing
 // tick-driven match engine (price:update, SL/TP checks, etc. all stay unchanged).
 // Simple string hash -> mulberry32 PRNG, used only so the Async Daily
 // Challenge can give every player the exact same historical window for a
@@ -270,7 +273,7 @@ function selectDailyInstruments(seed, count = 3) {
   return all.slice(0, count);
 }
 
-function assignMatchWindow(matchId, symbol, seed) {
+function assignMatchWindow(matchId, symbol, seed, liveMinutes = LIVE_MINUTES) {
   const cfg = getInstrument(symbol);
   if (!cfg) throw new Error(`Unknown instrument: ${symbol}`);
 
@@ -282,7 +285,9 @@ function assignMatchWindow(matchId, symbol, seed) {
   if (match[symbol]) return match[symbol];
 
   const dayBars = csvLoader.getInstrumentDayData(symbol, cfg);
-  const maxStart = dayBars.length - WINDOW_MINUTES;
+  // A match needs live prices for its whole length (Grand War is 20 minutes).
+  const windowMinutes = PRE_MATCH_MINUTES + liveMinutes;
+  const maxStart = dayBars.length - windowMinutes;
   const rand = seed ? seededRandom(`${seed}:${symbol}`) : Math.random;
   // Multi-day market data has weekend/overnight gaps (closed-market bars are
   // dropped at download time) - a window spanning one would play a jump
@@ -295,41 +300,47 @@ function assignMatchWindow(matchId, symbol, seed) {
   const pickStart = () => minStart + Math.floor(rand() * (maxStart - minStart));
   let startIndex = maxStart > 0 ? pickStart() : 0;
   for (let attempt = 0; attempt < 50 && maxStart > 0; attempt++) {
-    const span = dayBars[startIndex + WINDOW_MINUTES - 1].time - dayBars[startIndex].time;
-    if (span <= (WINDOW_MINUTES - 1) * 60 * MAX_WINDOW_GAP_RATIO) break;
+    const span = dayBars[startIndex + windowMinutes - 1].time - dayBars[startIndex].time;
+    if (span <= (windowMinutes - 1) * 60 * MAX_WINDOW_GAP_RATIO) break;
     startIndex = pickStart();
   }
 
   const preMatchBars = dayBars.slice(startIndex, startIndex + PRE_MATCH_MINUTES);
-  const liveBars = dayBars.slice(startIndex + PRE_MATCH_MINUTES, startIndex + WINDOW_MINUTES);
+  const liveBars = dayBars.slice(startIndex + PRE_MATCH_MINUTES, startIndex + windowMinutes);
 
   // Same per-second interpolation as the live bars below, not just bar.close -
   // a flat one-point-per-minute close produces a zero-range doji in every
   // bucket at any timeframe <= 60s (5s/10s/30s/M1 all collapse to one raw
   // point per bucket), which is most of the visible chart right at match
   // start when pre-match history dominates the screen.
-  const totalPreMatchTicks = preMatchBars.length * TICKS_PER_MINUTE;
-  const preMatch = [];
-  let preMatchTickIndex = 0;
-  preMatchBars.forEach((bar) => {
-    const subTicks = interpolateMinuteToTicks(bar, TICKS_PER_MINUTE);
-    subTicks.forEach((mid) => {
-      const t = preMatchTickIndex - totalPreMatchTicks;
-      preMatch.push({ t, ...buildTick(mid, cfg.spread, cfg.decimals) });
-      preMatchTickIndex++;
-    });
-  });
+  const roundedMids = (bars) => {
+    const mids = new Float64Array(bars.length * TICKS_PER_MINUTE);
+    let i = 0;
+    for (const bar of bars) {
+      for (const mid of interpolateMinuteToTicks(bar, TICKS_PER_MINUTE)) mids[i++] = Number(mid.toFixed(cfg.decimals));
+    }
+    return mids;
+  };
+  // Pre-match prices are only ever read to draw the chart, so they're stored as
+  // small offsets from the first one (Float32 is exact enough for an offset;
+  // reading rounds back to the instrument's decimals).
+  const preMids = roundedMids(preMatchBars);
+  const preBase = preMids.length ? preMids[0] : 0;
+  const preOffsets = new Float32Array(preMids.length);
+  for (let i = 0; i < preMids.length; i++) preOffsets[i] = preMids[i] - preBase;
 
-  const live = [];
-  liveBars.forEach((bar, minuteIdx) => {
-    const subTicks = interpolateMinuteToTicks(bar, TICKS_PER_MINUTE);
-    subTicks.forEach((mid, secIdx) => {
-      const t = minuteIdx * TICKS_PER_MINUTE + secIdx;
-      live.push({ t, ...buildTick(mid, cfg.spread, cfg.decimals) });
-    });
-  });
-
-  match[symbol] = { preMatch, live, ...buildChartContext(symbol, preMatchBars) };
+  match[symbol] = {
+    symbol,
+    spread: cfg.spread,
+    decimals: cfg.decimals,
+    preBase,
+    preOffsets,
+    live: roundedMids(liveBars),
+    anchor: preMatchBars.length ? preMatchBars[0].time : null,
+    // Every read in the same second wants the same tick.
+    lastIndex: -1,
+    lastTick: null,
+  };
   return match[symbol];
 }
 
@@ -346,11 +357,11 @@ const CONTEXT_D1_BARS = 400; // feeds D1
 // axis as the ticks, never real dates - a calendar date would let a player
 // look up what happens next), plus alignOffset = match start's seconds into
 // its UTC day, so the client can align H1/H4/D1 candles to real boundaries.
-function buildChartContext(symbol, preMatchBars) {
+function buildChartContext(symbol, anchor) {
   const market = csvLoader.getMarketSeries(symbol);
-  if (!market || !preMatchBars.length) return { context: null, alignOffset: 0 };
+  if (!market || anchor === null) return { context: null, alignOffset: 0 };
 
-  const anchor = preMatchBars[0].time; // real time of the first pre-match tick
+  // anchor = real time of the first pre-match tick
   const preMatchSeconds = PRE_MATCH_MINUTES * 60;
   const rel = (time) => time - anchor - preMatchSeconds;
   const dayFloor = (time) => Math.floor(time / DAY_SECONDS) * DAY_SECONDS;
@@ -381,24 +392,35 @@ function buildChartContext(symbol, preMatchBars) {
 
 function getCurrentPrice(matchId, symbol, elapsedSeconds) {
   const match = MATCH_WINDOWS.get(matchId);
-  if (!match || !match[symbol]) throw new Error(`No window assigned for match ${matchId} / ${symbol}`);
-  const live = match[symbol].live;
-  const clamped = Math.max(0, Math.min(live.length - 1, Math.floor(elapsedSeconds)));
-  return live[clamped];
+  const entry = match && match[symbol];
+  if (!entry) throw new Error(`No window assigned for match ${matchId} / ${symbol}`);
+  const index = Math.max(0, Math.min(entry.live.length - 1, Math.floor(elapsedSeconds)));
+  if (entry.lastIndex !== index) {
+    entry.lastIndex = index;
+    entry.lastTick = { t: index, ...buildTick(entry.live[index], entry.spread, entry.decimals) };
+  }
+  return entry.lastTick;
 }
 
 function getPreMatchHistory(matchId, symbol) {
   const match = MATCH_WINDOWS.get(matchId);
-  if (!match || !match[symbol]) return null;
-  return match[symbol].preMatch;
+  const entry = match && match[symbol];
+  if (!entry) return null;
+  const total = entry.preOffsets.length;
+  const ticks = new Array(total);
+  for (let i = 0; i < total; i++) {
+    ticks[i] = { t: i - total, ...buildTick(entry.preBase + entry.preOffsets[i], entry.spread, entry.decimals) };
+  }
+  return ticks;
 }
 
 // Higher-timeframe history for the chart (see buildChartContext) - null for
 // instruments with no downloaded market data, which then show ticks only.
 function getChartContext(matchId, symbol) {
   const match = MATCH_WINDOWS.get(matchId);
-  if (!match || !match[symbol]) return null;
-  return { context: match[symbol].context, alignOffset: match[symbol].alignOffset };
+  const entry = match && match[symbol];
+  if (!entry) return null;
+  return buildChartContext(symbol, entry.anchor);
 }
 
 function releaseMatchWindows(matchId) {
@@ -412,7 +434,7 @@ function getFullLiveSeries(matchId, symbol) {
   const match = MATCH_WINDOWS.get(matchId);
   const entry = match && match[symbol];
   if (!entry) return [];
-  return entry.live.map((tick) => ({ t: tick.t, mid: tick.mid }));
+  return Array.from(entry.live, (mid, t) => ({ t, mid }));
 }
 
 function getSpread(symbol) {

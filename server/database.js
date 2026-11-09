@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 
 const { createClient } = require('@supabase/supabase-js');
+const { runPool } = require('./concurrency');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -28,6 +29,27 @@ if (!isConfigured) {
 const DB_TIMEOUT_MS = Number(process.env.DB_TIMEOUT_MS || 15000);
 const fetchWithTimeout = (url, opts = {}) =>
   fetch(url, { ...opts, signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(DB_TIMEOUT_MS)]) : AbortSignal.timeout(DB_TIMEOUT_MS) });
+// Supabase returns at most 1000 rows per request however high .limit() is, and
+// says nothing when it cuts a result short. Anything that must see every row reads
+// page by page. `build` returns a fresh query with a stable .order().
+const PAGE_SIZE = 1000;
+const COMP_WRITE_BATCH = 500;
+async function fetchAllRows(build, maxRows = 500000) {
+  const rows = [];
+  for (let from = 0; from < maxRows; from += PAGE_SIZE) {
+    const { data, error } = await build().range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+// A database function that doesn't exist yet (migration not run on this database).
+function isMissingFunction(error) {
+  return Boolean(error) && (error.code === 'PGRST202' || error.code === '42883');
+}
+
 const supabase = isConfigured ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { global: { fetch: fetchWithTimeout } }) : null;
 
 function assertConfigured() {
@@ -1017,11 +1039,29 @@ async function getLeaderboard(limit = 10, { search = null } = {}) {
 
 async function getPeriodLeaderboard(sinceIso, limit = 500) {
   assertConfigured();
+  const { data: ranked, error: rankError } = await supabase.rpc('period_leaderboard', {
+    p_since: sinceIso,
+    p_include_seeds: await showSeedAccounts(),
+    p_limit: limit,
+  });
+  if (!rankError) {
+    return ranked.map((r) => ({
+      id: r.id,
+      username: r.username,
+      war_rating: r.war_rating,
+      periodPnl: Number(r.period_pnl) || 0,
+      periodMatches: Number(r.period_matches) || 0,
+      periodTrades: Number(r.period_trades) || 0,
+    }));
+  }
+  if (!isMissingFunction(rankError)) throw rankError;
+
+  // Until the capacity migration has run.
   const { data, error } = await supabase
     .from('match_players')
     .select('player_id, final_pnl, trades_made, matches!inner(end_time), players!inner(username, war_rating, is_persona)')
     .gte('matches.end_time', sinceIso)
-    .limit(5000);
+    .limit(1000);
   if (error) throw error;
 
   const TEST_ACCOUNT_PATTERN = /test|debug|iso/i;
@@ -1277,36 +1317,41 @@ async function getMatchesToday() {
 // excluded unless show_seed_accounts is on. Everything here is coins.
 async function listPrizeCredits(sinceIso = null) {
   assertConfigured();
-  let query = supabase.from('coin_transactions').select('amount, players!inner(is_persona, username)').in('type', PRIZE_TX_TYPES).gt('amount', 0);
-  if (sinceIso) query = query.gte('created_at', sinceIso);
-  if (!(await showSeedAccounts())) query = query.eq('players.is_persona', false);
-  const { data, error } = await query.limit(10000);
-  if (error) throw error;
+  const hideSeeds = !(await showSeedAccounts());
+  const rows = await fetchAllRows(() => {
+    let query = supabase.from('coin_transactions').select('id, amount, players!inner(is_persona, username)').in('type', PRIZE_TX_TYPES).gt('amount', 0).order('id');
+    if (sinceIso) query = query.gte('created_at', sinceIso);
+    if (hideSeeds) query = query.eq('players.is_persona', false);
+    return query;
+  }, 50000);
   // Same test/QA account exclusions as the public leaderboard.
-  return data.filter((row) => !TEST_USERNAME_RE.test(row.players.username)).map((row) => Number(row.amount) || 0);
+  return rows.filter((row) => !TEST_USERNAME_RE.test(row.players.username)).map((row) => Number(row.amount) || 0);
+}
+
+// Totals are worked out in the database; pulling every prize row would get slower
+// each day. The row-by-row path only runs until the capacity migration has.
+async function getPrizeStats(sinceIso = null) {
+  assertConfigured();
+  const { data, error } = await supabase.rpc('prize_stats', { p_since: sinceIso, p_include_seeds: await showSeedAccounts() });
+  if (!error) return { total: Number(data?.[0]?.total) || 0, largest: Number(data?.[0]?.largest) || 0 };
+  if (!isMissingFunction(error)) throw error;
+  const credits = await listPrizeCredits(sinceIso);
+  return { total: credits.reduce((sum, n) => sum + n, 0), largest: credits.reduce((max, n) => Math.max(max, n), 0) };
 }
 
 async function getCoinsWonToday() {
-  return (await listPrizeCredits(dubaiDayStart().toISOString())).reduce((sum, n) => sum + n, 0);
+  return (await getPrizeStats(dubaiDayStart().toISOString())).total;
 }
 
 // Largest single prize credited today, in coins (never simulated-capital P&L).
 async function getLargestWinToday() {
-  return (await listPrizeCredits(dubaiDayStart().toISOString())).reduce((max, n) => Math.max(max, n), 0);
+  return (await getPrizeStats(dubaiDayStart().toISOString())).largest;
 }
 
 // Lifetime total, unlike getCoinsWonToday() above which is scoped to today -
 // used by the landing page's "Total Prizes Distributed" stat. Coins.
-// Summed in SQL (prize_total) instead of pulling every prize row into JS,
-// which was slow and silently wrong past 10,000 rows. Falls back to the old
-// path only if the function isn't deployed yet or seed accounts are shown.
 async function getTotalPrizesDistributed() {
-  assertConfigured();
-  if (!(await showSeedAccounts())) {
-    const { data, error } = await supabase.rpc('prize_total', { p_since: null });
-    if (!error) return Number(data) || 0;
-  }
-  return (await listPrizeCredits()).reduce((sum, n) => sum + n, 0);
+  return (await getPrizeStats(null)).total;
 }
 
 // ---- sessions / login history --------------------------------------------------
@@ -1733,12 +1778,13 @@ async function getCompAccountById(id) {
 
 async function listCompAccounts(competitionId) {
   assertConfigured();
-  const { data, error } = await supabase
-    .from('comp_accounts')
-    .select('*, player:players(username, avatar_url, country)')
-    .eq('competition_id', competitionId);
-  if (error) throw error;
-  return data;
+  return fetchAllRows(() =>
+    supabase
+      .from('comp_accounts')
+      .select('*, player:players(username, avatar_url, country)')
+      .eq('competition_id', competitionId)
+      .order('id')
+  );
 }
 
 async function listPlayerCompAccounts(playerId) {
@@ -1793,6 +1839,32 @@ async function listCompPositions(filter, { limit = 1000 } = {}) {
   const { data, error } = await query.order('opened_at', { ascending: false }).limit(limit);
   if (error) throw error;
   return data;
+}
+
+// Every open position in a competition, however many there are.
+async function listOpenCompPositions(competitionId) {
+  assertConfigured();
+  return fetchAllRows(() => supabase.from('comp_positions').select('*').eq('competition_id', competitionId).eq('status', 'open').order('id'));
+}
+
+// One tick's equity results in a single write: [{id, equity, snapshot}].
+async function compApplyTicks(rows) {
+  assertConfigured();
+  for (let i = 0; i < rows.length; i += COMP_WRITE_BATCH) {
+    const batch = rows.slice(i, i + COMP_WRITE_BATCH);
+    const { error } = await supabase.rpc('comp_apply_ticks', { p_rows: batch });
+    if (!error) continue;
+    if (!isMissingFunction(error)) throw error;
+    // Database hasn't had the capacity migration yet.
+    await runPool(batch, 8, async (row) => {
+      const fields = { equity: row.equity };
+      if (row.snapshot) {
+        await insertCompEquitySnapshot(row.id, row.equity);
+        fields.last_snapshot_at = new Date().toISOString();
+      }
+      await updateCompAccount(row.id, fields);
+    });
+  }
 }
 
 async function updateCompPosition(id, fields) {
@@ -1961,6 +2033,95 @@ async function createSponsorLead(lead) {
   return data;
 }
 
+// ---- lost match recovery (server/matchRecovery.js) and data retention ----------
+
+async function listOpenMatches() {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('matches')
+    .select('id, mode, status, created_at, start_time')
+    .in('status', ['waiting', 'active'])
+    .order('created_at', { ascending: true })
+    .limit(500);
+  if (error) throw error;
+  return data;
+}
+
+async function listMatchLedger(matchId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('coin_transactions')
+    .select('id, player_id, type, amount')
+    .eq('match_id', matchId)
+    .in('type', ['match_entry', 'match_refund'])
+    .order('created_at');
+  if (error) throw error;
+  return data;
+}
+
+async function listHumanMatchPlayerIds(matchId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('match_players')
+    .select('player_id, players!inner(is_persona)')
+    .eq('match_id', matchId)
+    .eq('players.is_persona', false);
+  if (error) throw error;
+  return data.map((row) => row.player_id);
+}
+
+// An entry fee is charged before the match it pays for exists. This ties the
+// ledger row to the match, which is what lets a lost match be refunded correctly.
+async function linkEntryToMatch(idempotencyKey, matchId) {
+  assertConfigured();
+  const { error } = await supabase.from('coin_transactions').update({ match_id: matchId }).eq('idempotency_key', idempotencyKey);
+  if (error) throw error;
+}
+
+// Deletes rows older than a date, in small rounds so a big backlog can't hold the
+// table up. Returns how many went.
+async function deleteOlderThan(table, column, beforeIso, { extra = null, idColumn = 'id', rounds = 20, batch = 500 } = {}) {
+  assertConfigured();
+  let total = 0;
+  for (let round = 0; round < rounds; round++) {
+    let select = supabase.from(table).select(idColumn).lt(column, beforeIso).limit(batch);
+    if (extra) select = extra(select);
+    const { data, error } = await select;
+    if (error) throw error;
+    if (!data.length) break;
+    const { error: delError } = await supabase.from(table).delete().in(idColumn, data.map((row) => row[idColumn]));
+    if (delError) throw delError;
+    total += data.length;
+    if (data.length < batch) break;
+  }
+  return total;
+}
+
+// Equity curves of competitions that ended long ago.
+async function pruneEndedCompSnapshots(beforeIso, { competitions = 20 } = {}) {
+  assertConfigured();
+  const { data: comps, error } = await supabase
+    .from('competitions')
+    .select('id')
+    .not('settled_at', 'is', null)
+    .lt('settled_at', beforeIso)
+    .limit(competitions);
+  if (error) throw error;
+  let total = 0;
+  for (const comp of comps) {
+    const accounts = await fetchAllRows(() => supabase.from('comp_accounts').select('id').eq('competition_id', comp.id).order('id'));
+    for (let i = 0; i < accounts.length; i += 200) {
+      const { error: delError, count } = await supabase
+        .from('comp_equity_snapshots')
+        .delete({ count: 'exact' })
+        .in('account_id', accounts.slice(i, i + 200).map((a) => a.id));
+      if (delError) throw delError;
+      total += count || 0;
+    }
+  }
+  return total;
+}
+
 const LOBBY_SETTING_KEYS = ['show_seed_accounts', 'lobby_empty_message', 'featured_competition_id', 'season_label'];
 async function getLobbySettings() {
   const raw = await getAppSettings(LOBBY_SETTING_KEYS);
@@ -2113,7 +2274,16 @@ module.exports = {
   incrementCompTradeCount,
   insertCompPosition,
   getCompPosition,
+  fetchAllRows,
   listCompPositions,
+  listOpenCompPositions,
+  compApplyTicks,
+  listOpenMatches,
+  listMatchLedger,
+  listHumanMatchPlayerIds,
+  linkEntryToMatch,
+  deleteOlderThan,
+  pruneEndedCompSnapshots,
   updateCompPosition,
   compClosePosition,
   compPayPrize,

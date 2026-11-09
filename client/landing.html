@@ -817,6 +817,7 @@ button { font: inherit; }
     <div class="field"><label for="lpRegisterUsername">Username</label><input type="text" id="lpRegisterUsername" required minlength="3" maxlength="20" autocomplete="username"></div>
     <div class="field"><label for="lpRegisterEmail">Email</label><input type="email" id="lpRegisterEmail" required autocomplete="email"></div>
     <div class="field"><label for="lpRegisterPassword">Password <span style="color:var(--mute)">(6+ characters)</span></label><input type="password" id="lpRegisterPassword" required minlength="6" autocomplete="new-password"></div>
+    <div id="lpTurnstile" hidden style="margin:.5rem 0;min-height:65px"></div>
     <div class="err" id="lpRegisterError" role="alert"></div>
     <button class="btn btn-primary submit" type="submit" id="lpRegisterSubmit">Create account</button>
   </form>
@@ -1003,6 +1004,7 @@ function showForm(which) {
   const login = which !== 'register';
   document.getElementById('lpLoginForm').hidden = !login;
   document.getElementById('lpRegisterForm').hidden = login;
+  if (!login) lpSetupTurnstile();
   document.getElementById('tabLogin').setAttribute('aria-selected', String(login));
   document.getElementById('tabRegister').setAttribute('aria-selected', String(!login));
   document.getElementById('drawerTitle').textContent = login ? 'Welcome back' : 'Enter the war';
@@ -1065,6 +1067,36 @@ async function handleLpLogin(e) {
   }
   return false;
 }
+// Cloudflare Turnstile on sign-up: only loads once the server says it's switched on.
+let lpTurnstileWidget = null;
+let lpTurnstileSetup = null;
+function lpSetupTurnstile() {
+  if (lpTurnstileSetup) return lpTurnstileSetup;
+  lpTurnstileSetup = fetch('/api/config/public').then((r) => r.json()).then((cfg) => new Promise((resolve) => {
+    if (!cfg.turnstileSiteKey) return resolve();
+    const box = document.getElementById('lpTurnstile');
+    box.hidden = false;
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.onload = () => {
+      lpTurnstileWidget = window.turnstile.render(box, { sitekey: cfg.turnstileSiteKey, theme: 'dark' });
+      resolve();
+    };
+    script.onerror = () => resolve();
+    document.head.appendChild(script);
+  })).catch(() => {});
+  return lpTurnstileSetup;
+}
+async function lpTurnstileToken() {
+  await lpSetupTurnstile();
+  if (lpTurnstileWidget === null) return undefined;
+  return window.turnstile.getResponse(lpTurnstileWidget) || undefined;
+}
+function lpTurnstileReset() {
+  if (lpTurnstileWidget !== null) window.turnstile.reset(lpTurnstileWidget);
+}
+
 async function handleLpRegister(e) {
   e.preventDefault();
   const errEl = document.getElementById('lpRegisterError'), btn = document.getElementById('lpRegisterSubmit');
@@ -1074,7 +1106,9 @@ async function handleLpRegister(e) {
   const password = document.getElementById('lpRegisterPassword').value;
   btn.disabled = true; btn.textContent = 'Creating account…';
   try {
-    const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password } });
+    const turnstileToken = await lpTurnstileToken();
+    const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password, turnstileToken } });
+    lpTurnstileReset();
     if (data.needsVerification) {
       TW.showVerifyPrompt(errEl, { email: data.email });
       document.getElementById('lpRegisterPassword').value = '';
@@ -1086,6 +1120,7 @@ async function handleLpRegister(e) {
     closePanel();
     location.href = TW.consumePostLoginRedirect() || '/play';
   } catch (err) {
+    lpTurnstileReset();
     errEl.textContent = err.message || 'Could not create account.';
     btn.disabled = false; btn.textContent = 'Create account';
   }

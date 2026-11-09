@@ -70,6 +70,16 @@ function verificationEmail({ username, link }) {
   };
 }
 
+function passwordResetEmail({ link }) {
+  return {
+    subject: 'Reset your Spike & Crush password',
+    text: `Reset your Spike & Crush password:\n${link}\n\nIf you didn't ask for this, you can ignore this email and your password stays the same.`,
+    html: `<p>Reset your Spike &amp; Crush password.</p>
+<p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#1fd38a;color:#0b1220;border-radius:8px;font-weight:700;text-decoration:none">Choose a new password</a></p>
+<p>If you didn't ask for this, you can ignore this email and your password stays the same.</p>`,
+  };
+}
+
 // The address links and redirects are built from. A caller's Origin header is
 // only ever used if it is on the allowed list, because anyone can send any
 // Origin, and this value ends up inside emails sent to players.
@@ -84,4 +94,4 @@ function publicSiteUrl({ origin, allowedOrigins = [], siteUrl, port }) {
   return `http://localhost:${port}`;
 }
 
-module.exports = { TOKEN_TTL_MS, createToken, readToken, createResendGuard, verificationEmail, publicSiteUrl };
+module.exports = { TOKEN_TTL_MS, createToken, readToken, createResendGuard, verificationEmail, passwordResetEmail, publicSiteUrl };

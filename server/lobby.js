@@ -8,6 +8,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { visitorIp } = require('./originLock');
 const { sendEmail } = require('../admin/lib/email');
 
 const STATS_CACHE_MS = 15000;
@@ -26,8 +27,7 @@ const IP_HASH_SECRET = process.env.IP_HASH_SECRET || crypto.randomBytes(32).toSt
 if (!process.env.IP_HASH_SECRET) console.warn('[lobby] IP_HASH_SECRET not set - using a per-process random salt for ip hashes');
 
 function clientIp(req) {
-  // req.ip follows trust proxy. The first X-Forwarded-For entry is whatever the caller sent.
-  return String(req.ip || req.socket.remoteAddress || '').replace('::ffff:', '');
+  return String(visitorIp(req) || '').replace('::ffff:', '');
 }
 
 function ipHash(req) {
@@ -53,9 +53,9 @@ function prizeCoinsOf(c) {
 
 function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets, competitionSummary, TIERS, authenticate, optionalViewerId }) {
   const r = express.Router();
-  const impressionLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
-  const clickLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
-  const leadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false });
+  const impressionLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, keyGenerator: (req) => visitorIp(req) });
+  const clickLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, keyGenerator: (req) => visitorIp(req) });
+  const leadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, keyGenerator: (req) => visitorIp(req) });
 
   // Sponsor tables may not exist yet on a database that hasn't run the
   // lobby_sponsors migration - the lobby then just has no sponsors.

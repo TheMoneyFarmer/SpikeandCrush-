@@ -14,12 +14,19 @@ const instruments = require('./instruments');
 const marginRules = require('./marginRules');
 const replayClock = require('./replayClock');
 const { GAME_RULES, baseRatingForPosition, tierForRating } = require('./gameEngine');
+const { runPool, createMemo } = require('./concurrency');
 
 const NO_CASH_VALUE_LINE = 'Coins have no cash value and cannot be withdrawn or exchanged for money.';
 
 const TICK_MS = 5000;
 const LOCK_TTL_SECONDS = 15;
 const SNAPSHOT_EVERY_MS = 5 * 60 * 1000;
+// Equity curve points are thinned out in big competitions: 10,000 entrants at
+// every 5 minutes would add about 1 GB a day.
+const SNAPSHOT_EVERY_MS_LARGE = 15 * 60 * 1000;
+const LARGE_COMPETITION = 1000;
+const STANDINGS_CACHE_MS = 3000; // every player's screen asks; the numbers only move each tick
+const SETTLE_CONCURRENCY = 8;
 const SCHEDULE_EVERY_MS = 10 * 60 * 1000;
 const LEADERBOARD_SIZE = 100;
 const CHART_HISTORY_BARS = 500;
@@ -201,8 +208,32 @@ function createCompEngine({ io, notifyPlayer }) {
   let tickTimer = null;
   let ticking = false;
   let lastScheduleAt = 0;
+  let lastLockAt = 0;
+  const standingsMemo = createMemo();
+
+  // Long jobs keep hold of the runner lock so a second server doesn't start too.
+  async function keepLock(nowMs = Date.now()) {
+    if (nowMs - lastLockAt < 5000) return;
+    lastLockAt = nowMs;
+    await db.tryCompJobLock('comp_tick', holder, LOCK_TTL_SECONDS).catch(() => {});
+  }
+
+  // Everyone's rank, worked out once and shared. Sorting every entrant for every
+  // player's screen doesn't survive a big competition.
+  function standings(compId) {
+    return standingsMemo(compId, STANDINGS_CACHE_MS, async () => {
+      const accounts = await db.listCompAccounts(compId);
+      const ranked = rankAccounts(accounts);
+      return { accounts, ranked, rankById: new Map(ranked.map((a, i) => [a.id, i + 1])) };
+    });
+  }
 
   const room = (compId, playerId) => `comp:${compId}:${playerId}`;
+  // Nobody watching is the common case in a long competition.
+  const isWatching = (compId, playerId) => {
+    const rooms = io.sockets?.adapter?.rooms;
+    return rooms ? rooms.has(room(compId, playerId)) : true;
+  };
   const emit = (compId, playerId, event, payload) => io.to(room(compId, playerId)).emit(event, { competitionId: compId, ...payload });
 
   function quotesFor(comp, dataTime) {
@@ -285,9 +316,13 @@ function createCompEngine({ io, notifyPlayer }) {
     const closed = positions.filter((p) => p.status === 'closed');
     const equity = comp.status === 'ended' || comp.status === 'void' ? Number(account.equity) : equityOf(account, open, quotes);
 
-    const accounts = await db.listCompAccounts(compId);
-    const live = accounts.map((a) => (a.id === account.id ? { ...a, equity } : a));
-    const ranked = rankAccounts(live);
+    const { accounts, rankById } = await standings(compId);
+    // Exact to this player's latest equity in small competitions; in big ones the
+    // rank from the last tick (at most a few seconds old) saves re-sorting everyone.
+    const rank =
+      accounts.length <= 500
+        ? rankAccounts(accounts.map((a) => (a.id === account.id ? { ...a, equity } : a))).findIndex((a) => a.id === account.id) + 1
+        : rankById.get(account.id) || accounts.length;
     const shift = replayClock.timeShiftFor(comp);
 
     return {
@@ -303,7 +338,7 @@ function createCompEngine({ io, notifyPlayer }) {
         finalRank: account.final_rank,
         prizeCoins: account.prize_coins,
       },
-      rank: ranked.findIndex((a) => a.id === account.id) + 1,
+      rank,
       entrants: accounts.length,
       positions: open.map((p) => publicPosition(p, quotes[p.symbol])),
       trades: closed.map((p) => publicPosition(p)),
@@ -344,10 +379,10 @@ function createCompEngine({ io, notifyPlayer }) {
   // nobody can mirror a leader's trades mid-competition.
   async function getLeaderboard(compId, playerId) {
     const comp = await requireNativeComp(compId);
-    const accounts = await db.listCompAccounts(compId);
+    const { accounts, ranked: live } = await standings(compId);
     const ended = comp.status === 'ended';
-    const ranked = ended ? accounts.slice().sort((a, b) => (a.final_rank ?? 1e9) - (b.final_rank ?? 1e9)) : rankAccounts(accounts);
-    const rows = ranked.map((a, i) => ({
+    const ranked = ended ? accounts.slice().sort((a, b) => (a.final_rank ?? 1e9) - (b.final_rank ?? 1e9)) : live;
+    const toRow = (a, i) => ({
       rank: ended ? a.final_rank : i + 1,
       username: a.player?.username || 'Trader',
       equity: round2(Number(a.equity)),
@@ -355,10 +390,13 @@ function createCompEngine({ io, notifyPlayer }) {
       trades: a.trade_count,
       status: a.status,
       isMe: a.player_id === playerId,
-    }));
-    const top = rows.slice(0, LEADERBOARD_SIZE);
-    const me = rows.find((r) => r.isMe);
-    return { leaderboard: top, me: me || null, entrants: rows.length };
+    });
+    const myIndex = ranked.findIndex((a) => a.player_id === playerId);
+    return {
+      leaderboard: ranked.slice(0, LEADERBOARD_SIZE).map(toRow),
+      me: myIndex === -1 ? null : toRow(ranked[myIndex], myIndex),
+      entrants: ranked.length,
+    };
   }
 
   // ---- trading -----------------------------------------------------------------------
@@ -598,31 +636,39 @@ function createCompEngine({ io, notifyPlayer }) {
     const lastData = comp.last_tick_data_time
       ? Math.floor(new Date(comp.last_tick_data_time).getTime() / 1000)
       : Math.floor(new Date(comp.data_window_start).getTime() / 1000);
-    const openAll = await db.listCompPositions({ competition_id: comp.id, status: 'open' }, { limit: 5000 });
+    const openAll = await db.listOpenCompPositions(comp.id);
     const quotes = quotesFor(comp, dataTime);
     const shift = replayClock.timeShiftFor(comp);
     const fresh = await db.listCompAccounts(comp.id);
     const byAccount = {};
     for (const pos of openAll) (byAccount[pos.account_id] = byAccount[pos.account_id] || []).push(pos);
+    const snapshotEvery = fresh.length > LARGE_COMPETITION ? SNAPSHOT_EVERY_MS_LARGE : SNAPSHOT_EVERY_MS;
 
-    // 1) stops and stop-out along the path, 2) mark to market, snapshots
+    // 1) stops and stop-out along the path, 2) mark to market, snapshots.
+    // An account with nothing open can't have moved, so it needs no work and, if
+    // nothing changed, no write at all - that's most accounts most of the time.
+    const writes = [];
     for (const acc of fresh) {
       if (acc.status !== 'active') continue;
-      const walked = await walkAccountPath(comp, acc, byAccount[acc.id] || [], lastData, dataTime);
-      byAccount[acc.id] = walked.live;
-      acc.balance = round2(walked.balance);
-      const equity = equityOf(acc, walked.live, quotes);
-      const fields = { equity };
-      if (!acc.last_snapshot_at || nowMs - new Date(acc.last_snapshot_at).getTime() >= SNAPSHOT_EVERY_MS) {
-        await db.insertCompEquitySnapshot(acc.id, equity);
-        fields.last_snapshot_at = new Date(nowMs).toISOString();
+      const held = byAccount[acc.id] || [];
+      if (held.length) {
+        const walked = await walkAccountPath(comp, acc, held, lastData, dataTime);
+        byAccount[acc.id] = walked.live;
+        acc.balance = round2(walked.balance);
+        await keepLock();
       }
-      await db.updateCompAccount(acc.id, fields);
+      const equity = equityOf(acc, byAccount[acc.id] || [], quotes);
+      const changed = equity !== Number(acc.equity);
+      const lastSnapshot = acc.last_snapshot_at ? new Date(acc.last_snapshot_at).getTime() : 0;
+      const snapshot = nowMs - lastSnapshot >= snapshotEvery && (changed || held.length > 0 || !lastSnapshot);
+      if (changed || snapshot) writes.push({ id: acc.id, equity, snapshot });
       acc.equity = equity;
     }
+    await db.compApplyTicks(writes);
 
     const ranked = rankAccounts(fresh);
     ranked.forEach((acc, i) => {
+      if (!isWatching(comp.id, acc.player_id)) return;
       const open = byAccount[acc.id] || [];
       emit(comp.id, acc.player_id, 'comp:update', {
         compTime: dataTime + shift,
@@ -674,11 +720,12 @@ function createCompEngine({ io, notifyPlayer }) {
     const finalData = replayClock.dataTimeFor(comp, Math.min(Date.now(), endMs));
     const quotes = quotesFor(comp, finalData);
 
-    const open = await db.listCompPositions({ competition_id: comp.id, status: 'open' }, { limit: 5000 });
-    for (const pos of open) {
+    const open = await db.listOpenCompPositions(comp.id);
+    await runPool(open, SETTLE_CONCURRENCY, async (pos) => {
       const { exit, pnl } = positionPnl(pos, quotes[pos.symbol]);
       await db.compClosePosition(pos.id, exit, 'settle', pnl);
-    }
+      await keepLock();
+    });
 
     const accounts = (await db.listCompAccounts(comp.id)).map((a) => ({
       ...a,
@@ -690,11 +737,16 @@ function createCompEngine({ io, notifyPlayer }) {
     const payouts = Object.fromEntries((comp.prize_payouts || []).map((p) => [p.rank, { coins: Number(p.coins) || 0 }]));
     const total = ranked.filter((a) => a.status !== 'disqualified').length;
 
+    // Safe to re-run after an interruption: prize_paid stops anyone being paid or
+    // re-rated twice, and an account already finished is skipped. If any account
+    // fails this throws before the competition is marked ended, so the next tick
+    // picks up the rest.
     let paid = 0;
-    for (let i = 0; i < ranked.length; i++) {
-      const acc = ranked[i];
+    await runPool(ranked, SETTLE_CONCURRENCY, async (acc, i) => {
+      await keepLock();
       const dq = acc.status === 'disqualified';
       const rank = dq ? null : i + 1;
+      if (acc.prize_paid && acc.final_rank === rank) return;
       const prize = !dq && payouts[rank] ? payouts[rank] : {};
       const fields = {
         equity: acc.equity,
@@ -709,7 +761,7 @@ function createCompEngine({ io, notifyPlayer }) {
         });
       await db.updateCompAccount(acc.id, fields);
 
-      if (!(await db.compPayPrize(acc.id))) continue; // already settled for this account
+      if (!(await db.compPayPrize(acc.id))) return; // already settled for this account
       paid++;
       if (rank && !comp.is_test) await applyRating(acc.player_id, rank, total);
       const prizeText = prize.coins ? `${prize.coins.toLocaleString()} coins` : '';
@@ -728,7 +780,7 @@ function createCompEngine({ io, notifyPlayer }) {
         prize: { coins: prize.coins || 0 },
         entrants: total,
       });
-    }
+    });
 
     await db.updateCompetition(comp.id, {
       status: 'ended',
@@ -766,7 +818,7 @@ function createCompEngine({ io, notifyPlayer }) {
         status: 400,
       });
     await db.updateCompetition(comp.id, { status: 'void' });
-    const open = await db.listCompPositions({ competition_id: comp.id, status: 'open' }, { limit: 5000 });
+    const open = await db.listOpenCompPositions(comp.id);
     for (const pos of open) await db.compClosePosition(pos.id, Number(pos.entry_price), 'void', 0);
     let refunded = 0;
     for (const acc of await db.listCompAccounts(comp.id)) {

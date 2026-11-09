@@ -93,7 +93,7 @@ const app = express();
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
 app.disable('x-powered-by');
 // Before everything else: traffic must come through Cloudflare (see originLock.js).
-const { originLock, startRangeRefresh } = require('./originLock');
+const { originLock, startRangeRefresh, visitorIp } = require('./originLock');
 app.use(originLock());
 startRangeRefresh();
 // Security headers on every response, including static files.
@@ -110,6 +110,8 @@ app.get('/ready', async (req, res) => {
     res.status(503).json({ ok: false, db: 'unreachable' });
   }
 });
+const LOBBY_SWEEP_MS = 30 * 1000;
+const MATCH_RECOVERY_SWEEP_MS = 60 * 1000;
 const server = http.createServer(app);
 // 100 KB message cap (default 1 MB); no client message needs more.
 const io = new Server(server, { cors: { origin: corsOrigin }, maxHttpBufferSize: 100 * 1024 });
@@ -198,6 +200,12 @@ async function notifyFriendsOfWin(playerId, username, modeLabel, pnl, matchId) {
 const gameEngine = createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, (playerId) => playerSockets.has(playerId));
 const { createCompEngine } = require('./compEngine');
 const { createLobbyRouter } = require('./lobby');
+const turnstile = require('./turnstile');
+const { verifyTurnstile } = turnstile;
+const { createOpsMonitor } = require('./opsMonitor');
+const { createMatchRecovery } = require('./matchRecovery');
+const { startRetention } = require('./retention');
+const { createMemo } = require('./concurrency');
 const compEngine = createCompEngine({ io, notifyPlayer });
 
 // inviteId -> { id, fromPlayerId, fromUsername, fromTier, lobbyId, matchMode,
@@ -355,8 +363,7 @@ async function loadSavedDeck(playerId) {
 }
 
 function clientIp(req) {
-  // req.ip follows trust proxy. The first X-Forwarded-For entry is whatever the caller sent.
-  return String(req.ip || req.socket.remoteAddress || 'unknown').replace('::ffff:', '');
+  return String(visitorIp(req)).replace('::ffff:', '');
 }
 
 // No cookie-parser middleware is installed anywhere in this server (only
@@ -390,6 +397,22 @@ app.use(express.json({ limit: '200kb' }));
 const { createDeployDrain } = require('./deployDrain');
 const deployDrain = createDeployDrain({ gameEngine, io, notifyPlayer });
 deployDrain.mount(app);
+
+// Knows how full this server is, refuses new matches before it falls over, and
+// emails the owner when something is wrong (server/opsMonitor.js).
+const opsMonitor = createOpsMonitor({
+  liveMatches: () => gameEngine.liveMatchCount(),
+  connectedSockets: () => io.engine?.clientsCount || 0,
+  sendAlert: (subject, details) =>
+    sendEmail({
+      to: process.env.ALERT_EMAIL || 'hello@spikeandcrush.com',
+      subject: `[Spike & Crush] ${subject}`,
+      text: JSON.stringify(details, null, 2),
+      html: `<pre>${String(JSON.stringify(details, null, 2)).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</pre>`,
+    }),
+});
+opsMonitor.start();
+const matchRecovery = createMatchRecovery({ db, gameEngine, notifyPlayer });
 // index:false - without it, static's default directory-index behavior would
 // serve client/index.html for a bare "/" request before the explicit
 // app.get('/') route below (landing.html) is ever reached.
@@ -482,12 +505,28 @@ app.get('/r/:code', async (req, res) => {
   res.redirect('/');
 });
 
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+// Keyed on the real visitor, never Cloudflare's address. These are per IP and many
+// real players can share one (mobile networks, offices, a family), so the API limit
+// is generous: it stops floods, and per-account limits below stop targeted abuse.
+const limiterDefaults = { standardHeaders: true, legacyHeaders: false, keyGenerator: (req) => visitorIp(req) };
+const API_RATE_LIMIT = Number(process.env.API_RATE_LIMIT) || 1500;
+// Served from the micro-cache, so they cost almost nothing and every open lobby polls them.
+const CHEAP_PUBLIC_GETS = new Set(['/lobby/stats', '/competitions', '/stats/home', '/stats/live', '/stats/activity', '/leaderboard', '/stats/ticker', '/announcements/active']);
+const apiLimiter = rateLimit({ ...limiterDefaults, windowMs: 15 * 60 * 1000, max: API_RATE_LIMIT, skip: (req) => req.method === 'GET' && !req.query.search && CHEAP_PUBLIC_GETS.has(req.path) });
+const authLimiter = rateLimit({ ...limiterDefaults, windowMs: 15 * 60 * 1000, max: Number(process.env.AUTH_RATE_LIMIT) || 100 });
+// Password guessing against one account from anywhere, however many IPs it uses.
+const loginAccountLimiter = rateLimit({
+  ...limiterDefaults,
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `login:${String(req.body?.username || '').trim().toLowerCase().slice(0, 64)}`,
+  message: { error: 'Too many failed attempts for this account. Please wait a few minutes and try again.' },
+});
 // Paid AI calls and spam-prone endpoints get their own, tighter limits (audit item 1).
-const supportChatLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many messages - please wait a few minutes.' } });
-const supportTicketLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many tickets - please wait before opening another.' } });
-const clickLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+const supportChatLimiter = rateLimit({ ...limiterDefaults, windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many messages - please wait a few minutes.' } });
+const supportTicketLimiter = rateLimit({ ...limiterDefaults, windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many tickets - please wait before opening another.' } });
+const clickLimiter = rateLimit({ ...limiterDefaults, windowMs: 15 * 60 * 1000, max: 30 });
 app.use('/api', apiLimiter);
 
 // Internal-only bridge for the separate admin panel (port 3003) - secret +
@@ -542,7 +581,10 @@ async function sendWelcomeEmail(player) {
 
 app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
   try {
-    const { username, email, password } = req.body || {};
+    const { username, email, password, turnstileToken } = req.body || {};
+    if (!(await verifyTurnstile(turnstileToken, clientIp(req)))) {
+      return res.status(400).json({ error: 'Please complete the check and try again.', turnstile: true });
+    }
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'username, email and password are required' });
     }
@@ -647,7 +689,7 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', authLimiter, requireDb, async (req, res) => {
+app.post('/api/auth/login', authLimiter, loginAccountLimiter, requireDb, async (req, res) => {
   try {
     const { username, password, totpCode } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'username and password are required' });
@@ -752,10 +794,23 @@ app.post('/api/tutorial/complete', requireDb, authenticate, async (req, res) => 
 
 app.post('/api/auth/reset-password', authLimiter, requireDb, async (req, res) => {
   const { email } = req.body || {};
-  if (email) {
-    await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo: `${publicSiteUrl(req)}/reset-password` }).catch((e) => {
+  if (typeof email === 'string' && email.length <= 254) {
+    // Sent through our own email provider: Supabase's built-in sender only allows
+    // a handful of emails an hour across the whole site.
+    const redirectTo = `${publicSiteUrl(req)}/reset-password`;
+    try {
+      const { data, error } = await supabaseAdmin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo } });
+      const link = data?.properties?.action_link;
+      if (!error && link && process.env.RESEND_API_KEY) {
+        const sent = await sendEmail({ to: email, ...emailVerification.passwordResetEmail({ link }) });
+        if (!sent?.id) console.warn('[reset-password] email was not accepted by the provider');
+      } else if (!error) {
+        await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
+      }
+      // An error here is usually "no such user", which the caller must never learn.
+    } catch (e) {
       console.warn('[reset-password] send failed (not surfaced to caller):', e.message);
-    });
+    }
   }
   // Always return success - never reveal whether an email exists.
   res.json({ message: 'Reset email sent if found' });
@@ -978,6 +1033,8 @@ const MATCHMAKING_BY_MODE = {
   private: (playerInfo) => matchmaking.createPrivateWar(gameEngine, playerInfo),
 };
 
+const MAX_OPEN_MATCHES_PER_PLAYER = 3;
+
 // ---- match entry fees ---------------------------------------------------------------
 // Charge first (unique key per attempt), then seat the player; if seating fails
 // or they had already paid for that seat, refund that exact payment. Replaces
@@ -1004,7 +1061,7 @@ function recordEntryPaid(matchId, playerId, key, entryCoins) {
   return true;
 }
 
-app.post('/api/match/create', deployDrain.blockNewMatches, requireDb, authenticate, async (req, res) => {
+app.post('/api/match/create', deployDrain.blockNewMatches, opsMonitor.blockNewMatchesWhenFull, requireDb, authenticate, async (req, res) => {
   try {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -1012,6 +1069,15 @@ app.post('/api/match/create', deployDrain.blockNewMatches, requireDb, authentica
     const mode = MATCHMAKING_BY_MODE[req.body?.mode] ? req.body.mode : 'private';
     const modeConfig = gameEngine.MATCH_MODES[mode];
     const entryCoins = modeConfig ? modeConfig.entryCoins : 0;
+
+    // One waiting room per mode (going back and pressing Play again returns to it),
+    // and a small cap overall, so one account can't pile up matches.
+    const seated = gameEngine.openMatchesFor(player.id);
+    const sameLobby = seated.find((m) => m.status === 'waiting' && m.mode === mode);
+    if (sameLobby) return res.json({ success: true, matchId: sameLobby.id, roomCode: sameLobby.roomCode, resumed: true });
+    if (seated.length >= MAX_OPEN_MATCHES_PER_PLAYER) {
+      return res.status(429).json({ error: 'You already have matches running. Finish or leave one first.' });
+    }
 
     if (entryCoins > 0 && player.coins < entryCoins) {
       return res.status(400).json({ error: `Not enough coins - ${modeConfig.label} costs ${entryCoins} coins` });
@@ -1059,6 +1125,10 @@ app.post('/api/match/create', deployDrain.blockNewMatches, requireDb, authentica
     }
     if (entry.key && !recordEntryPaid(result.matchId, player.id, entry.key, entryCoins)) {
       await refundEntryFee(player.id, entryCoins, entry.key); // already seated and paid
+    } else if (entry.key) {
+      const dbMatchId = gameEngine.getMatch(result.matchId)?.dbMatchId;
+      // Lets a match lost to a crash be refunded. A miss here only affects that refund.
+      if (dbMatchId) db.linkEntryToMatch(entry.key, dbMatchId).catch((e) => console.warn('[match/create] entry link failed:', e.message));
     }
     res.json(result);
   } catch (e) {
@@ -2045,7 +2115,9 @@ const microCache = new Map(); // url -> { at, status, body }
 const microInflight = new Map(); // url -> Promise<{status, body} | null>
 function cacheJson(ttlMs) {
   return async (req, res, next) => {
-    const key = req.originalUrl;
+    // The path only: these responses don't vary by query string, and keying on the
+    // full URL would let anyone skip the cache by adding ?x=1 to every request.
+    const key = req.path;
     const hit = microCache.get(key);
     if (hit && Date.now() - hit.at < ttlMs) {
       res.set('X-Cache', 'HIT');
@@ -2568,6 +2640,7 @@ app.get('/api/config/public', (req, res) => {
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
     devCoinGrantsEnabled: process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0,
     emailVerification: EMAIL_VERIFICATION_ON,
+    turnstileSiteKey: turnstile.isOn() ? turnstile.siteKey() : null,
   });
 });
 
@@ -2727,7 +2800,11 @@ async function optionalViewerId(req) {
   }
 }
 
-app.get('/api/leaderboard', cacheJson(10000), requireDb, async (req, res) => {
+// The board is computed once and shared; each caller's own "your rank" row is added
+// per request. (Caching the whole response handed one player's row to everyone.)
+const boardMemo = createMemo();
+const BOARD_CACHE_MS = 10000;
+app.get('/api/leaderboard', requireDb, async (req, res) => {
   try {
     const limit = Math.min(200, Number(req.query.limit) || 10);
     const tierFilter = req.query.tier && req.query.tier !== 'All' ? req.query.tier : null;
@@ -2735,61 +2812,60 @@ app.get('/api/leaderboard', cacheJson(10000), requireDb, async (req, res) => {
     const search = req.query.search ? String(req.query.search).slice(0, 40) : null;
     const viewerId = await optionalViewerId(req);
 
-    let rows;
-    if (period === 'all') {
-      rows = (await db.getLeaderboard(500, { search })).map((r) => ({
-        id: r.id,
-        username: r.username,
-        war_rating: r.war_rating,
-        tier: tierForRating(r.war_rating),
-        wins: r.wins,
-        losses: r.losses,
-        draws: r.draws || 0,
-        total_matches: r.total_matches,
-        metric: r.war_rating,
-      }));
-    } else {
-      const since = new Date();
-      if (period === 'week') since.setDate(since.getDate() - 7);
-      else since.setMonth(since.getMonth() - 1);
-      const periodRows = await db.getPeriodLeaderboard(since.toISOString());
-      rows = periodRows
-        .filter((r) => !search || r.username.toLowerCase().includes(search.toLowerCase()))
-        .map((r) => ({
+    const loadRows = async () => {
+      let rows;
+      if (period === 'all') {
+        rows = (await db.getLeaderboard(500, { search })).map((r) => ({
           id: r.id,
           username: r.username,
           war_rating: r.war_rating,
           tier: tierForRating(r.war_rating),
-          wins: null,
-          losses: null,
-          draws: null,
-          total_matches: r.periodMatches,
-          metric: Math.round(r.periodPnl * 100) / 100,
+          wins: r.wins,
+          losses: r.losses,
+          draws: r.draws || 0,
+          total_matches: r.total_matches,
+          metric: r.war_rating,
         }));
-    }
+      } else {
+        const since = new Date();
+        if (period === 'week') since.setDate(since.getDate() - 7);
+        else since.setMonth(since.getMonth() - 1);
+        const periodRows = await db.getPeriodLeaderboard(since.toISOString());
+        rows = periodRows
+          .filter((r) => !search || r.username.toLowerCase().includes(search.toLowerCase()))
+          .map((r) => ({
+            id: r.id,
+            username: r.username,
+            war_rating: r.war_rating,
+            tier: tierForRating(r.war_rating),
+            wins: null,
+            losses: null,
+            draws: null,
+            total_matches: r.periodMatches,
+            metric: Math.round(r.periodPnl * 100) / 100,
+          }));
+      }
+      if (tierFilter) rows = rows.filter((r) => r.tier === tierFilter);
+      return rows.sort((a, b) => b.metric - a.metric).map((r, i) => ({ ...r, rank: i + 1 }));
+    };
+    // Searches are rare and vary, so only the plain boards are shared.
+    const rows = search ? await loadRows() : await boardMemo(`${period}:${tierFilter || ''}`, BOARD_CACHE_MS, loadRows);
 
-    if (tierFilter) rows = rows.filter((r) => r.tier === tierFilter);
-    rows = rows.sort((a, b) => b.metric - a.metric).map((r, i) => ({ ...r, rank: i + 1 }));
+    const addCosmetics = (list, cosmetics) =>
+      list.map((r) => ({
+        ...r,
+        equipped_nameplate: cosmetics[r.id]?.nameplate || 'name_standard',
+        equipped_frame: cosmetics[r.id]?.avatar_frame || 'none',
+      }));
+    const pageRows = rows.slice(0, limit);
+    const loadPage = async () => addCosmetics(pageRows, await db.getEquippedCosmeticsForPlayers(pageRows.map((r) => r.id)));
+    const page = search ? await loadPage() : await boardMemo(`page:${period}:${tierFilter || ''}:${limit}`, BOARD_CACHE_MS, loadPage);
 
-    const page = rows.slice(0, limit);
     const viewerRow = viewerId ? rows.find((r) => r.id === viewerId) : null;
     const viewerInPage = viewerRow && page.some((r) => r.id === viewerId);
+    const viewerRank = viewerRow && !viewerInPage ? addCosmetics([viewerRow], await db.getEquippedCosmeticsForPlayers([viewerRow.id]))[0] : null;
 
-    const cosmeticsByPlayer = await db.getEquippedCosmeticsForPlayers(
-      Array.from(new Set([...page.map((r) => r.id), ...(viewerRow ? [viewerRow.id] : [])]))
-    );
-    const withCosmetics = (r) => ({
-      ...r,
-      equipped_nameplate: cosmeticsByPlayer[r.id]?.nameplate || 'name_standard',
-      equipped_frame: cosmeticsByPlayer[r.id]?.avatar_frame || 'none',
-    });
-
-    res.json({
-      leaderboard: page.map(withCosmetics),
-      period,
-      tiers: TIERS.map((t) => t.name),
-      viewerRank: viewerRow && !viewerInPage ? withCosmetics(viewerRow) : null,
-    });
+    res.json({ leaderboard: page, period, tiers: TIERS.map((t) => t.name), viewerRank });
   } catch (e) {
     console.error('[leaderboard]', e);
     res.status(500).json({ error: 'Could not load leaderboard' });
@@ -3270,6 +3346,10 @@ for (const r of instrumentReport) {
 server.listen(PORT, () => {
   console.log(`Spike & Crush server listening on http://localhost:${PORT}`);
   compEngine.start();
+  startRetention(db);
+  setInterval(() => gameEngine.sweepIdleLobbies().catch((e) => console.warn('[lobbies] sweep failed:', e.message)), LOBBY_SWEEP_MS).unref();
+  setInterval(() => matchRecovery.sweep(), MATCH_RECOVERY_SWEEP_MS).unref();
+  matchRecovery.sweep();
   if (!db.isConfigured) {
     console.warn(
       'Running WITHOUT a configured database - accounts, matchmaking persistence and leaderboards are disabled until SUPABASE_SERVICE_KEY is set in .env.'
