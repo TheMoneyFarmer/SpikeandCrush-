@@ -262,6 +262,8 @@ const STATIC_OPTS = { dotfiles: 'deny', index: false, fallthrough: true };
 app.use('/css', express.static(path.join(__dirname, 'css'), STATIC_OPTS));
 app.use('/js', express.static(path.join(__dirname, 'js'), STATIC_OPTS));
 app.use('/components', express.static(path.join(__dirname, 'components'), STATIC_OPTS));
+app.use('/icons', express.static(path.join(__dirname, 'icons'), STATIC_OPTS));
+app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, 'icons', 'admin.ico')));
 app.get(/^\/[a-z0-9-]+\.html$/, (req, res, next) => {
   const file = path.join(__dirname, req.path);
   if (path.dirname(file) !== __dirname) return next();
