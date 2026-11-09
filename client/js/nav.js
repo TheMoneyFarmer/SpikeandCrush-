@@ -80,6 +80,7 @@ window.TW = window.TW || {};
         <div class="cn-right">
           <a href="/wallet" id="headerCoinWrap" class="cn-coins hidden" aria-label="Coin balance">${ic('coin', 18)}<span id="headerCoinBalance">0</span></a>
           <button type="button" class="cn-icon" id="twNotifBtn" aria-label="Notifications">${ic('bell')}<span id="twNotifBadge" class="cn-dot hidden" aria-hidden="true"></span></button>
+          <button type="button" class="cn-icon hidden" id="twFriendsToggleBtn" aria-label="Friends" aria-haspopup="dialog" aria-expanded="false" title="Friends">${ic('users')}<span id="twFriendsOnlineBadge" class="cn-badge hidden" aria-hidden="true"></span></button>
           <a href="/?login=required" id="headerAuthLink" class="cn-login hidden">Log in</a>
           <div class="cn-account hidden" id="twNavIdentity">
             <button type="button" class="cn-avatar" id="lbAvatarBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
@@ -92,7 +93,6 @@ window.TW = window.TW || {};
                 <span class="cn-progress"><span id="twNavProgressFill"></span></span>
               </div>
               ${AVATAR_MENU.map((m) => `<a role="menuitem" href="${m.href}"${m.key === active ? ' aria-current="page" class="active"' : ''}>${ic(m.icon, 18)}<span>${m.label}</span></a>`).join('')}
-              <button type="button" role="menuitem" id="twFriendsToggleBtn">${ic('users', 18)}<span>Friends</span><span id="twFriendsOnlineBadge" class="tw-friends-online-badge hidden">0</span></button>
               <button type="button" role="menuitem" id="cnMuteBtn"></button>
               <button type="button" role="menuitem" id="twLogoutBtn">${ic('logout', 18)}<span>Log out</span></button>
             </div>
@@ -494,6 +494,25 @@ window.TW = window.TW || {};
   }
 
   document.addEventListener('DOMContentLoaded', renderNav);
+
+  // The Friends panel works on every page with this header, including the few
+  // that don't load its scripts themselves (Help, Terms and so on).
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!document.getElementById('twNav') || !window.TW.getToken || !window.TW.getToken()) return;
+    const needed = [];
+    if (!window.io) needed.push('/socket.io/socket.io.js');
+    if (!window.TW.connectSocket) needed.push('/js/socket.js');
+    if (!window.TW.FriendsPanel) needed.push('/js/friends-panel.js');
+    const next = () => {
+      const src = needed.shift();
+      if (!src) return;
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = next;
+      document.body.appendChild(s);
+    };
+    next();
+  });
   // The live match card: on every page with a nav, added here rather than
   // to each page's script list.
   document.addEventListener('DOMContentLoaded', () => {

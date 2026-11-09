@@ -32,6 +32,7 @@ const shop = require('./shop');
 const battlepass = require('./battlepass');
 const tournament = require('./tournament');
 const presence = require('./presence');
+const friendsHub = require('./friendsHub');
 const { INVITE_REWARD_COINS, INVITE_MAX_PAID } = require('./referralRules');
 
 const PORT = process.env.PORT || 3000;
@@ -146,13 +147,14 @@ async function broadcastPresenceToFriends(playerId, presenceData) {
     if (!friendIds.length) return;
     const player = await db.getPlayerById(playerId);
     if (!player) return;
+    const visible = friendsHub.visiblePresence(player.settings, presenceData);
     const payload = {
       playerId,
       username: player.username,
-      status: presenceData.status,
-      matchId: presenceData.matchId,
-      lobbyId: presenceData.lobbyId,
-      mode: presenceData.mode,
+      status: visible.status,
+      matchId: visible.matchId,
+      lobbyId: visible.lobbyId,
+      mode: visible.mode,
     };
     for (const friendId of friendIds) {
       const sockets = playerSockets.get(friendId);
@@ -1338,7 +1340,7 @@ app.get('/api/player/by-username/:username', requireDb, async (req, res) => {
       recentMatches: enrichedHistory,
       friendStatus,
       mutualFriendCount,
-      presence: presence.getPresence(player.id),
+      presence: friendsHub.visiblePresence(player.settings, presence.getPresence(player.id)),
       equippedCosmetics: equippedBySlot,
     });
   } catch (e) {
@@ -1530,6 +1532,7 @@ app.post('/api/player/blocks', requireDb, authenticate, async (req, res) => {
     if (!target) return res.status(404).json({ error: 'Player not found' });
     if (target.id === req.tokenPlayer.id) return res.status(400).json({ error: 'You cannot block yourself' });
     await db.blockPlayer(req.tokenPlayer.id, target.id);
+    await db.removeFriendshipBetween(req.tokenPlayer.id, target.id);
     res.json({ success: true });
   } catch (e) {
     console.error('[block player]', e);
@@ -1596,7 +1599,7 @@ app.get('/api/player/:id', requireDb, async (req, res) => {
       recentMatches: enrichedHistory,
       friendStatus,
       mutualFriendCount,
-      presence: presence.getPresence(req.params.id),
+      presence: friendsHub.visiblePresence(player.settings, presence.getPresence(req.params.id)),
       equippedCosmetics: equippedBySlot,
     });
   } catch (e) {
@@ -1607,12 +1610,95 @@ app.get('/api/player/:id', requireDb, async (req, res) => {
 
 // ---- friends (Block 12) ----------------------------------------------------------
 
+// Charges a lobby's entry fee and seats the player, refunding if the seat fails.
+async function joinLobbyWithEntryFee(match, playerId, socketId) {
+  const player = await db.getPlayerById(playerId);
+  const entryCoins = match.config.entryCoins || 0;
+  if (entryCoins > 0 && player.coins < entryCoins) {
+    return { success: false, error: `Not enough coins - this lobby costs ${entryCoins} coins to join` };
+  }
+
+  const playerInfo = { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, grand_war_rating: player.grand_war_rating, solo_rating: player.solo_rating, tier: tierForRating(player.war_rating) };
+  playerInfo.deck = await loadSavedDeck(player.id);
+  let entry;
+  try {
+    entry = await chargeEntryFee(player.id, entryCoins, match.dbMatchId);
+  } catch (e) {
+    if (e.code === 'INSUFFICIENT_COINS') return { success: false, error: `Not enough coins - this lobby costs ${entryCoins} coins to join` };
+    throw e;
+  }
+  const result = gameEngine.joinMatch(match, playerInfo, socketId);
+  if (!result.success) {
+    await refundEntryFee(player.id, entryCoins, entry.key, match.dbMatchId);
+    return { success: false, error: result.error };
+  }
+  if (entry.key && !recordEntryPaid(match.id, player.id, entry.key, entryCoins)) {
+    await refundEntryFee(player.id, entryCoins, entry.key, match.dbMatchId);
+  }
+  return { success: true, player };
+}
+
+const friendRequestLimiter = friendsHub.createWindowLimiter({ max: 30, windowMs: 60 * 60 * 1000 });
+const strangerInviteLimiter = friendsHub.createWindowLimiter({ max: 20, windowMs: 10 * 60 * 1000 });
+
+function friendsPanelError(status, message) {
+  return Object.assign(new Error(message), { status, friendly: true });
+}
+
+// The one path for sending a friend request, from the API or a socket.
+async function createFriendRequest(requesterId, targetId) {
+  if (!targetId || targetId === requesterId) throw friendsPanelError(400, 'Invalid target');
+  const targetPlayer = await db.getPlayerById(targetId);
+  if (!targetPlayer || targetPlayer.is_persona) throw friendsPanelError(404, 'Player not found');
+  const blocks = await db.listBlockRelationIds(requesterId);
+  if (blocks.has(targetId)) throw friendsPanelError(400, 'Unable to send request');
+  const existing = await db.getFriendshipBetween(requesterId, targetId);
+  if (existing) {
+    if (existing.status === 'accepted') throw friendsPanelError(400, 'Already friends');
+    if (existing.status === 'blocked') throw friendsPanelError(400, 'Unable to send request');
+    throw friendsPanelError(400, existing.requester_id === targetId ? 'They already sent you a request. Accept it under Requests.' : 'Request already sent');
+  }
+  if (targetPlayer.settings?.allowFriends === false) throw friendsPanelError(400, "This player isn't accepting friend requests");
+  if (!friendRequestLimiter(requesterId)) throw friendsPanelError(429, 'You have sent a lot of requests. Try again later.');
+
+  const requester = await db.getPlayerById(requesterId);
+  const row = await db.sendFriendRequest(requesterId, targetId);
+  notifyPlayer(targetId, 'friend_request', `${requester.username} sent you a friend request`, {
+    fromPlayerId: requesterId,
+    data: { requestId: row.id, username: requester.username, tier: requester.tier },
+  });
+  for (const sid of playerSockets.get(targetId) || []) {
+    io.to(sid).emit('friend:request_received', { requestId: row.id, fromPlayerId: requesterId, username: requester.username, tier: requester.tier });
+  }
+  return row;
+}
+
+// What the panel shows for someone who isn't necessarily a friend. Settings and
+// ban fields stay on the server.
+function friendsPanelPlayer(p, myId, friendshipRows) {
+  const live = friendsHub.visiblePresence(p.settings, presence.getPresence(p.id));
+  const { relation, requestId } = friendsHub.relationFor(myId, p.id, friendshipRows);
+  return {
+    id: p.id,
+    username: p.username,
+    avatarUrl: p.avatar_url,
+    warRating: p.war_rating,
+    tier: p.tier,
+    country: p.country || null,
+    status: live.status,
+    relation,
+    requestId,
+    acceptsFriendRequests: p.settings?.allowFriends !== false,
+    acceptsInvites: relation === 'friend' || p.settings?.allowInvites !== false,
+  };
+}
+
 app.get('/api/friends', requireDb, authenticate, async (req, res) => {
   try {
     const friends = await db.listFriends(req.tokenPlayer.id);
     const cosmeticsByPlayer = await db.getEquippedCosmeticsForPlayers(friends.map((f) => f.id));
     const withPresence = friends.map((f) => {
-      const p = presence.getPresence(f.id);
+      const p = friendsHub.visiblePresence(f.settings, presence.getPresence(f.id));
       const cosmetics = cosmeticsByPlayer[f.id] || {};
       return {
         id: f.id,
@@ -1640,8 +1726,8 @@ app.get('/api/friends/requests', requireDb, authenticate, async (req, res) => {
   try {
     const [incoming, outgoing] = await Promise.all([db.listIncomingRequests(req.tokenPlayer.id), db.listOutgoingRequests(req.tokenPlayer.id)]);
     res.json({
-      incoming: incoming.map((r) => ({ requestId: r.id, playerId: r.requester.id, username: r.requester.username, tier: r.requester.tier, warRating: r.requester.war_rating, createdAt: r.created_at })),
-      outgoing: outgoing.map((r) => ({ requestId: r.id, playerId: r.addressee.id, username: r.addressee.username, tier: r.addressee.tier, warRating: r.addressee.war_rating, createdAt: r.created_at })),
+      incoming: incoming.map((r) => ({ requestId: r.id, playerId: r.requester.id, username: r.requester.username, tier: r.requester.tier, warRating: r.requester.war_rating, avatarUrl: r.requester.avatar_url, createdAt: r.created_at })),
+      outgoing: outgoing.map((r) => ({ requestId: r.id, playerId: r.addressee.id, username: r.addressee.username, tier: r.addressee.tier, warRating: r.addressee.war_rating, avatarUrl: r.addressee.avatar_url, createdAt: r.created_at })),
     });
   } catch (e) {
     console.error('[friends requests]', e);
@@ -1651,32 +1737,84 @@ app.get('/api/friends/requests', requireDb, authenticate, async (req, res) => {
 
 app.post('/api/friends/request', requireDb, authenticate, async (req, res) => {
   try {
-    const requesterId = req.tokenPlayer.id;
-    const targetId = req.body?.targetId;
-    if (!targetId || targetId === requesterId) return res.status(400).json({ error: 'Invalid target' });
-    const targetPlayer = await db.getPlayerById(targetId);
-    if (!targetPlayer || targetPlayer.is_persona) return res.status(404).json({ error: 'Player not found' });
-    const existing = await db.getFriendshipBetween(requesterId, targetId);
-    if (existing) {
-      const msg = existing.status === 'accepted' ? 'Already friends' : existing.status === 'blocked' ? 'Unable to send request' : 'Request already pending';
-      return res.status(400).json({ error: msg });
-    }
-    const requester = await db.getPlayerById(requesterId);
-    const row = await db.sendFriendRequest(requesterId, targetId);
-    notifyPlayer(targetId, 'friend_request', `${requester.username} sent you a friend request`, {
-      fromPlayerId: requesterId,
-      data: { requestId: row.id, username: requester.username, tier: requester.tier },
-    });
-    const targetSockets = playerSockets.get(targetId);
-    if (targetSockets) {
-      for (const sid of targetSockets) {
-        io.to(sid).emit('friend:request_received', { requestId: row.id, fromPlayerId: requesterId, username: requester.username, tier: requester.tier, warRating: requester.war_rating });
-      }
-    }
+    const row = await createFriendRequest(req.tokenPlayer.id, req.body?.targetId);
     res.json({ success: true, requestId: row.id });
   } catch (e) {
+    if (e.friendly) return res.status(e.status).json({ error: e.message });
     console.error('[friend request]', e);
     res.status(500).json({ error: 'Could not send request' });
+  }
+});
+
+app.delete('/api/friends/requests/:requestId', requireDb, authenticate, async (req, res) => {
+  try {
+    await db.cancelFriendRequest(req.params.requestId, req.tokenPlayer.id);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[friend request cancel]', e);
+    res.status(500).json({ error: 'Could not cancel request' });
+  }
+});
+
+// Blocking also ends any friendship or pending request between the two.
+app.post('/api/friends/block', requireDb, authenticate, async (req, res) => {
+  try {
+    const targetId = req.body?.targetId;
+    if (!targetId || targetId === req.tokenPlayer.id) return res.status(400).json({ error: 'Invalid target' });
+    const target = await db.getPlayerById(targetId);
+    if (!target) return res.status(404).json({ error: 'Player not found' });
+    await db.blockPlayer(req.tokenPlayer.id, targetId);
+    await db.removeFriendshipBetween(req.tokenPlayer.id, targetId);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[friend block]', e);
+    res.status(500).json({ error: 'Could not block player' });
+  }
+});
+
+// Jump into a friend's open lobby without waiting for an invite.
+app.post('/api/friends/:friendId/join', requireDb, authenticate, async (req, res) => {
+  try {
+    const playerId = req.tokenPlayer.id;
+    const friendship = await db.getFriendshipBetween(playerId, req.params.friendId);
+    if (!friendship || friendship.status !== 'accepted') return res.status(403).json({ error: 'You can only join friends' });
+    const friend = await db.getPlayerById(req.params.friendId);
+    const live = friendsHub.visiblePresence(friend?.settings, presence.getPresence(req.params.friendId));
+    const match = live.status === 'in_lobby' && live.lobbyId ? gameEngine.getMatch(live.lobbyId) : null;
+    if (!match || match.status !== 'waiting') return res.status(400).json({ error: 'That lobby is no longer open' });
+    const result = await joinLobbyWithEntryFee(match, playerId);
+    if (!result.success) return res.status(400).json({ error: result.error });
+    gameEngine.pushSystemFeed(match.id, `${result.player.username} joined a friend`);
+    res.json({ success: true, matchId: match.id });
+  } catch (e) {
+    console.error('[friend join]', e);
+    res.status(500).json({ error: 'Could not join lobby' });
+  }
+});
+
+// Real people connected right now: computer players have no connection, so they
+// can never appear here. Only ever a list of who is reachable, never a count.
+app.get('/api/players/online', requireDb, authenticate, async (req, res) => {
+  try {
+    const myId = req.tokenPlayer.id;
+    const ids = [...playerSockets.keys()].filter((id) => id !== myId).slice(0, 200);
+    const [me, players, rows, blocks] = await Promise.all([
+      db.getPlayerById(myId),
+      db.getPlayersForFriendsPanel(ids),
+      db.listFriendshipRows(myId),
+      db.listBlockRelationIds(myId),
+    ]);
+    const visible = players.filter((p) => !blocks.has(p.id) && !activeBan(p) && p.settings?.showOnline !== false);
+    const ranked = friendsHub.rankOnlinePlayers(visible, me).slice(0, 30);
+    res.json({
+      players: ranked.map((p) => ({
+        ...friendsPanelPlayer(p, myId, rows),
+        sameCountry: Boolean(me.country) && p.country === me.country,
+      })),
+    });
+  } catch (e) {
+    console.error('[players online]', e);
+    res.status(500).json({ error: 'Could not load players' });
   }
 });
 
@@ -1745,10 +1883,16 @@ app.delete('/api/friends/:friendId', requireDb, authenticate, async (req, res) =
 
 app.get('/api/players/search', requireDb, authenticate, async (req, res) => {
   try {
-    const q = (req.query.q || '').trim();
+    const q = String(req.query.q || '').trim().slice(0, 30);
     if (q.length < 2) return res.json({ players: [] });
-    const results = await db.searchPlayers(q, req.tokenPlayer.id, 10);
-    res.json({ players: results.map((p) => ({ id: p.id, username: p.username, avatarUrl: p.avatar_url, warRating: p.war_rating, tier: p.tier })) });
+    const myId = req.tokenPlayer.id;
+    const [found, rows, blocks] = await Promise.all([
+      db.searchPlayers(friendsHub.escapeLikePattern(q), myId, 25),
+      db.listFriendshipRows(myId),
+      db.listBlockRelationIds(myId),
+    ]);
+    const visible = found.filter((p) => !blocks.has(p.id) && !activeBan(p));
+    res.json({ players: friendsHub.rankSearchResults(visible, q).slice(0, 15).map((p) => friendsPanelPlayer(p, myId, rows)) });
   } catch (e) {
     console.error('[players search]', e);
     res.status(500).json({ error: 'Search failed' });
@@ -3199,27 +3343,10 @@ io.on('connection', (socket) => {
 
   socket.on('friend:request', async ({ targetId } = {}, ack) => {
     try {
-      const requesterId = socket.data.player.id;
-      if (!targetId || targetId === requesterId) return ack?.({ success: false, error: 'Invalid target' });
-      const existing = await db.getFriendshipBetween(requesterId, targetId);
-      if (existing) {
-        const msg = existing.status === 'accepted' ? 'Already friends' : existing.status === 'blocked' ? 'Unable to send request' : 'Request already pending';
-        return ack?.({ success: false, error: msg });
-      }
-      const requester = await db.getPlayerById(requesterId);
-      const row = await db.sendFriendRequest(requesterId, targetId);
-      notifyPlayer(targetId, 'friend_request', `${requester.username} sent you a friend request`, {
-        fromPlayerId: requesterId,
-        data: { requestId: row.id, username: requester.username, tier: requester.tier },
-      });
-      const targetSockets = playerSockets.get(targetId);
-      if (targetSockets) {
-        for (const sid of targetSockets) {
-          io.to(sid).emit('friend:request_received', { requestId: row.id, fromPlayerId: requesterId, username: requester.username, tier: requester.tier, warRating: requester.war_rating });
-        }
-      }
+      const row = await createFriendRequest(socket.data.player.id, targetId);
       ack?.({ success: true, requestId: row.id });
     } catch (e) {
+      if (e.friendly) return ack?.({ success: false, error: e.message });
       console.error('[friend:request]', e);
       ack?.({ success: false, error: 'Could not send request' });
     }
@@ -3279,9 +3406,33 @@ io.on('connection', (socket) => {
       if (!inviter) return ack?.({ success: false, error: 'Not in this lobby' });
 
       const sentTo = [];
-      for (const targetId of Array.isArray(targetIds) ? targetIds : []) {
+      const skipped = [];
+      const targets = [...new Set(Array.isArray(targetIds) ? targetIds : [])].filter((id) => id !== inviter.id).slice(0, 8);
+      const [friendIds, blocks, targetPlayers] = await Promise.all([
+        db.listFriendIds(inviter.id),
+        db.listBlockRelationIds(inviter.id),
+        db.getPlayersForFriendsPanel(targets),
+      ]);
+      const targetById = new Map(targetPlayers.map((p) => [p.id, p]));
+      for (const targetId of targets) {
         const targetSockets = playerSockets.get(targetId);
-        if (!targetSockets || targetSockets.size === 0) continue; // only online friends can be invited
+        const isFriend = friendIds.includes(targetId);
+        const reason = friendsHub.inviteBlockReason({
+          isFriend,
+          blocked: blocks.has(targetId),
+          connected: Boolean(targetSockets && targetSockets.size) && targetById.has(targetId),
+          presenceStatus: presence.getPresence(targetId).status,
+          settings: targetById.get(targetId)?.settings,
+          alreadyInvited: [...pendingInvites.values()].some((i) => i.fromPlayerId === inviter.id && i.targetPlayerId === targetId && i.lobbyId === matchId),
+        });
+        if (reason) {
+          skipped.push({ id: targetId, reason });
+          continue;
+        }
+        if (!isFriend && !strangerInviteLimiter(inviter.id)) {
+          skipped.push({ id: targetId, reason: 'too_many' });
+          continue;
+        }
 
         const inviteId = crypto.randomUUID();
         const invite = {
@@ -3294,6 +3445,8 @@ io.on('connection', (socket) => {
           instruments: match.instruments,
           currentPlayers: Object.keys(match.players).length,
           maxPlayers: match.config.maxPlayers,
+          entryCoins: match.config.entryCoins || 0,
+          fromFriend: isFriend,
           targetPlayerId: targetId,
           expiresAt: Date.now() + INVITE_TTL_MS,
         };
@@ -3311,7 +3464,7 @@ io.on('connection', (socket) => {
         }
         sentTo.push(targetId);
       }
-      ack?.({ success: true, sentTo });
+      ack?.({ success: true, sentTo, skipped });
     } catch (e) {
       console.error('[lobby:invite]', e);
       ack?.({ success: false, error: 'Could not send invite' });
@@ -3329,29 +3482,9 @@ io.on('connection', (socket) => {
       const match = gameEngine.getMatch(invite.lobbyId);
       if (!match || match.status !== 'waiting') return ack?.({ success: false, error: 'That lobby is no longer open' });
 
-      const player = await db.getPlayerById(socket.data.player.id);
-      const entryCoins = match.config.entryCoins || 0;
-      if (entryCoins > 0 && player.coins < entryCoins) {
-        return ack?.({ success: false, error: `Not enough coins - this lobby costs ${entryCoins} coins to join` });
-      }
-
-      const playerInfo = { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, grand_war_rating: player.grand_war_rating, solo_rating: player.solo_rating, tier: tierForRating(player.war_rating) };
-      playerInfo.deck = await loadSavedDeck(player.id);
-      let entry;
-      try {
-        entry = await chargeEntryFee(player.id, entryCoins, match.dbMatchId);
-      } catch (e) {
-        if (e.code === 'INSUFFICIENT_COINS') return ack?.({ success: false, error: `Not enough coins - this lobby costs ${entryCoins} coins to join` });
-        throw e;
-      }
-      const result = gameEngine.joinMatch(match, playerInfo, socket.id);
-      if (!result.success) {
-        await refundEntryFee(player.id, entryCoins, entry.key, match.dbMatchId);
-        return ack?.({ success: false, error: result.error });
-      }
-      if (entry.key && !recordEntryPaid(match.id, player.id, entry.key, entryCoins)) {
-        await refundEntryFee(player.id, entryCoins, entry.key, match.dbMatchId);
-      }
+      const joined = await joinLobbyWithEntryFee(match, socket.data.player.id, socket.id);
+      if (!joined.success) return ack?.({ success: false, error: joined.error });
+      const { player } = joined;
       gameEngine.pushSystemFeed(match.id, `${player.username} joined via invite`);
 
       const inviterSockets = playerSockets.get(invite.fromPlayerId);

@@ -295,12 +295,16 @@
           <label class="switch"><input type="checkbox" id="prShowProfile" checked /><span class="slider-toggle"></span></label>
         </div>
         <div class="toggle-row">
-          <div class="meta"><div>Show my online status</div><div class="note">Saved preference - there's no live presence indicator yet to hide.</div></div>
+          <div class="meta"><div>Show my online status</div><div class="note">When off, you look offline to everyone and don't appear in Players online.</div></div>
           <label class="switch"><input type="checkbox" id="prShowOnline" checked /><span class="slider-toggle"></span></label>
         </div>
         <div class="toggle-row">
-          <div class="meta"><div>Allow friend requests</div><div class="note">Saved preference - friend requests aren't implemented yet.</div></div>
+          <div class="meta"><div>Allow friend requests</div><div class="note">When off, nobody new can send you a friend request.</div></div>
           <label class="switch"><input type="checkbox" id="prAllowFriends" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Allow match invites from anyone</div><div class="note">When off, only your friends can invite you to a match.</div></div>
+          <label class="switch"><input type="checkbox" id="prAllowInvites" checked /><span class="slider-toggle"></span></label>
         </div>
         <button class="btn btn-primary" id="savePrivacyBtn" style="margin-top:14px;">Save Privacy Settings</button>
 
@@ -460,6 +464,7 @@
         document.getElementById('prShowProfile').checked = currentSettings.showProfile !== false;
         document.getElementById('prShowOnline').checked = currentSettings.showOnline !== false;
         document.getElementById('prAllowFriends').checked = currentSettings.allowFriends !== false;
+        document.getElementById('prAllowInvites').checked = currentSettings.allowInvites !== false;
 
         document.getElementById('nEmailResults').checked = currentSettings.emailResults !== false;
         document.getElementById('nEmailTournament').checked = Boolean(currentSettings.emailTournament);
@@ -661,6 +666,7 @@
               showProfile: document.getElementById('prShowProfile').checked,
               showOnline: document.getElementById('prShowOnline').checked,
               allowFriends: document.getElementById('prAllowFriends').checked,
+              allowInvites: document.getElementById('prAllowInvites').checked,
             },
           },
         });

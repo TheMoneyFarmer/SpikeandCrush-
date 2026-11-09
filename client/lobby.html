@@ -450,9 +450,10 @@
                       `;
                     })
                     .join('')
-                : '<div class="tw-friends-empty">No friends yet - add some from the Friends panel.</div>'
+                : '<div class="tw-friends-empty">No friends yet. Find players to invite below.</div>'
             }
           </div>
+          <button class="btn btn-outline" id="inviteFindBtn" style="width:100%;margin-top:12px;">Find players to invite</button>
           <div style="display:flex;gap:8px;margin-top:14px;">
             <button class="btn" id="inviteCancelBtn" style="flex:1;">Cancel</button>
             <button class="btn btn-primary" id="inviteSendBtn" style="flex:1;">Send Invites</button>
@@ -462,6 +463,10 @@
       document.body.appendChild(backdrop);
       backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
       backdrop.querySelector('#inviteCancelBtn').addEventListener('click', () => backdrop.remove());
+      backdrop.querySelector('#inviteFindBtn').addEventListener('click', () => {
+        backdrop.remove();
+        TW.FriendsPanel.open('find');
+      });
       backdrop.querySelector('#inviteSendBtn').addEventListener('click', async () => {
         const targetIds = Array.from(backdrop.querySelectorAll('input[type=checkbox]:checked')).map((el) => el.value);
         if (!targetIds.length) { TW.toast('Select at least one friend', 'warning'); return; }

@@ -1,0 +1,174 @@
+/* Friends panel and match invite pop-ups. Colours come from css/palette.css. */
+
+.twf-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(2, 6, 18, 0.5);
+}
+
+.twf-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 100vw);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--c-deep);
+  color: var(--c-on);
+  border-left: 1px solid var(--c-hair);
+  box-shadow: -18px 0 50px var(--c-shadow);
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.twf-open .twf-panel { transform: translateX(0); }
+.twf-panel[hidden], .twf-backdrop[hidden] { display: none; }
+
+.twf-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; }
+.twf-head h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--c-on); }
+.twf-close {
+  width: 44px; height: 44px; margin-right: -8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 50%; background: transparent; color: var(--c-on); cursor: pointer;
+}
+.twf-close:hover { background: var(--c-ghost); }
+
+.twf-tabs { display: flex; gap: 4px; margin: 0 16px; padding: 4px; border-radius: 12px; background: var(--c-ghost); }
+.twf-tabs button {
+  flex: 1; min-height: 40px; padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 0; border-radius: 9px; background: transparent; color: var(--c-body);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.twf-tabs button:hover { color: var(--c-on); }
+.twf-tabs button.active { background: var(--c-card-2); color: var(--c-on); }
+
+.twf-count {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--c-spike); color: #06281a; font-size: 11px; font-weight: 800;
+}
+.twf-count.alert { background: var(--c-crush); color: #fff; }
+.twf-count[hidden] { display: none; }
+
+.twf-search {
+  display: flex; align-items: center; gap: 8px; margin: 12px 16px 0; padding: 0 12px;
+  border: 1px solid var(--c-hair-2); border-radius: 10px; background: var(--c-canvas); color: var(--c-mute);
+}
+.twf-search[hidden] { display: none; }
+.twf-search:focus-within { border-color: var(--c-link); }
+.twf-search input {
+  flex: 1; min-width: 0; min-height: 44px; border: 0; outline: 0; background: transparent;
+  color: var(--c-on); font: inherit; font-size: 16px; /* 16px stops phones zooming in */
+}
+.twf-search input::placeholder { color: var(--c-mute); }
+
+.twf-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 16px 20px; }
+
+.twf-label {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  margin: 16px 0 6px; padding: 0; border: 0; background: none;
+  color: var(--c-mute); font: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.twf-toggle { min-height: 36px; cursor: pointer; }
+.twf-toggle:hover { color: var(--c-on); }
+.twf-none { padding: 6px 0 2px; color: var(--c-mute); font-size: 13px; }
+
+.twf-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px 0; }
+.twf-empty p { margin: 0; color: var(--c-body); }
+
+.twf-row { padding: 12px 0; border-top: 1px solid var(--c-hair); }
+.twf-label + .twf-row { border-top: 0; }
+.twf-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.twf-avatar { position: relative; flex-shrink: 0; width: 40px; height: 40px; display: grid; place-items: center; }
+.twf-dot {
+  position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--c-mute); border: 2px solid var(--c-deep);
+}
+.twf-dot.online { background: var(--c-spike); }
+.twf-dot.in_lobby { background: var(--c-gold); }
+.twf-dot.in_match { background: var(--c-crush); }
+.twf-dot.null, .twf-dot.offline { background: var(--c-mute); }
+.twf-text { flex: 1; min-width: 0; }
+.twf-name { font-weight: 700; color: var(--c-on); overflow-wrap: anywhere; }
+.twf-name a { color: inherit; text-decoration: none; }
+.twf-sub { margin-top: 1px; color: var(--c-mute); font-size: 12px; }
+.twf-more {
+  flex-shrink: 0; width: 40px; height: 40px; margin-right: -8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 50%; background: transparent; color: var(--c-body); cursor: pointer;
+}
+.twf-more:hover, .twf-more[aria-expanded="true"] { background: var(--c-ghost); color: var(--c-on); }
+
+.twf-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.twf-row > .twf-actions { margin: 8px 0 0 50px; }
+.twf-row > .twf-actions:empty { display: none; }
+.twf-btn {
+  min-height: 38px; padding: 0 12px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--c-hair-2); border-radius: 9px; background: transparent; color: var(--c-on);
+  font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
+  transition: background 0.12s ease, transform 0.08s ease;
+}
+.twf-btn:hover { background: var(--c-ghost); }
+.twf-btn:active { transform: scale(0.97); }
+.twf-btn:disabled { opacity: 0.55; cursor: default; transform: none; }
+.twf-btn.primary { border-color: transparent; background: var(--c-blue); color: #fff; }
+.twf-btn.primary:hover { background: var(--c-blue-press); }
+.twf-btn.danger { border-color: transparent; color: var(--c-crush); }
+.twf-btn.danger:hover { background: var(--c-ghost); }
+.twf-panel a:focus-visible, .twf-panel button:focus-visible, .twf-invite button:focus-visible, #twFriendsToggleBtn:focus-visible {
+  outline: 2px solid var(--c-focus); outline-offset: 2px;
+}
+
+.twf-tag {
+  display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 6px;
+  background: var(--c-ghost); color: var(--c-body); font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.twf-tag.near { padding: 1px 6px; font-size: 11px; color: var(--c-spike); vertical-align: 1px; }
+
+.twf-confirm { margin: 10px 0 0 50px; padding: 10px 12px; border-radius: 10px; background: var(--c-ghost); }
+.twf-confirm p { margin: 0 0 8px; color: var(--c-body); font-size: 13px; }
+
+/* Match invites: top right, under the header, clear of the phone tab bar. */
+.twf-invites {
+  position: fixed; top: calc(70px + env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
+  z-index: 10002; display: flex; flex-direction: column; gap: 10px;
+  width: min(340px, calc(100vw - 32px)); pointer-events: none;
+}
+.twf-invite {
+  pointer-events: auto; padding: 14px; border-radius: 14px;
+  background: var(--c-elev); color: var(--c-on); border: 1px solid var(--c-hair-2);
+  box-shadow: 0 14px 40px var(--c-shadow); font-size: 14px; line-height: 1.4;
+  animation: twf-invite-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes twf-invite-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+.twf-invite-title {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+  color: var(--c-gold); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.twf-invite-text { margin: 0; color: var(--c-on); overflow-wrap: anywhere; }
+.twf-invite-sub { margin: 4px 0 10px; color: var(--c-mute); font-size: 12px; }
+.twf-invite-bar { height: 3px; margin-bottom: 10px; border-radius: 2px; background: var(--c-ghost); overflow: hidden; }
+.twf-invite-bar span { display: block; height: 100%; background: var(--c-gold); transform-origin: left; transition: transform 0.25s linear; }
+
+@media (prefers-reduced-motion: reduce) {
+  .twf-panel, .twf-btn, .twf-invite-bar span { transition: none; }
+  .twf-invite { animation: none; }
+}
+
+/* The panel owns this corner of the screen while it's open. */
+.twf-open #twSupportWidgetRoot { display: none; }
+
+/* Messages from panel actions have to show above the panel. */
+#twToast { z-index: 10003; }
+
+/* The search box's border is the focus ring, so the input needs none of its own. */
+.twf-search input:focus, .twf-search input:focus-visible { outline: none; box-shadow: none; border: 0; }

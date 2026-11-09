@@ -2,401 +2,728 @@
 
 window.TW = window.TW || {};
 
-// Persistent, COD-style friends panel + invite popup system (Block 12).
-// Included on every authenticated page; self-injects its own DOM rather than
-// requiring each page to carry a placeholder div.
+// The Friends panel, opened from the icon in the header: your friends and what
+// they're doing, players online now, username search, and requests. Also shows
+// match invites from anywhere on the site.
+//
+// One click listener on the panel handles every button, so redrawing the list
+// can't lose a click. The panel only closes from its close button, the dimmed
+// area behind it, or Escape: it never guesses that a click was "outside".
 TW.FriendsPanel = (function () {
   let friends = [];
-  let currentLobbyId = null;
-  let collapsed = false;
+  let incoming = [];
+  let outgoing = [];
+  let onlinePlayers = null; // null until the first load
+  let onlineError = false;
+  let searchResults = null;
+  let searchError = false;
+  let query = '';
+  let searchSeq = 0;
+  let searchTimer = null;
+  let tab = 'friends';
+  let isOpen = false;
   let offlineExpanded = false;
-  const activeInvites = new Map(); // inviteId -> { data, expiresAt, el, tickTimer }
+  let expandedRow = null; // "more" actions showing for this player id
+  let confirming = null; // { kind: 'remove' | 'block' | 'host', id }
+  let currentLobbyId = null;
+  let friendsLoaded = false;
+  let lastFocus = null;
+  const activeInvites = new Map(); // inviteId -> { data, el, tickTimer }
+  const busy = new Set(); // player ids with a request on its way
 
-  function avatarColor(seed) {
-    let hash = 0;
-    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-    const hue = hash % 360;
-    return `hsl(${hue}, 65%, 45%)`;
+  const esc = (v) => TW.escapeHtml(String(v == null ? '' : v));
+  const icon = (name, size = 18) => (TW.icon ? TW.icon(name, { size }) : '');
+  const el = (id) => document.getElementById(id);
+  const toast = (msg, type = 'info') => TW.toast && TW.toast(msg, type);
+  const sound = (name) => TW.Sound && TW.Sound.play(name);
+
+  function statusText(p) {
+    if (p.status === 'online') return 'Online';
+    if (p.status === 'in_lobby') return p.mode ? `In a lobby: ${p.mode}` : 'In a lobby';
+    if (p.status === 'in_match') return p.mode ? `In a match: ${p.mode}` : 'In a match';
+    if (p.status == null) return '';
+    if (p.lastSeen && TW.timeAgo) return `Last seen ${TW.timeAgo(p.lastSeen)}`;
+    return 'Offline';
+  }
+  const isReachable = (p) => p.status === 'online' || p.status === 'in_lobby';
+
+  // ---- rows ------------------------------------------------------------------
+
+  function button(act, id, label, opts = {}) {
+    const name = opts.name ? ` data-name="${esc(opts.name)}"` : '';
+    const extra = opts.value ? ` data-value="${esc(opts.value)}"` : '';
+    const off = opts.disabled || busy.has(id) ? ' disabled' : '';
+    const cls = opts.primary ? 'twf-btn primary' : opts.danger ? 'twf-btn danger' : 'twf-btn';
+    return `<button type="button" class="${cls}" data-act="${act}" data-id="${esc(id)}"${name}${extra}${off}>${opts.icon ? icon(opts.icon, 16) : ''}<span>${esc(label)}</span></button>`;
   }
 
-  const timeAgo = (ms) => (!ms ? 'a while ago' : TW.timeAgo ? TW.timeAgo(ms) : '');
-
-  function statusText(f) {
-    if (f.status === 'online') return 'Online — Trading Floor';
-    if (f.status === 'in_lobby') return `In Lobby: ${f.mode || 'War'}`;
-    if (f.status === 'in_match') return `In Match: ${f.mode || 'War'}`;
-    return `Last seen ${timeAgo(f.lastSeen)}`;
-  }
-
-  function friendCardHtml(f) {
-    const canJoin = f.status === 'in_lobby';
-    const canInvite = f.status === 'online' && currentLobbyId;
-    const canSpectate = f.status === 'in_match';
-    let actionsHtml = `<button class="tw-view-profile-btn" data-username="${TW.escapeHtml(f.username)}">👤 Profile</button>`;
-    if (canJoin) actionsHtml = `<button class="primary tw-join-friend-btn" data-lobby="${f.lobbyId}">Join</button>` + actionsHtml;
-    else if (canInvite) actionsHtml = `<button class="primary tw-invite-friend-btn" data-id="${f.id}">Invite</button>` + actionsHtml;
-    else if (canSpectate) actionsHtml = `<button class="primary tw-spectate-friend-btn" data-match="${f.matchId}">Spectate</button>` + actionsHtml;
-
+  function confirmHtml(p) {
+    if (!confirming || confirming.id !== p.id) return '';
+    const text = {
+      remove: `Remove ${p.username} from your friends?`,
+      block: `Block ${p.username}? You won't see each other here, and any friendship or request between you ends.`,
+      host: `Start a private match and invite ${p.username}? Hosting costs you 1 coin when it starts. Guests play free.`,
+    }[confirming.kind];
+    const yes = { remove: 'Remove', block: 'Block', host: 'Start match' }[confirming.kind];
     return `
-      <div class="tw-friend-card" data-friend-id="${f.id}">
-        <div class="tw-friend-card-top">
-          <div class="tw-friend-avatar" style="background:transparent;">
-            ${TW.createAvatar(f, 'sm')}
-            <span class="tw-friend-status-dot ${f.status}"></span>
-          </div>
-          <div>
-            <div class="tw-friend-name">${TW.renderUsername(f)}</div>
-            <div class="tw-friend-meta">${TW.TIER_ICON[f.tier]} ${f.warRating}</div>
-          </div>
+      <div class="twf-confirm" role="group" aria-label="Confirm">
+        <p>${esc(text)}</p>
+        <div class="twf-actions">
+          ${button(`confirm-${confirming.kind}`, p.id, yes, { primary: confirming.kind === 'host', danger: confirming.kind !== 'host', name: p.username })}
+          ${button('confirm-cancel', p.id, 'Cancel')}
         </div>
-        <div class="tw-friend-status-text">${statusText(f)}</div>
-        <div class="tw-friend-actions">${actionsHtml}</div>
-      </div>
-    `;
+      </div>`;
+  }
+
+  function relationButtons(p) {
+    if (p.relation === 'friend') return `<span class="twf-tag">Friends</span>`;
+    if (p.relation === 'sent') return button('cancel', p.id, 'Cancel request', { value: p.requestId });
+    if (p.relation === 'received') {
+      return button('accept', p.id, 'Accept', { value: p.requestId, primary: true, icon: 'check', name: p.username }) +
+        button('reject', p.id, 'Reject', { value: p.requestId });
+    }
+    if (p.acceptsFriendRequests === false) return `<span class="twf-tag">Not accepting requests</span>`;
+    return button('add', p.id, 'Add friend', { primary: true, icon: 'userPlus', name: p.username });
+  }
+
+  function playActions(p) {
+    if (p.relation === 'friend' && p.status === 'in_lobby') {
+      return button('join', p.id, 'Join', { primary: true, icon: 'swords', name: p.username });
+    }
+    if (p.status === 'in_match' && p.matchId) return button('watch', p.id, 'Watch', { value: p.matchId, icon: 'eye' });
+    if (isReachable(p) && p.acceptsInvites !== false) {
+      return button('invite', p.id, 'Invite to play', { icon: 'swords', name: p.username, primary: p.relation === 'friend' });
+    }
+    return '';
+  }
+
+  function rowHtml(p, { showRelation = false, tag = '' } = {}) {
+    const moreOpen = expandedRow === p.id;
+    const avatar = TW.createAvatar ? TW.createAvatar({ ...p }, 'md') : '';
+    const rating = p.warRating != null ? `${TW.TIER_ICON ? TW.TIER_ICON[p.tier] || '' : ''} ${esc(p.warRating)}` : '';
+    const name = TW.renderUsername ? TW.renderUsername(p) : esc(p.username);
+    const status = esc(statusText(p));
+    const sub = [status, rating].filter(Boolean).join(' · ');
+    return `
+      <div class="twf-row" data-row="${esc(p.id)}">
+        <div class="twf-who">
+          <div class="twf-avatar">${avatar}${p.status ? `<span class="twf-dot ${esc(p.status)}" aria-hidden="true"></span>` : ''}</div>
+          <div class="twf-text">
+            <div class="twf-name">${name}${tag ? ` <span class="twf-tag near">${esc(tag)}</span>` : ''}</div>
+            <div class="twf-sub">${sub}</div>
+          </div>
+          <button type="button" class="twf-more" data-act="more" data-id="${esc(p.id)}" aria-label="More for ${esc(p.username)}" aria-expanded="${moreOpen}">${icon('moreHorizontal', 18)}</button>
+        </div>
+        <div class="twf-actions">${playActions(p)}${showRelation ? relationButtons(p) : ''}</div>
+        ${moreOpen ? `
+          <div class="twf-actions twf-more-row">
+            <a class="twf-btn" href="/profile/${encodeURIComponent(p.username)}">${icon('user', 16)}<span>Profile</span></a>
+            ${p.relation === 'friend' ? button('ask-remove', p.id, 'Remove friend', { name: p.username }) : ''}
+            ${button('ask-block', p.id, 'Block', { name: p.username, danger: true })}
+          </div>` : ''}
+        ${confirmHtml(p)}
+      </div>`;
+  }
+
+  const label = (text) => `<div class="twf-label">${esc(text)}</div>`;
+  const empty = (text, actionHtml = '') => `<div class="twf-empty"><p>${esc(text)}</p>${actionHtml}</div>`;
+
+  // ---- tabs ------------------------------------------------------------------
+
+  function friendsTabHtml() {
+    if (!friendsLoaded) return `<div class="twf-empty"><p>Loading…</p></div>`;
+    if (!friends.length) {
+      return empty('No friends yet. Find someone to play with.', button('go-find', 'find', 'Find players', { primary: true, icon: 'search' }));
+    }
+    const asFriend = (f) => ({ ...f, relation: 'friend' });
+    const online = friends.filter(isReachable).map(asFriend);
+    const inMatch = friends.filter((f) => f.status === 'in_match').map(asFriend);
+    const offline = friends.filter((f) => f.status === 'offline').map(asFriend);
+    let html = label(`Online (${online.length})`);
+    html += online.length ? online.map((f) => rowHtml(f)).join('') : `<div class="twf-none">No friends online right now.</div>`;
+    if (inMatch.length) html += label(`In a match (${inMatch.length})`) + inMatch.map((f) => rowHtml(f)).join('');
+    html += `<button type="button" class="twf-label twf-toggle" data-act="toggle-offline" aria-expanded="${offlineExpanded}">Offline (${offline.length})${icon(offlineExpanded ? 'chevronUp' : 'chevronDown', 16)}</button>`;
+    if (offlineExpanded) html += offline.length ? offline.map((f) => rowHtml(f)).join('') : `<div class="twf-none">Nobody offline.</div>`;
+    return html;
+  }
+
+  function findTabHtml() {
+    if (query.length >= 2) {
+      if (searchError) return empty('Search failed. Check your connection and try again.');
+      if (searchResults === null) return `<div class="twf-empty"><p>Searching…</p></div>`;
+      if (!searchResults.length) return empty(`Nobody found for "${query}".`);
+      return label('Results') + searchResults.map((p) => rowHtml(p, { showRelation: true })).join('');
+    }
+    if (query.length === 1) return `<div class="twf-none">Keep typing: at least 2 letters.</div>`;
+    if (onlineError) return empty('Could not load players.', button('retry-online', 'online', 'Try again'));
+    if (onlinePlayers === null) return `<div class="twf-empty"><p>Loading…</p></div>`;
+    if (!onlinePlayers.length) {
+      return label('Online now') + empty('Nobody else is online right now. Search for a username above, or bring a friend.', `<a class="twf-btn primary" href="/wallet">${icon('userPlus', 16)}<span>Get my invite link</span></a>`);
+    }
+    return label('Online now, closest to you first') +
+      onlinePlayers.map((p) => rowHtml(p, { showRelation: true, tag: p.sameCountry ? 'Near you' : '' })).join('');
+  }
+
+  function requestsTabHtml() {
+    const person = (r) => ({ id: r.playerId, username: r.username, tier: r.tier, warRating: r.warRating, avatarUrl: r.avatarUrl, requestId: r.requestId });
+    let html = label(`Waiting for you (${incoming.length})`);
+    html += incoming.length
+      ? incoming.map((r) => rowHtml({ ...person(r), relation: 'received', status: null }, { showRelation: true })).join('')
+      : `<div class="twf-none">No requests right now.</div>`;
+    if (outgoing.length) {
+      html += label(`Sent (${outgoing.length})`);
+      html += outgoing.map((r) => rowHtml({ ...person(r), relation: 'sent', status: null }, { showRelation: true })).join('');
+    }
+    return html;
   }
 
   function render() {
-    const body = document.getElementById('twFriendsPanelBody');
+    syncButton();
+    const body = el('twfBody');
     if (!body) return;
-    const online = friends.filter((f) => f.status === 'online' || f.status === 'in_lobby');
-    const inMatch = friends.filter((f) => f.status === 'in_match');
-    const offline = friends.filter((f) => f.status === 'offline');
-
-    let html = '';
-    html += `<div class="tw-friends-section-label">Online Now (${online.length})</div>`;
-    html += online.length ? online.map(friendCardHtml).join('') : '<div class="tw-friends-empty">No friends online right now.</div>';
-
-    if (inMatch.length) {
-      html += `<div class="tw-friends-section-label">In A Match (${inMatch.length})</div>`;
-      html += inMatch.map(friendCardHtml).join('');
-    }
-
-    html += `<div class="tw-friends-section-label collapsible" id="twOfflineToggle">Offline (${offline.length}) ${offlineExpanded ? '▲' : '▼'}</div>`;
-    if (offlineExpanded) {
-      html += offline.length ? offline.map(friendCardHtml).join('') : '<div class="tw-friends-empty">No offline friends.</div>';
-    }
-
-    body.innerHTML = html;
-    wireCardActions(body);
-    document.getElementById('twOfflineToggle')?.addEventListener('click', () => {
-      offlineExpanded = !offlineExpanded;
-      render();
+    const counts = { friends: friends.filter((f) => f.status !== 'offline').length, requests: incoming.length };
+    document.querySelectorAll('#twFriendsPanel [data-tab]').forEach((t) => {
+      const on = t.dataset.tab === tab;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', String(on));
+      const c = t.querySelector('.twf-count');
+      if (c) {
+        const n = counts[t.dataset.tab] || 0;
+        c.textContent = n;
+        c.hidden = n === 0;
+      }
     });
+    el('twfSearchWrap').hidden = tab !== 'find';
+    const top = body.scrollTop;
+    body.innerHTML = tab === 'friends' ? friendsTabHtml() : tab === 'find' ? findTabHtml() : requestsTabHtml();
+    body.scrollTop = top;
   }
 
-  function wireCardActions(root) {
-    root.querySelectorAll('.tw-view-profile-btn').forEach((btn) => {
-      btn.addEventListener('click', () => { window.location.href = `/profile/${encodeURIComponent(btn.dataset.username)}`; });
-    });
-    root.querySelectorAll('.tw-spectate-friend-btn').forEach((btn) => {
-      btn.addEventListener('click', () => { window.location.href = `/spectate.html?matchId=${btn.dataset.match}`; });
-    });
-    root.querySelectorAll('.tw-join-friend-btn').forEach((btn) => {
-      btn.addEventListener('click', () => { window.location.href = `/lobby.html?matchId=${btn.dataset.lobby}`; });
-    });
-    root.querySelectorAll('.tw-invite-friend-btn').forEach((btn) => {
-      btn.addEventListener('click', () => sendInvite([btn.dataset.id]));
-    });
+  function syncButton() {
+    const btn = el('twFriendsToggleBtn');
+    if (!btn) return;
+    btn.classList.remove('hidden');
+    btn.setAttribute('aria-expanded', String(isOpen));
+    const onlineCount = friends.filter((f) => f.status !== 'offline').length;
+    const badge = el('twFriendsOnlineBadge');
+    const parts = [];
+    if (incoming.length) parts.push(`${incoming.length} friend ${incoming.length === 1 ? 'request' : 'requests'}`);
+    if (onlineCount) parts.push(`${onlineCount} online`);
+    btn.setAttribute('aria-label', parts.length ? `Friends, ${parts.join(', ')}` : 'Friends');
+    if (!badge) return;
+    // Requests matter most, so they take the badge and turn it red.
+    const n = incoming.length || onlineCount;
+    badge.textContent = n > 99 ? '99+' : n;
+    badge.classList.toggle('hidden', n === 0);
+    badge.classList.toggle('alert', incoming.length > 0);
   }
 
-  async function sendInvite(targetIds) {
-    if (!currentLobbyId) {
-      TW.toast('You need to be in a lobby to invite friends', 'warning');
-      return;
-    }
-    const result = await TW.emitAck('lobby:invite', { targetIds, matchId: currentLobbyId });
-    if (result.success) TW.toast(`Invite sent to ${result.sentTo.length} friend${result.sentTo.length === 1 ? '' : 's'}`, 'info');
-    else TW.toast(result.error || 'Could not send invite', 'danger');
-  }
+  // ---- data ------------------------------------------------------------------
 
   async function loadFriends() {
     try {
       const data = await TW.api('/api/friends');
       friends = data.friends;
-      render();
-      updateToggleBadge();
+      friendsLoaded = true;
+      safeRender();
     } catch (e) {
-      // Not fatal - panel just stays empty until the next refresh.
+      // Stays as it was until the next refresh.
     }
   }
 
-  function updateToggleBadge() {
-    const badge = document.getElementById('twFriendsOnlineBadge');
-    if (!badge) return;
-    const onlineCount = friends.filter((f) => f.status !== 'offline').length;
-    badge.textContent = onlineCount;
-    badge.classList.toggle('hidden', onlineCount === 0);
-    const toggleBtn = document.getElementById('twFriendsToggleBtn');
-    if (toggleBtn) toggleBtn.title = `Friends (${onlineCount})`;
-  }
-
-  let outsideClickHandler = null;
-
-  function setCollapsed(next) {
-    collapsed = next;
-    document.getElementById('twFriendsPanel')?.classList.toggle('collapsed', collapsed);
+  async function loadRequests() {
     try {
-      localStorage.setItem('tw_friends_panel_collapsed', collapsed ? '1' : '0');
-    } catch (e) {}
-
-    // A tray, not a layout column: open state gets a click-outside-to-close
-    // backdrop (same idea as the hamburger drawer) instead of ever shifting
-    // or resizing page content.
-    const existingBackdrop = document.getElementById('twFriendsPanelBackdrop');
-    if (!collapsed && !existingBackdrop) {
-      const backdrop = document.createElement('div');
-      backdrop.id = 'twFriendsPanelBackdrop';
-      backdrop.className = 'tw-friends-panel-backdrop';
-      document.body.appendChild(backdrop);
-      outsideClickHandler = (e) => {
-        const panel = document.getElementById('twFriendsPanel');
-        const toggleBtn = document.getElementById('twFriendsToggleBtn');
-        if (panel && !panel.contains(e.target) && e.target !== toggleBtn && !toggleBtn?.contains(e.target)) {
-          setCollapsed(true);
-        }
-      };
-      setTimeout(() => document.addEventListener('click', outsideClickHandler), 0);
-    } else if (collapsed && existingBackdrop) {
-      existingBackdrop.remove();
-      if (outsideClickHandler) {
-        document.removeEventListener('click', outsideClickHandler);
-        outsideClickHandler = null;
-      }
+      const data = await TW.api('/api/friends/requests');
+      incoming = data.incoming;
+      outgoing = data.outgoing;
+      safeRender();
+    } catch (e) {
+      // Stays as it was until the next refresh.
     }
   }
 
-  function applyPresenceUpdate(payload) {
-    const idx = friends.findIndex((f) => f.id === payload.playerId);
-    if (idx === -1) return; // not a friend we're tracking (or list not loaded yet)
-    friends[idx] = { ...friends[idx], status: payload.status, matchId: payload.matchId, lobbyId: payload.lobbyId, mode: payload.mode, lastSeen: Date.now() };
-    render();
-    updateToggleBadge();
+  async function loadOnline() {
+    try {
+      const data = await TW.api('/api/players/online');
+      onlinePlayers = data.players;
+      onlineError = false;
+    } catch (e) {
+      onlineError = onlinePlayers === null;
+    }
+    if (isOpen && tab === 'find' && query.length < 2) safeRender();
   }
 
-  // ---- add friend search modal ------------------------------------------------
+  // Background refreshes mustn't fold away a row someone is using.
+  function safeRender() {
+    if (isOpen && (expandedRow || confirming)) syncButton();
+    else render();
+  }
 
-  function openSearchModal() {
+  async function runSearch() {
+    const mine = ++searchSeq;
+    searchError = false;
+    try {
+      const data = await TW.api(`/api/players/search?q=${encodeURIComponent(query)}`);
+      if (mine !== searchSeq) return; // a newer search is on its way
+      searchResults = data.players;
+    } catch (e) {
+      if (mine !== searchSeq) return;
+      searchResults = null;
+      searchError = true;
+    }
+    render();
+  }
+
+  // After a friend request changes, every list that shows that player updates.
+  function patchPlayer(id, patch) {
+    const fix = (p) => (p.id === id ? { ...p, ...patch } : p);
+    if (onlinePlayers) onlinePlayers = onlinePlayers.map(fix);
+    if (searchResults) searchResults = searchResults.map(fix);
+  }
+  function removeEverywhere(id) {
+    friends = friends.filter((f) => f.id !== id);
+    incoming = incoming.filter((r) => r.playerId !== id);
+    outgoing = outgoing.filter((r) => r.playerId !== id);
+    if (onlinePlayers) onlinePlayers = onlinePlayers.filter((p) => p.id !== id);
+    if (searchResults) searchResults = searchResults.filter((p) => p.id !== id);
+  }
+
+  // ---- inviting --------------------------------------------------------------
+
+  const SKIP_TEXT = {
+    offline: (n) => `${n} isn't online right now`,
+    busy: (n) => `${n} is in a match right now`,
+    not_accepting: (n) => `${n} isn't accepting invites`,
+    already_invited: (n) => `You already invited ${n}`,
+    too_many: () => 'You have sent a lot of invites. Try again in a few minutes.',
+  };
+
+  async function sendInvite(targetIds, name) {
+    if (!currentLobbyId) {
+      toast('You need to be in a lobby to invite players', 'warning');
+      return false;
+    }
+    const result = await TW.emitAck('lobby:invite', { targetIds, matchId: currentLobbyId });
+    if (!result.success) {
+      toast(result.error || 'Could not send invite', 'danger');
+      return false;
+    }
+    const sent = (result.sentTo || []).length;
+    if (sent) toast(`Invite sent${name ? ` to ${name}` : ` to ${sent} ${sent === 1 ? 'player' : 'players'}`}`, 'info');
+    (result.skipped || []).forEach((s) => {
+      const text = SKIP_TEXT[s.reason];
+      toast(text ? text(name || 'That player') : 'Could not invite that player', 'warning');
+    });
+    return sent > 0;
+  }
+
+  async function connectedSocket() {
+    const socket = TW.connectSocket && TW.connectSocket();
+    if (socket && !socket.connected) {
+      await new Promise((resolve) => {
+        socket.once('connect', resolve);
+        setTimeout(resolve, 5000);
+      });
+    }
+    return socket;
+  }
+
+  // Not in a lobby yet: make a private one, invite them, then go to it.
+  async function hostAndInvite(id, name) {
+    const created = await TW.api('/api/match/create', { method: 'POST', body: { mode: 'private' } });
+    await connectedSocket();
+    const joined = await TW.emitAck('player:join', { matchId: created.matchId });
+    if (!joined.success) throw new Error(joined.error || 'Could not open the lobby');
+    currentLobbyId = created.matchId;
+    await sendInvite([id], name);
+    window.location.href = `/lobby.html?matchId=${created.matchId}`;
+  }
+
+  // ---- buttons ---------------------------------------------------------------
+
+  async function withBusy(id, work) {
+    busy.add(id);
+    render();
+    try {
+      await work();
+    } catch (e) {
+      toast(e.message || 'Something went wrong', 'danger');
+    } finally {
+      busy.delete(id);
+      render();
+    }
+  }
+
+  const ACTIONS = {
+    more(id) {
+      expandedRow = expandedRow === id ? null : id;
+      confirming = null;
+      render();
+    },
+    'toggle-offline'() {
+      offlineExpanded = !offlineExpanded;
+      render();
+    },
+    'go-find'() {
+      setTab('find');
+    },
+    'retry-online'() {
+      onlineError = false;
+      onlinePlayers = null;
+      render();
+      loadOnline();
+    },
+    add(id, btn) {
+      return withBusy(id, async () => {
+        const r = await TW.api('/api/friends/request', { method: 'POST', body: { targetId: id } });
+        patchPlayer(id, { relation: 'sent', requestId: r.requestId });
+        toast(`Friend request sent to ${btn.dataset.name}`, 'info');
+        loadRequests();
+      });
+    },
+    cancel(id, btn) {
+      return withBusy(id, async () => {
+        await TW.api(`/api/friends/requests/${encodeURIComponent(btn.dataset.value)}`, { method: 'DELETE' });
+        patchPlayer(id, { relation: 'none', requestId: null });
+        outgoing = outgoing.filter((r) => r.playerId !== id);
+      });
+    },
+    accept(id, btn) {
+      return withBusy(id, async () => {
+        await TW.api(`/api/friends/${encodeURIComponent(btn.dataset.value)}/accept`, { method: 'POST' });
+        patchPlayer(id, { relation: 'friend', requestId: null });
+        incoming = incoming.filter((r) => r.playerId !== id);
+        toast(`You and ${btn.dataset.name} are now friends`, 'info');
+        sound('success');
+        loadFriends();
+      });
+    },
+    reject(id, btn) {
+      return withBusy(id, async () => {
+        await TW.api(`/api/friends/${encodeURIComponent(btn.dataset.value)}/decline`, { method: 'POST' });
+        patchPlayer(id, { relation: 'none', requestId: null });
+        incoming = incoming.filter((r) => r.playerId !== id);
+      });
+    },
+    invite(id, btn) {
+      if (currentLobbyId) return withBusy(id, () => sendInvite([id], btn.dataset.name));
+      confirming = { kind: 'host', id };
+      render();
+      return undefined;
+    },
+    'confirm-host'(id, btn) {
+      confirming = null;
+      return withBusy(id, () => hostAndInvite(id, btn.dataset.name));
+    },
+    join(id) {
+      return withBusy(id, async () => {
+        const r = await TW.api(`/api/friends/${encodeURIComponent(id)}/join`, { method: 'POST' });
+        window.location.href = `/lobby.html?matchId=${encodeURIComponent(r.matchId)}`;
+      });
+    },
+    watch(id, btn) {
+      window.location.href = `/spectate.html?matchId=${encodeURIComponent(btn.dataset.value)}`;
+    },
+    'ask-remove'(id) {
+      confirming = { kind: 'remove', id };
+      render();
+    },
+    'ask-block'(id) {
+      confirming = { kind: 'block', id };
+      render();
+    },
+    'confirm-cancel'() {
+      confirming = null;
+      render();
+    },
+    'confirm-remove'(id, btn) {
+      confirming = null;
+      expandedRow = null;
+      return withBusy(id, async () => {
+        await TW.api(`/api/friends/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        friends = friends.filter((f) => f.id !== id);
+        patchPlayer(id, { relation: 'none', requestId: null });
+        toast(`${btn.dataset.name} removed`, 'info');
+      });
+    },
+    'confirm-block'(id, btn) {
+      confirming = null;
+      expandedRow = null;
+      return withBusy(id, async () => {
+        await TW.api('/api/friends/block', { method: 'POST', body: { targetId: id } });
+        removeEverywhere(id);
+        toast(`${btn.dataset.name} blocked. You can undo this in Settings.`, 'info');
+      });
+    },
+  };
+
+  // ---- open and close --------------------------------------------------------
+
+  function setTab(next) {
+    tab = next;
+    expandedRow = null;
+    confirming = null;
+    render();
+    if (next === 'find') {
+      loadOnline();
+      el('twfSearch')?.focus();
+    }
+    if (next === 'requests') loadRequests();
+    if (next === 'friends') loadFriends();
+  }
+
+  function open(nextTab) {
+    if (!el('twFriendsPanel')) return;
+    lastFocus = document.activeElement;
+    isOpen = true;
+    el('twFriendsPanel').hidden = false;
+    el('twfBackdrop').hidden = false;
+    // A frame later, so the slide-in plays.
+    requestAnimationFrame(() => document.documentElement.classList.add('twf-open'));
+    const wanted = nextTab || (incoming.length ? 'requests' : tab);
+    el('twfClose').focus();
+    setTab(wanted);
+    syncButton();
+  }
+
+  function close() {
+    if (!isOpen) return;
+    isOpen = false;
+    expandedRow = null;
+    confirming = null;
+    document.documentElement.classList.remove('twf-open');
+    el('twfBackdrop').hidden = true;
+    const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setTimeout(() => { if (!isOpen) el('twFriendsPanel').hidden = true; }, reduced ? 0 : 240);
+    syncButton();
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  function onKeydown(e) {
+    if (!isOpen) return;
+    if (e.key === 'Escape') {
+      close();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const items = [...el('twFriendsPanel').querySelectorAll('a[href],button:not([disabled]),input')].filter((n) => n.offsetParent !== null);
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
+  function injectPanel() {
+    if (el('twFriendsPanel')) return;
     const backdrop = document.createElement('div');
-    backdrop.className = 'tw-search-modal-backdrop';
-    backdrop.innerHTML = `
-      <div class="tw-search-modal">
-        <h3 style="margin-top:0;">Add Friend</h3>
-        <input type="text" id="twFriendSearchInput" placeholder="Search by username..." autocomplete="off" />
-        <div class="tw-search-results" id="twFriendSearchResults"></div>
-        <button class="btn" id="twSearchCloseBtn" style="margin-top:12px;">Close</button>
-      </div>
-    `;
+    backdrop.id = 'twfBackdrop';
+    backdrop.className = 'twf-backdrop';
+    backdrop.hidden = true;
+    backdrop.addEventListener('click', close);
     document.body.appendChild(backdrop);
-    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
-    backdrop.querySelector('#twSearchCloseBtn').addEventListener('click', () => backdrop.remove());
 
-    const input = backdrop.querySelector('#twFriendSearchInput');
-    const results = backdrop.querySelector('#twFriendSearchResults');
-    let debounceTimer = null;
-    input.addEventListener('input', () => {
-      clearTimeout(debounceTimer);
-      const q = input.value.trim();
-      if (q.length < 2) {
-        results.innerHTML = '';
+    const panel = document.createElement('aside');
+    panel.id = 'twFriendsPanel';
+    panel.className = 'twf-panel';
+    panel.hidden = true;
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Friends');
+    panel.innerHTML = `
+      <header class="twf-head">
+        <h2>Friends</h2>
+        <button type="button" class="twf-close" id="twfClose" aria-label="Close friends">${icon('close', 20)}</button>
+      </header>
+      <div class="twf-tabs" role="tablist">
+        <button type="button" role="tab" data-tab="friends">Friends <span class="twf-count" hidden></span></button>
+        <button type="button" role="tab" data-tab="find">Find players</button>
+        <button type="button" role="tab" data-tab="requests">Requests <span class="twf-count alert" hidden></span></button>
+      </div>
+      <div class="twf-search" id="twfSearchWrap" hidden>
+        ${icon('search', 18)}
+        <input type="search" id="twfSearch" placeholder="Search by username" aria-label="Search by username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30" />
+      </div>
+      <div class="twf-body" id="twfBody"></div>
+    `;
+    document.body.appendChild(panel);
+
+    panel.querySelector('#twfClose').addEventListener('click', close);
+    panel.addEventListener('click', (e) => {
+      const tabBtn = e.target.closest('[data-tab]');
+      if (tabBtn) {
+        setTab(tabBtn.dataset.tab);
         return;
       }
-      debounceTimer = setTimeout(async () => {
-        try {
-          const data = await TW.api(`/api/players/search?q=${encodeURIComponent(q)}`);
-          results.innerHTML = data.players.length
-            ? data.players
-                .map(
-                  (p) => `
-                    <div class="tw-search-result-row">
-                      ${TW.createAvatar(p, 'sm')}
-                      <div style="flex:1;">
-                        <div style="font-weight:700;font-size:13px;">${TW.renderUsername(p)}</div>
-                        <div style="font-size:11px;color:var(--text-secondary);">${TW.TIER_ICON[p.tier]} ${p.warRating}</div>
-                      </div>
-                      <button class="btn btn-primary" data-add="${p.id}" style="padding:6px 12px;font-size:12px;">Add</button>
-                    </div>
-                  `
-                )
-                .join('')
-            : '<div class="tw-friends-empty">No players found.</div>';
-          results.querySelectorAll('[data-add]').forEach((btn) => {
-            btn.addEventListener('click', async () => {
-              try {
-                await TW.api('/api/friends/request', { method: 'POST', body: { targetId: btn.dataset.add } });
-                btn.textContent = 'Sent';
-                btn.disabled = true;
-              } catch (e) {
-                TW.toast(e.message, 'danger');
-              }
-            });
-          });
-        } catch (e) {
-          results.innerHTML = `<div class="tw-friends-empty">${TW.escapeHtml(e.message)}</div>`;
-        }
-      }, 300);
+      const btn = e.target.closest('[data-act]');
+      if (!btn || btn.disabled) return;
+      const action = ACTIONS[btn.dataset.act];
+      if (action) action(btn.dataset.id, btn);
     });
-    input.focus();
+    panel.querySelector('#twfSearch').addEventListener('input', (e) => {
+      query = e.target.value.trim();
+      clearTimeout(searchTimer);
+      searchSeq++;
+      searchResults = null;
+      searchError = false;
+      expandedRow = null;
+      confirming = null;
+      render();
+      if (query.length >= 2) searchTimer = setTimeout(runSearch, 250);
+    });
   }
 
-  // ---- battle invite popups (COD style) ----------------------------------------
+  // ---- match invite pop-ups --------------------------------------------------
 
   function ensureInviteStack() {
-    let stack = document.getElementById('twInviteStack');
+    let stack = el('twInviteStack');
     if (!stack) {
       stack = document.createElement('div');
       stack.id = 'twInviteStack';
-      stack.className = 'tw-invite-stack';
+      stack.className = 'twf-invites';
+      stack.setAttribute('aria-live', 'polite');
       document.body.appendChild(stack);
     }
     return stack;
   }
 
   function showInvitePopup(invite) {
-    if (activeInvites.size >= 3) {
-      // Oldest (bottom of stack, since newest renders on top) gets dropped
-      // silently rather than growing unbounded - matches "max 3 visible".
-      const oldestId = activeInvites.keys().next().value;
-      dismissInvite(oldestId, 'declining');
-    }
-    const stack = ensureInviteStack();
-    const el = document.createElement('div');
-    el.className = 'tw-invite-popup';
-    const extraCount = Math.max(0, (invite.instruments || []).length - 3);
-    const instrumentsLabel = (invite.instruments || []).slice(0, 3).join(' · ') + (extraCount > 0 ? ` + ${extraCount} more instruments` : '');
-    el.innerHTML = `
-      <div class="tw-invite-title">⚔️ BATTLE INVITE</div>
-      <div class="tw-invite-body">
-        <div class="tw-friend-avatar" style="background:${avatarColor(invite.fromUsername)};">${invite.fromUsername[0].toUpperCase()}</div>
-        <div>
-          <div class="name">${TW.escapeHtml(invite.fromUsername)} <span style="font-weight:400;color:var(--text-secondary);">(${TW.escapeHtml(invite.fromTier)})</span></div>
-          <div class="sub">invites you to ${TW.escapeHtml(invite.matchMode)}</div>
-          <div class="sub">${TW.escapeHtml(instrumentsLabel)}</div>
-          <div class="sub">${invite.currentPlayers}/${invite.maxPlayers} players · Lobby open</div>
-        </div>
-      </div>
-      <div class="tw-invite-progress-wrap"><div class="tw-invite-progress-bar" id="bar-${invite.id}" style="width:100%;"></div></div>
-      <div class="tw-invite-expiry-label" id="label-${invite.id}">expires in 60s</div>
-      <div class="tw-invite-actions">
-        <button class="accept" id="accept-${invite.id}">✓ ACCEPT</button>
-        <button class="decline" id="decline-${invite.id}">✗ DECLINE</button>
-      </div>
-    `;
-    stack.appendChild(el);
-    // Spec asks for impact-1.wav specifically - that's the file behind the
-    // existing card_play effect (see sound.js's sabotage_play mapping).
-    if (TW.Sound) TW.Sound.play('card_play');
+    if (activeInvites.has(invite.id)) return;
+    if (activeInvites.size >= 3) dismissInvite(activeInvites.keys().next().value);
+    const box = document.createElement('div');
+    box.className = 'twf-invite';
+    const fee = invite.entryCoins > 0 ? `Entry: ${invite.entryCoins} coins, paid if you accept` : 'Free to join';
+    box.innerHTML = `
+      <div class="twf-invite-title">${icon('swords', 16)}<span>Match invite</span></div>
+      <p class="twf-invite-text"><strong>${esc(invite.fromUsername)}</strong>${invite.fromFriend ? '' : ' <span class="twf-tag">Not a friend</span>'} invited you to ${esc(invite.matchMode)}.</p>
+      <p class="twf-invite-sub">${esc(fee)} · ${esc(invite.currentPlayers)}/${esc(invite.maxPlayers)} players</p>
+      <div class="twf-invite-bar"><span></span></div>
+      <div class="twf-actions">
+        <button type="button" class="twf-btn primary" data-inv="accept">${icon('check', 16)}<span>Accept</span></button>
+        <button type="button" class="twf-btn" data-inv="decline">Decline</button>
+        ${invite.fromFriend ? '' : `<button type="button" class="twf-btn danger" data-inv="block">Block</button>`}
+      </div>`;
+    ensureInviteStack().appendChild(box);
+    sound('card_play');
 
-    const totalMs = invite.expiresAt - Date.now();
+    const total = Math.max(1, invite.expiresAt - Date.now());
+    const bar = box.querySelector('.twf-invite-bar span');
     const tickTimer = setInterval(() => {
-      const remaining = Math.max(0, invite.expiresAt - Date.now());
-      const pct = Math.max(0, (remaining / totalMs) * 100);
-      const bar = document.getElementById(`bar-${invite.id}`);
-      const label = document.getElementById(`label-${invite.id}`);
-      if (bar) bar.style.width = `${pct}%`;
-      if (label) label.textContent = `expires in ${Math.ceil(remaining / 1000)}s`;
-      if (remaining <= 0) {
-        clearInterval(tickTimer);
-        dismissInvite(invite.id, 'declining');
-      }
-    }, 500);
+      const left = invite.expiresAt - Date.now();
+      bar.style.transform = `scaleX(${Math.max(0, left / total)})`;
+      if (left <= 0) dismissInvite(invite.id);
+    }, 250);
+    activeInvites.set(invite.id, { data: invite, el: box, tickTimer });
 
-    activeInvites.set(invite.id, { data: invite, el, tickTimer });
-
-    document.getElementById(`accept-${invite.id}`).addEventListener('click', async () => {
-      const result = await TW.emitAck('lobby:invite_accept', { inviteId: invite.id });
-      if (result.success) {
-        dismissInvite(invite.id, 'accepting');
-        setTimeout(() => { window.location.href = `/lobby.html?matchId=${result.matchId}`; }, 350);
-      } else {
-        TW.toast(result.error || 'Could not accept invite', 'danger');
-        dismissInvite(invite.id, 'declining');
+    box.addEventListener('click', async (e) => {
+      const which = e.target.closest('[data-inv]')?.dataset.inv;
+      if (!which) return;
+      box.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      if (which === 'accept') {
+        const result = await TW.emitAck('lobby:invite_accept', { inviteId: invite.id });
+        dismissInvite(invite.id);
+        if (result.success) window.location.href = `/lobby.html?matchId=${encodeURIComponent(result.matchId)}`;
+        else toast(result.error || 'Could not accept invite', 'danger');
+        return;
       }
-    });
-    document.getElementById(`decline-${invite.id}`).addEventListener('click', () => {
       TW.emitAck('lobby:invite_decline', { inviteId: invite.id });
-      dismissInvite(invite.id, 'declining');
+      dismissInvite(invite.id);
+      if (which === 'block') {
+        try {
+          await TW.api('/api/friends/block', { method: 'POST', body: { targetId: invite.fromPlayerId } });
+          removeEverywhere(invite.fromPlayerId);
+          toast(`${invite.fromUsername} blocked. You can undo this in Settings.`, 'info');
+          render();
+        } catch (err) {
+          toast(err.message || 'Could not block player', 'danger');
+        }
+      }
     });
   }
 
-  function dismissInvite(inviteId, animationClass) {
+  function dismissInvite(inviteId) {
     const entry = activeInvites.get(inviteId);
     if (!entry) return;
     clearInterval(entry.tickTimer);
-    entry.el.classList.add(animationClass);
-    setTimeout(() => entry.el.remove(), 400);
+    entry.el.remove();
     activeInvites.delete(inviteId);
   }
 
-  // ---- panel shell + wiring -----------------------------------------------------
+  // ---- start up --------------------------------------------------------------
 
-  function injectPanel() {
-    if (document.getElementById('twFriendsPanel')) return;
-    // Closed by default everywhere - it's a tray you open on demand (via the
-    // Friends button), not a permanent layout column. Only reopens
-    // automatically if the user themselves left it open last time.
-    try {
-      // Mobile never restores a remembered "left open" state - a full-screen
-      // 85vw tray popping open unprompted right after page load (see the
-      // max-width:900px rule in css/premium.css) would look exactly like the
-      // panel "auto-showing" even though desktop's remember-last-state is
-      // intentional there.
-      collapsed = (window.Device && Device.isMobile()) || localStorage.getItem('tw_friends_panel_collapsed') !== '0';
-    } catch (e) {
-      collapsed = true;
-    }
-    const panel = document.createElement('div');
-    panel.id = 'twFriendsPanel';
-    panel.className = `tw-friends-panel${collapsed ? ' collapsed' : ''}`;
-    panel.innerHTML = `
-      <div class="tw-friends-panel-header">
-        <h3>Friends</h3>
-        <button class="btn btn-outline" id="twAddFriendBtn" style="padding:4px 10px;font-size:11px;">+ Add Friend</button>
-      </div>
-      <div class="tw-friends-panel-body" id="twFriendsPanelBody"></div>
-    `;
-    document.body.appendChild(panel);
-    if (!collapsed) setCollapsed(false); // wires the click-outside backdrop if it's starting open
-    panel.querySelector('#twAddFriendBtn').addEventListener('click', openSearchModal);
-  }
-
-  function wireToggleButton() {
-    const btn = document.getElementById('twFriendsToggleBtn');
-    if (!btn) return;
-    btn.addEventListener('click', () => setCollapsed(!collapsed));
+  function applyPresenceUpdate(payload) {
+    const i = friends.findIndex((f) => f.id === payload.playerId);
+    if (i === -1) return;
+    friends[i] = { ...friends[i], status: payload.status, matchId: payload.matchId, lobbyId: payload.lobbyId, mode: payload.mode, lastSeen: Date.now() };
+    safeRender();
   }
 
   function wireSocketEvents() {
     const socket = TW.connectSocket ? TW.connectSocket() : null;
     if (!socket) return;
     socket.on('friend:status_update', applyPresenceUpdate);
-    socket.on('friend:accepted', () => {
+    socket.on('friend:accepted', (d) => {
       loadFriends();
-      if (TW.Sound) TW.Sound.play('success');
+      loadRequests();
+      if (d && d.playerId) patchPlayer(d.playerId, { relation: 'friend', requestId: null });
+      if (d && d.username) toast(`${d.username} accepted your friend request`, 'info');
+      sound('success');
     });
-    socket.on('friend:request_received', () => {
-      if (TW.toast) TW.toast('You have a new friend request', 'info');
-      if (TW.Sound) TW.Sound.play('friendRequest');
+    socket.on('friend:request_received', (d) => {
+      loadRequests();
+      toast(`${d && d.username ? d.username : 'Someone'} sent you a friend request`, 'info');
+      sound('friendRequest');
     });
     socket.on('lobby:invite_received', showInvitePopup);
-    socket.on('lobby:invite_expired', (data) => dismissInvite(data.inviteId, 'declining'));
+    socket.on('lobby:invite_expired', (d) => dismissInvite(d.inviteId));
   }
 
+  let started = false;
   function init() {
-    if (!window.TW || !TW.getToken || !TW.getToken()) return;
+    if (started || !window.TW || !TW.getToken || !TW.getToken()) return;
+    started = true;
+    // Here rather than in each page, so invites look right on every page that loads this.
+    if (!document.querySelector('link[href="/css/friends.css"]')) {
+      const css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = '/css/friends.css';
+      document.head.appendChild(css);
+    }
     injectPanel();
-    wireToggleButton();
+    // On the document, so it still works if the header is ever redrawn.
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest || !e.target.closest('#twFriendsToggleBtn')) return;
+      if (isOpen) close();
+      else open();
+    });
+    document.addEventListener('keydown', onKeydown);
+    syncButton();
     wireSocketEvents();
     loadFriends();
-    setInterval(loadFriends, 60000);
+    loadRequests();
+    setInterval(() => {
+      loadFriends();
+      loadRequests();
+    }, 60000);
+    setInterval(() => {
+      if (isOpen && tab === 'find') loadOnline();
+    }, 15000);
   }
 
-  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 
   return {
+    open,
+    close,
     setCurrentLobby: (lobbyId) => { currentLobbyId = lobbyId; },
     getOnlineFriends: () => friends.filter((f) => f.status !== 'offline'),
     getAllFriends: () => friends.slice(),
-    refresh: loadFriends,
+    refresh: () => Promise.all([loadFriends(), loadRequests()]),
     sendInvite,
   };
 })();

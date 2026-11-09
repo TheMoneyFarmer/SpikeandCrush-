@@ -524,7 +524,7 @@ async function listFriends(playerId) {
   assertConfigured();
   const { data, error } = await supabase
     .from('friendships')
-    .select('*, requester:requester_id(id, username, avatar_url, war_rating, tier), addressee:addressee_id(id, username, avatar_url, war_rating, tier)')
+    .select('*, requester:requester_id(id, username, avatar_url, war_rating, tier, settings), addressee:addressee_id(id, username, avatar_url, war_rating, tier, settings)')
     .or(`requester_id.eq.${playerId},addressee_id.eq.${playerId}`)
     .eq('status', 'accepted');
   if (error) throw error;
@@ -573,13 +573,69 @@ async function searchPlayers(query, excludePlayerId, limit = 10) {
   assertConfigured();
   const { data, error } = await supabase
     .from('players')
-    .select('id, username, avatar_url, war_rating, tier')
+    .select('id, username, avatar_url, war_rating, tier, country, settings, is_banned, banned_until')
     .ilike('username', `%${query}%`)
     .neq('id', excludePlayerId)
     .eq('is_persona', false)
     .limit(limit);
   if (error) throw error;
   return data;
+}
+
+// Public fields for the Friends panel. Personas are left out here too.
+async function getPlayersForFriendsPanel(ids) {
+  assertConfigured();
+  if (!ids.length) return [];
+  const { data, error } = await supabase
+    .from('players')
+    .select('id, username, avatar_url, war_rating, tier, country, settings, is_banned, banned_until')
+    .in('id', ids)
+    .eq('is_persona', false);
+  if (error) throw error;
+  return data;
+}
+
+// Every friendship row this player is part of, in any state.
+async function listFriendshipRows(playerId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('id, requester_id, addressee_id, status')
+    .or(`requester_id.eq.${playerId},addressee_id.eq.${playerId}`);
+  if (error) throw error;
+  return data;
+}
+
+async function cancelFriendRequest(requestId, requesterId) {
+  assertConfigured();
+  const { error } = await supabase
+    .from('friendships')
+    .delete()
+    .eq('id', requestId)
+    .eq('requester_id', requesterId)
+    .eq('status', 'pending');
+  if (error) throw error;
+}
+
+// Ends any friendship or pending request between two players.
+async function removeFriendshipBetween(playerAId, playerBId) {
+  assertConfigured();
+  const { error } = await supabase
+    .from('friendships')
+    .delete()
+    .or(`and(requester_id.eq.${playerAId},addressee_id.eq.${playerBId}),and(requester_id.eq.${playerBId},addressee_id.eq.${playerAId})`);
+  if (error) throw error;
+}
+
+// Everyone this player has blocked or been blocked by, as a Set of ids.
+async function listBlockRelationIds(playerId) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('player_blocks')
+    .select('player_id, blocked_player_id')
+    .or(`player_id.eq.${playerId},blocked_player_id.eq.${playerId}`);
+  if (error) throw error;
+  return new Set(data.map((b) => (b.player_id === playerId ? b.blocked_player_id : b.player_id)));
 }
 
 // ---- notifications ------------------------------------------------------------
@@ -2175,6 +2231,11 @@ module.exports = {
   listIncomingRequests,
   listOutgoingRequests,
   searchPlayers,
+  getPlayersForFriendsPanel,
+  listFriendshipRows,
+  cancelFriendRequest,
+  removeFriendshipBetween,
+  listBlockRelationIds,
   createNotification,
   listNotifications,
   countUnreadNotifications,
