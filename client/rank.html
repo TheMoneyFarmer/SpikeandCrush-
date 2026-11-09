@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Rank and Level | Spike &amp; Crush</title>
+<meta name="description" content="Your level, rank, card unlocks and rank benefits." />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#07090F" />
+<script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/icons/cards.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/cards-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/themes.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<link rel="stylesheet" href="/css/mobile.css">
+<link rel="stylesheet" href="/css/console.css" />
+<link rel="stylesheet" href="/css/fire.css" />
+<style>
+  body { background: #07090F; }
+  .rk-wrap { max-width: 920px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  .rk-card { background: #0E1320; border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; padding: 16px; color: #E8EDF6; }
+  .rk-top { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+  .rk-badge { width: 72px; height: 72px; border-radius: 16px; display: grid; place-items: center; background: linear-gradient(160deg, #141B2D, #07090F); border: 1px solid rgba(245,184,61,0.5); font: 700 28px Rajdhani, Inter, sans-serif; color: #F5B83D; }
+  .rk-title { font: 700 26px Rajdhani, Inter, sans-serif; margin: 0; }
+  .rk-sub { color: rgba(232,237,246,0.6); font-size: 13px; }
+  .rk-bar { height: 10px; border-radius: 5px; background: #141B2D; overflow: hidden; margin: 8px 0 4px; }
+  .rk-bar div { height: 100%; background: linear-gradient(90deg, #2EE6A6, #F5B83D); }
+  .rk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .rk-stat b { display: block; font: 700 22px Rajdhani, Inter, sans-serif; }
+  .rk-stat span { color: rgba(232,237,246,0.6); font-size: 12px; }
+  .rk-ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .rk-ladder li { display: grid; grid-template-columns: 110px 90px 1fr; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: #141B2D; font-size: 13px; }
+  .rk-ladder li.current { outline: 1px solid #F5B83D; }
+  .rk-ladder b { font: 700 15px Rajdhani, Inter, sans-serif; }
+  .rk-next { display: flex; flex-wrap: wrap; gap: 8px; }
+  .rk-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: #141B2D; border: 1px solid rgba(255,255,255,0.09); font-size: 13px; }
+  .rk-pill svg { color: #FF4D5E; }
+  .rk-pill i { font-style: normal; color: #F5B83D; font-size: 12px; }
+  .rk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rk-table td, .rk-table th { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.06); text-align: left; }
+  .rk-table tr.locked td { color: rgba(232,237,246,0.55); }
+  .rk-table svg { vertical-align: middle; }
+  h2.rk-h { font: 700 18px Rajdhani, Inter, sans-serif; margin: 0 0 10px; }
+  @media (max-width: 560px) { .rk-ladder li { grid-template-columns: 1fr; gap: 2px; } }
+</style>
+</head>
+<body data-page="rank">
+  <div id="twNav" data-active="cards"></div>
+  <main class="rk-wrap" id="rankRoot"><div class="rk-card">Loading…</div></main>
+
+  <script src="/js/icons.js"></script>
+  <script src="js/card-icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    TW.requireAuth();
+    (async () => {
+      const root = document.getElementById('rankRoot');
+      try {
+        const d = await TW.api('/api/progression/me');
+        const lv = d.level;
+        const icon = (k, s) => TW.CardIcons.svg(k, s);
+        const unlocked = d.collection.filter((c) => c.unlocked).length;
+        root.innerHTML = `
+          <section class="rk-card rk-top">
+            <div class="rk-badge">${lv.level}</div>
+            <div>
+              <h1 class="rk-title">Level ${lv.level} · ${TW.escapeHtml(d.rank)}</h1>
+              <div class="rk-sub">Rating ${d.rating} · ${unlocked} of ${d.collection.length} cards unlocked</div>
+              <div class="rk-bar"><div style="width:${Math.round((lv.progress || 0) * 100)}%"></div></div>
+              <div class="rk-sub">${lv.nextLevelXp ? `${lv.xp - lv.levelFloor} / ${lv.nextLevelXp - lv.levelFloor} XP to Level ${lv.level + 1}` : 'Max level reached'} · today ${d.xpToday} / ${d.dailyCap} XP</div>
+            </div>
+          </section>
+          <section class="rk-card rk-grid">
+            <div class="rk-stat"><b>${lv.xp.toLocaleString()}</b><span>Total XP</span></div>
+            <div class="rk-stat"><b>${d.bestStreak}</b><span>Best win streak</span></div>
+            <div class="rk-stat"><b>${d.bestHeat}</b><span>Best Heat</span></div>
+            <div class="rk-stat"><b>${d.season.xp}</b><span>Season ${TW.escapeHtml(d.season.id)} XP</span></div>
+          </section>
+          <section class="rk-card">
+            <h2 class="rk-h">Next unlocks</h2>
+            <div class="rk-next">${d.nextUnlocks.length ? d.nextUnlocks.map((c) => `<span class="rk-pill">${icon(c.icon, 16)} ${TW.escapeHtml(c.name)} <i>${TW.escapeHtml(c.unlockText)}</i></span>`).join('') : '<span class="rk-sub">Every level unlock is yours.</span>'}</div>
+            <p class="rk-sub" style="margin:10px 0 0">Unlocks come only from playing. Coins never buy a card.</p>
+          </section>
+          <section class="rk-card">
+            <h2 class="rk-h">Rank ladder and benefits</h2>
+            <ul class="rk-ladder">${d.tiers.map((t) => {
+              const b = d.benefits.find((x) => x.tier === t.name) || {};
+              return `<li class="${t.name === d.rank ? 'current' : ''}"><b>${TW.escapeHtml(t.name)}</b><span class="rk-sub">${t.min}${t.max ? `-${t.max}` : '+'} rating</span><span>${b.extraStartingCards ? `+${b.extraStartingCards} starting card${b.extraStartingCards > 1 ? 's' : ''} · ` : ''}${TW.escapeHtml(b.cosmetics || '')}</span></li>`;
+            }).join('')}</ul>
+          </section>
+          <section class="rk-card">
+            <h2 class="rk-h">Every card and how to unlock it</h2>
+            <table class="rk-table"><tbody>${d.collection.map((c) => `<tr class="${c.unlocked ? '' : 'locked'}"><td>${icon(c.unlocked ? c.icon : 'lock', 16)} ${TW.escapeHtml(c.name)}</td><td style="text-transform:capitalize">${TW.escapeHtml(c.rarity)}</td><td>${c.unlocked ? 'Unlocked' : TW.escapeHtml(c.unlockText)}</td></tr>`).join('')}</tbody></table>
+            <p class="rk-sub" style="margin:10px 0 0"><a href="/cards">Open the card collection</a></p>
+          </section>`;
+      } catch (e) {
+        root.innerHTML = `<div class="rk-card">${TW.escapeHtml(e.message || 'Could not load your rank')}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -73,6 +73,17 @@
   }
   .deck-slot.filled { border-color: var(--accent); }
   .deck-slot.empty { color: var(--text-secondary); font-style: italic; justify-content: center; }
+  .collection-head { margin-bottom: 14px; }
+  .ch-level b { font-family: Rajdhani, Inter, sans-serif; font-size: 20px; }
+  .ch-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.08); margin: 6px 0; overflow: hidden; }
+  .ch-bar div { height: 100%; background: linear-gradient(90deg, #2EE6A6, #F5B83D); }
+  .ch-filters { display: flex; gap: 6px; margin-top: 10px; }
+  .card-tile.locked { opacity: 0.55; }
+  .card-tile.locked .icon { color: rgba(232,237,246,0.6); }
+  .card-tile .icon svg { color: #FF4D5E; }
+  .card-tile.rarity-legendary { border-color: rgba(245,184,61,0.6); }
+  .rarity-tag { font-size: 11px; text-transform: capitalize; opacity: 0.7; margin: 2px 0 4px; }
+  .unlock-how { font-size: 12px; color: #F5B83D; margin: 2px 0 6px; }
 </style>
   <link rel="stylesheet" href="/css/console.css" />
 <script src="/js/analytics.js" defer></script>
@@ -85,6 +96,7 @@
       <h2>Card Collection</h2>
       <p>Every base card is unlocked from the start. Win matches to unlock higher-tier visual variants.</p>
       <div class="unlock-progress" id="unlockProgress"></div>
+      <div id="collectionHead" class="collection-head"></div>
       <div class="cards-grid" id="cardsGrid">
         <div class="text-secondary">Spike & Crush loading...</div>
       </div>
@@ -108,6 +120,7 @@
   </div>
 
   <script src="/js/icons.js"></script>
+  <script src="js/card-icons.js"></script>
   <script src="/js/time-ago.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/help-tooltips.js"></script>
@@ -134,10 +147,13 @@
         grid.innerHTML = '';
         data.cards.forEach((c) => {
           const tile = document.createElement('div');
-          tile.className = `card-tile variant-${c.variant}`;
+          tile.className = `card-tile variant-${c.variant}${c.unlocked ? '' : ' locked'} rarity-${c.rarity}`;
+          tile.dataset.state = c.unlocked ? 'unlocked' : 'locked';
           tile.innerHTML = `
-            <div class="variant-tag ${c.variant}">${c.variant}</div>
-            <div class="icon">${c.icon}</div>
+            <div class="variant-tag ${c.variant}">${c.unlocked ? c.variant : 'Locked'}</div>
+            <div class="icon">${TW.CardIcons.svg(c.unlocked ? c.icon : 'lock', 26)}</div>
+            <div class="rarity-tag">${TW.escapeHtml(c.rarity)} · ${c.kind === 'defense' ? 'Self' : c.kind === 'market' ? 'Everyone else' : 'One target'}</div>
+            ${c.unlocked ? '' : `<div class="unlock-how">${TW.escapeHtml(c.unlockText)}</div>`}
             <div class="name">${TW.escapeHtml(c.name)}</div>
             <div class="desc">${TW.escapeHtml(c.description)}</div>
             <div class="category-tag">${TW.escapeHtml(c.category)}</div>
@@ -149,6 +165,24 @@
           grid.appendChild(tile);
         });
 
+        const lv = data.level;
+        const head = document.getElementById('collectionHead');
+        if (head && lv) {
+          const unlockedCount = data.cards.filter((c) => c.unlocked).length;
+          head.innerHTML = `<div class="ch-level"><b>Level ${lv.level}</b> <span class="text-secondary">${TW.escapeHtml(data.tier || '')}</span>
+            <div class="ch-bar"><div style="width:${Math.round((lv.progress || 0) * 100)}%"></div></div>
+            <span class="text-secondary" style="font-size:12px;">${lv.nextLevelXp ? `${lv.xp - lv.levelFloor} / ${lv.nextLevelXp - lv.levelFloor} XP to Level ${lv.level + 1}` : 'Max level'} · ${unlockedCount} of ${data.cards.length} cards unlocked · <a href="/rank">Rank and unlocks</a></span></div>
+            <div class="ch-filters" role="tablist">
+              <button type="button" class="lot-chip active" data-filter="all">All</button>
+              <button type="button" class="lot-chip" data-filter="unlocked">Unlocked</button>
+              <button type="button" class="lot-chip" data-filter="locked">Locked</button>
+            </div>
+            <p class="text-secondary" style="font-size:12px;margin:6px 0 0;">Cards unlock only by playing. Coins never buy a card.</p>`;
+          head.querySelectorAll('[data-filter]').forEach((b) => b.addEventListener('click', () => {
+            head.querySelectorAll('[data-filter]').forEach((x) => x.classList.toggle('active', x === b));
+            document.querySelectorAll('#cardsGrid .card-tile').forEach((t) => { t.hidden = b.dataset.filter !== 'all' && t.dataset.state !== b.dataset.filter; });
+          }));
+        }
         const progressEl = document.getElementById('unlockProgress');
         if (data.nextUnlock) {
           progressEl.innerHTML = `<span class="pill pill-gold">${data.wins} wins</span> — ${data.nextUnlock.winsNeeded} more win${
@@ -167,12 +201,12 @@
     function renderDeckPool() {
       const pool = document.getElementById('deckPool');
       pool.innerHTML = '';
-      allCards.forEach((c) => {
+      allCards.filter((c) => c.unlocked !== false).forEach((c) => {
         const inDeck = deck.includes(c.id);
         const item = document.createElement('div');
         item.className = 'deck-pool-item';
         item.style.opacity = inDeck ? '0.4' : '1';
-        item.innerHTML = `<span>${c.icon}</span><span>${TW.escapeHtml(c.name)}</span>`;
+        item.innerHTML = `<span>${TW.CardIcons.svg(c.icon, 16)}</span><span>${TW.escapeHtml(c.name)}</span>`;
         item.addEventListener('click', () => {
           if (inDeck) return;
           if (deck.length >= 5) {
@@ -195,7 +229,7 @@
         if (cardId) {
           const card = allCards.find((c) => c.id === cardId);
           div.className = 'deck-slot filled';
-          div.innerHTML = `<span>${card.icon}</span><span>${TW.escapeHtml(card.name)}</span>`;
+          div.innerHTML = `<span>${card ? TW.CardIcons.svg(card.icon, 16) : ''}</span><span>${TW.escapeHtml(card ? card.name : cardId)}</span>`;
           div.addEventListener('click', () => {
             deck.splice(i, 1);
             renderDeck();

@@ -1418,6 +1418,7 @@ window.TW = window.TW || {};
     TW.Sabotage.render(state);
     if (TW.Fire) {
       TW.Fire.setYou(state.you);
+      TW.Fire.setChallenge(state.challenge);
       const self = state.players.find((p) => p.id === state.you);
       TW.Fire.setMissions(self && self.missions);
     }

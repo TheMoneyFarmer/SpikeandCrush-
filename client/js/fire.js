@@ -14,11 +14,17 @@ TW.Fire = (function () {
   let alertTimer = null;
   let resultTimer = null;
   let mode = 'idle'; // idle | alert | result
+  let challenge = null; // ghost challenge: { username, pnl } to beat
 
   const strip = () => document.getElementById('spikeStrip');
 
   function setYou(id) {
     you = id;
+  }
+
+  function setChallenge(c) {
+    challenge = c || null;
+    drawIdle();
   }
 
   // ---- idle strip: crown, rival above you, mission chips ----------------------
@@ -32,7 +38,7 @@ TW.Fire = (function () {
     el.className = 'match-strip';
     el.innerHTML = `
       <span class="ms-crown" title="Current leader">${icon('crown', 14)}<span>${leader ? TW.escapeHtml(leader.username) : '-'}</span></span>
-      ${mine && mine.rank === 1 ? '<span class="ms-rival you-lead">You wear the crown</span>' : above ? `<span class="ms-rival">Rival above: <b>${TW.escapeHtml(above.username)}</b> <i class="${above.pnl - mine.pnl > 0 ? 'text-sell' : ''}">${TW.formatMoney(above.pnl - mine.pnl)} ahead</i></span>` : ''}
+      ${challenge ? `<span class="ms-rival">To beat: <b>${TW.escapeHtml(challenge.username)}</b> <i class="${challenge.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(challenge.pnl)}</i>${mine ? ` <i>(you ${TW.formatMoney(mine.pnl)})</i>` : ''}</span>` : mine && mine.rank === 1 ? '<span class="ms-rival you-lead">You wear the crown</span>' : above ? `<span class="ms-rival">Rival above: <b>${TW.escapeHtml(above.username)}</b> <i class="${above.pnl - mine.pnl > 0 ? 'text-sell' : ''}">${TW.formatMoney(above.pnl - mine.pnl)} ahead</i></span>` : ''}
       <span class="ms-missions">${chips}</span>`;
   }
 
@@ -103,7 +109,9 @@ TW.Fire = (function () {
     const missionsHtml = (f.missions || []).map((m) => `<li class="${m.done ? 'done' : ''}">${m.done ? icon('check', 14) : icon('plus', 14)} ${TW.escapeHtml(m.label)}${m.done && m.coins ? ` <b>+${m.coins} coins</b>` : ''}</li>`).join('');
     const lvl = pr && pr.level;
     const levelUp = pr && pr.levelAfter > pr.levelBefore;
+    const beat = payload && payload.challenge ? `<div class="fr-challenge ${me.pnl > payload.challenge.pnl ? 'text-buy' : 'text-sell'}"><b>${me.pnl > payload.challenge.pnl ? 'You beat' : 'You did not beat'} ${TW.escapeHtml(payload.challenge.username)}</b>: ${TW.formatMoney(me.pnl)} vs ${TW.formatMoney(payload.challenge.pnl)} on the same market</div>` : '';
     panel.innerHTML = `
+      ${beat}
       <div class="fr-stats">
         <div><span class="fr-k">${icon('heat', 14)} Heat</span><strong>${Math.round(f.heat)}</strong></div>
         <div><span class="fr-k">Best streak</span><strong>${f.bestStreak}</strong></div>
@@ -188,5 +196,5 @@ TW.Fire = (function () {
     });
   }
 
-  return { setYou, setLeaderboard, setMissions, missionComplete, spikeAlert, spikeResult, renderResults, drawIdle };
+  return { setYou, setChallenge, setLeaderboard, setMissions, missionComplete, spikeAlert, spikeResult, renderResults, drawIdle };
 })();

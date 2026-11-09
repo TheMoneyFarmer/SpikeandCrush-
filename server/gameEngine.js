@@ -447,6 +447,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       fire: fireClientConfig(),
       marketSpeed: match.replaySpeed || 1,
       leaderId: match.leaderId || null,
+      challenge: match.config.challenge ? { username: match.config.challenge.username, pnl: match.config.challenge.pnl } : null,
       feed: match.feed.slice(-30),
       players: Object.values(match.players).map((p) => publicPlayer(p, p.id === viewerId)),
       you: viewerId,
@@ -1169,7 +1170,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       missionsCompleted: p.missionsCompleted || 0,
       pnl: r.pnl,
       startingCapital: STARTING_CAPITAL,
-      selfPlay: Object.values(match.players).filter((x) => !x.isAI).length === 1 && match.mode === 'private',
+      // Self-play: a Private War alone, or a ghost challenge (no live opponent).
+      selfPlay: Boolean(match.config.challenge) || (Object.values(match.players).filter((x) => !x.isAI).length === 1 && match.mode === 'private'),
     });
     if (!db.isConfigured) return { xpGained: xp.total, parts: xp.parts };
     const row = await db.getPlayerById(p.id);
@@ -2338,12 +2340,14 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       if (db.isConfigured) {
         try {
           const existing = await db.getPlayerById(r.playerId);
-          const won = r.rank === 1 && !r.isDraw;
+          // A ghost challenge is played alone: it never counts as a win (no
+          // farming wins toward win-gated card unlocks).
+          const won = r.rank === 1 && !r.isDraw && !match.config.challenge;
           const oldTotalMatches = existing?.total_matches || 0;
           const newTotalMatches = oldTotalMatches + 1;
           const updateFields = {
             wins: (existing?.wins || 0) + (won ? 1 : 0),
-            losses: (existing?.losses || 0) + (!won && !r.isDraw ? 1 : 0),
+            losses: (existing?.losses || 0) + (!won && !r.isDraw && !match.config.challenge ? 1 : 0),
             draws: (existing?.draws || 0) + (r.isDraw ? 1 : 0),
             total_matches: newTotalMatches,
           };
@@ -2490,8 +2494,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // the loops right below and the replay-record write further down still
     // need it) - see the publicPlayer() comment for why.
     const clientResults = results.map(({ isAI, ...r }) => r);
-    emitToAll(match, 'match:end', { matchId: match.id, results: clientResults, feed: match.feed });
-    match.endPayload = { matchId: match.id, results: clientResults, feed: match.feed };
+    const challengeTarget = match.config.challenge ? { username: match.config.challenge.username, pnl: match.config.challenge.pnl } : null;
+    emitToAll(match, 'match:end', { matchId: match.id, results: clientResults, feed: match.feed, challenge: challengeTarget });
+    match.endPayload = { matchId: match.id, results: clientResults, feed: match.feed, challenge: challengeTarget };
     // Anyone browsing the site when the clock ran out didn't see the results
     // screen. Same summary as an early leaver gets, minus the "left early".
     for (const r of results) {

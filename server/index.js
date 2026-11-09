@@ -476,6 +476,8 @@ app.get('/', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'landing.html')));
 app.get('/play', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 app.get('/wallet', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'wallet.html')));
 app.get('/cards', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'cards.html')));
+app.get('/challenge/:code', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'challenge.html')));
+app.get('/rank', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'rank.html')));
 app.get('/settings', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'settings.html')));
 app.get('/help', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'help.html')));
 app.get('/terms', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'terms.html')));
@@ -1689,6 +1691,74 @@ async function joinLobbyWithEntryFee(match, playerId, socketId) {
 const friendRequestLimiter = friendsHub.createWindowLimiter({ max: 30, windowMs: 60 * 60 * 1000 });
 const strangerInviteLimiter = friendsHub.createWindowLimiter({ max: 20, windowMs: 10 * 60 * 1000 });
 
+// The one path for game invites into a waiting lobby (the lobby screen and
+// Rematch both use it): block list, presence, privacy settings, duplicate
+// and stranger rate limits, expiry. Returns { sentTo, skipped }.
+async function sendLobbyInvites(inviter, match, targetIds) {
+  const matchId = match.id;
+  const sentTo = [];
+  const skipped = [];
+  const targets = [...new Set(Array.isArray(targetIds) ? targetIds : [])].filter((id) => id !== inviter.id).slice(0, 8);
+  const [friendIds, blocks, targetPlayers] = await Promise.all([
+    db.listFriendIds(inviter.id),
+    db.listBlockRelationIds(inviter.id),
+    db.getPlayersForFriendsPanel(targets),
+  ]);
+  const targetById = new Map(targetPlayers.map((p) => [p.id, p]));
+  for (const targetId of targets) {
+    const targetSockets = playerSockets.get(targetId);
+    const isFriend = friendIds.includes(targetId);
+    const reason = friendsHub.inviteBlockReason({
+      isFriend,
+      blocked: blocks.has(targetId),
+      connected: Boolean(targetSockets && targetSockets.size) && targetById.has(targetId),
+      presenceStatus: presence.getPresence(targetId).status,
+      settings: targetById.get(targetId)?.settings,
+      alreadyInvited: [...pendingInvites.values()].some((i) => i.fromPlayerId === inviter.id && i.targetPlayerId === targetId && i.lobbyId === matchId),
+    });
+    if (reason) {
+      skipped.push({ id: targetId, reason });
+      continue;
+    }
+    if (!isFriend && !strangerInviteLimiter(inviter.id)) {
+      skipped.push({ id: targetId, reason: 'too_many' });
+      continue;
+    }
+
+    const inviteId = crypto.randomUUID();
+    const invite = {
+      id: inviteId,
+      fromPlayerId: inviter.id,
+      fromUsername: inviter.username,
+      fromTier: inviter.tier,
+      lobbyId: matchId,
+      matchMode: match.config.label || match.mode,
+      instruments: match.instruments,
+      currentPlayers: Object.keys(match.players).length,
+      maxPlayers: match.config.maxPlayers,
+      entryCoins: match.config.entryCoins || 0,
+      fromFriend: isFriend,
+      targetPlayerId: targetId,
+      expiresAt: Date.now() + INVITE_TTL_MS,
+    };
+    invite.timer = setTimeout(async () => {
+      pendingInvites.delete(inviteId);
+      const target = await db.getPlayerById(targetId).catch(() => null);
+      notifyPlayer(inviter.id, 'invite_expired', `${target?.username || 'A friend'} did not respond to your invite`);
+      const targetNowSockets = playerSockets.get(targetId);
+      if (targetNowSockets) for (const sid of targetNowSockets) io.to(sid).emit('lobby:invite_expired', { inviteId });
+    }, INVITE_TTL_MS);
+    pendingInvites.set(inviteId, invite);
+
+    for (const sid of targetSockets) {
+      io.to(sid).emit('lobby:invite_received', { ...invite, timer: undefined });
+    }
+    sentTo.push(targetId);
+  }
+  return { sentTo, skipped };
+}
+
+
 function friendsPanelError(status, message) {
   return Object.assign(new Error(message), { status, friendly: true });
 }
@@ -2006,13 +2076,18 @@ app.get('/api/cards', requireDb, authenticate, async (req, res) => {
       timesPlayed: stats.playedByMe[c.id] || 0,
       timesPlayedAgainstYou: stats.playedAgainstMe[c.id] || 0,
     }));
+    // Fire gameplay: which cards this player has unlocked, and how to unlock
+    // the rest (earned by playing only - coins never buy a card).
+    const prog = await loadProgression(player);
+    const byId = Object.fromEntries(progression.collection(prog.standing, prog.grants).map((c) => [c.id, c]));
+    for (const c of cards) Object.assign(c, { unlocked: byId[c.id].unlocked, basic: byId[c.id].basic, unlockText: byId[c.id].unlockText });
     const nextUnlock =
       player.wins < 50
         ? { variant: 'silver', winsNeeded: 50 - player.wins }
         : player.wins < 200
         ? { variant: 'gold', winsNeeded: 200 - player.wins }
         : null;
-    res.json({ cards, wins: player.wins, currentVariant: variant, nextUnlock });
+    res.json({ cards, wins: player.wins, currentVariant: variant, nextUnlock, level: progression.levelInfo(prog.standing.xp), tier: tierForRating(player.war_rating) });
   } catch (e) {
     console.error('[cards]', e);
     res.status(500).json({ error: 'Could not load cards' });
@@ -2800,11 +2875,145 @@ app.put('/api/cards/deck', requireDb, authenticate, async (req, res) => {
     }
     const validIds = new Set(sabotage.getCardCatalog().map((c) => c.id));
     if (!cardTypes.every((t) => validIds.has(t))) return res.status(400).json({ error: 'Unknown card type in deck' });
+    const owner = await db.getPlayerById(req.tokenPlayer.id);
+    const { unlockedCards } = await loadProgression(owner);
+    const locked = cardTypes.filter((t) => !unlockedCards.includes(t));
+    if (locked.length) return res.status(400).json({ error: `Locked card in deck: ${locked.join(', ')}. Unlock it by playing first.` });
     const deck = await db.saveCardDeck(req.tokenPlayer.id, cardTypes);
     res.json({ cardTypes: deck.card_types });
   } catch (e) {
     console.error('[deck save]', e);
     res.status(500).json({ error: 'Could not save deck' });
+  }
+});
+
+// ---- fire gameplay: progression, ghost challenges, rematch -------------------------
+
+// Level, XP, rank (rating tier), rank benefits, the next unlocks and the full
+// card collection for the profile / rank screen.
+app.get('/api/progression/me', requireDb, authenticate, async (req, res) => {
+  try {
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    const prog = await loadProgression(player);
+    const collection = progression.collection(prog.standing, prog.grants);
+    const next = collection.filter((c) => !c.unlocked && c.unlockRule && c.unlockRule.level).sort((a, b) => a.unlockRule.level - b.unlockRule.level).slice(0, 3);
+    res.json({
+      level: progression.levelInfo(prog.standing.xp),
+      rank: tierForRating(player.war_rating),
+      rating: player.war_rating,
+      tiers: TIERS.map((t) => ({ name: t.name, min: t.min, max: Number.isFinite(t.max) ? t.max : null })),
+      benefits: progression.rankBenefits(),
+      bestStreak: prog.stored?.best_streak || 0,
+      bestHeat: prog.stored?.best_heat || 0,
+      season: { id: progression.season(), xp: prog.stored && prog.stored.season === progression.season() ? prog.stored.season_xp : 0 },
+      xpToday: prog.stored && prog.stored.xp_day === new Date().toISOString().slice(0, 10) ? prog.stored.xp_today : 0,
+      dailyCap: gameFeel.get().progression.xp.perDayCap,
+      nextUnlocks: next.map((c) => ({ id: c.id, name: c.name, icon: c.icon, unlockText: c.unlockText })),
+      collection,
+      persisted: Boolean(prog.stored),
+    });
+  } catch (e) {
+    console.error('[progression/me]', e);
+    res.status(500).json({ error: 'Could not load progression' });
+  }
+});
+
+const challengeLinks = require('./challenge');
+
+// Creates a share link for the match the player just finished: same
+// instruments, seed and start offsets, with their result to beat.
+app.post('/api/challenge', requireDb, authenticate, async (req, res) => {
+  try {
+    if (!gameFeel.get().ghostChallenge.enabled) return res.status(403).json({ error: 'Challenges are switched off' });
+    const { matchId } = req.body || {};
+    const market = gameEngine.getMatchMarket(matchId);
+    if (!market || !market.endPayload) return res.status(400).json({ error: 'That match is not finished or no longer available' });
+    if (!market.humanIds.includes(req.tokenPlayer.id)) return res.status(403).json({ error: 'You were not in that match' });
+    if (!Object.keys(market.marketStarts).length) return res.status(400).json({ error: 'This match cannot be replayed as a challenge' });
+    const mine = market.endPayload.results.find((r) => r.playerId === req.tokenPlayer.id);
+    const code = challengeLinks.create({
+      creatorId: req.tokenPlayer.id,
+      username: mine ? mine.username : 'A trader',
+      mode: market.mode,
+      instruments: market.instruments.filter((s) => market.marketStarts[s] !== undefined),
+      marketSeed: market.marketSeed,
+      marketStarts: market.marketStarts,
+      durationSeconds: market.durationSeconds,
+      pnl: mine ? mine.pnl : 0,
+      rank: mine ? mine.rank : null,
+      sourceMatchId: matchId,
+    });
+    const base = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+    res.json({ code, url: `${base.replace(/\/$/, '')}/challenge/${code}`, result: { pnl: mine ? mine.pnl : 0, rank: mine ? mine.rank : null } });
+  } catch (e) {
+    console.error('[challenge create]', e);
+    res.status(500).json({ error: 'Could not create the challenge' });
+  }
+});
+
+app.get('/api/challenge/:code', (req, res) => {
+  const r = challengeLinks.read(req.params.code);
+  if (!r.ok) return res.status(r.expired ? 410 : 400).json({ error: r.error });
+  const c = r.challenge;
+  res.json({ username: c.username, instruments: c.instruments, durationSeconds: c.durationSeconds, pnl: c.pnl, rank: c.rank, expiresAt: c.expiresAt });
+});
+
+// Starts the friend's run: a private, unranked match on the exact same market
+// (same seed and start offsets, so byte-identical prices), no AI opponents,
+// free to play, results never touch ratings or prizes.
+app.post('/api/challenge/:code/start', requireDb, authenticate, async (req, res) => {
+  try {
+    const r = challengeLinks.read(req.params.code);
+    if (!r.ok) return res.status(r.expired ? 410 : 400).json({ error: r.error });
+    const c = r.challenge;
+    if (gameEngine.isInLiveMatch(req.tokenPlayer.id)) return res.status(409).json({ error: LIVE_MATCH_BUSY_ERROR });
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    const match = await gameEngine.createMatch('solo', {
+      instrumentList: c.instruments,
+      marketSeed: c.marketSeed,
+      marketStarts: c.marketStarts,
+      configOverrides: {
+        label: 'Ghost Challenge',
+        durationSeconds: c.durationSeconds,
+        ranked: false,
+        ratingKey: null,
+        fillMethod: 'none',
+        aiOpponents: 0,
+        entryCoins: 0,
+        challenge: { username: c.username, pnl: c.pnl, creatorId: c.creatorId },
+      },
+    });
+    const joined = gameEngine.joinMatch(match, { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, tier: tierForRating(player.war_rating), ...(await loadCardLoadout(player)) });
+    if (!joined.success) return res.status(400).json(joined);
+    res.json({ matchId: match.id, roomCode: match.roomCode });
+  } catch (e) {
+    console.error('[challenge start]', e);
+    res.status(500).json({ error: 'Could not start the challenge' });
+  }
+});
+
+// Rematch: a fresh Private War room hosted by the player, with invites sent
+// to everyone from the finished match who is still online (the normal lobby
+// invite rules apply: blocks, privacy settings, rate limits, expiry).
+app.post('/api/match/rematch', requireDb, authenticate, async (req, res) => {
+  try {
+    const { matchId } = req.body || {};
+    const market = gameEngine.getMatchMarket(matchId);
+    if (!market || !market.endPayload) return res.status(400).json({ error: 'That match is no longer available for a rematch' });
+    if (!market.humanIds.includes(req.tokenPlayer.id)) return res.status(403).json({ error: 'You were not in that match' });
+    if (gameEngine.isInLiveMatch(req.tokenPlayer.id)) return res.status(409).json({ error: LIVE_MATCH_BUSY_ERROR });
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    const info = { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, tier: tierForRating(player.war_rating), ...(await loadCardLoadout(player)) };
+    const made = await matchmaking.createPrivateWar(gameEngine, info);
+    if (!made.success) return res.status(400).json(made);
+    const room = gameEngine.getMatch(made.matchId);
+    const stillHere = market.humanIds.filter((id) => id !== player.id && playerSockets.has(id));
+    const { sentTo, skipped } = stillHere.length ? await sendLobbyInvites(room.players[player.id], room, stillHere) : { sentTo: [], skipped: [] };
+    res.json({ matchId: made.matchId, roomCode: made.roomCode, invited: sentTo.length, skipped: skipped.length });
+  } catch (e) {
+    console.error('[rematch]', e);
+    res.status(500).json({ error: 'Could not start a rematch' });
   }
 });
 
@@ -3467,65 +3676,7 @@ io.on('connection', (socket) => {
       const inviter = match.players[session.playerId];
       if (!inviter) return ack?.({ success: false, error: 'Not in this lobby' });
 
-      const sentTo = [];
-      const skipped = [];
-      const targets = [...new Set(Array.isArray(targetIds) ? targetIds : [])].filter((id) => id !== inviter.id).slice(0, 8);
-      const [friendIds, blocks, targetPlayers] = await Promise.all([
-        db.listFriendIds(inviter.id),
-        db.listBlockRelationIds(inviter.id),
-        db.getPlayersForFriendsPanel(targets),
-      ]);
-      const targetById = new Map(targetPlayers.map((p) => [p.id, p]));
-      for (const targetId of targets) {
-        const targetSockets = playerSockets.get(targetId);
-        const isFriend = friendIds.includes(targetId);
-        const reason = friendsHub.inviteBlockReason({
-          isFriend,
-          blocked: blocks.has(targetId),
-          connected: Boolean(targetSockets && targetSockets.size) && targetById.has(targetId),
-          presenceStatus: presence.getPresence(targetId).status,
-          settings: targetById.get(targetId)?.settings,
-          alreadyInvited: [...pendingInvites.values()].some((i) => i.fromPlayerId === inviter.id && i.targetPlayerId === targetId && i.lobbyId === matchId),
-        });
-        if (reason) {
-          skipped.push({ id: targetId, reason });
-          continue;
-        }
-        if (!isFriend && !strangerInviteLimiter(inviter.id)) {
-          skipped.push({ id: targetId, reason: 'too_many' });
-          continue;
-        }
-
-        const inviteId = crypto.randomUUID();
-        const invite = {
-          id: inviteId,
-          fromPlayerId: inviter.id,
-          fromUsername: inviter.username,
-          fromTier: inviter.tier,
-          lobbyId: matchId,
-          matchMode: match.config.label || match.mode,
-          instruments: match.instruments,
-          currentPlayers: Object.keys(match.players).length,
-          maxPlayers: match.config.maxPlayers,
-          entryCoins: match.config.entryCoins || 0,
-          fromFriend: isFriend,
-          targetPlayerId: targetId,
-          expiresAt: Date.now() + INVITE_TTL_MS,
-        };
-        invite.timer = setTimeout(async () => {
-          pendingInvites.delete(inviteId);
-          const target = await db.getPlayerById(targetId).catch(() => null);
-          notifyPlayer(inviter.id, 'invite_expired', `${target?.username || 'A friend'} did not respond to your invite`);
-          const targetNowSockets = playerSockets.get(targetId);
-          if (targetNowSockets) for (const sid of targetNowSockets) io.to(sid).emit('lobby:invite_expired', { inviteId });
-        }, INVITE_TTL_MS);
-        pendingInvites.set(inviteId, invite);
-
-        for (const sid of targetSockets) {
-          io.to(sid).emit('lobby:invite_received', { ...invite, timer: undefined });
-        }
-        sentTo.push(targetId);
-      }
+      const { sentTo, skipped } = await sendLobbyInvites(inviter, match, targetIds);
       ack?.({ success: true, sentTo, skipped });
     } catch (e) {
       console.error('[lobby:invite]', e);

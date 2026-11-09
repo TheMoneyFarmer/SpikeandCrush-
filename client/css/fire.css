@@ -154,6 +154,8 @@ html:root .card-tray, .card-tray { display: flex; flex-wrap: nowrap; gap: 8px; }
 
 /* ---- result screen extras ---- */
 .fire-results { margin: 14px auto; width: min(640px, calc(100% - 32px)); padding: 14px; box-sizing: border-box; border-radius: 12px; background: var(--fx-panel); border: 1px solid var(--fx-line); color: var(--fx-text); font-family: var(--fx-body); }
+.fr-challenge { margin-bottom: 12px; font-size: 14px; }
+.fr-challenge b { font-family: var(--fx-display); font-size: 17px; }
 .fr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
 .fr-stats div { display: flex; flex-direction: column; gap: 4px; }
 .fr-k { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--fx-dim); }

@@ -288,7 +288,8 @@ function planSpikes(events, durationDataSeconds) {
   const out = [];
   for (const e of sorted) {
     if (out.length && e.dataSecond - out[out.length - 1].dataSecond < minGap) continue;
-    out.push({ ...e, id: `${e.symbol}:${e.dataSecond}`, alerted: false, resolved: false });
+    // Opaque id: it goes out with the alert, so it must not name the instrument.
+    out.push({ ...e, id: `spike-${out.length + 1}`, alerted: false, resolved: false });
   }
   return out;
 }
