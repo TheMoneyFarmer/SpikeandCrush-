@@ -3,14 +3,29 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- seo:start -->
+<title>Leaderboard | Spike &amp; Crush</title>
+<meta name="description" content="See who leads the board. War Rating, tiers and the top traders in Spike &amp; Crush." />
+<link rel="canonical" href="https://www.spikeandcrush.com/leaderboard" />
+<meta name="theme-color" content="#14213d" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta property="og:site_name" content="Spike &amp; Crush" />
+<meta property="og:title" content="Leaderboard | Spike &amp; Crush" />
+<meta property="og:description" content="See who leads the board. War Rating, tiers and the top traders in Spike &amp; Crush." />
+<meta property="og:url" content="https://www.spikeandcrush.com/leaderboard" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://www.spikeandcrush.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Spike &amp; Crush, the competitive trading game. Up. Then not." />
+<meta name="twitter:card" content="summary_large_image" />
+<!-- seo:end -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#14213d">
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Rajdhani:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<title>Spike & Crush — Leaderboard</title>
 <link rel="icon" href="/icons/compete.svg" type="image/svg+xml" />
 <link rel="icon" href="/icons/compete-32.png" type="image/png" sizes="32x32" />
 <link rel="alternate icon" href="/favicon.ico" sizes="48x48" />
@@ -92,6 +107,7 @@
   .tw-tier-badge { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--tier) 55%, transparent); background: color-mix(in srgb, var(--tier) 14%, transparent); color: var(--tier); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
 </style>
   <link rel="stylesheet" href="/css/console.css" />
+<script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="leaderboard">
   <div id="twNav" data-active="leaderboard"></div>
@@ -244,9 +260,11 @@
       </p>
       <p class="legal-text legal-coins">Coins have no cash value and cannot be withdrawn or exchanged for money.</p>
       <p class="legal-links">
-        <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/responsible">Responsible Gaming</a>
+        <a href="/competitions">Competitions</a> · <a href="/sponsor">Sponsor</a> · <a href="/contact">Contact</a> · <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/cookies">Cookies</a> · <a href="/responsible">Responsible Gaming</a><span data-cookie-settings hidden> · <a href="/cookies">Cookie settings</a></span>
       </p>
       <p class="legal-support">For support: <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a></p>
+      <p class="legal-text" data-company-line hidden></p>
+      <p class="legal-text">© 2026 Spike &amp; Crush</p>
     </div>
   </footer>
   <script src="js/support-widget.js"></script>

@@ -55,6 +55,9 @@ app.disable('x-powered-by');
 app.use(originLock());
 startRangeRefresh();
 app.use(securityHeaders({ admin: true }));
+// Nothing on the admin panel belongs in a search engine.
+app.use((req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next(); });
+app.get('/robots.txt', (req, res) => res.type('text').send('User-agent: *\nDisallow: /\n'));
 app.use(express.json({ limit: '200kb' }));
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, keyGenerator: (req) => visitorIp(req) });
@@ -305,7 +308,10 @@ app.use('/api/support', require('./routes/support')());
 app.use('/api/sponsors', require('./routes/sponsors')());
 
 // Anything not matched above (e.g. /lib/auth.js, /server.js) is a 404.
-app.use((req, res) => res.status(404).send('Not found'));
+app.use((req, res) => {
+  if (req.method === 'GET' && /\btext\/html\b/.test(req.headers.accept || '')) return res.status(404).sendFile(path.join(__dirname, '404.html'));
+  return res.status(404).send('Not found');
+});
 
 // ---- live socket relay --------------------------------------------------------
 // Polls the game server's internal bridge every 5s and re-emits real data to

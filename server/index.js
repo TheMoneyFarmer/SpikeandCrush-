@@ -7,6 +7,8 @@ const path = require('path');
 const crypto = require('crypto');
 const { validateAvatar } = require('./imageValidation');
 const { securityHeaders } = require('./securityHeaders');
+const seo = require('./seo');
+const { TERMS_VERSION } = require('./legal');
 const express = require('express');
 const compression = require('compression');
 const http = require('http');
@@ -420,6 +422,8 @@ const matchRecovery = createMatchRecovery({ db, gameEngine, notifyPlayer });
 // uploaded before validation existed can't be served as HTML).
 app.use('/uploads', (req, res, next) => (/\.(png|jpe?g|gif|webp)$/i.test(req.path) ? next() : res.status(404).end()));
 // Short browser cache (assets aren't fingerprinted yet) + ETag revalidation.
+app.use(seo.noindexHeader);
+app.get('/sitemap.xml', seo.createSitemap(db));
 app.use(express.static(path.join(__dirname, '..', 'client'), { index: false, maxAge: '5m', dotfiles: 'ignore' }));
 
 // Clean URL routes for the new pages (kept alongside the original .html
@@ -445,7 +449,10 @@ app.get('/clip', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'clip.html')))
 app.get('/tournaments', (req, res) => res.redirect(302, '/competitions'));
 app.get('/tournament/:id', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'tournament.html')));
 app.get('/competitions', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'competitions.html')));
-app.get('/competition/:id', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'competition-play.html')));
+app.get('/competition/:id', seo.createCompetitionPage(db));
+app.get('/contact', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'contact.html')));
+app.get('/cookies', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'cookies.html')));
+app.get('/thanks/:page(signup|sponsor|contact)', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'thanks.html')));
 app.get('/sponsor', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'sponsor.html')));
 app.get('/analytics', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'analytics.html')));
 app.get('/trading-floor', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
@@ -642,6 +649,14 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
       return res.status(503).json({ error: 'We could not send your verification email. Please try again in a few minutes.' });
     }
 
+    // Never fatal: a sign-up must not fail over this record.
+    if (req.body?.termsAccepted === true) {
+      try {
+        await db.updatePlayer(player.id, { terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() });
+      } catch (e) {
+        console.error('[terms record]', e.message);
+      }
+    }
     await attachInvite(req, res, player);
 
     // Referral attribution: if this browser arrived via a partner's /r/:code
@@ -2679,6 +2694,17 @@ app.get('/api/config/public', (req, res) => {
     devCoinGrantsEnabled: process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0,
     emailVerification: EMAIL_VERIFICATION_ON,
     turnstileSiteKey: turnstile.isOn() ? turnstile.siteKey() : null,
+    analyticsProvider: ['plausible', 'ga4'].includes(process.env.ANALYTICS_PROVIDER) && process.env.ANALYTICS_ID ? process.env.ANALYTICS_PROVIDER : 'none',
+    analyticsId: process.env.ANALYTICS_ID || null,
+    termsVersion: TERMS_VERSION,
+    legalReviewed: process.env.LEGAL_REVIEWED === 'true',
+    company: {
+      name: process.env.COMPANY_LEGAL_NAME || null,
+      address: process.env.COMPANY_ADDRESS || null,
+      regNo: process.env.COMPANY_REG_NO || null,
+      minimumAge: process.env.MINIMUM_AGE || null,
+      governingLaw: process.env.GOVERNING_LAW || null,
+    },
   });
 });
 
@@ -3364,8 +3390,12 @@ io.on('connection', (socket) => {
 // next() by earlier middleware, so clients always get JSON instead of
 // Express's default HTML error page.
 // eslint-disable-next-line no-unused-vars
+// Last of all: nothing above matched.
+app.use(seo.notFoundHandler);
+
 app.use((err, req, res, next) => {
   console.error('[unhandled route error]', err);
+  if (seo.errorPageFor(req, res, err)) return;
   // err.message is never forwarded raw here - this is the catch-all for
   // whatever wasn't already given its own friendly message by the route
   // that threw it, so it could be anything from a raw Postgres constraint

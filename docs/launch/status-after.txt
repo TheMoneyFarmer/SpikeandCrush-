@@ -1,0 +1,44 @@
+/ 200 text/html
+/play 200 text/html
+/wallet 200 text/html
+/cards 200 text/html
+/settings 200 text/html
+/help 200 text/html
+/terms 200 text/html
+/privacy 200 text/html
+/responsible 200 text/html
+/shop 200 text/html
+/battle-pass 200 text/html
+/async 200 text/html
+/replay 200 text/html
+/clip 200 text/html
+/tournaments 302 text/html -> /competitions
+/competitions 200 text/html
+/sponsor 200 text/html
+/analytics 200 text/html
+/trading-floor 200 text/html
+/leaderboard 200 text/html
+/profile 200 text/html
+/auth-callback 200 text/html
+/reset-password 200 text/html
+/verify-email 200 text/html
+/health 200 application/json
+/ready 200 application/json
+/robots.txt 200 text/plain
+/favicon.ico 200 image/x-icon
+/favicon.svg 200 image/svg+xml
+/apple-touch-icon.png 200 image/png
+/og-image.png 200 image/png
+/api/stats/home 200 application/json
+/api/stats/live 200 application/json
+/api/competitions 200 application/json
+/api/leaderboard 200 application/json
+/api/config/public 200 application/json
+/js/main.js 200 application/javascript
+/css/main.css 200 text/css
+/socket.io/?EIO=4&transport=polling 200 text/plain
+/invite/AAAAAAAA 302 text/html -> /
+/r/nosuchcode 302 text/html -> /
+/lobby.html 200 text/html
+/game.html 200 text/html
+/landing.html 200 text/html

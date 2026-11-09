@@ -42,3 +42,10 @@
   --c-spike: #0e9a62; --c-crush: #dc2547; --c-gold: #b7791f; --c-commerce: #c94a12; --c-commerce-press: #a63c0d;
   --c-focus: #14213d; --c-shadow: rgba(16, 32, 64, 0.14);
 }
+
+/* Shared form states (js/form-state.js) */
+form .field-error, .legal-page-content p.field-error { margin: 6px 0 0; font-size: 13px; color: var(--c-crush); }
+.error-summary { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--c-crush); color: var(--c-on); font-size: 14px; }
+.error-summary:focus { outline: 2px solid var(--c-focus); outline-offset: 2px; }
+[aria-invalid="true"] { border-color: var(--c-crush) !important; }
+.is-loading { opacity: .72; cursor: progress; }

@@ -268,7 +268,8 @@ function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp, limi
   // must give an email; signed-in players' tickets are linked to their account.
   router.post('/ticket', ticketLimiter, async (req, res) => {
     try {
-      const { subject, message, email, category } = req.body || {};
+      const { subject, message, email, category, website } = req.body || {};
+      if (website) return res.json({ success: true });
       if (!subject || !message) return res.status(400).json({ error: 'Subject and message are required.' });
       const o = await owner(req);
       const actorKey = (o && o.actorKey) || `ip:${safety.hashIp(clientIp(req))}`;

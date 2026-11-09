@@ -21,5 +21,7 @@ jobs:
       - name: Syntax check every server file
         run: for f in server/*.js admin/*.js admin/lib/*.js admin/routes/*.js; do node --check "$f"; done
       - run: npm test
+      - name: Every image has alt text
+        run: node scripts/check-alt.js
       - name: Dependency audit (fails on high or critical)
         run: npm audit --omit=dev --audit-level=high

@@ -1264,7 +1264,7 @@ window.TW = window.TW || {};
       backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(20,33,61,0.7);display:flex;align-items:center;justify-content:center;z-index:400;';
       backdrop.innerHTML = `
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;width:420px;max-width:92vw;">
-          <img src="${pngDataUrl}" style="width:100%;border-radius:8px;margin-bottom:14px;" />
+          <img src="${pngDataUrl}" alt="Your match result card" style="width:100%;border-radius:8px;margin-bottom:14px;" />
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn btn-outline hidden" id="nativeShareBtn">📤 Share</button>
             <a class="btn btn-outline" href="https://wa.me/?text=${encodeURIComponent(shareText)}" target="_blank" rel="noopener" style="text-decoration:none;">📱 WhatsApp</a>

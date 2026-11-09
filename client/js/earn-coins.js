@@ -64,6 +64,7 @@
       body.querySelector('#ecCopy').addEventListener('click', async () => {
         try {
           await navigator.clipboard.writeText(d.link);
+          window.SCAnalytics?.track('referral_link_copied');
           TW.toast('Invite link copied', 'info');
         } catch (e) {
           input.focus();

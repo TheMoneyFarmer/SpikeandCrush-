@@ -1,10 +1,26 @@
 User-agent: *
 Disallow: /api/
+Disallow: /internal/
+Disallow: /admin
 Disallow: /play
+Disallow: /game
+Disallow: /lobby
+Disallow: /spectate
 Disallow: /wallet
+Disallow: /cards
+Disallow: /shop
+Disallow: /battle-pass
+Disallow: /async
+Disallow: /replay
+Disallow: /clip
 Disallow: /settings
+Disallow: /analytics
+Disallow: /profile
 Disallow: /verify-email
 Disallow: /reset-password
 Disallow: /auth-callback
+Disallow: /thanks
+Disallow: /invite/
+Disallow: /r/
 
 Sitemap: https://www.spikeandcrush.com/sitemap.xml

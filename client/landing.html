@@ -3,30 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- seo:start -->
+<title>Spike &amp; Crush | The competitive trading game</title>
+<meta name="description" content="Compete in live trading wars on real market data, sabotage your rivals and climb the board. Free to play. Up. Then not." />
+<link rel="canonical" href="https://www.spikeandcrush.com/" />
+<meta name="theme-color" content="#14213d" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta property="og:site_name" content="Spike &amp; Crush" />
+<meta property="og:title" content="Spike &amp; Crush | The competitive trading game" />
+<meta property="og:description" content="Compete in live trading wars on real market data, sabotage your rivals and climb the board. Free to play. Up. Then not." />
+<meta property="og:url" content="https://www.spikeandcrush.com/" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://www.spikeandcrush.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Spike &amp; Crush, the competitive trading game. Up. Then not." />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"Spike & Crush","url":"https://www.spikeandcrush.com/","logo":"https://www.spikeandcrush.com/icons/icon-512.png"},{"@type":"WebSite","name":"Spike & Crush","url":"https://www.spikeandcrush.com/"}]}</script>
+<!-- seo:end -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#14213d">
-<meta name="description" content="Spike & Crush is a competitive trading game. 10-minute matches on real market data, 30 sabotage cards, ranked ladders. Free to play with coins.">
-<title>Spike & Crush — Up. Then not.</title>
 <link rel="icon" href="/icons/site.svg" type="image/svg+xml" />
 <link rel="icon" href="/icons/site-32.png" type="image/png" sizes="32x32" />
 <link rel="alternate icon" href="/favicon.ico" sizes="48x48" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="canonical" href="https://www.spikeandcrush.com/" />
-<meta property="og:type" content="website" />
 <meta property="og:site_name" content="Spike &amp; Crush" />
-<meta property="og:url" content="https://www.spikeandcrush.com/" />
-<meta property="og:title" content="Spike &amp; Crush: Up. Then not." />
-<meta property="og:description" content="A competitive trading game. 10-minute matches on real market data, with sabotage cards to wreck your rivals." />
-<meta property="og:image" content="https://www.spikeandcrush.com/og-image.png" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="Spike &amp; Crush logo above a price chart that spikes and then crashes" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Spike &amp; Crush: Up. Then not." />
-<meta name="twitter:description" content="A competitive trading game. 10-minute matches on real market data, with sabotage cards to wreck your rivals." />
-<meta name="twitter:image" content="https://www.spikeandcrush.com/og-image.png" />
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="stylesheet" href="/css/palette.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -405,6 +407,16 @@ button { font: inherit; }
 .card.more:hover { border-color: var(--on); }
 @media (max-width: 1024px) { .cards { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 760px) { .cards { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 767px) {
+  .nav-right .btn, .drawer .x, .drawer [role="tab"], .how-nav button, .how-tools button, .how-sizes button, [data-showcase-card] { min-height: 44px; }
+  .drawer .x { min-width: 44px; }
+}
+@media (max-width: 380px) {
+  .nav .wrap { gap: 8px; }
+  .nav-right { gap: 4px; }
+  .nav-right .btn { padding-left: 12px; padding-right: 12px; }
+  .nav .logo { font-size: 16px; }
+}
 @media (max-width: 420px) { .cards { grid-template-columns: 1fr; } .card { min-height: 0; } }
 
 /* sabotage card showcase: 3D scene left, ordinary HTML right */
@@ -422,7 +434,7 @@ button { font: inherit; }
 .showcase-copy h3 { margin: 0; font-weight: 300; font-size: clamp(28px, 3vw, 36px); line-height: 1.2; letter-spacing: -0.01em; }
 .showcase-copy > p { margin: 0; font-size: 18px; color: var(--body); max-width: 420px; min-height: 2.9em; }
 .showcase-picks { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-.showcase-picks button { min-height: 40px; padding: 8px 16px; border-radius: 9999px; border: 1px solid var(--hair-2); background: transparent; color: var(--on); font-size: 14px; font-weight: 600; cursor: pointer; }
+.showcase-picks button { min-height: 44px; padding: 8px 16px; border-radius: 9999px; border: 1px solid var(--hair-2); background: transparent; color: var(--on); font-size: 14px; font-weight: 600; cursor: pointer; }
 .showcase-picks button:hover { border-color: var(--on); }
 .showcase-picks button[aria-pressed='true'] { background: var(--on); border-color: var(--on); color: var(--canvas); }
 .showcase-copy .cta-row { margin-top: 12px; }
@@ -497,6 +509,7 @@ button { font: inherit; }
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 </style>
+<script src="/js/analytics.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -766,7 +779,10 @@ button { font: inherit; }
           <li><a href="#modes">Game modes</a></li>
           <li><a href="/leaderboard">Leaderboard</a></li>
           <li><a href="/tournaments">Tournaments</a></li>
+          <li><a href="/competitions">Competitions</a></li>
           <li><a href="/help">Help</a></li>
+          <li><a href="/sponsor">Sponsor</a></li>
+          <li><a href="/contact">Contact</a></li>
         </ul>
       </div>
       <div>
@@ -774,12 +790,14 @@ button { font: inherit; }
         <ul>
           <li><a href="/terms">Terms</a></li>
           <li><a href="/privacy">Privacy</a></li>
+          <li><a href="/cookies">Cookies</a></li>
           <li><a href="/responsible">Responsible gaming</a></li>
+          <li data-cookie-settings hidden><a href="/cookies">Cookie settings</a></li>
         </ul>
       </div>
     </div>
     <div class="footer-legal">
-      <span>© 2026 Spike &amp; Crush</span>
+      <span>© 2026 Spike &amp; Crush <span data-company-line hidden></span></span>
       <span>Simulated trading. Not financial advice. Coins have no cash value and cannot be withdrawn. 18+.</span>
     </div>
   </div>
@@ -806,17 +824,18 @@ button { font: inherit; }
   </button>
   <div class="or">or</div>
 
-  <form id="lpLoginForm" onsubmit="return handleLpLogin(event)">
-    <div class="field"><label for="lpLoginUsername">Username</label><input type="text" id="lpLoginUsername" required autocomplete="username"></div>
-    <div class="field"><label for="lpLoginPassword">Password</label><input type="password" id="lpLoginPassword" required autocomplete="current-password"></div>
+  <form id="lpLoginForm" novalidate onsubmit="return handleLpLogin(event)">
+    <div class="field"><label for="lpLoginUsername">Username</label><input type="text" id="lpLoginUsername" data-label="Username" required autocomplete="username"></div>
+    <div class="field"><label for="lpLoginPassword">Password</label><input type="password" id="lpLoginPassword" data-label="Password" required autocomplete="current-password"></div>
     <div class="err" id="lpLoginError" role="alert"></div>
     <button class="btn btn-primary submit" type="submit" id="lpLoginSubmit">Log in</button>
   </form>
 
-  <form id="lpRegisterForm" hidden onsubmit="return handleLpRegister(event)">
-    <div class="field"><label for="lpRegisterUsername">Username</label><input type="text" id="lpRegisterUsername" required minlength="3" maxlength="20" autocomplete="username"></div>
-    <div class="field"><label for="lpRegisterEmail">Email</label><input type="email" id="lpRegisterEmail" required autocomplete="email"></div>
-    <div class="field"><label for="lpRegisterPassword">Password <span style="color:var(--mute)">(6+ characters)</span></label><input type="password" id="lpRegisterPassword" required minlength="6" autocomplete="new-password"></div>
+  <form id="lpRegisterForm" novalidate hidden onsubmit="return handleLpRegister(event)">
+    <div class="field"><label for="lpRegisterUsername">Username</label><input type="text" id="lpRegisterUsername" data-label="Username" required minlength="3" maxlength="20" autocomplete="username"></div>
+    <div class="field"><label for="lpRegisterEmail">Email</label><input type="email" id="lpRegisterEmail" data-label="Email" required autocomplete="email"></div>
+    <div class="field"><label for="lpRegisterPassword">Password <span style="color:var(--mute)">(6+ characters)</span></label><input type="password" id="lpRegisterPassword" data-label="Password" required minlength="6" autocomplete="new-password"></div>
+    <label class="lp-agree" style="display:flex;gap:10px;align-items:flex-start;margin:.6rem 0;font-size:13px;line-height:1.45"><input type="checkbox" id="lpRegisterTerms" required style="width:18px;height:18px;margin-top:2px;flex:none" data-required-message="Please agree to the Terms and Privacy Policy to continue."> <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a></span></label>
     <div id="lpTurnstile" hidden style="margin:.5rem 0;min-height:65px"></div>
     <div class="err" id="lpRegisterError" role="alert"></div>
     <button class="btn btn-primary submit" type="submit" id="lpRegisterSubmit">Create account</button>
@@ -825,9 +844,11 @@ button { font: inherit; }
   <p class="legal">By continuing you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>. Simulated trading environment. Not financial advice. 18+.</p>
 </aside>
 
+<script src="/js/form-state.js"></script>
 <script src="/js/icons.js"></script>
 <script src="/js/time-ago.js"></script>
 <script src="js/main.js"></script>
+<script src="/js/sticky-cta.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
 <script src="js/auth.js"></script>
 <script>
@@ -1046,6 +1067,8 @@ if (new URLSearchParams(location.search).get('login') === 'verified') {
   TW.showAuthNotice(document.getElementById('lpLoginError'), 'Email verified. Log in to start playing.');
 }
 
+if (new URLSearchParams(location.search).has('signup')) window.addEventListener('load', () => openPanel('register'));
+
 // ── AUTH ── (same TW.api / TW.establishSession flow as before)
 async function handleLpLogin(e) {
   e.preventDefault();
@@ -1053,6 +1076,10 @@ async function handleLpLogin(e) {
   errEl.textContent = '';
   const username = document.getElementById('lpLoginUsername').value.trim();
   const password = document.getElementById('lpLoginPassword').value;
+  const form = document.getElementById('lpLoginForm');
+  if (btn.disabled) return false;
+  form.noValidate = true;
+  if (!SCForm.validate(form)) return false;
   btn.disabled = true; btn.textContent = 'Logging in…';
   try {
     const data = await TW.api('/api/auth/login', { method: 'POST', body: { username, password } });
@@ -1062,7 +1089,7 @@ async function handleLpLogin(e) {
     location.href = TW.consumePostLoginRedirect() || '/play';
   } catch (err) {
     if (err.needsVerification) TW.showVerifyPrompt(errEl, { username: err.username || username });
-    else errEl.textContent = err.message || 'Could not log in.';
+    else SCForm.showSummary(document.getElementById('lpLoginForm'), SCForm.friendly(err));
     btn.disabled = false; btn.textContent = 'Log in';
   }
   return false;
@@ -1104,15 +1131,17 @@ async function handleLpRegister(e) {
   const username = document.getElementById('lpRegisterUsername').value.trim();
   const email = document.getElementById('lpRegisterEmail').value.trim();
   const password = document.getElementById('lpRegisterPassword').value;
+  const form = document.getElementById('lpRegisterForm');
+  if (btn.disabled) return false;
+  form.noValidate = true;
+  if (!SCForm.validate(form)) return false;
   btn.disabled = true; btn.textContent = 'Creating account…';
   try {
     const turnstileToken = await lpTurnstileToken();
-    const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password, turnstileToken } });
+    const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password, turnstileToken, termsAccepted: true } });
     lpTurnstileReset();
     if (data.needsVerification) {
-      TW.showVerifyPrompt(errEl, { email: data.email });
-      document.getElementById('lpRegisterPassword').value = '';
-      btn.disabled = false; btn.textContent = 'Create account';
+      location.href = '/thanks/signup';
       return false;
     }
     await TW.establishSession(data.token, data.refresh_token, data.player);
@@ -1121,7 +1150,7 @@ async function handleLpRegister(e) {
     location.href = TW.consumePostLoginRedirect() || '/play';
   } catch (err) {
     lpTurnstileReset();
-    errEl.textContent = err.message || 'Could not create account.';
+    SCForm.showSummary(document.getElementById('lpRegisterForm'), SCForm.friendly(err));
     btn.disabled = false; btn.textContent = 'Create account';
   }
   return false;
