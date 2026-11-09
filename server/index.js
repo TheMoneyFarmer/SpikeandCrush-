@@ -32,6 +32,8 @@ const sabotage = require('./sabotage');
 const instrumentsRegistry = require('./instruments');
 const shop = require('./shop');
 const battlepass = require('./battlepass');
+const progression = require('./progression');
+const gameFeel = require('./config/gameFeel');
 const tournament = require('./tournament');
 const presence = require('./presence');
 const friendsHub = require('./friendsHub');
@@ -379,6 +381,30 @@ async function loadSavedDeck(playerId) {
     console.error('[deck load]', e.message);
     return [];
   }
+}
+
+// The player's standing on the level ladder and the cards they have unlocked
+// (server/progression.js): stored XP when the progress table exists, never
+// below what their real match history has earned, plus admin grants/revokes.
+// Unlocks are earned only by playing - nothing here reads coins or purchases.
+async function loadProgression(player) {
+  let stored = null;
+  let grants = { granted: [], revoked: [] };
+  try {
+    stored = await db.getProgress(player.id);
+    grants = await db.getCardGrants(player.id);
+  } catch (e) {
+    console.warn('[progression] load failed:', e.message);
+  }
+  const standing = progression.standing(player, stored);
+  return { standing, stored, grants, unlockedCards: progression.unlockedCards(standing, grants), level: standing.level };
+}
+
+// Everything a match needs about a player's cards: the saved deck, unlocked
+// cards and level. Used by every path into a match.
+async function loadCardLoadout(player) {
+  const [deck, prog] = await Promise.all([loadSavedDeck(player.id), loadProgression(player)]);
+  return { deck: deck.filter((t) => prog.unlockedCards.includes(t)), unlockedCards: prog.unlockedCards, level: prog.level };
 }
 
 function clientIp(req) {
@@ -1152,7 +1178,7 @@ app.post('/api/match/create', deployDrain.blockNewMatches, opsMonitor.blockNewMa
       grand_war_rating: player.grand_war_rating,
       solo_rating: player.solo_rating,
       tier: player.tier,
-      deck: await loadSavedDeck(player.id),
+      ...(await loadCardLoadout(player)),
     };
     let entry;
     try {
@@ -1193,7 +1219,7 @@ app.post('/api/match/join', requireDb, authenticate, async (req, res) => {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
-    const playerInfo = { id: player.id, username: player.username, war_rating: player.war_rating, tier: player.tier, deck: await loadSavedDeck(player.id) };
+    const playerInfo = { id: player.id, username: player.username, war_rating: player.war_rating, tier: player.tier, ...(await loadCardLoadout(player)) };
     const result = matchmaking.joinByRoomCode(gameEngine, roomCode, playerInfo);
     if (!result.success) return res.status(400).json(result);
     res.json(result);
@@ -1641,7 +1667,7 @@ async function joinLobbyWithEntryFee(match, playerId, socketId) {
   }
 
   const playerInfo = { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, grand_war_rating: player.grand_war_rating, solo_rating: player.solo_rating, tier: tierForRating(player.war_rating) };
-  playerInfo.deck = await loadSavedDeck(player.id);
+  Object.assign(playerInfo, await loadCardLoadout(player));
   let entry;
   try {
     entry = await chargeEntryFee(player.id, entryCoins, match.dbMatchId);
@@ -2693,14 +2719,15 @@ app.post('/api/tournament/:id/play', deployDrain.blockNewMatches, requireDb, aut
       matchup.status = 'ready';
     }
 
-    const [playerA, playerB, deckA, deckB] = await Promise.all([db.getPlayerById(matchup.playerAId), db.getPlayerById(matchup.playerBId), loadSavedDeck(matchup.playerAId), loadSavedDeck(matchup.playerBId)]);
+    const [playerA, playerB] = await Promise.all([db.getPlayerById(matchup.playerAId), db.getPlayerById(matchup.playerBId)]);
+    const [loadA, loadB] = await Promise.all([loadCardLoadout(playerA), loadCardLoadout(playerB)]);
     const toPlayerInfo = (p) => ({ id: p.id, username: p.username, country: p.country, war_rating: p.war_rating, tier: tierForRating(p.war_rating) });
 
     const match = await gameEngine.createMatch('tournament', {
       configOverrides: { tournamentId: t.id, round: myReg.current_round, matchupIndex: matchup.matchup },
     });
-    gameEngine.joinMatch(match, { ...toPlayerInfo(playerA), deck: deckA });
-    gameEngine.joinMatch(match, { ...toPlayerInfo(playerB), deck: deckB });
+    gameEngine.joinMatch(match, { ...toPlayerInfo(playerA), ...loadA });
+    gameEngine.joinMatch(match, { ...toPlayerInfo(playerB), ...loadB });
 
     matchup.matchId = match.id;
     matchup.status = 'in_progress';

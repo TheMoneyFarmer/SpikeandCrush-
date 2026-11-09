@@ -50,7 +50,7 @@ const PREMIUM_REWARDS = {
 // match results (see index.js's battle-pass challenge check after each match).
 const DAILY_CHALLENGES = [
   { id: 'win_2_quick', label: 'Win 2 Quick War matches', coins: 50 },
-  { id: 'news_bomb_success', label: 'Use a News Bomb card successfully', coins: 25 },
+  { id: 'news_bomb_success', label: 'Play an attack card on a rival', coins: 25 },
   { id: 'trade_xauusd', label: 'Trade XAUUSD in any match', coins: 20 },
   { id: 'positive_all_day', label: 'Achieve positive P&L in all matches today', coins: 100 },
   { id: 'complete_3_matches', label: 'Complete 3 matches in any mode', coins: 30 },
@@ -60,20 +60,19 @@ const WEEKLY_CHALLENGES = [
   { id: 'win_5_week', label: 'Win 5 matches this week', coins: 200 },
   { id: 'top2_grand', label: 'Finish top 2 in a Grand War', coins: 300 },
   { id: 'async_5x', label: 'Complete Async Daily Challenge 5 times', coins: 150 },
-  { id: 'every_card_type', label: 'Use every card type at least once', coins: 250 },
+  { id: 'every_card_type', label: 'Use every starter card at least once', coins: 250 },
   { id: 'win_no_cards', label: 'Win a match without using any cards', coins: 200 },
 ];
 
-const ALL_CARD_TYPES = [
-  'news_bomb', 'force_close', 'margin_call', 'spread_widen', 'flash_crash', 'freeze_chart',
-  'fake_signal', 'slippage', 'liquidity_drain', 'rate_shock', 'stop_hunt', 'blackout',
-];
+// "Use every card type": every starter card, the one set every player holds
+// (the old list named 7 card ids that never existed, so nobody could finish it).
+const ALL_CARD_TYPES = require('./progression').BASIC_DECK;
 
 // Each checker consumes the aggregate stats bundle from
 // db.getBattlePassChallengeStats(playerId, sinceIso) and returns true/false.
 const CHALLENGE_CHECKS = {
   win_2_quick: (s) => s.matches.filter((m) => m.mode === 'quick' && m.finalRank === 1).length >= 2,
-  news_bomb_success: (s) => s.cardPlays.some((c) => c.card_type === 'news_bomb'),
+  news_bomb_success: (s) => s.cardPlays.some((c) => c.target_player_id),
   trade_xauusd: (s) => s.trades.some((t) => t.symbol === 'XAUUSD'),
   positive_all_day: (s) => s.matches.length > 0 && s.matches.every((m) => m.finalPnl >= 0),
   complete_3_matches: (s) => s.matches.length >= 3,

@@ -245,7 +245,7 @@ async function getBattlePassChallengeStats(playerId, sinceIso) {
 
   const { data: cardRows, error: cardErr } = await supabase
     .from('sabotage_events')
-    .select('card_type, played_at')
+    .select('card_type, played_at, target_player_id')
     .eq('player_id', playerId)
     .gte('played_at', sinceIso);
   if (cardErr) throw cardErr;
@@ -2192,9 +2192,129 @@ async function getLobbySettings() {
   };
 }
 
+// ---- fire gameplay (supabase/migrations/20261110120000_fire_gameplay.sql) ----
+//
+// Every function here degrades gracefully when its table doesn't exist yet
+// (the migration is applied separately per environment): reads return null or
+// empty, writes return null, and the game falls back to what it can derive
+// from the players row (server/progression.js historyXp). A missing table is
+// reported once per process, not on every call.
+
+const missingTables = new Set();
+function fireTableMissing(table, error) {
+  if (!error) return false;
+  const missing = error.code === '42P01' || error.code === 'PGRST205' || /does not exist|Could not find the table/i.test(error.message || '');
+  if (missing && !missingTables.has(table)) {
+    missingTables.add(table);
+    console.warn(`[database] ${table} not found - apply supabase/migrations/20261110120000_fire_gameplay.sql (feature falls back until then)`);
+  }
+  return missing;
+}
+
+function fireTablesStatus() {
+  return { missing: Array.from(missingTables) };
+}
+
+// Coins of one ledger type credited today (UTC) - the per-day mission cap.
+async function coinsOfTypeToday(playerId, type) {
+  assertConfigured();
+  const since = `${new Date().toISOString().slice(0, 10)}T00:00:00Z`;
+  const { data, error } = await supabase.from('coin_transactions').select('amount').eq('player_id', playerId).eq('type', type).gte('created_at', since).limit(1000);
+  if (error) throw error;
+  return (data || []).reduce((s, r) => s + Math.max(0, Number(r.amount) || 0), 0);
+}
+
+async function getProgress(playerId) {
+  if (!isConfigured) return null;
+  const { data, error } = await supabase.from('player_progress').select('*').eq('player_id', playerId).maybeSingle();
+  if (fireTableMissing('player_progress', error)) return null;
+  if (error) throw error;
+  return data || null;
+}
+
+// Adds XP once per idempotency key, never below `floorXp` (the player's
+// history XP), tracks the per-day counter and best stats. Returns the new
+// progress row, or null when the tables don't exist yet.
+async function awardXp(playerId, { matchId, amount, key, bestStreak = 0, bestHeat = 0, qualifyingWins = 0, floorXp = 0 }) {
+  if (!isConfigured) return null;
+  const ev = await supabase.from('xp_events').insert({ player_id: playerId, match_id: matchId, source: 'match', amount, idempotency_key: key });
+  if (fireTableMissing('xp_events', ev.error)) return null;
+  const duplicate = ev.error && (ev.error.code === '23505' || /duplicate key/i.test(ev.error.message || ''));
+  if (ev.error && !duplicate) throw ev.error;
+  const current = await getProgress(playerId);
+  if (duplicate) return current;
+  const day = new Date().toISOString().slice(0, 10);
+  const base = Math.max(Number(current?.xp) || 0, floorXp);
+  const xp = base + amount;
+  const row = {
+    player_id: playerId,
+    xp,
+    level: require('./progression').levelForXp(xp),
+    xp_day: day,
+    xp_today: (current && current.xp_day === day ? current.xp_today : 0) + amount,
+    best_streak: Math.max(Number(current?.best_streak) || 0, bestStreak),
+    best_heat: Math.max(Number(current?.best_heat) || 0, bestHeat),
+    qualifying_wins: (Number(current?.qualifying_wins) || 0) + qualifyingWins,
+    season: require('./progression').season(),
+    season_xp: (current && current.season === require('./progression').season() ? current.season_xp : 0) + amount,
+    migrated_at: current?.migrated_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = await supabase.from('player_progress').upsert(row).select().maybeSingle();
+  if (fireTableMissing('player_progress', error)) return null;
+  if (error) throw error;
+  return data;
+}
+
+// Admin grants/revokes on top of the level rules. Revokes are stored as
+// source 'admin' with reason starting "revoke:" so one table holds both.
+async function getCardGrants(playerId) {
+  if (!isConfigured) return { granted: [], revoked: [] };
+  const { data, error } = await supabase.from('player_card_unlocks').select('card_id, source, reason').eq('player_id', playerId);
+  if (fireTableMissing('player_card_unlocks', error)) return { granted: [], revoked: [] };
+  if (error) throw error;
+  const rows = data || [];
+  return {
+    granted: rows.filter((r) => !(r.reason || '').startsWith('revoke:')).map((r) => r.card_id),
+    revoked: rows.filter((r) => (r.reason || '').startsWith('revoke:')).map((r) => r.card_id),
+  };
+}
+
+async function setCardGrant(playerId, cardId, { revoke = false, reason = '' } = {}) {
+  assertConfigured();
+  const { error } = await supabase.from('player_card_unlocks').upsert({ player_id: playerId, card_id: cardId, source: 'admin', reason: `${revoke ? 'revoke:' : 'grant:'}${reason}`.slice(0, 500) });
+  if (fireTableMissing('player_card_unlocks', error)) throw new Error('player_card_unlocks table missing - apply the fire_gameplay migration first');
+  if (error) throw error;
+  return true;
+}
+
+async function recordMarketStats(row) {
+  if (!isConfigured) return null;
+  const { error } = await supabase.from('match_market_stats').upsert(row, { onConflict: 'match_id,symbol' });
+  if (fireTableMissing('match_market_stats', error)) return null;
+  if (error) throw error;
+  return true;
+}
+
+async function listMarketStats(sinceIso) {
+  if (!isConfigured) return null;
+  const { data, error } = await supabase.from('match_market_stats').select('*').gte('created_at', sinceIso).order('created_at', { ascending: false }).limit(5000);
+  if (fireTableMissing('match_market_stats', error)) return null;
+  if (error) throw error;
+  return data || [];
+}
+
 module.exports = {
   isConfigured,
   fetchWithTimeout,
+  coinsOfTypeToday,
+  getProgress,
+  awardXp,
+  getCardGrants,
+  setCardGrant,
+  recordMarketStats,
+  listMarketStats,
+  fireTablesStatus,
   createPlayer,
   getPlayerByUsername,
   getPlayerByEmail,

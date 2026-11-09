@@ -165,12 +165,15 @@ test('saved deck: every card comes from it when it holds enough', async () => {
   await instruments.preloadAll?.();
   const sabotage = require('../server/sabotage');
   const deck = Object.keys(sabotage.CARDS).slice(0, 5);
+  // Fire gameplay: only unlocked cards can be dealt, and the hand holds at
+  // most cards.handSize (4) - so Grand War's 5-card deal is now 4.
+  const handSize = require('../server/config/gameFeel').get().cards.handSize;
   for (const mode of ['quick', 'blitz', 'solo', 'private', 'tournament', 'grand']) {
     const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
     const match = await engine.createMatch(mode);
-    engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck });
+    engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck, unlockedCards: Object.keys(sabotage.CARDS) });
     const cards = match.players.p1.cards.map((c) => c.type);
-    assert.strictEqual(cards.length, match.config.cardsPerPlayer, mode);
+    assert.strictEqual(cards.length, Math.min(handSize, match.config.cardsPerPlayer), mode);
     assert.strictEqual(new Set(cards).size, cards.length, mode + ' has duplicates');
     assert.ok(cards.every((t) => deck.includes(t)), mode + ' dealt outside the deck');
   }

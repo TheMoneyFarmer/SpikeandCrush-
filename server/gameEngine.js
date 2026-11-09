@@ -10,6 +10,9 @@ const battlepass = require('./battlepass');
 const tournamentLib = require('./tournament');
 const personas = require('./personas');
 const gameFeel = require('./config/gameFeel');
+const cardRules = require('./cards');
+const progression = require('./progression');
+const intrabar = require('./intrabar');
 
 // Replay speed for a short-mode match (data seconds per real second), from
 // server/config/gameFeel.js market.replaySpeed - never from MODE_DURATIONS.
@@ -342,7 +345,13 @@ async function ensurePersonaPlayer(matchId, style) {
   return { ...resolved, personality: persona.style };
 }
 
+// Last 24h of per-match market telemetry (Fire monitor). Persisted to
+// match_market_stats too when that table exists.
+const MARKET_STATS = [];
+const MARKET_STATS_MAX = 20000;
+
 function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, isPlayerOnSite) {
+  let onFlatAlert = null; // set by index.js: throttled email when a match goes flat
   const matches = new Map();
   const roomCodeIndex = new Map(); // roomCode -> matchId
   const socketSessions = new Map(); // socketId -> { matchId, playerId }
@@ -392,7 +401,28 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       tradesMade: p.tradesMade,
       eliminated: p.eliminated,
       softLocked: p.softLocked,
-      cards: p.cards.map((c) => (isSelf ? { type: c.type, used: c.used } : { type: c.used ? c.type : null, used: c.used })),
+      cards: p.cards.map((c) => (isSelf ? { type: c.type, used: c.used, earned: Boolean(c.earned) } : { type: c.used ? c.type : null, used: c.used })),
+      level: p.level || null,
+      streak: isSelf ? p.streak || 0 : undefined,
+      heat: isSelf ? p.heat || 0 : undefined,
+      missions: isSelf ? p.missions || [] : undefined,
+    };
+  }
+
+  // What the client needs to draw the card tray, Heat meter, crown, missions
+  // and spike strip - feature flags and display numbers only.
+  function fireClientConfig() {
+    const f = gameFeel.get();
+    return {
+      handSize: f.cards.handSize,
+      earnedCards: f.cards.earnedCards,
+      streakRewards: f.cards.streakRewards,
+      refillAtStreak: f.cards.refillAtStreak,
+      heat: { enabled: f.heat.enabled, multipliers: f.heat.multipliers },
+      missions: f.missions.enabled,
+      spikeAlerts: f.spikeAlerts.enabled,
+      crown: f.crown.enabled,
+      ghostChallenge: f.ghostChallenge.enabled,
     };
   }
 
@@ -414,6 +444,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       entryCoins: match.config.entryCoins,
       rules: { ...marginRules.MARGIN_RULES, maxPositions: MAX_POSITIONS, softLossPct: SOFT_LOSS_PCT, softLossWindowSeconds: SOFT_LOSS_WINDOW_SECONDS },
       cardCatalog: sabotage.getCardCatalog(),
+      fire: fireClientConfig(),
+      marketSpeed: match.replaySpeed || 1,
+      leaderId: match.leaderId || null,
       feed: match.feed.slice(-30),
       players: Object.values(match.players).map((p) => publicPlayer(p, p.id === viewerId)),
       you: viewerId,
@@ -456,7 +489,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // time_warp: everyone except the caster reads prices from 3 seconds in
     // the past for the effect's duration - getCurrentPrice already clamps
     // an out-of-range index to 0, so this is safe even early in a match.
-    const timeWarpActive = nowMs < match.marketEffects.timeWarpUntil && viewerId !== match.marketEffects.timeWarpCasterId;
+    const immune = (casterId) => marketImmune(match, viewerId, casterId, nowMs);
+    const timeWarpActive = nowMs < match.marketEffects.timeWarpUntil && !immune(match.marketEffects.timeWarpCasterId);
     const effectiveElapsed = timeWarpActive ? elapsedSeconds - 3 : elapsedSeconds;
 
     const raw = instruments.getCurrentPrice(match.id, symbol, effectiveElapsed);
@@ -472,7 +506,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (
       nowMs < match.marketEffects.volatilitySurgeUntil &&
       match.marketEffects.volatilitySurgeBaseline &&
-      viewerId !== match.marketEffects.volatilitySurgeCasterId
+      !immune(match.marketEffects.volatilitySurgeCasterId)
     ) {
       const baseline = match.marketEffects.volatilitySurgeBaseline[symbol];
       mid = baseline + (mid - baseline) * 2;
@@ -485,7 +519,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (
       nowMs < match.marketEffects.deadCalmUntil &&
       match.marketEffects.deadCalmBaseline &&
-      viewerId !== match.marketEffects.deadCalmCasterId
+      !immune(match.marketEffects.deadCalmCasterId)
     ) {
       mid = match.marketEffects.deadCalmBaseline[symbol];
     }
@@ -502,18 +536,24 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // fog_of_war: random jitter thrown into the feed for everyone except the
     // caster - the true price underneath is untouched, so the chart snaps
     // back to where it actually was once the effect ends.
-    if (nowMs < match.marketEffects.fogOfWarUntil && viewerId !== match.marketEffects.fogOfWarCasterId) {
+    if (nowMs < match.marketEffects.fogOfWarUntil && !immune(match.marketEffects.fogOfWarCasterId)) {
       const pipSize = instruments.getInstrument(symbol)?.pipSize || 0.0001;
-      mid += (Math.random() * 2 - 1) * 4 * pipSize;
+      // Seeded by match, symbol and second (not Math.random), so every
+      // affected player sees the same jitter and a replay reproduces it.
+      const jitter = intrabar.rngFor(match.marketSeed || match.id, `fog:${symbol}:${Math.floor(nowMs / 1000)}`)();
+      mid += (jitter * 2 - 1) * 4 * pipSize;
     }
 
     const baseSpread = instruments.getSpread(symbol);
     const spreadActive =
-      nowMs < match.marketEffects[symbol].spreadUntil && viewerId !== match.marketEffects[symbol].spreadCasterId;
+      nowMs < match.marketEffects[symbol].spreadUntil && !immune(match.marketEffects[symbol].spreadCasterId);
     const doubleSpreadActive =
-      nowMs < match.marketEffects.doubleSpreadUntil && viewerId !== match.marketEffects.doubleSpreadCasterId;
+      nowMs < match.marketEffects.doubleSpreadUntil && !immune(match.marketEffects.doubleSpreadCasterId);
     let spread = spreadActive ? baseSpread * match.marketEffects[symbol].spreadMultiplier : baseSpread;
     if (doubleSpreadActive) spread *= 2;
+    // Spread Blowout: only the targeted player's quotes widen.
+    const viewer = viewerId ? match.players[viewerId] : null;
+    if (viewer && viewer.effects.spread_blowout && nowMs < viewer.effects.spread_blowout.until) spread *= viewer.effects.spread_blowout.multiplier;
 
     const decimals = instruments.getInstrument(symbol)?.decimals ?? (symbol === 'EURUSD' ? 5 : 2);
     mid = Number(mid.toFixed(decimals));
@@ -624,6 +664,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       instruments: matchInstruments,
       marketSeed,
       replaySpeed,
+      // Seeded generator for card draws, ghost trades and other in-match
+      // chance, so a replay of the match log reproduces every amount.
+      rand: intrabar.rngFor(marketSeed, `${matchId}:cards`),
+      cardLog: [], // every card play: attacker, target, card, amounts, time
+      cardTargetedAt: {},
+      leaderId: null,
+      spikePlan: [],
       players: {},
       playerOrder: [],
       createdAt: Date.now(),
@@ -718,12 +765,25 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // on the player record this match's result should read from and update.
     const ratingField = modeConfig.ratingKey || 'war_rating';
     const rating = info[ratingField] ?? info.warRating ?? 1000;
-    return {
+    const tier = tierForRating(rating);
+    // Cards come only from the player's unlocked pool (server/progression.js).
+    // A real player's unlocks arrive on `info.unlockedCards` from index.js;
+    // personas and test players without one get the deck their rating tier
+    // would have earned, and never anything locked for a new account.
+    const unlocked = Array.isArray(info.unlockedCards) && info.unlockedCards.length
+      ? info.unlockedCards
+      : progression.unlockedCards(progression.standing({ total_matches: (TIERS.findIndex((t) => t.name === tier) + 1) * 8, wins: TIERS.findIndex((t) => t.name === tier) * 3 }));
+    // Starting hand: the mode's deal plus the rank bonus, never more than the
+    // hand size (gameFeel cards.handSize).
+    const handSize = gameFeel.get().cards.handSize;
+    const dealt = Math.min(handSize, (modeConfig.cardsPerPlayer || 0) + (modeConfig.cardsPerPlayer ? progression.startingBonusCards(tier) : 0));
+    const state = {
       id: info.id,
       username: info.username,
       country: info.country || null,
       warRating: rating,
-      tier: tierForRating(rating),
+      tier,
+      level: Number(info.level) || null,
       isAI,
       aiPersonality: personality,
       aiState: isAI ? createAIState(personality, matchInstruments) : null,
@@ -731,7 +791,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       socketId,
       balance: STARTING_CAPITAL,
       positions: [],
-      cards: sabotage.dealCards(modeConfig.cardsPerPlayer, info.deck),
+      cards: sabotage.dealCards(dealt, info.deck, unlocked),
       cardsPlayed: 0,
       tradesMade: 0,
       effects: sabotage.createPlayerEffects(),
@@ -744,6 +804,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       worstTrade: 0,
       equityHistory: isAI ? null : [{ t: 0, equity: STARTING_CAPITAL }],
     };
+    return cardRules.initPlayer(state, { unlockedCards: unlocked });
   }
 
   function isInLiveMatch(playerId) {
@@ -939,6 +1000,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       db.updateMatch(match.dbMatchId, { status: 'active', start_time: new Date(match.startedAt).toISOString() }).catch(() => {});
     }
 
+    // Spike alerts from the real indexed events in this match's windows, and
+    // two quick missions per player.
+    const spikeEvents = [];
+    for (const symbol of match.instruments) spikeEvents.push(...instruments.getSpikeSchedule(match.id, symbol));
+    match.spikePlan = cardRules.planSpikes(spikeEvents, match.config.durationSeconds * (match.replaySpeed || 1));
+    for (const p of Object.values(match.players)) cardRules.assignMissions(match, p, { hasSpikes: match.spikePlan.length > 0 });
+
     emitMatchStateToAll(match);
     emitToAll(match, 'match:start', { matchId: match.id, startedAt: match.startedAt, durationSeconds: match.config.durationSeconds });
     for (const p of Object.values(match.players)) {
@@ -959,6 +1027,171 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         console.error('[gameEngine] emitLeaderboard() threw for match', match.id, e);
       }
     }, 3000);
+  }
+
+  // ---- fire gameplay helpers (cards, missions, Heat) --------------------------
+
+  // Market cards never hit their caster or anyone holding a Shield.
+  function marketImmune(match, viewerId, casterId, nowMs) {
+    if (viewerId === null || viewerId === undefined) return false;
+    if (viewerId === casterId) return true;
+    return sabotage.hasShieldCard(match.players[viewerId], nowMs);
+  }
+
+  // Slippage Storm: uses one of the target's penalised fills, returns the
+  // price penalty (N x the instrument's spread) or 0.
+  function takeSlippage(player, symbol, nowMs) {
+    const s = player.effects.slippage_storm;
+    if (!s || nowMs >= s.until || !(s.fillsLeft > 0)) return 0;
+    s.fillsLeft -= 1;
+    if (s.fillsLeft <= 0) player.effects.slippage_storm = null;
+    return instruments.getSpread(symbol) * s.spreads;
+  }
+
+  // Missions only count trades of real size (anti-farm).
+  function isMeaningful(symbol, lots, midPrice) {
+    return marginRules.positionMargin(symbol, lots, midPrice) >= STARTING_CAPITAL * cardRules.MEANINGFUL_MARGIN_SHARE;
+  }
+
+  function logCard(match, entry, elapsedSeconds) {
+    match.cardLog.push({ t: elapsedSeconds, at: Date.now(), ...entry });
+    if (match.cardLog.length > 2000) match.cardLog.shift();
+  }
+
+  function emitCardsUpdate(match, player, extra = {}) {
+    if (player.isAI) return;
+    emitToPlayer(match, player.id, 'cards:update', {
+      cards: player.cards.map((c) => ({ type: c.type, used: c.used, earned: Boolean(c.earned) })),
+      streak: player.streak,
+      bestStreak: player.bestStreak,
+      heat: player.heat,
+      heatMultiplier: cardRules.heatMultiplier(player.streak),
+      handSize: gameFeel.get().cards.handSize,
+      ...extra,
+    });
+  }
+
+  // Advance a player's missions; pay finished ones in coins through the
+  // atomic ledger (idempotency key per match/player/mission), within the
+  // per-match and per-day caps.
+  function missionProgress(match, player, ev) {
+    if (player.isAI || !player.missions || !player.missions.length) return;
+    const done = cardRules.missionEvent(player, ev);
+    if (!done.length) {
+      if (ev.type !== 'tick') emitToPlayer(match, player.id, 'missions:update', { missions: player.missions });
+      return;
+    }
+    const m = gameFeel.get().missions;
+    for (const mission of done) {
+      const paidSoFar = player.missionCoins || 0;
+      const coins = Math.max(0, Math.min(m.coinsPerMission, m.perMatchCoinCap - paidSoFar));
+      player.missionCoins = paidSoFar + coins;
+      player.missionsCompleted = (player.missionsCompleted || 0) + 1;
+      mission.coins = coins;
+      emitToPlayer(match, player.id, 'missions:complete', { mission, coins });
+      if (coins > 0 && db.isConfigured && !player.isAI) {
+        (async () => {
+          try {
+            const today = await db.coinsOfTypeToday(player.id, 'mission_reward');
+            const allowed = Math.max(0, Math.min(coins, m.perDayCoinCap - today));
+            if (allowed > 0) {
+              await db.creditCoins(player.id, allowed, { type: 'mission_reward', matchId: match.dbMatchId, idempotencyKey: `mission:${match.id}:${player.id}:${mission.id}` });
+            }
+          } catch (e) {
+            console.warn('[missions] reward failed:', e.message);
+          }
+        })();
+      }
+    }
+    emitToPlayer(match, player.id, 'missions:update', { missions: player.missions });
+  }
+
+  // Market telemetry (Part 1F): per instrument, what players actually saw -
+  // price changes per minute, the longest flat stretch and the range.
+  function recordMarketStats(match) {
+    const info = instruments.getMarketInfo(match.id) || {};
+    const played = getElapsedSeconds(match, Date.now());
+    for (const symbol of match.instruments) {
+      const series = instruments.getFullLiveSeries(match.id, symbol);
+      const speed = (info[symbol] && info[symbol].speed) || 1;
+      const mids = [];
+      for (let t = 0; t <= played; t++) {
+        const i = Math.min(series.length - 1, t * speed);
+        if (i >= 0 && series[i]) mids.push(series[i].mid);
+      }
+      if (mids.length < 2) continue;
+      let changes = 0;
+      let run = 0;
+      let longest = 0;
+      let hi = -Infinity;
+      let lo = Infinity;
+      for (let i = 0; i < mids.length; i++) {
+        hi = Math.max(hi, mids[i]);
+        lo = Math.min(lo, mids[i]);
+        if (i === 0) continue;
+        if (mids[i] === mids[i - 1]) longest = Math.max(longest, ++run);
+        else {
+          run = 0;
+          changes++;
+        }
+      }
+      const row = {
+        match_id: match.id,
+        mode: match.mode,
+        symbol,
+        curated: Boolean(info[symbol] && info[symbol].curated),
+        start_offset: info[symbol] && info[symbol].curated ? info[symbol].start : null,
+        replay_speed: speed,
+        changes_per_min: Math.round((changes / (mids.length / 60)) * 100) / 100,
+        longest_flat_seconds: longest,
+        range_bps: Math.round(((hi - lo) / ((hi + lo) / 2)) * 1e4 * 1000) / 1000,
+        created_at: new Date().toISOString(),
+      };
+      MARKET_STATS.push(row);
+      while (MARKET_STATS.length && (MARKET_STATS.length > MARKET_STATS_MAX || Date.parse(MARKET_STATS[0].created_at) < Date.now() - 24 * 3600 * 1000)) MARKET_STATS.shift();
+      if (db.isConfigured && db.recordMarketStats) db.recordMarketStats(row).catch(() => {});
+      if (longest > gameFeel.get().market.flatLimitSeconds) onFlatAlert?.(row);
+    }
+  }
+
+  // XP for one finished match (server/progression.js), capped per match and
+  // per day, paid once per match (idempotency key), floored by the player's
+  // real history so nobody loses a level they earned. Returns what the
+  // result screen shows: XP gained, level before/after, cards unlocked.
+  async function awardMatchXp(match, p, r) {
+    const played = getElapsedSeconds(match, Date.now());
+    const xp = progression.matchXp({
+      durationPlayed: played,
+      abandoned: Boolean(p.forfeited),
+      finalRank: r.rank,
+      qualifyingWins: p.qualifyingWins,
+      bestStreak: p.bestStreak,
+      missionsCompleted: p.missionsCompleted || 0,
+      pnl: r.pnl,
+      startingCapital: STARTING_CAPITAL,
+      selfPlay: Object.values(match.players).filter((x) => !x.isAI).length === 1 && match.mode === 'private',
+    });
+    if (!db.isConfigured) return { xpGained: xp.total, parts: xp.parts };
+    const row = await db.getPlayerById(p.id);
+    const stored = db.getProgress ? await db.getProgress(p.id).catch(() => null) : null;
+    const before = progression.standing({ total_matches: (row?.total_matches || 1) - 1, wins: (row?.wins || 0) - (r.rank === 1 && !r.isDraw ? 1 : 0) }, stored);
+    const today = stored && stored.xp_day === new Date().toISOString().slice(0, 10) ? stored.xp_today : 0;
+    const gained = progression.capForDay(xp.total, today);
+    let saved = null;
+    if (db.awardXp) saved = await db.awardXp(p.id, { matchId: match.id, amount: gained, key: `xp:${match.id}:${p.id}`, bestStreak: p.bestStreak, bestHeat: p.bestHeat, qualifyingWins: p.qualifyingWins, floorXp: before.xp }).catch(() => null);
+    const afterXp = saved ? saved.xp : before.xp + gained;
+    const after = progression.standing(row || {}, { xp: afterXp });
+    const unlocked = progression.newUnlocks(before, after);
+    return {
+      xpGained: gained,
+      parts: xp.parts,
+      capped: gained < xp.total,
+      levelBefore: before.level,
+      levelAfter: after.level,
+      level: progression.levelInfo(after.xp),
+      unlocked: unlocked.map((id) => ({ id, name: sabotage.CARDS[id].name, icon: sabotage.CARDS[id].icon, rarity: sabotage.CARDS[id].rarity })),
+      persisted: Boolean(saved),
+    };
   }
 
   // ---- trading -------------------------------------------------------------
@@ -985,8 +1218,21 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       return { success: false, error: 'Loss limit reached for this 2-minute window - trading resumes next window' };
     }
 
+    // Damaging card effects on this player (server/sabotage.js).
+    const fx = player.effects;
+    const on = (e) => Boolean(e && nowMs < e.until);
+    if (on(fx.trade_limit) && player.positions.length >= 1) {
+      return { success: false, error: 'Trade Limit active - close your open trade before opening another' };
+    }
+    if (on(fx.one_way) && direction !== fx.one_way.direction) {
+      return { success: false, error: `One Way active - you can only ${fx.one_way.direction} right now` };
+    }
+    if (on(fx.cooldown_jam) && player.lastOpenAt && nowMs - player.lastOpenAt < fx.cooldown_jam.gapSeconds * 1000) {
+      return { success: false, error: `Cooldown Jam active - wait ${Math.ceil((player.lastOpenAt + fx.cooldown_jam.gapSeconds * 1000 - nowMs) / 1000)}s before your next trade` };
+    }
+
     const liquidityDrained =
-      nowMs < match.marketEffects.liquidityDrainUntil && match.marketEffects.liquidityDrainCasterId !== playerId;
+      nowMs < match.marketEffects.liquidityDrainUntil && !marketImmune(match, playerId, match.marketEffects.liquidityDrainCasterId, nowMs);
     const lotLimited = player.effects.lot_limiter && nowMs < player.effects.lot_limiter.until;
     // No lot limit of its own: size is decided by free margin below. Only these
     // two sabotage cards still cap it, for as long as they last.
@@ -1004,7 +1250,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     }
 
     const price = getEffectivePrice(match, symbol, elapsedSeconds, nowMs, playerId);
-    const entryPrice = direction === 'BUY' ? price.ask : price.bid;
+    let entryPrice = direction === 'BUY' ? price.ask : price.bid;
 
     const margin = marginStats(match, player, elapsedSeconds, nowMs);
     const freeMargin = margin.equity - margin.used;
@@ -1013,6 +1259,14 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       const most = marginRules.maxAffordableLots(symbol, marginRules.mid(price), freeMargin);
       return { success: false, error: most > 0 ? `Not enough free margin. You can open up to ${most} lots of ${symbol} right now` : 'No free margin left. Close a position to open a new one' };
     }
+    // Margin Squeeze: only a share of what free margin would allow.
+    if (on(fx.margin_squeeze)) {
+      const most = Math.floor(marginRules.maxAffordableLots(symbol, marginRules.mid(price), freeMargin) * fx.margin_squeeze.share * 100) / 100;
+      if (numLots > most) return { success: false, error: `Margin Squeeze active - you can open up to ${most} lots right now` };
+    }
+    // Slippage Storm: this fill lands worse by N spreads (uses one charge).
+    const slip = takeSlippage(player, symbol, nowMs);
+    if (slip) entryPrice = Number((entryPrice + (direction === 'BUY' ? slip : -slip)).toFixed(instruments.getInstrument(symbol).decimals));
 
     // SL/TP may arrive as an absolute price or as a pip distance from entry
     // (the client can't know the real fill price in advance, so "pips" lets
@@ -1050,6 +1304,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     };
     player.positions.push(position);
     player.tradesMade += 1;
+    player.lastOpenAt = nowMs;
+    missionProgress(match, player, {
+      type: 'open',
+      meaningful: isMeaningful(symbol, position.lots, marginRules.mid(price)),
+      sinceSpikeMs: match.lastSpikeAlertAt ? nowMs - match.lastSpikeAlertAt : null,
+    });
 
     if (db.isConfigured && match.dbMatchId) {
       db.recordTrade({ matchId: match.dbMatchId, playerId: player.id, symbol, direction, lots: position.lots, entryPrice })
@@ -1091,13 +1351,48 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const elapsedSeconds = getElapsedSeconds(match, nowMs);
     const position = player.positions[idx];
     const price = getEffectivePrice(match, position.symbol, elapsedSeconds, nowMs, playerId);
-    const exitPrice = position.direction === 'BUY' ? price.bid : price.ask;
+    let exitPrice = position.direction === 'BUY' ? price.bid : price.ask;
+    // Slippage Storm also hits the target's own exits (not card closes).
+    if (reason !== 'sabotage') {
+      const slip = takeSlippage(player, position.symbol, nowMs);
+      if (slip) exitPrice = Number((exitPrice + (position.direction === 'BUY' ? -slip : slip)).toFixed(instruments.getInstrument(position.symbol).decimals));
+    }
     const pnl = instruments.calculatePnL(position.direction, position.lots, position.entryPrice, exitPrice, position.symbol);
 
     player.balance = Math.round((player.balance + pnl) * 100) / 100;
     player.positions.splice(idx, 1);
     if (pnl > player.bestTrade) player.bestTrade = pnl;
     if (pnl < player.worstTrade) player.worstTrade = pnl;
+
+    // Profit Tax: the target's next winning close pays a share to whoever
+    // played it (capped, and never below the damage floor).
+    const tax = player.effects.profit_tax;
+    if (pnl > 0 && tax && nowMs < tax.until && match.players[tax.by]) {
+      const floor = STARTING_CAPITAL * gameFeel.get().cards.floorPctOfCapital;
+      const room = Math.max(0, computeEquity(match, player, elapsedSeconds, nowMs) - floor);
+      const amount = Math.min(Math.round(pnl * tax.share * 100) / 100, tax.cap, Math.floor(room * 100) / 100);
+      if (amount > 0) {
+        const taker = match.players[tax.by];
+        player.balance = Math.round((player.balance - amount) * 100) / 100;
+        taker.balance = Math.round((taker.balance + amount) * 100) / 100;
+        logCard(match, { attacker: taker.id, target: player.id, card: 'profit_tax', phase: 'collected', amount }, elapsedSeconds);
+        pushFeed(match, `${taker.username} collected ${amount} Profit Tax from ${player.username}`, { type: 'sabotage_effect', timestamp: elapsedSeconds, playerId: taker.id, targetPlayerId: player.id, cardType: 'profit_tax', amount });
+        emitToPlayer(match, player.id, 'sabotage:incoming', { cardType: 'profit_tax', amount, collected: true, cardName: 'Profit Tax' });
+      }
+      player.effects.profit_tax = null;
+    }
+
+    // Streak, earned cards, Heat and missions (server/cards.js).
+    const earned = cardRules.onTradeClosed(match, player, { position, pnl, reason, nowMs, startingCapital: STARTING_CAPITAL });
+    if (earned.qualifying || earned.reset || earned.granted.length || earned.heat) emitCardsUpdate(match, player, { earned });
+    missionProgress(match, player, {
+      type: 'close',
+      qualifying: earned.qualifying,
+      reason,
+      heldMs: nowMs - position.openedAt,
+      meaningful: isMeaningful(position.symbol, position.lots, marginRules.mid(price)),
+      streak: player.streak,
+    });
 
     if (db.isConfigured && position.dbId) {
       db.closeTrade(position.dbId, { exitPrice, pnl }).catch((e) => console.warn('[gameEngine] closeTrade failed:', e.message));
@@ -1186,6 +1481,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (!player) return { success: false, error: 'Player not in match' };
     const position = player.positions.find((p) => p.id === positionId);
     if (!position) return { success: false, error: 'Position not found' };
+    if (player.effects.order_freeze && Date.now() < player.effects.order_freeze.until) {
+      return { success: false, error: 'Order Freeze active - you cannot change stop loss or take profit right now' };
+    }
 
     // A field left out of the request (undefined) means "leave it as-is" - the
     // chart's drag-a-line-to-modify sends only the one field being dragged, so
@@ -1256,8 +1554,51 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (match.status !== 'active') return { success: false, error: 'Match is not active' };
 
     const nowMs = Date.now();
-    const result = sabotage.playCard(match, playerId, cardType, opts, nowMs);
+    const caster = match.players[playerId];
+    if (!caster) return { success: false, error: 'Caster not in match' };
+    const target = opts.targetId ? match.players[opts.targetId] : null;
+    // Guards (server/cards.js): locked cards, shields, the hit shield,
+    // same-target cooldown, one damaging effect per target, offline targets.
+    const blocked = cardRules.checkPlay(match, caster, cardType, target, nowMs);
+    if (blocked) return { success: false, error: blocked };
+    const elapsedAtPlay = getElapsedSeconds(match, nowMs);
+    const targetEquityBefore = target ? computeEquity(match, target, elapsedAtPlay, nowMs) : null;
+    const result = sabotage.playCard(match, playerId, cardType, {
+      targetId: opts.targetId,
+      symbol: opts.symbol,
+      targetEquity: targetEquityBefore,
+      startingCapital: STARTING_CAPITAL,
+      maxPositions: MAX_POSITIONS,
+      rand: match.rand,
+    }, nowMs);
     if (!result.success) return result;
+
+    if (result.stopYankTarget) {
+      // The stop on the target's largest open position moves halfway to the
+      // price; with no stop yet, a tight one is placed N spreads away.
+      let biggest = null;
+      for (const pos of target.positions) if (!biggest || pos.lots > biggest.lots) biggest = pos;
+      const px = getEffectivePrice(match, biggest.symbol, elapsedAtPlay, nowMs, target.id);
+      const exit = biggest.direction === 'BUY' ? px.bid : px.ask;
+      const dec = instruments.getInstrument(biggest.symbol).decimals;
+      const before = biggest.stopLoss;
+      const dist = before ? Math.abs(exit - before) : instruments.getSpread(biggest.symbol) * sabotage.CARD_AMOUNTS.stopYankNewSpreads / sabotage.CARD_AMOUNTS.stopYankShare;
+      const newDist = Math.max(instruments.getSpread(biggest.symbol), dist * sabotage.CARD_AMOUNTS.stopYankShare);
+      biggest.stopLoss = Number((biggest.direction === 'BUY' ? exit - newDist : exit + newDist).toFixed(dec));
+      result.amounts = { positionId: biggest.id, stopBefore: before, stopAfter: biggest.stopLoss };
+      emitToPlayer(match, target.id, 'trade:executed', { position: biggest, modified: true, stopYanked: true });
+    }
+    if (result.tpSnipTarget) {
+      const snipped = [];
+      for (const pos of target.positions) {
+        if (pos.takeProfit) {
+          snipped.push({ positionId: pos.id, takeProfit: pos.takeProfit });
+          pos.takeProfit = null;
+          emitToPlayer(match, target.id, 'trade:executed', { position: pos, modified: true, tpSnipped: true });
+        }
+      }
+      result.amounts = { snipped };
+    }
 
     if (cardType === 'volatility_surge') {
       const elapsedSeconds = getElapsedSeconds(match, nowMs);
@@ -1339,7 +1680,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       const elapsedSeconds = getElapsedSeconds(match, nowMs);
       const symbol = result.ghostTrade.symbol;
       const price = getEffectivePrice(match, symbol, elapsedSeconds, nowMs, target.id);
-      const direction = Math.random() < 0.5 ? 'BUY' : 'SELL';
+      const direction = result.ghostTrade.direction;
       const pipSize = instruments.getInstrument(symbol)?.pipSize || 0.0001;
       // Deliberately fills 3 pips worse than the real market price, in the
       // direction that hurts the target - a real position they now have to
@@ -1399,6 +1740,26 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         })
         .catch((e) => console.warn('[gameEngine] recordSabotageEvent failed:', e.message));
     }
+
+    // Hit shield + same-target cooldown, the match log entry, Heat for
+    // hitting the leader, the "play a card" mission and the caster's hand.
+    if (target && result.card.targeted) cardRules.afterHit(match, target, nowMs);
+    const targetEquityAfter = target ? computeEquity(match, target, elapsedAtPlay, nowMs) : null;
+    logCard(match, {
+      attacker: playerId,
+      target: result.targetId,
+      card: cardType,
+      symbol: result.symbol,
+      amounts: result.amounts,
+      targetEquityBefore: targetEquityBefore === null ? null : Math.round(targetEquityBefore * 100) / 100,
+      targetEquityAfter: targetEquityAfter === null ? null : Math.round(targetEquityAfter * 100) / 100,
+    }, elapsedAtPlay);
+    if (target && match.leaderId === target.id && gameFeel.get().heat.enabled) {
+      caster.heat += gameFeel.get().heat.sabotageLeaderBonus;
+      caster.bestHeat = Math.max(caster.bestHeat, caster.heat);
+    }
+    missionProgress(match, caster, { type: 'card' });
+    emitCardsUpdate(match, caster);
 
     pushFeed(match, result.feedText, {
       type: 'sabotage_played',
@@ -1523,7 +1884,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const card = player.cards[cardIndex];
     if (!card || card.used) return;
     const cardDef = sabotage.CARDS[card.type];
-    const candidates = Object.values(match.players).filter((p) => p.id !== player.id);
+    const nowMs = Date.now();
+    const candidates = Object.values(match.players).filter((p) => p.id !== player.id && !cardRules.checkPlay(match, player, card.type, p, nowMs));
     if (cardDef.targeted && candidates.length === 0) return;
     const target = cardDef.targeted ? candidates[Math.floor(Math.random() * candidates.length)] : null;
     playSabotageCard(match.id, player.id, card.type, { targetId: target ? target.id : undefined });
@@ -1714,6 +2076,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         activeExemptIds.add(symbolEffects.spreadCasterId);
       }
     }
+    // Shield holders (immune to market cards while any is active) and Spread
+    // Blowout targets (their own spread widens) also get their own prices.
+    const anyMarketEffect = activeExemptIds.size > 0 || nowMs < match.marketEffects.liquidityDrainUntil || match.instruments.some((s) => match.marketEffects[s] && match.marketEffects[s].reversal);
+    for (const p of Object.values(match.players)) {
+      if (p.effects.spread_blowout && nowMs < p.effects.spread_blowout.until) activeExemptIds.add(p.id);
+      else if (anyMarketEffect && sabotage.hasShieldCard(p, nowMs)) activeExemptIds.add(p.id);
+    }
     if (activeExemptIds.size > 0) {
       for (const p of Object.values(match.players)) {
         if (p.isAI || !activeExemptIds.has(p.id)) continue;
@@ -1732,6 +2101,22 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
     checkStopLossTakeProfit(match, elapsedSeconds, nowMs);
     for (const p of Object.values(match.players)) checkRiskLimits(match, p, elapsedSeconds, nowMs);
+
+    // Spike alerts (real indexed events only) on market time.
+    for (const ev of cardRules.spikeTick(match, dataSeconds)) {
+      if (ev.event === 'spike:alert') match.lastSpikeAlertAt = nowMs;
+      emitToAll(match, ev.event, ev.payload);
+    }
+    // "Hold a trade for 60 seconds" completes while the trade is still open.
+    if (elapsedSeconds % 5 === 0) {
+      for (const p of Object.values(match.players)) {
+        if (p.isAI || !p.missions || !p.missions.some((m) => m.id === 'hold_60' && !m.done)) continue;
+        for (const pos of p.positions) {
+          const px = instruments.getCurrentPrice(match.id, pos.symbol, elapsedSeconds);
+          missionProgress(match, p, { type: 'tick', heldMs: nowMs - pos.openedAt, meaningful: isMeaningful(pos.symbol, pos.lots, px.mid) });
+        }
+      }
+    }
 
     // One P&L snapshot per player per elapsed second, for the replay's
     // equity curves (FIX 4) - built from the same computeEquity() used for
@@ -1760,13 +2145,27 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           id: p.id,
           username: p.username,
           pnl: Math.round((equity - STARTING_CAPITAL) * 100) / 100,
+          equity: Math.round(equity * 100) / 100,
           tradesMade: p.tradesMade,
           eliminated: p.eliminated,
           softLocked: p.softLocked,
+          tier: p.tier,
+          level: p.level,
+          status: cardRules.targetStatus(p, nowMs),
         };
       })
       .sort((a, b) => b.pnl - a.pnl)
       .map((row, i) => ({ ...row, rank: i + 1 }));
+
+    // Crown: the leader is marked, and overtaking them earns one card
+    // ("Dethrone", once per leader change, with a cooldown).
+    const crown = cardRules.updateCrown(match, rows, nowMs);
+    if (crown && crown.previous) {
+      const king = match.players[crown.leaderId];
+      pushFeed(match, `${king.username} took the crown`, { type: 'crown', timestamp: elapsedSeconds, playerId: king.id });
+      if (crown.grant && (crown.grant.granted.length || crown.grant.heat)) emitCardsUpdate(match, king, { dethrone: true, earned: { granted: crown.grant.granted, heat: crown.grant.heat } });
+    }
+    for (const r of rows) r.crown = r.id === match.leaderId;
 
     const blurred = nowMs < match.marketEffects.smokeScreenUntil;
     emitToAll(match, 'leaderboard:update', { rows, blurred });
@@ -2042,6 +2441,29 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         await advanceTournamentMatch(match, results);
       } catch (e) {
         console.warn('[gameEngine] failed to advance tournament bracket:', e.message);
+      }
+    }
+
+    // Fire gameplay summary per player: Heat, streaks, earned cards, missions,
+    // XP and new card unlocks (result screen), plus market telemetry for the
+    // Fire monitor. None of it feeds back into P&L, rank, prizes or ratings.
+    recordMarketStats(match);
+    for (const r of results) {
+      const p = match.players[r.playerId];
+      if (!p) continue;
+      r.fire = {
+        heat: p.heat || 0,
+        bestHeat: p.bestHeat || 0,
+        bestStreak: p.bestStreak || 0,
+        qualifyingWins: p.qualifyingWins || 0,
+        cardsEarned: p.cardsEarned || 0,
+        missions: (p.missions || []).map((m) => ({ id: m.id, label: m.label, done: m.done, coins: m.coins || 0 })),
+      };
+      if (r.isAI || !gameFeel.get().progression.enabled) continue;
+      try {
+        r.fire.progress = await awardMatchXp(match, p, r);
+      } catch (e) {
+        console.warn('[progression] XP award failed for', r.username, e.message);
       }
     }
 
@@ -2780,6 +3202,24 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     voidMatch,
     kickPlayerFromMatch,
     applyConfigOverrides,
+    // ---- fire gameplay ----
+    getMarketStats: () => MARKET_STATS.slice(),
+    setFlatAlertHandler: (fn) => {
+      onFlatAlert = fn;
+    },
+    // What a ghost challenge needs to replay this match's exact market.
+    getMatchMarket: (matchId) => {
+      const match = matches.get(matchId);
+      if (!match) return null;
+      const info = instruments.getMarketInfo(matchId) || {};
+      const starts = {};
+      for (const [s, v] of Object.entries(info)) if (v.curated) starts[s] = v.start;
+      return { mode: match.mode, instruments: match.instruments.slice(), marketSeed: match.marketSeed, marketStarts: starts, durationSeconds: match.config.durationSeconds, endPayload: match.endPayload || null, playerIds: Object.keys(match.players), humanIds: Object.values(match.players).filter((p) => !p.isAI).map((p) => p.id) };
+    },
+    getCardLog: (matchId) => {
+      const match = matches.get(matchId);
+      return match ? match.cardLog.slice() : null;
+    },
   };
 }
 
