@@ -9,6 +9,23 @@
 <meta name="theme-color" content="#0b1220">
 <meta name="description" content="Spike & Crush is a competitive trading game. 10-minute matches on real market data, 30 sabotage cards, ranked ladders. Free to play with coins.">
 <title>Spike & Crush — Up. Then not.</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="alternate icon" href="/favicon.ico" sizes="48x48" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="canonical" href="https://www.spikeandcrush.com/" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Spike &amp; Crush" />
+<meta property="og:url" content="https://www.spikeandcrush.com/" />
+<meta property="og:title" content="Spike &amp; Crush: Up. Then not." />
+<meta property="og:description" content="A competitive trading game. 10-minute matches on real market data, with sabotage cards to wreck your rivals." />
+<meta property="og:image" content="https://www.spikeandcrush.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Spike &amp; Crush logo above a price chart that spikes and then crashes" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Spike &amp; Crush: Up. Then not." />
+<meta name="twitter:description" content="A competitive trading game. 10-minute matches on real market data, with sabotage cards to wreck your rivals." />
+<meta name="twitter:image" content="https://www.spikeandcrush.com/og-image.png" />
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="stylesheet" href="/css/palette.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -809,7 +826,7 @@ button { font: inherit; }
 <script src="/js/icons.js"></script>
 <script src="/js/time-ago.js"></script>
 <script src="js/main.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
 <script src="js/auth.js"></script>
 <script>
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1021,6 +1038,10 @@ if (new URLSearchParams(location.search).get('login') === 'required') {
   openPanel('login');
   document.getElementById('lpLoginError').textContent = 'Please log in to continue.';
 }
+if (new URLSearchParams(location.search).get('login') === 'verified') {
+  openPanel('login');
+  TW.showAuthNotice(document.getElementById('lpLoginError'), 'Email verified. Log in to start playing.');
+}
 
 // ── AUTH ── (same TW.api / TW.establishSession flow as before)
 async function handleLpLogin(e) {
@@ -1037,7 +1058,8 @@ async function handleLpLogin(e) {
     closePanel();
     location.href = TW.consumePostLoginRedirect() || '/play';
   } catch (err) {
-    errEl.textContent = err.message || 'Could not log in.';
+    if (err.needsVerification) TW.showVerifyPrompt(errEl, { username: err.username || username });
+    else errEl.textContent = err.message || 'Could not log in.';
     btn.disabled = false; btn.textContent = 'Log in';
   }
   return false;
@@ -1052,6 +1074,12 @@ async function handleLpRegister(e) {
   btn.disabled = true; btn.textContent = 'Creating account…';
   try {
     const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password } });
+    if (data.needsVerification) {
+      TW.showVerifyPrompt(errEl, { email: data.email });
+      document.getElementById('lpRegisterPassword').value = '';
+      btn.disabled = false; btn.textContent = 'Create account';
+      return false;
+    }
     await TW.establishSession(data.token, data.refresh_token, data.player);
     window.initOrientationLock?.();
     closePanel();

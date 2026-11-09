@@ -11,7 +11,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <title>Spike & Crush — Analytics</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="alternate icon" href="/favicon.ico" sizes="48x48" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="stylesheet" href="css/main.css" />
 <link rel="stylesheet" href="css/themes.css" />
 <link rel="stylesheet" href="css/tutorial.css" />
@@ -28,8 +30,6 @@
   .an-heatmap { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; }
   .an-heat-cell { aspect-ratio: 1; border-radius: 4px; position: relative; cursor: default; }
   .an-heat-cell .hour-label { position: absolute; bottom: 1px; left: 3px; font-size: 8px; color: rgba(255,255,255,0.5); }
-  .an-locked { text-align: center; padding: 60px 20px; }
-  .an-locked .icon { font-size: 48px; margin-bottom: 12px; }
   .an-trend-svg { width: 100%; height: 160px; }
 </style>
   <link rel="stylesheet" href="/css/console.css" />
@@ -49,7 +49,7 @@
   <script src="js/sound.js"></script>
   <script src="js/lottie.js"></script>
   <script src="js/main.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
   <script src="js/auth.js"></script>
   <script src="js/socket.js"></script>
   <script src="js/device.js"></script>
@@ -124,7 +124,7 @@
       const root = document.getElementById('analyticsRoot');
       root.innerHTML = `
         <div class="panel">
-          <h2>Analytics Dashboard <span class="pill pill-gold" style="font-size:11px;">Premium</span></h2>
+          <h2>Analytics Dashboard</h2>
         </div>
         <div class="an-grid" style="margin-top:16px;">
           <div class="panel">
@@ -151,24 +151,12 @@
       `;
     }
 
-    function renderLocked() {
-      document.getElementById('analyticsRoot').innerHTML = `
-        <div class="panel an-locked">
-          <div class="icon">🔒</div>
-          <h2>Analytics is a Battle Pass Premium feature</h2>
-          <p class="text-secondary">Unlock win-rate breakdowns, P&amp;L trends, and card performance stats with Battle Pass Premium.</p>
-          <a href="/battle-pass" class="btn btn-primary" style="margin-top:12px;">Unlock Premium</a>
-        </div>
-      `;
-    }
-
     async function load() {
       try {
         const data = await TW.api('/api/analytics');
         render(data);
       } catch (e) {
-        if (e.requiresPremium) renderLocked();
-        else document.getElementById('analyticsRoot').innerHTML = `<div class="panel text-secondary">${TW.escapeHtml(e.message)}</div>`;
+        document.getElementById('analyticsRoot').innerHTML = `<div class="panel text-secondary">${TW.escapeHtml(e.message)}</div>`;
       }
     }
 

@@ -549,7 +549,9 @@ window.TW = window.TW || {};
         TW.toast(`Welcome back, ${data.player.username}`, 'info');
         loadLeaderboardPreview();
       } catch (err) {
-        if (err.requiresTotp && totpInput) {
+        if (err.needsVerification) {
+          TW.showVerifyPrompt(errEl, { username: err.username || username });
+        } else if (err.requiresTotp && totpInput) {
           totpInput.classList.remove('hidden');
           totpInput.focus();
           errEl.textContent = 'Enter your 6-digit authenticator code';
@@ -568,6 +570,11 @@ window.TW = window.TW || {};
       const password = document.getElementById('registerPassword').value;
       try {
         const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password } });
+        if (data.needsVerification) {
+          TW.showVerifyPrompt(errEl, { email: data.email });
+          document.getElementById('registerPassword').value = '';
+          return;
+        }
         await TW.establishSession(data.token, data.refresh_token, data.player);
         window.initOrientationLock?.();
         const redirect = TW.consumePostLoginRedirect();

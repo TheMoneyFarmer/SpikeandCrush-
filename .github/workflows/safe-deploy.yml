@@ -28,7 +28,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Tests first: broken code never pauses matches, and the check fails, so with
+  # "Wait for CI" on Railway doesn't deploy it.
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
   wait-for-live-matches:
+    needs: tests
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

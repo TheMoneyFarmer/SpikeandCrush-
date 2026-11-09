@@ -29,6 +29,13 @@ test('margin rules in a live match', { timeout: 40000 }, async (t) => {
 
   const nas = instruments.getInstrument('NAS100');
   assert.ok(nas);
+  await t.test('a size that would round to 0 lots is refused', () => {
+    for (const lots of [0.001, 0.004, 0.009]) {
+      const r = open({ symbol: 'EURUSD', direction: 'BUY', lots });
+      assert.strictEqual(r.success, false);
+      assert.match(r.error, /at least 0\.01/);
+    }
+  });
   await t.test('more than 10 lots is allowed when margin covers it', () => {
     const r = open({ symbol: 'NAS100', direction: 'BUY', lots: 12 });
     assert.ok(r.success, r.error);

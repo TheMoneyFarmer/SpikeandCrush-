@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<meta name="theme-color" content="#0b1220" />
+<script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t)}catch(e){}})();</script>
+<title>Verify Email — Spike & Crush</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="alternate icon" href="/favicon.ico" sizes="48x48" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="stylesheet" href="/css/palette.css" />
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--c-canvas); color: var(--c-on); font: 400 16px/1.5 Inter, system-ui, -apple-system, sans-serif; }
+  .box { width: 100%; max-width: 400px; padding: 28px; background: var(--c-elev); border-radius: 14px; }
+  .logo { display: block; margin-bottom: 18px; font-weight: 800; font-size: 20px; letter-spacing: -0.02em; text-decoration: none; }
+  .logo .s { color: var(--c-spike); } .logo .c { color: var(--c-crush); } .logo .amp { color: var(--c-on); margin: 0 1px; font-weight: 300; }
+  h1 { margin: 0 0 8px; font-size: 22px; line-height: 1.25; }
+  p { margin: 0 0 16px; color: var(--c-body); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 46px; border: 0; border-radius: 10px; background: var(--c-spike); color: #0b1220; font: 700 15px/1 inherit; font-family: inherit; text-decoration: none; cursor: pointer; }
+  input { width: 100%; min-height: 46px; margin-bottom: 10px; padding: 10px 12px; border: 1px solid var(--c-mute); border-radius: 10px; background: var(--c-canvas); color: var(--c-on); font: inherit; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <main class="box">
+    <a class="logo" href="/" aria-label="Spike and Crush home"><span class="s">Spike</span><span class="amp">&amp;</span><span class="c">Crush</span></a>
+    <h1 id="title" aria-live="polite">Verifying your email…</h1>
+    <p id="message">This only takes a moment.</p>
+    <a class="btn" id="loginBtn" href="/?login=verified" hidden>Log in</a>
+    <form id="resendForm" hidden>
+      <input type="email" id="resendEmail" required autocomplete="email" placeholder="Your email address" aria-label="Your email address" />
+      <button class="btn" type="submit" id="resendBtn">Send a new link</button>
+    </form>
+  </main>
+  <script>
+    (async function () {
+      const title = document.getElementById('title');
+      const message = document.getElementById('message');
+      const loginBtn = document.getElementById('loginBtn');
+      const form = document.getElementById('resendForm');
+      const show = (t, m) => { title.textContent = t; message.textContent = m; };
+      const offerNewLink = (t, m) => { show(t, m); form.hidden = false; };
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('resendBtn');
+        btn.disabled = true;
+        try {
+          await fetch('/api/auth/resend-verification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: document.getElementById('resendEmail').value.trim() }),
+          });
+          form.hidden = true;
+          show('Check your inbox', "If that address has an account waiting to be verified, a new link is on its way. Check your spam folder too.");
+        } catch (err) {
+          btn.disabled = false;
+          show('Something went wrong', 'We could not send a new link. Check your connection and try again.');
+        }
+      });
+
+      const token = new URLSearchParams(location.search).get('token');
+      if (!token) return offerNewLink('This link is not complete', 'Enter your email and we will send you a new one.');
+      // A POST, so mail scanners that open links can't verify an address by themselves.
+      try {
+        const res = await fetch('/api/auth/verify-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          show('Email verified', 'Your account is ready. Log in to start playing.');
+          loginBtn.hidden = false;
+        } else if (data.expired) {
+          offerNewLink('This link has expired', 'Links work for 24 hours. Enter your email and we will send you a new one.');
+        } else if (res.status === 429 || res.status >= 500) {
+          show('Something went wrong', 'We could not verify your email just now. Please open the link again in a few minutes.');
+        } else {
+          offerNewLink('This link is not valid', 'Enter your email and we will send you a new one.');
+        }
+      } catch (err) {
+        show('Something went wrong', 'We could not verify your email. Check your connection and open the link again.');
+      }
+    })();
+  </script>
+</body>
+</html>

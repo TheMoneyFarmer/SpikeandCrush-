@@ -20,6 +20,7 @@ const { Server } = require('socket.io');
 
 const db = require('./database');
 const { sendEmail, renderTemplate } = require('../admin/lib/email');
+const emailVerification = require('./emailVerification');
 const { createGameEngine, tierForRating, TIERS } = require('./gameEngine');
 const matchmaking = require('./matchmaking');
 const totp = require('./totp');
@@ -266,6 +267,49 @@ function activeBan(player) {
   return { until: player.banned_until || null, reason: player.ban_reason || null };
 }
 
+// Password sign-ups must prove they own their email before they can play. Needs
+// Resend to send the link, so without a key sign-ups work as they did before.
+// EMAIL_VERIFICATION=off is the kill switch if email ever breaks.
+const EMAIL_VERIFICATION_ON = process.env.EMAIL_VERIFICATION !== 'off' && Boolean(process.env.RESEND_API_KEY);
+if (!EMAIL_VERIFICATION_ON) console.warn('[email verification] OFF: set RESEND_API_KEY to turn it on');
+const VERIFY_MESSAGE = 'Please verify your email first. Check your inbox for the link.';
+const needsEmailVerification = (user) => EMAIL_VERIFICATION_ON && !user?.email_confirmed_at;
+const allowVerificationResend = emailVerification.createResendGuard();
+
+function publicSiteUrl(req) {
+  return emailVerification.publicSiteUrl({
+    origin: req.headers.origin,
+    allowedOrigins,
+    siteUrl: process.env.SITE_URL,
+    port: PORT,
+  });
+}
+
+async function sendVerificationEmail(req, { userId, email, username }) {
+  const token = emailVerification.createToken({ userId, email }, process.env.SUPABASE_SERVICE_KEY);
+  const link = `${publicSiteUrl(req)}/verify-email?token=${encodeURIComponent(token)}`;
+  const result = await sendEmail({ to: email, ...emailVerification.verificationEmail({ username, link }) });
+  return Boolean(result && result.id);
+}
+
+// Frees a username or email held by a sign-up that was never verified, so a
+// typo or a stranger using your address can't block you from it for good. The
+// new sign-up still has to prove it owns the inbox. A username is only released
+// after the 24-hour link has run out; an email can be claimed straight away,
+// because only that inbox can finish the new sign-up.
+async function releaseUnverifiedSignup(player, { anyAge = false } = {}) {
+  if (!EMAIL_VERIFICATION_ON || !player.supabase_user_id) return false;
+  const age = Date.now() - Date.parse(player.created_at);
+  if (!anyAge && !(age > emailVerification.TOKEN_TTL_MS)) return false;
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(player.supabase_user_id);
+  if (error || !data?.user || data.user.email_confirmed_at) return false;
+  // Player first: the login can't be deleted while a player row points at it.
+  await db.deletePlayer(player.id);
+  const { error: deleteErr } = await supabaseAdmin.auth.admin.deleteUser(player.supabase_user_id);
+  if (deleteErr) throw deleteErr;
+  return true;
+}
+
 async function authenticate(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -276,6 +320,7 @@ async function authenticate(req, res, next) {
       error,
     } = await supabaseAdmin.auth.getUser(token);
     if (error || !user) return res.status(401).json({ error: 'Invalid or expired token' });
+    if (needsEmailVerification(user)) return res.status(403).json({ error: VERIFY_MESSAGE, needsVerification: true });
 
     const player = await db.getPlayerBySupabaseUserId(user.id);
     if (!player) return res.status(401).json({ error: 'Player record not found' });
@@ -369,6 +414,7 @@ app.get('/profile', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'profile.ht
 app.get('/profile/:username', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'profile.html')));
 app.get('/auth-callback', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'auth-callback.html')));
 app.get('/reset-password', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'reset-password.html')));
+app.get('/verify-email', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'verify-email.html')));
 
 // Player invite links: /invite/CODE remembers the inviter for 30 days. Read once,
 // when a new account is created. Only ever attaches to a brand-new account.
@@ -501,16 +547,20 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    if (await db.getPlayerByUsername(username)) return res.status(409).json({ error: 'Username already taken' });
-    if (await db.getPlayerByEmail(email)) return res.status(409).json({ error: 'Email already registered' });
+    // Email first: someone retrying their own unverified sign-up then gets their username back too.
+    const emailOwner = await db.getPlayerByEmail(email);
+    if (emailOwner && !(await releaseUnverifiedSignup(emailOwner, { anyAge: true }))) {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+    const usernameOwner = await db.getPlayerByUsername(username);
+    if (usernameOwner && !(await releaseUnverifiedSignup(usernameOwner))) {
+      return res.status(409).json({ error: 'Username already taken' });
+    }
 
-    // email_confirm: true - this prototype has no email-verification flow, so
-    // the account must be usable (able to sign in) immediately after
-    // registration, same as the old system.
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      email_confirm: !EMAIL_VERIFICATION_ON,
       user_metadata: { username },
     });
     if (createErr) return res.status(400).json({ error: createErr.message });
@@ -523,6 +573,14 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
       // permanently-unusable (email now "taken") Supabase account behind.
       await supabaseAdmin.auth.admin.deleteUser(created.user.id).catch(() => {});
       throw e;
+    }
+
+    // If the link can't be sent, undo the account: otherwise the player is stuck
+    // with a name and email they can't use, and can't tell why.
+    if (EMAIL_VERIFICATION_ON && !(await sendVerificationEmail(req, { userId: created.user.id, email, username }))) {
+      await db.deletePlayer(player.id).catch(() => {});
+      await supabaseAdmin.auth.admin.deleteUser(created.user.id).catch(() => {});
+      return res.status(503).json({ error: 'We could not send your verification email. Please try again in a few minutes.' });
     }
 
     await attachInvite(req, res, player);
@@ -540,6 +598,12 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
       } catch (e) {
         console.error('[register] referral conversion failed:', e.message);
       }
+    }
+
+    if (EMAIL_VERIFICATION_ON) {
+      await db.recordCoinTransaction({ playerId: player.id, type: 'welcome_bonus', amount: player.coins, balanceAfter: player.coins });
+      // No session yet: the welcome email and first login come after verifying.
+      return res.json({ needsVerification: true, email, username, welcomeBonus: 500 });
     }
 
     const session = await db.createSession({ playerId: player.id, userAgent: req.headers['user-agent'], ip: clientIp(req) });
@@ -599,7 +663,15 @@ app.post('/api/auth/login', authLimiter, requireDb, async (req, res) => {
     }
 
     const { data: signIn, error: signInErr } = await passwordSignIn({ email: player.email, password });
+    // Supabase only gets as far as "not confirmed" once the password was right.
+    if (signInErr?.code === 'email_not_confirmed' && EMAIL_VERIFICATION_ON) {
+      return res.status(403).json({ error: VERIFY_MESSAGE, needsVerification: true, username: player.username });
+    }
     if (signInErr || !signIn.session) return res.status(401).json({ error: 'Invalid username or password' });
+    if (needsEmailVerification(signIn.user)) {
+      await supabaseAdmin.auth.admin.signOut(signIn.session.access_token).catch(() => {});
+      return res.status(403).json({ error: VERIFY_MESSAGE, needsVerification: true, username: player.username });
+    }
     const ban = activeBan(player);
     if (ban) return res.status(403).json({ error: ban.until ? `This account is banned until ${new Date(ban.until).toUTCString()}` : 'This account is banned', reason: ban.reason });
 
@@ -664,13 +736,55 @@ app.post('/api/tutorial/complete', requireDb, authenticate, async (req, res) => 
 app.post('/api/auth/reset-password', authLimiter, requireDb, async (req, res) => {
   const { email } = req.body || {};
   if (email) {
-    const origin = req.headers.origin || `http://localhost:${PORT}`;
-    await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/reset-password` }).catch((e) => {
+    await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo: `${publicSiteUrl(req)}/reset-password` }).catch((e) => {
       console.warn('[reset-password] send failed (not surfaced to caller):', e.message);
     });
   }
   // Always return success - never reveal whether an email exists.
   res.json({ message: 'Reset email sent if found' });
+});
+
+app.post('/api/auth/verify-email', authLimiter, requireDb, async (req, res) => {
+  try {
+    const parsed = emailVerification.readToken(req.body?.token, process.env.SUPABASE_SERVICE_KEY);
+    if (parsed?.expired) return res.status(400).json({ error: 'This link has expired', expired: true });
+    if (!parsed) return res.status(400).json({ error: 'This link is not valid' });
+
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(parsed.userId);
+    const user = data?.user;
+    if (error || !user || String(user.email).toLowerCase() !== parsed.email) {
+      return res.status(400).json({ error: 'This link is not valid' });
+    }
+    if (user.email_confirmed_at) return res.json({ verified: true, alreadyVerified: true });
+
+    const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(user.id, { email_confirm: true });
+    if (updateErr) throw updateErr;
+    const player = await db.getPlayerBySupabaseUserId(user.id);
+    if (player) sendWelcomeEmail(player);
+    res.json({ verified: true });
+  } catch (e) {
+    console.error('[verify-email]', e);
+    res.status(500).json({ error: 'Could not verify your email' });
+  }
+});
+
+// Same reply whatever happens, so this can't be used to find out who has an account.
+app.post('/api/auth/resend-verification', authLimiter, requireDb, async (req, res) => {
+  try {
+    const { email, username } = req.body || {};
+    let player = null;
+    if (typeof email === 'string' && email) player = await db.getPlayerByEmail(email.trim());
+    else if (typeof username === 'string' && username) player = await db.getPlayerByUsername(username.trim());
+    if (EMAIL_VERIFICATION_ON && player?.supabase_user_id && allowVerificationResend(player.id)) {
+      const { data } = await supabaseAdmin.auth.admin.getUserById(player.supabase_user_id);
+      if (data?.user && !data.user.email_confirmed_at) {
+        await sendVerificationEmail(req, { userId: data.user.id, email: data.user.email, username: player.username });
+      }
+    }
+  } catch (e) {
+    console.error('[resend-verification]', e.message);
+  }
+  res.json({ message: 'If that account is waiting to be verified, a new link is on its way.' });
 });
 
 // OAuth (Google) sign-ins land here after supabaseClient.auth.getSession()
@@ -692,6 +806,12 @@ app.post('/api/auth/oauth-callback', authLimiter, requireDb, async (req, res) =>
 
     const existing = await db.getPlayerBySupabaseUserId(user.id);
     if (existing) return res.json({ player: await withEquippedCosmetics(existing) });
+    // Google has already verified its users. An email sign-up made straight
+    // against Supabase with the public key must not get a player this way,
+    // because that would skip verification.
+    if (EMAIL_VERIFICATION_ON && user.app_metadata?.provider === 'email') {
+      return res.status(403).json({ error: 'Please sign up on the Spike & Crush site.' });
+    }
 
     const name = req.body?.name || user.user_metadata?.full_name || user.user_metadata?.name;
     const email = user.email;
@@ -2302,15 +2422,11 @@ app.get('/api/async/leaderboard', requireDb, authenticate, async (req, res) => {
   }
 });
 
-// ---- analytics dashboard (Battle Pass premium) --------------------------------
+// ---- analytics dashboard --------------------------------------------------------
+// Open to everyone while Premium isn't on sale: nobody could unlock it otherwise.
 
 app.get('/api/analytics', requireDb, authenticate, async (req, res) => {
   try {
-    const season = battlepass.currentSeason();
-    const status = await db.ensureBattlePassStatus(req.tokenPlayer.id, season);
-    if (!status.is_premium) {
-      return res.status(403).json({ error: 'Analytics is a Battle Pass Premium feature', requiresPremium: true });
-    }
     const playerId = req.tokenPlayer.id;
     const [winRateByInstrument, pnlByMode, timeOfDayHeatmap, cardSuccessRates, pnlTrend] = await Promise.all([
       db.getAnalyticsWinRateByInstrument(playerId),
@@ -2432,6 +2548,7 @@ app.get('/api/config/public', (req, res) => {
     supabaseUrl: process.env.SUPABASE_URL || null,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
     devCoinGrantsEnabled: process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0,
+    emailVerification: EMAIL_VERIFICATION_ON,
   });
 });
 
@@ -2713,6 +2830,7 @@ io.use(async (socket, next) => {
       error,
     } = await supabaseAdmin.auth.getUser(token);
     if (error || !user) return next(new Error('unauthorized'));
+    if (needsEmailVerification(user)) return next(new Error('unverified'));
 
     const player = await db.getPlayerBySupabaseUserId(user.id);
     if (!player) return next(new Error('unauthorized'));

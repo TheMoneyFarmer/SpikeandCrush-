@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /api/
+Disallow: /play
+Disallow: /wallet
+Disallow: /settings
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /auth-callback
+
+Sitemap: https://www.spikeandcrush.com/sitemap.xml

@@ -946,8 +946,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     // two sabotage cards still cap it, for as long as they last.
     const cardLotCap = Math.min(liquidityDrained ? 0.1 : Infinity, lotLimited ? 0.05 : Infinity);
     const numLots = Number(lots);
-    if (!Number.isFinite(numLots) || numLots <= 0) {
-      return { success: false, error: 'Enter a lot size above 0' };
+    // Sizes round to 2 decimals, so anything smaller would be a free 0-lot trade.
+    if (!Number.isFinite(numLots) || numLots < 0.01) {
+      return { success: false, error: 'Lot size must be at least 0.01' };
     }
     if (numLots > cardLotCap) {
       return { success: false, error: `A sabotage card limits your lot size to ${cardLotCap} right now` };

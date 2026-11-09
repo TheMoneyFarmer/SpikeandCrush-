@@ -9,6 +9,40 @@ window.TW = window.TW || {};
 (function () {
   let supabaseClient = null;
 
+  // A friendly (not error-red) line inside a form's error slot, with an
+  // optional "send it again" button. Cleared like any error on the next submit.
+  TW.showAuthNotice = (el, text, resendBody) => {
+    el.textContent = '';
+    const box = document.createElement('div');
+    box.style.cssText = 'color:var(--c-on, var(--text));font-size:14px;line-height:1.45;margin-bottom:8px;';
+    box.textContent = text;
+    if (resendBody) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Send it again';
+      btn.style.cssText = 'display:block;margin-top:6px;padding:0;min-height:32px;background:none;border:0;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;';
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await TW.api('/api/auth/resend-verification', { method: 'POST', body: resendBody });
+          btn.textContent = 'Sent. Check your inbox and spam folder.';
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = 'Could not send. Try again';
+        }
+      });
+      box.appendChild(btn);
+    }
+    el.appendChild(box);
+  };
+  TW.showVerifyPrompt = (el, { email, username }) => TW.showAuthNotice(
+    el,
+    email
+      ? `Almost there. We sent a link to ${email}. Click it to verify your email, then log in.`
+      : 'Please verify your email first. Check your inbox for the link.',
+    email ? { email } : { username }
+  );
+
   // The Supabase URL/anon key come from the server's own .env (via
   // /api/config/public) rather than being hardcoded here, so the same
   // client bundle works against dev or prod depending only on which

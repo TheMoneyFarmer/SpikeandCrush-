@@ -11,8 +11,8 @@ window.TW = window.TW || {};
     {
       icon: '🎫',
       title: 'What Is the Battle Pass?',
-      body: 'The Battle Pass is a monthly subscription. It gives you access to a premium reward track with exclusive cosmetics, extra coins every tier, and a season-long progression system on top of normal match rewards.',
-      visual: 'Free Track: coins + basic rewards, earned by anyone.\nPremium Track: exclusive cosmetics + bigger coin rewards, unlocked by subscribing.',
+      body: 'The Battle Pass is a monthly progression track on top of normal match rewards. Everyone earns coins and basic rewards on the Free Track as they play. A Premium Track with exclusive cosmetics and extra coins every tier is not on sale right now.',
+      visual: 'Free Track: coins + basic rewards, earned by anyone.\nPremium Track: exclusive cosmetics + bigger coin rewards, not on sale right now.',
     },
     {
       icon: '⚖️',
