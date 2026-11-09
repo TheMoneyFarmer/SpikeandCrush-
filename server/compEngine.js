@@ -140,6 +140,19 @@ const TEMPLATES = {
   },
 };
 
+// A template's instruments minus any the curation (or admin) disabled, topped
+// back up to the template's size with playable instruments of the same asset
+// classes first, then the rest, in catalog activity order - so a competition
+// never trades a thin instrument and never shrinks to nothing.
+function competitionInstruments(wanted) {
+  const playable = instruments.playableSymbols('competition');
+  const kept = wanted.filter((s) => playable.includes(s));
+  if (kept.length >= wanted.length) return kept;
+  const classes = new Set(wanted.map((s) => instruments.getInstrument(s)?.category));
+  const extra = [...playable.filter((s) => classes.has(instruments.getInstrument(s).category)), ...playable].filter((s, i, a) => !kept.includes(s) && a.indexOf(s) === i);
+  return [...kept, ...extra].slice(0, wanted.length);
+}
+
 function round2(n) {
   return Math.round(n * 100) / 100;
 }
@@ -874,7 +887,7 @@ function createCompEngine({ io, notifyPlayer }) {
       startsAt,
       endsAt,
       replaySpeed,
-      instruments: wanted,
+      instruments: competitionInstruments(wanted),
       usedStarts,
     });
     for (const d of window.dropped) console.warn(`[compEngine] ${title}: dropped ${d.symbol} - ${d.reason}`);
@@ -1052,4 +1065,4 @@ function createCompEngine({ io, notifyPlayer }) {
   };
 }
 
-module.exports = { createCompEngine, TEMPLATES, rankAccounts, sessionLabel };
+module.exports = { createCompEngine, TEMPLATES, competitionInstruments, rankAccounts, sessionLabel };

@@ -1444,7 +1444,17 @@ window.TW = window.TW || {};
   socket.on('price:update', (data) => {
     if (matchStartedAtMs === null) matchStartedAtMs = Date.now() - data.elapsedSeconds * 1000;
     lastPrices = data.prices;
-    Object.entries(data.prices).forEach(([symbol, price]) => TW.Chart.pushTick(symbol, data.elapsedSeconds, price.mid));
+    // Candles are built on market time: at a replay speed above 1 one real
+    // second carries several data seconds, and 1m candles must still be the
+    // real base bars. The clock below keeps showing real match time.
+    const marketT = Number.isFinite(data.dataSeconds) ? data.dataSeconds : data.elapsedSeconds;
+    Object.entries(data.prices).forEach(([symbol, price]) => TW.Chart.pushTick(symbol, marketT, price.mid));
+    const speedBadge = document.getElementById('marketSpeedBadge');
+    if (speedBadge) {
+      const speed = Number(data.marketSpeed) || 1;
+      speedBadge.hidden = speed <= 1;
+      speedBadge.textContent = `MARKET x${speed}`;
+    }
     renderQuotes();
     renderTopbar();
     renderPositions();

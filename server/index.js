@@ -1140,6 +1140,8 @@ app.post('/api/match/create', deployDrain.blockNewMatches, opsMonitor.blockNewMa
     if (mode === 'solo' && req.body?.instruments) {
       const invalid = req.body.instruments.filter((s) => !instrumentsRegistry.getInstrument(s));
       if (invalid.length) return res.status(400).json({ error: `Unknown instrument(s): ${invalid.join(', ')}` });
+      const unavailable = req.body.instruments.filter((s) => !instrumentsRegistry.isPlayable(s, 'solo'));
+      if (unavailable.length) return res.status(400).json({ error: `Not available right now: ${unavailable.join(', ')}` });
     }
 
     const playerInfo = {

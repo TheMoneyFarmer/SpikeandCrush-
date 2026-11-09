@@ -9,6 +9,17 @@ const db = require('./database');
 const battlepass = require('./battlepass');
 const tournamentLib = require('./tournament');
 const personas = require('./personas');
+const gameFeel = require('./config/gameFeel');
+
+// Replay speed for a short-mode match (data seconds per real second), from
+// server/config/gameFeel.js market.replaySpeed - never from MODE_DURATIONS.
+// Clamped to [1, maxReplaySpeed]; whole numbers only so data time stays on
+// whole seconds.
+function marketReplaySpeed(mode) {
+  const m = gameFeel.get().market;
+  const v = Math.floor(Number(m.replaySpeed && m.replaySpeed[mode]) || 1);
+  return Math.max(1, Math.min(Number(m.maxReplaySpeed) || 1, v));
+}
 
 const MAX_PLAYERS = 8; // raised from 6 so Grand War's 8-player lobbies fit the same player-cap check everywhere
 const MIN_PLAYERS = 2;
@@ -584,14 +595,25 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // instrument set and identical price window, so both draws are seeded
     // from today's UTC calendar day instead of Math.random().
     const dailySeed = mode === 'async' ? new Date().toISOString().slice(0, 10) : null;
-    const matchInstruments = opts.instrumentList && opts.instrumentList.length
-      ? opts.instrumentList
+    // A pinned list (Solo favourites, tournament/async sets, ghost challenges)
+    // only keeps instruments that are still playable; an empty result falls
+    // back to a fresh draw so a disabled instrument can never be traded.
+    const pinned = (opts.instrumentList || []).filter((s) => instruments.isPlayable(s, mode));
+    const matchInstruments = pinned.length
+      ? pinned
       : dailySeed
-        ? instruments.selectDailyInstruments(dailySeed, modeConfig.instrumentCount)
-        : instruments.selectMatchInstruments(modeConfig.instrumentCount);
+        ? instruments.selectDailyInstruments(dailySeed, modeConfig.instrumentCount, mode)
+        : instruments.selectMatchInstruments(modeConfig.instrumentCount, mode);
 
     const liveMinutes = Math.ceil((opts.configOverrides?.durationSeconds ?? modeConfig.durationSeconds) / 60);
-    for (const symbol of matchInstruments) instruments.assignMatchWindow(matchId, symbol, dailySeed, liveMinutes);
+    // Every match gets one market seed shared by all its players (a ghost
+    // challenge passes the original match's seed and start offsets back in).
+    const marketSeed = opts.marketSeed || dailySeed || matchId;
+    const replaySpeed = marketReplaySpeed(mode);
+    for (const symbol of matchInstruments) {
+      const startIndex = opts.marketStarts && Number.isInteger(opts.marketStarts[symbol]) ? opts.marketStarts[symbol] : undefined;
+      instruments.assignMatchWindow(matchId, symbol, marketSeed, liveMinutes, { speed: replaySpeed, startIndex });
+    }
 
     const match = {
       id: matchId,
@@ -600,6 +622,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       roomCode,
       status: 'waiting',
       instruments: matchInstruments,
+      marketSeed,
+      replaySpeed,
       players: {},
       playerOrder: [],
       createdAt: Date.now(),
@@ -663,14 +687,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           console.warn(`[gameEngine] pre-match window missing for ${symbol} in match ${matchId} - assigning it now`);
           // Same seed rule as createMatch() - async needs every player to see
           // an identical window, keyed off today's UTC date, not per-match.
-          const seed = match.mode === 'async' ? new Date().toISOString().slice(0, 10) : null;
-          instruments.assignMatchWindow(matchId, symbol, seed, Math.ceil(match.config.durationSeconds / 60));
+          instruments.assignMatchWindow(matchId, symbol, match.marketSeed, Math.ceil(match.config.durationSeconds / 60), { speed: match.replaySpeed });
           symbolHistory = instruments.getPreMatchHistory(matchId, symbol);
         }
         // Prices already played, so a player returning mid-match sees their
         // chart filled in. Never anything past the clock: this route is public.
         const played = match.startedAt
-          ? instruments.getFullLiveSeries(matchId, symbol).slice(0, getElapsedSeconds(match, Date.now()) + 1)
+          ? instruments.getFullLiveSeries(matchId, symbol).slice(0, instruments.dataSecondsFor(matchId, symbol, getElapsedSeconds(match, Date.now())) + 1)
           : [];
         history[symbol] = { ticks: symbolHistory.concat(played), ...instruments.getChartContext(matchId, symbol) };
       }
@@ -1189,14 +1212,30 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         if (!pos.stopLoss && !pos.takeProfit) continue;
         const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs, player.id);
         const exitPrice = pos.direction === 'BUY' ? price.bid : price.ask;
+        // Above 1x one real second spans several data seconds: test the
+        // levels against the extremes the path passed through since the last
+        // tick too (same half-spread as the quote), not just where it ended.
+        let worst = exitPrice;
+        let best = exitPrice;
+        if ((match.replaySpeed || 1) > 1 && elapsedSeconds > 0) {
+          const speed = match.replaySpeed;
+          const r = instruments.liveRangeBetween(match.id, pos.symbol, (elapsedSeconds - 1) * speed, elapsedSeconds * speed);
+          if (r) {
+            const half = (price.ask - price.bid) / 2;
+            const lo = r.low + (pos.direction === 'BUY' ? -half : half);
+            const hi = r.high + (pos.direction === 'BUY' ? -half : half);
+            worst = pos.direction === 'BUY' ? Math.min(exitPrice, lo) : Math.max(exitPrice, hi);
+            best = pos.direction === 'BUY' ? Math.max(exitPrice, hi) : Math.min(exitPrice, lo);
+          }
+        }
 
         let hitReason = null;
         if (pos.direction === 'BUY') {
-          if (pos.stopLoss && exitPrice <= pos.stopLoss) hitReason = 'stop loss';
-          else if (pos.takeProfit && exitPrice >= pos.takeProfit) hitReason = 'take profit';
+          if (pos.stopLoss && worst <= pos.stopLoss) hitReason = 'stop loss';
+          else if (pos.takeProfit && best >= pos.takeProfit) hitReason = 'take profit';
         } else {
-          if (pos.stopLoss && exitPrice >= pos.stopLoss) hitReason = 'stop loss';
-          else if (pos.takeProfit && exitPrice <= pos.takeProfit) hitReason = 'take profit';
+          if (pos.stopLoss && worst >= pos.stopLoss) hitReason = 'stop loss';
+          else if (pos.takeProfit && best <= pos.takeProfit) hitReason = 'take profit';
         }
 
         if (hitReason) {
@@ -1633,9 +1672,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
     const prices = {};
     for (const symbol of match.instruments) prices[symbol] = getEffectivePrice(match, symbol, elapsedSeconds, nowMs);
+    // marketSpeed/dataSeconds: the chart builds candles on market time (so 1m
+    // candles stay the real base bars at any replay speed) and shows the
+    // honest "MARKET xN" badge when the speed is above 1.
+    const marketSpeed = match.replaySpeed || 1;
+    const dataSeconds = elapsedSeconds * marketSpeed;
     emitToAll(match, 'price:update', {
       matchId: match.id,
       elapsedSeconds,
+      dataSeconds,
+      marketSpeed,
       timeRemaining: match.config.durationSeconds - elapsedSeconds,
       prices,
     });
@@ -1676,6 +1722,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         emitToPlayer(match, p.id, 'price:update', {
           matchId: match.id,
           elapsedSeconds,
+          dataSeconds,
+          marketSpeed,
           timeRemaining: match.config.durationSeconds - elapsedSeconds,
           prices: correctedPrices,
         });
