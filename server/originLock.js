@@ -69,6 +69,23 @@ function visitorIp(req) {
   return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
+function originReport(req, mode, via) {
+  const headers = req.headers || {};
+  const hops = String(headers['x-forwarded-for'] || '').split(',').map((h) => h.trim()).filter(Boolean);
+  const cfHops = hops.map((h, i) => (isCloudflareIp(h) ? i + 1 : 0)).filter(Boolean);
+  const visitorIpOk = via !== 'cloudflare' || !isCloudflareIp(visitorIp(req));
+  return [
+    `mode=${mode}`,
+    `via=${via}`,
+    `visitor-ip-ok=${visitorIpOk}`,
+    `hops=${hops.length}`,
+    `cloudflare-hops=${cfHops.join('+') || 'none'}`,
+    `cf-header=${net.isIP(String(headers['cf-connecting-ip'] || '').trim()) ? 'yes' : 'no'}`,
+    `cf-ray=${headers['cf-ray'] ? 'yes' : 'no'}`,
+    `x-real-ip=${headers['x-real-ip'] ? 'yes' : 'no'}`,
+  ].join('; ');
+}
+
 function currentMode() {
   const set = String(process.env.ORIGIN_LOCK || '').toLowerCase();
   if (['on', 'report', 'off'].includes(set)) return set;
@@ -84,13 +101,12 @@ function isExempt(url) {
 function originLock() {
   return (req, res, next) => {
     const mode = currentMode();
-    if (mode === 'off') return next();
     const via = classify(req.headers);
-    if (mode === 'report' && String(req.url || '').split('?')[0] === '/health') {
-      // Lets the rollout be checked from outside. Both values are safe to show.
-      const visitorIpOk = via !== 'cloudflare' || (Boolean(req.ip) && !isCloudflareIp(req.ip));
-      res.setHeader('X-Origin-Check', `via=${via}; visitor-ip-ok=${visitorIpOk}`);
+    if (String(req.url || '').split('?')[0] === '/health') {
+      // Lets the setup be checked from outside. Labels and counts only, never an address.
+      res.setHeader('X-Origin-Check', originReport(req, mode, via));
     }
+    if (mode === 'off') return next();
     if (mode === 'on' && via === 'direct' && !isExempt(req.url)) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json');

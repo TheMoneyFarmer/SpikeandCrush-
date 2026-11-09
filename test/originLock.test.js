@@ -64,9 +64,10 @@ test('report never blocks, and /health shows the result', () => {
   assert.strictEqual(direct.nextCalled, true);
   assert.match(direct.headers['x-origin-check'], /via=direct/);
   const good = run('report', { url: '/health', headers: VIA_CF, ip: '203.0.113.7' });
-  assert.strictEqual(good.headers['x-origin-check'], 'via=cloudflare; visitor-ip-ok=true');
+  assert.match(good.headers['x-origin-check'], /mode=report; via=cloudflare; visitor-ip-ok=true/);
+  assert.doesNotMatch(good.headers['x-origin-check'], /\d+\.\d+\.\d+\.\d+/, 'no addresses in the report');
   const wrongHops = run('report', { url: '/health', headers: VIA_CF, ip: '172.70.1.1' });
-  assert.strictEqual(wrongHops.headers['x-origin-check'], 'via=cloudflare; visitor-ip-ok=false');
+  assert.match(wrongHops.headers['x-origin-check'], /via=cloudflare; visitor-ip-ok=false/);
   assert.strictEqual(run('report', { url: '/api/x', headers: DIRECT }).nextCalled, true);
 });
 
