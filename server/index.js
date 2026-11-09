@@ -15,6 +15,7 @@ const http = require('http');
 const cors = require('cors');
 const bcrypt = require('bcryptjs'); // still used for the legacy-account migration path in /api/auth/login
 const { createClient } = require('@supabase/supabase-js');
+const { createPasswordSignIn, isSignInRateLimited, SignInBusyError, BUSY_MESSAGE: SIGN_IN_BUSY_MESSAGE } = require('./passwordSignIn');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const QRCode = require('qrcode');
@@ -58,17 +59,22 @@ console.error = (...args) => {
 // this key to the client - only the anon key (client/js/auth.js) goes there.
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
+  global: { fetch: db.fetchWithTimeout }, // shares the ceiling on database traffic
 });
-// Password sign-ins get their own throwaway client. Calling signInWithPassword
-// on supabaseAdmin stored that player's session on the shared service client,
-// so later supabaseAdmin calls (e.g. Storage uploads) ran as that player and
-// hit row-level security - and one request's sign-in could leak into another.
-function passwordSignIn(credentials) {
-  const client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  return client.auth.signInWithPassword(credentials);
-}
+// See server/passwordSignIn.js. Warns the owner when Supabase's limit is being hit.
+const passwordSignInFor = createPasswordSignIn({
+  createClient,
+  url: process.env.SUPABASE_URL,
+  serviceKey: process.env.SUPABASE_SERVICE_KEY,
+  secretKey: process.env.SUPABASE_SECRET_KEY,
+  onRateLimited: () => {
+    console.warn('[auth] Supabase is rate limiting sign-ins');
+    opsMonitor.alert('sign-ins', 'Players are being refused at login (Supabase rate limit)', {
+      fix: 'Set SUPABASE_SECRET_KEY and turn on IP Address Forwarding in Supabase, Authentication > Rate Limits',
+    });
+  },
+});
+const passwordSignIn = (credentials, req) => passwordSignInFor(credentials, req ? clientIp(req) : null);
 
 
 // ALLOWED_ORIGIN restricts CORS to the real domain(s) in production - unset
@@ -134,7 +140,8 @@ function notifyPlayer(playerId, type, message, extra = {}) {
     for (const sid of sockets) io.to(sid).emit('notification', payload);
   }
   if (db.isConfigured) {
-    db.createNotification({ playerId, type, fromPlayerId: extra.fromPlayerId, data: { message, ...extra.data } }).catch((e) =>
+    // Returned so a job telling thousands of players can pace itself.
+    return db.createNotification({ playerId, type, fromPlayerId: extra.fromPlayerId, data: { message, ...extra.data } }).catch((e) =>
       console.warn('[notifyPlayer] failed to persist notification:', e.message)
     );
   }
@@ -264,9 +271,11 @@ async function withEquippedCosmetics(player) {
 // the credential). Used anywhere the app previously did
 // bcrypt.compare(rawPassword, player.password_hash): edit-profile, account
 // deletion, disabling 2FA. Returns true/false, never throws.
-async function verifyPasswordViaSupabase(email, password) {
+// A rate limit says nothing about the password, so it must not read as "wrong".
+async function verifyPasswordViaSupabase(email, password, req) {
   if (!email || !password) return false;
-  const { error } = await passwordSignIn({ email, password });
+  const { error } = await passwordSignIn({ email, password }, req);
+  if (isSignInRateLimited(error)) throw new SignInBusyError();
   return !error;
 }
 
@@ -529,6 +538,7 @@ const loginAccountLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   skipSuccessfulRequests: true,
+  requestWasSuccessful: (req, res) => res.statusCode < 400 || res.statusCode === 503, // busy isn't a wrong guess
   keyGenerator: (req) => `login:${String(req.body?.username || '').trim().toLowerCase().slice(0, 64)}`,
   message: { error: 'Too many failed attempts for this account. Please wait a few minutes and try again.' },
 });
@@ -687,7 +697,7 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
     await db.recordCoinTransaction({ playerId: player.id, type: 'welcome_bonus', amount: player.coins, balanceAfter: player.coins });
     sendWelcomeEmail(player);
 
-    const { data: signIn, error: signInErr } = await passwordSignIn({ email, password });
+    const { data: signIn, error: signInErr } = await passwordSignIn({ email, password }, req);
     if (signInErr || !signIn.session) {
       console.error('[register] account created but immediate sign-in failed:', signInErr?.message);
       return res.status(500).json({ error: 'Account created but sign-in failed - please log in.' });
@@ -738,7 +748,8 @@ app.post('/api/auth/login', authLimiter, loginAccountLimiter, requireDb, async (
       player = await db.updatePlayer(player.id, { supabase_user_id: created.user.id });
     }
 
-    const { data: signIn, error: signInErr } = await passwordSignIn({ email: player.email, password });
+    const { data: signIn, error: signInErr } = await passwordSignIn({ email: player.email, password }, req);
+    if (isSignInRateLimited(signInErr)) return res.status(503).json({ error: SIGN_IN_BUSY_MESSAGE, busy: true });
     // Supabase only gets as far as "not confirmed" once the password was right.
     if (signInErr?.code === 'email_not_confirmed' && EMAIL_VERIFICATION_ON) {
       return res.status(403).json({ error: VERIFY_MESSAGE, needsVerification: true, username: player.username });
@@ -1210,7 +1221,7 @@ app.patch('/api/player/me', requireDb, authenticate, async (req, res) => {
 
     const { currentPassword, username, email, newPassword } = req.body || {};
     if (!currentPassword) return res.status(400).json({ error: 'Current password is required to make changes' });
-    if (!(await verifyPasswordViaSupabase(player.email, currentPassword))) {
+    if (!(await verifyPasswordViaSupabase(player.email, currentPassword, req))) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
@@ -1267,6 +1278,7 @@ app.patch('/api/player/me', requireDb, authenticate, async (req, res) => {
     const updated = await db.updatePlayer(player.id, updates);
     res.json({ player: sanitizePlayer(updated), pendingEmail });
   } catch (e) {
+    if (e.code === 'SIGN_IN_BUSY') return res.status(503).json({ error: e.message, busy: true });
     console.error('[player/me patch]', e);
     res.status(500).json({ error: 'Could not update profile' });
   }
@@ -1282,13 +1294,14 @@ app.delete('/api/player/me', requireDb, authenticate, async (req, res) => {
       if ((req.body?.password || '').trim() !== player.username) {
         return res.status(401).json({ error: 'Type your exact username to confirm' });
       }
-    } else if (!(await verifyPasswordViaSupabase(player.email, req.body?.password || ''))) {
+    } else if (!(await verifyPasswordViaSupabase(player.email, req.body?.password || '', req))) {
       return res.status(401).json({ error: 'Incorrect password' });
     }
     await db.deletePlayer(player.id);
     if (player.supabase_user_id) await supabaseAdmin.auth.admin.deleteUser(player.supabase_user_id).catch(() => {});
     res.json({ success: true });
   } catch (e) {
+    if (e.code === 'SIGN_IN_BUSY') return res.status(503).json({ error: e.message, busy: true });
     console.error('[player/me delete]', e);
     res.status(500).json({ error: 'Could not delete account' });
   }
@@ -1500,13 +1513,14 @@ app.post('/api/2fa/disable', requireDb, authenticate, async (req, res) => {
   try {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
-    if (!(await verifyPasswordViaSupabase(player.email, req.body?.password || ''))) {
+    if (!(await verifyPasswordViaSupabase(player.email, req.body?.password || '', req))) {
       return res.status(401).json({ error: 'Incorrect password' });
     }
     if (!totp.verifyTotp(player.totp_secret, req.body?.code)) return res.status(400).json({ error: 'Invalid code' });
     await db.updatePlayer(player.id, { totp_enabled: false, totp_secret: null });
     res.json({ success: true });
   } catch (e) {
+    if (e.code === 'SIGN_IN_BUSY') return res.status(503).json({ error: e.message, busy: true });
     console.error('[2fa disable]', e);
     res.status(500).json({ error: 'Could not disable 2FA' });
   }
@@ -2314,18 +2328,31 @@ function cacheJson(ttlMs) {
     }
     const pending = microInflight.get(key);
     if (pending) {
+      // Someone is already refreshing this: never start another. Last good answer
+      // straight away if there is one, otherwise wait for theirs.
+      if (hit) {
+        res.set('X-Cache', 'STALE');
+        return res.status(hit.status).json(hit.body);
+      }
       const shared = await pending;
       if (shared) {
         res.set('X-Cache', 'SHARED');
         return res.status(shared.status).json(shared.body);
       }
-      return next();
+      return res.status(503).json({ error: 'Busy, please try again shortly.' });
     }
     let settle;
     microInflight.set(key, new Promise((r) => { settle = r; }));
     const finish = (val) => { microInflight.delete(key); settle(val); };
     const origJson = res.json.bind(res);
     res.json = (body) => {
+      // The refresh failed: keep showing the last good answer.
+      if (res.statusCode >= 400 && hit) {
+        finish(null);
+        res.status(hit.status);
+        res.set('X-Cache', 'STALE');
+        return origJson(hit.body);
+      }
       if (res.statusCode < 400) {
         microCache.set(key, { at: Date.now(), status: res.statusCode, body });
         if (microCache.size > 500) microCache.delete(microCache.keys().next().value);

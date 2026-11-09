@@ -23,6 +23,7 @@ about the visitor. `TRUST_PROXY_HOPS` doesn't need changing.
 |---|---|---|
 | `ORIGIN_LOCK` | `report` in production | `on` blocks requests that skip Cloudflare; `off` is the emergency switch. `/health` shows the result in its `X-Origin-Check` header |
 | `ORIGIN_SECRET` | unset | Optional stronger check: only requests carrying this in `X-Origin-Secret` (added by a Cloudflare Transform Rule) count as Cloudflare. Set the rule first or the lock blocks everyone |
+| `SUPABASE_SECRET_KEY` | unset | An `sb_secret` key. With IP Address Forwarding on in Supabase, logins count against each visitor instead of sharing the server's limit of about one sign-in every 2 seconds. Needed for launch |
 | `MAX_LIVE_MATCHES` | `2000` | New matches are refused above this; running ones are never touched |
 | `API_RATE_LIMIT` | `1500` | Requests per 15 minutes per visitor IP |
 | `AUTH_RATE_LIMIT` | `100` | Login and sign-up attempts per 15 minutes per visitor IP |

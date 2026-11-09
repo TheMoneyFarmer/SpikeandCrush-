@@ -42,4 +42,39 @@ function createMemo({ maxEntries = 200 } = {}) {
   };
 }
 
-module.exports = { runPool, createMemo };
+// A ceiling on database traffic: at most `max` requests in flight, the rest wait
+// their turn. Without it a spike opens thousands of connections at once, which
+// overloads the database and runs the machine out of network ports. The timeout
+// only starts once a request is really sent, and waiting too long fails it cleanly.
+function createFetchLimiter({ max, timeoutMs, queueTimeoutMs, fetchImpl = fetch }) {
+  let inFlight = 0;
+  const waiting = [];
+  const release = () => {
+    inFlight--;
+    const next = waiting.shift();
+    if (next) next();
+  };
+  const limited = async (url, opts = {}) => {
+    if (inFlight >= max) {
+      await new Promise((resolve, reject) => {
+        const entry = () => { clearTimeout(timer); resolve(); };
+        const timer = setTimeout(() => {
+          waiting.splice(waiting.indexOf(entry), 1);
+          reject(Object.assign(new Error('Database is busy'), { code: 'DB_QUEUE_TIMEOUT' }));
+        }, queueTimeoutMs);
+        waiting.push(entry);
+      });
+    }
+    inFlight++;
+    try {
+      const signal = opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs);
+      return await fetchImpl(url, { ...opts, signal });
+    } finally {
+      release();
+    }
+  };
+  limited.stats = () => ({ inFlight, waiting: waiting.length });
+  return limited;
+}
+
+module.exports = { runPool, createMemo, createFetchLimiter };

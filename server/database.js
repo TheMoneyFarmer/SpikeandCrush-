@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 
 const { createClient } = require('@supabase/supabase-js');
-const { runPool } = require('./concurrency');
+const { runPool, createFetchLimiter } = require('./concurrency');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -27,8 +27,9 @@ if (!isConfigured) {
 // Every DB call gets a timeout so a stalled request can't hang a player's
 // request or the competition tick forever (audit item 2).
 const DB_TIMEOUT_MS = Number(process.env.DB_TIMEOUT_MS || 15000);
-const fetchWithTimeout = (url, opts = {}) =>
-  fetch(url, { ...opts, signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(DB_TIMEOUT_MS)]) : AbortSignal.timeout(DB_TIMEOUT_MS) });
+const DB_MAX_CONCURRENT = Number(process.env.DB_MAX_CONCURRENT) || 40;
+const DB_QUEUE_TIMEOUT_MS = Number(process.env.DB_QUEUE_TIMEOUT_MS) || 20000;
+const fetchWithTimeout = createFetchLimiter({ max: DB_MAX_CONCURRENT, timeoutMs: DB_TIMEOUT_MS, queueTimeoutMs: DB_QUEUE_TIMEOUT_MS });
 // Supabase returns at most 1000 rows per request however high .limit() is, and
 // says nothing when it cuts a result short. Anything that must see every row reads
 // page by page. `build` returns a fresh query with a stable .order().
@@ -2193,6 +2194,7 @@ async function getLobbySettings() {
 
 module.exports = {
   isConfigured,
+  fetchWithTimeout,
   createPlayer,
   getPlayerByUsername,
   getPlayerByEmail,

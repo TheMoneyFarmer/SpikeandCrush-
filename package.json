@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
-    "dukascopy-node": "^1.51.1"
+    "dukascopy-node": "^1.51.1",
+    "socket.io-client": "^4.8.4"
   }
 }

@@ -691,14 +691,16 @@ function createCompEngine({ io, notifyPlayer }) {
     for (const notice of ENDING_NOTICES) {
       if (left > notice.ms || sent.has(notice.key) || left <= 0) continue;
       sent.add(notice.key);
-      for (const acc of fresh) {
+      // Paced: thousands of notifications at once would flood the database.
+      await runPool(fresh, SETTLE_CONCURRENCY, async (acc) => {
         emit(comp.id, acc.player_id, 'comp:ending_soon', {
           minutesLeft: Math.round(left / 60000),
         });
         if (notice.key === '1h') {
-          notifyPlayer(acc.player_id, 'comp_ending_soon', `${comp.title} ends in ${notice.label}`, { data: { competitionId: comp.id } });
+          await notifyPlayer(acc.player_id, 'comp_ending_soon', `${comp.title} ends in ${notice.label}`, { data: { competitionId: comp.id } });
         }
-      }
+        await keepLock();
+      });
     }
 
     await db.updateCompetition(comp.id, {
@@ -768,7 +770,7 @@ function createCompEngine({ io, notifyPlayer }) {
       const message = dq
         ? `${comp.title} has ended - your account was disqualified`
         : `${comp.title} ended - you finished #${rank} of ${total}${prizeText ? `, winning ${prizeText}` : ''}`;
-      notifyPlayer(acc.player_id, 'comp_ended', message, {
+      await notifyPlayer(acc.player_id, 'comp_ended', message, {
         data: {
           competitionId: comp.id,
           rank,
@@ -979,9 +981,9 @@ function createCompEngine({ io, notifyPlayer }) {
             status: 'active',
           })
         ) {
-          for (const acc of await db.listCompAccounts(comp.id)) {
-            notifyPlayer(acc.player_id, 'comp_started', `${comp.title} is live - good luck!`, { data: { competitionId: comp.id } });
-          }
+          await runPool(await db.listCompAccounts(comp.id), SETTLE_CONCURRENCY, (acc) =>
+            notifyPlayer(acc.player_id, 'comp_started', `${comp.title} is live - good luck!`, { data: { competitionId: comp.id } })
+          );
         }
       }
 
@@ -1041,6 +1043,7 @@ function createCompEngine({ io, notifyPlayer }) {
     voidCompetition,
     disqualify,
     createCompetition,
+    tickCompetition,
     scheduleUpcoming,
     tickOnce,
     start,

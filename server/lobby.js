@@ -127,7 +127,8 @@ function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets,
     const results = await Promise.allSettled(Object.values(tasks));
     const out = {};
     keys.forEach((k, i) => {
-      out[k] = results[i].status === 'fulfilled' ? results[i].value : null;
+      // A failed query keeps its last good value, so a database hiccup can't blank the lobby.
+      out[k] = results[i].status === 'fulfilled' ? results[i].value : (statsCache.body?.[k] ?? null);
       if (results[i].status === 'rejected') console.warn(`[lobby stats] ${k} failed:`, results[i].reason?.message);
     });
     let ticker = [];
@@ -159,13 +160,27 @@ function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets,
     };
   }
 
+  // Every open lobby polls this. One refresh at a time, and everyone else gets the
+  // last good numbers straight away: rebuilding per request stampeded the database
+  // as soon as a rebuild took longer than the gap between requests.
+  let statsRefresh = null;
+  function refreshStats() {
+    if (!statsRefresh) {
+      statsRefresh = buildStats()
+        .then((body) => { statsCache = { at: Date.now(), body }; return body; })
+        .finally(() => { statsRefresh = null; });
+    }
+    return statsRefresh;
+  }
+
   r.get('/api/lobby/stats', async (req, res) => {
     try {
-      if (!statsCache.body || Date.now() - statsCache.at > STATS_CACHE_MS) {
-        statsCache = { at: Date.now(), body: await buildStats() };
-      }
+      const stale = !statsCache.body || Date.now() - statsCache.at > STATS_CACHE_MS;
+      let body = statsCache.body;
+      if (stale && body) refreshStats().catch((e) => console.error('[lobby stats]', e.message));
+      if (!body) body = await refreshStats();
       res.set('Cache-Control', 'public, max-age=15');
-      res.json(statsCache.body);
+      res.json(body);
     } catch (e) {
       console.error('[lobby stats]', e);
       res.status(500).json({ error: 'Could not load lobby stats' });
