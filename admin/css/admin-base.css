@@ -140,7 +140,7 @@ a { color: inherit; }
 }
 
 .admin-nav-item:hover {
-  background: rgba(15, 15, 30, 0.04);
+  background: rgba(20,33,61, 0.04);
   color: var(--text);
 }
 
@@ -300,7 +300,7 @@ a { color: inherit; }
 .admin-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(20,33,61, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;

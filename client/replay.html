@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0A0C14">
+<meta name="theme-color" content="#14213d">
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -29,7 +29,7 @@
   .rp-shell { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
   @media (max-width: 1000px) { .rp-shell { grid-template-columns: 1fr; } }
 
-  .rp-panel { background: rgba(15,16,24,0.95); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; }
+  .rp-panel { background: rgba(20,33,61,0.95); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; }
   .rp-panel + .rp-panel { margin-top: 16px; }
 
   .rp-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -40,7 +40,7 @@
   #candleChart { width: 100%; height: 380px; }
   #equityChart { width: 100%; height: 120px; border-top: 1px solid var(--border); position: relative; }
   .rp-equity-legend { position: absolute; top: 6px; right: 8px; display: flex; flex-direction: column; gap: 3px; font-size: 10px; font-family: var(--mono); z-index: 3; pointer-events: none; }
-  .rp-equity-legend .row { display: flex; align-items: center; gap: 5px; background: rgba(8,8,16,0.7); padding: 1px 6px; border-radius: 4px; }
+  .rp-equity-legend .row { display: flex; align-items: center; gap: 5px; background: rgba(20,33,61,0.7); padding: 1px 6px; border-radius: 4px; }
   .rp-equity-legend .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
   .rp-zero-line { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.1); pointer-events: none; z-index: 2; }
@@ -235,7 +235,7 @@
       const style = getComputedStyle(document.documentElement);
       const get = (v, fallback) => style.getPropertyValue(v).trim() || fallback;
       return {
-        background: get('--chart-bg', '#080D14'),
+        background: get('--chart-bg', '#14213d'),
         textColor: get('--chart-text', '#5A7090'),
         gridColor: get('--chart-grid', 'rgba(100,140,200,0.06)'),
         borderColor: get('--chart-border', 'rgba(100,140,200,0.12)'),

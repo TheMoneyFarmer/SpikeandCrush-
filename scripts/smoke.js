@@ -115,6 +115,10 @@ const IGNORABLE = /cloudflareinsights|status of 401|status of 404|favicon|net::E
     for (const [w, h] of sizes) await shot('game', w, h, `${BASE}/game.html?matchId=${made.matchId}`);
     const out = await page.evaluate(async (id) => {
       const m = await (await fetch(`/api/match/${id}`)).json();
+      await TW.emitAck('player:join', { matchId: id });
+      await TW.emitAck('player:ready', {});
+      // Solo has a short countdown after everyone is ready.
+      await new Promise((r) => setTimeout(r, 6000));
       const opened = await TW.emitAck('trade:open', { symbol: m.instruments[0], direction: 'BUY', lots: 0.01 });
       if (!opened.success) return { error: `open: ${opened.error}` };
       const closed = await TW.emitAck('trade:close', { positionId: opened.position.id });

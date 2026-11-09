@@ -515,7 +515,7 @@ h1, h2, h3, h4, .title {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(20,33,61, 0.6);
 }
 
 .tw-nav-drawer .drawer-panel {
@@ -938,7 +938,7 @@ h1, h2, h3, h4, .title {
   height: 52px;
   min-height: 52px;
   border-radius: 10px;
-  background: rgba(20, 20, 30, 0.55);
+  background: rgba(20,33,61, 0.55);
   border: 1px solid var(--border-normal);
   color: var(--text);
   backdrop-filter: blur(6px);
@@ -949,7 +949,7 @@ h1, h2, h3, h4, .title {
 }
 
 .tw-login-bottom input {
-  background: rgba(10, 10, 18, 0.6);
+  background: rgba(20,33,61, 0.6);
   border: 1px solid var(--border-normal);
 }
 
@@ -1390,7 +1390,7 @@ h1, h2, h3, h4, .title {
 
 .tw-hub-ticker-wrap {
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(20,33,61, 0.35);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
   white-space: nowrap;
@@ -1636,7 +1636,7 @@ h1, h2, h3, h4, .title {
   right: 0;
   width: 260px;
   height: 100vh;
-  background: rgba(10, 10, 20, 0.95);
+  background: rgba(20,33,61, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-left: 1px solid var(--overlay-medium);
@@ -1779,7 +1779,7 @@ h1, h2, h3, h4, .title {
 .tw-search-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(20,33,61, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1839,7 +1839,7 @@ h1, h2, h3, h4, .title {
 .tw-invite-popup {
   width: 320px;
   max-width: 88vw;
-  background: rgba(10, 14, 12, 0.97);
+  background: rgba(20,33,61, 0.97);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   padding: 16px;
@@ -1883,7 +1883,7 @@ h1, h2, h3, h4, .title {
 .tw-loadout-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(20,33,61, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2041,9 +2041,9 @@ h1, h2, h3, h4, .title {
 
 /* Profile backgrounds - applied to the profile header card */
 .tw-profile-header { position: relative; overflow: hidden; border-radius: var(--radius-lg); }
-.tw-profile-header.profile-bg-terminal-dark { background: linear-gradient(135deg, #080810 0%, #0f1018 100%); }
+.tw-profile-header.profile-bg-terminal-dark { background: linear-gradient(135deg, #14213d 0%, #1d2d50 100%); }
 
-.tw-profile-header.profile-bg-neon-city { background: linear-gradient(135deg, #0a0820 0%, #1a0840 50%, #0a0820 100%); }
+.tw-profile-header.profile-bg-neon-city { background: linear-gradient(135deg, #1a1a4d 0%, #33207a 50%, #1a1a4d 100%); }
 .tw-profile-header.profile-bg-neon-city::before {
   content: '';
   position: absolute;
@@ -2055,7 +2055,7 @@ h1, h2, h3, h4, .title {
   pointer-events: none;
 }
 
-.tw-profile-header.profile-bg-gold-rush { background: linear-gradient(135deg, #1a1000 0%, #2a1800 50%, #1a1000 100%); }
+.tw-profile-header.profile-bg-gold-rush { background: linear-gradient(135deg, #3d2c10 0%, #5a3d14 50%, #3d2c10 100%); }
 .tw-profile-header.profile-bg-gold-rush::before {
   content: '';
   position: absolute;
@@ -2064,7 +2064,7 @@ h1, h2, h3, h4, .title {
   pointer-events: none;
 }
 
-.tw-profile-header.profile-bg-deep-space { background: linear-gradient(135deg, #000008 0%, #040020 50%, #000008 100%); }
+.tw-profile-header.profile-bg-deep-space { background: linear-gradient(135deg, #14213d 0%, #1d2d50 50%, #14213d 100%); }
 .tw-profile-header.profile-bg-deep-space::before {
   content: '';
   position: absolute;
@@ -2082,7 +2082,7 @@ h1, h2, h3, h4, .title {
   pointer-events: none;
 }
 
-.tw-profile-header.profile-bg-blood-red-market { background: linear-gradient(135deg, #1a0000 0%, #2a0000 50%, #1a0000 100%); }
+.tw-profile-header.profile-bg-blood-red-market { background: linear-gradient(135deg, #3a1a24 0%, #5a2230 50%, #3a1a24 100%); }
 .tw-profile-header.profile-bg-blood-red-market::before {
   content: '';
   position: absolute;
@@ -2247,7 +2247,7 @@ h1, h2, h3, h4, .title {
   position: fixed;
   inset: 0;
   z-index: 9000;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(20,33,61, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -321,7 +321,7 @@ TW.Drawing = (function () {
     const textWidth = ctx.measureText(label).width;
     const padX = 6;
     const boxX = x + 6;
-    ctx.fillStyle = 'rgba(13, 13, 13, 0.85)';
+    ctx.fillStyle = 'rgba(20,33,61, 0.85)';
     ctx.fillRect(boxX, 4, textWidth + padX * 2, 18);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.strokeRect(boxX, 4, textWidth + padX * 2, 18);

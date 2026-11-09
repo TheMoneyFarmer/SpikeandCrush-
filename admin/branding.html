@@ -27,10 +27,10 @@
         <div class="admin-tab-panel" id="tab-logo">
           <div class="panel" style="max-width:640px;">
             <h3>Spike &amp; Crush Staircase Logo</h3>
-            <div style="background:#080810;border-radius:8px;padding:30px;text-align:center;margin-bottom:16px;" id="logoPreviewFull"></div>
+            <div style="background:#14213d;border-radius:8px;padding:30px;text-align:center;margin-bottom:16px;" id="logoPreviewFull"></div>
             <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;">
-              <div style="text-align:center;"><div style="background:#080810;border-radius:6px;padding:8px 14px;" id="logoPreviewNav"></div><div class="text-secondary" style="font-size:11px;margin-top:6px;">Navigation</div></div>
-              <div style="text-align:center;"><div style="background:#080810;border-radius:6px;padding:10px 16px;" id="logoPreviewLobby"></div><div class="text-secondary" style="font-size:11px;margin-top:6px;">Medium (lobby)</div></div>
+              <div style="text-align:center;"><div style="background:#14213d;border-radius:6px;padding:8px 14px;" id="logoPreviewNav"></div><div class="text-secondary" style="font-size:11px;margin-top:6px;">Navigation</div></div>
+              <div style="text-align:center;"><div style="background:#14213d;border-radius:6px;padding:10px 16px;" id="logoPreviewLobby"></div><div class="text-secondary" style="font-size:11px;margin-top:6px;">Medium (lobby)</div></div>
             </div>
             <div class="text-secondary" style="font-size:12px;margin-top:16px;">Favicons: one icon per site section in client/icons/, and a gold one for this panel in admin/icons/.</div>
           </div>
@@ -234,7 +234,7 @@
       const canvas = document.getElementById('socialCanvas');
       const ctx = canvas.getContext('2d');
       const grad = ctx.createLinearGradient(0, 0, 800, 450);
-      grad.addColorStop(0, '#080810'); grad.addColorStop(1, '#0f1018');
+      grad.addColorStop(0, '#14213d'); grad.addColorStop(1, '#1d2d50');
       ctx.fillStyle = grad; ctx.fillRect(0, 0, 800, 450);
       ctx.font = 'italic 900 48px sans-serif';
       ctx.fillStyle = '#00c896'; ctx.fillText('SPIKE', 60, 150);

@@ -21,7 +21,7 @@ window.Admin = window.Admin || {};
     document.getElementById('admChangePasswordOverlay')?.remove();
     const overlay = document.createElement('div');
     overlay.id = 'admChangePasswordOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(20,33,61,0.6);display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
       <div class="panel" style="max-width:360px;width:90%;">
         <h3 style="margin-top:0;">Change Password</h3>

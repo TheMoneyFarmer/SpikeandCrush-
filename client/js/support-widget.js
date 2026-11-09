@@ -104,7 +104,7 @@
   // ---- styles --------------------------------------------------------------
   const style = document.createElement('style');
   style.textContent = `
-#twSupportWidgetRoot{--sw-bg:#07090F;--sw-panel:#0E1320;--sw-tile:#111724;--sw-line:#1D2638;--sw-text:#E8ECF4;--sw-muted:#9AA4B8;--sw-gold:#F5B83D;--sw-green:#2EE6A6;--sw-red:#FF4D5E;
+#twSupportWidgetRoot{--sw-bg:#14213d;--sw-panel:#1d2d50;--sw-tile:#25375f;--sw-line:#1D2638;--sw-text:#E8ECF4;--sw-muted:#9AA4B8;--sw-gold:#F5B83D;--sw-green:#2EE6A6;--sw-red:#FF4D5E;
   position:fixed;right:20px;bottom:20px;z-index:2147483000;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--sw-text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;text-align:left;letter-spacing:normal;text-transform:none}
 #twSupportWidgetRoot,#twSupportWidgetRoot *{cursor:auto;box-sizing:border-box}
 #twSupportWidgetRoot button,#twSupportWidgetRoot a{cursor:pointer}
@@ -112,11 +112,11 @@
 #twSupportWidgetRoot.sw-hidden{display:none}
 html.tw-sw-hover #cr,html.tw-sw-hover #cp,html.tw-sw-hover [data-custom-cursor]{opacity:0!important;visibility:hidden!important}
 #twSupportWidgetRoot :focus-visible{outline:2px solid var(--sw-gold);outline-offset:2px}
-.sw-launcher{position:relative;width:56px;height:56px;border-radius:50%;border:0;background:var(--sw-gold);color:#07090F;display:grid;place-items:center;box-shadow:0 8px 24px rgba(0,0,0,.45);transition:transform .15s ease;padding:0}
+.sw-launcher{position:relative;width:56px;height:56px;border-radius:50%;border:0;background:var(--sw-gold);color:#14213d;display:grid;place-items:center;box-shadow:0 8px 24px rgba(0,0,0,.45);transition:transform .15s ease;padding:0}
 .sw-launcher:hover{transform:translateY(-1px)}
 .sw-launcher.sw-pulse{animation:swPulse 2.4s ease-out 2}
 @keyframes swPulse{0%{box-shadow:0 0 0 0 rgba(245,184,61,.55),0 8px 24px rgba(0,0,0,.45)}100%{box-shadow:0 0 0 18px rgba(245,184,61,0),0 8px 24px rgba(0,0,0,.45)}}
-.sw-dot{position:absolute;top:3px;right:3px;width:13px;height:13px;border-radius:50%;background:var(--sw-red);border:2px solid #07090F;display:none}
+.sw-dot{position:absolute;top:3px;right:3px;width:13px;height:13px;border-radius:50%;background:var(--sw-red);border:2px solid #14213d;display:none}
 .sw-launcher.sw-unread .sw-dot{display:block}
 .sw-panel{position:fixed;right:20px;bottom:88px;width:380px;height:560px;max-height:calc(100vh - 108px);background:var(--sw-panel);border:1px solid var(--sw-line);border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden}
 #twSupportWidgetRoot.sw-tabbar .sw-panel{bottom:164px;max-height:calc(100vh - 184px)}
@@ -141,15 +141,15 @@ html.tw-sw-hover #cr,html.tw-sw-hover #cp,html.tw-sw-hover [data-custom-cursor]{
 .sw-row.sw-right{align-self:flex-end;align-items:flex-end}
 .sw-bubble{padding:10px 12px;border-radius:12px;word-wrap:break-word;overflow-wrap:anywhere;color:var(--sw-text)}
 .sw-left .sw-bubble{background:var(--sw-tile);border:1px solid var(--sw-line);border-top-left-radius:4px}
-.sw-right .sw-bubble{background:var(--sw-gold);color:#07090F;border-top-right-radius:4px}
+.sw-right .sw-bubble{background:var(--sw-gold);color:#14213d;border-top-right-radius:4px}
 .sw-bubble p{margin:0 0 6px}.sw-bubble p:last-child{margin:0}
 .sw-bubble ul,.sw-bubble ol{margin:4px 0 6px;padding-left:20px}
 .sw-bubble a{color:var(--sw-gold);text-decoration:underline}
-.sw-right .sw-bubble a{color:#07090F}
+.sw-right .sw-bubble a{color:#14213d}
 .sw-bubble code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:rgba(255,255,255,.06);padding:1px 4px;border-radius:4px}
 .sw-attach-link{display:inline-flex;align-items:center;gap:6px;margin-top:6px}
 .sw-meta{font-size:11px;color:var(--sw-muted);margin-top:4px;display:flex;align-items:center;gap:6px;min-height:16px}
-.sw-tag{font-family:Rajdhani,Inter,sans-serif;font-weight:700;font-size:11px;letter-spacing:.08em;background:var(--sw-gold);color:#07090F;border-radius:4px;padding:0 5px;line-height:16px}
+.sw-tag{font-family:Rajdhani,Inter,sans-serif;font-weight:700;font-size:11px;letter-spacing:.08em;background:var(--sw-gold);color:#14213d;border-radius:4px;padding:0 5px;line-height:16px}
 .sw-sender{font-size:12px;color:var(--sw-muted);margin-bottom:4px;display:flex;align-items:center;gap:6px}
 .sw-system{align-self:center;text-align:center;font-size:12px;color:var(--sw-muted);max-width:90%;padding:2px 8px}
 .sw-rate{display:flex;gap:2px;margin-left:2px}
@@ -169,7 +169,7 @@ html.tw-sw-hover #cr,html.tw-sw-hover #cp,html.tw-sw-hover [data-custom-cursor]{
 .sw-card p{margin:0;color:var(--sw-muted);font-size:13px}
 .sw-field{width:100%;background:var(--sw-bg);border:1px solid var(--sw-line);border-radius:10px;color:var(--sw-text);font:inherit;padding:10px 12px;min-height:44px}
 .sw-field::placeholder{color:#8A93A6}
-.sw-btn{min-height:44px;border-radius:12px;border:0;background:var(--sw-gold);color:#07090F;font:inherit;font-weight:600;padding:0 16px}
+.sw-btn{min-height:44px;border-radius:12px;border:0;background:var(--sw-gold);color:#14213d;font:inherit;font-weight:600;padding:0 16px}
 .sw-btn:disabled{opacity:.5}
 .sw-btn.sw-ghost{background:transparent;border:1px solid var(--sw-line);color:var(--sw-text)}
 .sw-btnrow{display:flex;gap:8px;flex-wrap:wrap}
@@ -186,7 +186,7 @@ html.tw-sw-hover #cr,html.tw-sw-hover #cp,html.tw-sw-hover [data-custom-cursor]{
 .sw-compose:focus-within{border-color:var(--sw-gold)}
 .sw-compose textarea{flex:1;min-width:0;resize:none;border:0;background:transparent;color:var(--sw-text);font:inherit;line-height:20px;padding:12px 6px;max-height:112px;min-height:44px;outline:none;box-shadow:none}
 .sw-compose textarea::placeholder{color:#8A93A6}
-.sw-send{width:44px;height:44px;border-radius:10px;border:0;background:var(--sw-gold);color:#07090F;display:grid;place-items:center;flex:0 0 44px;padding:0}
+.sw-send{width:44px;height:44px;border-radius:10px;border:0;background:var(--sw-gold);color:#14213d;display:grid;place-items:center;flex:0 0 44px;padding:0}
 .sw-send:disabled{opacity:.45}
 .sw-attach{width:44px;height:44px;border-radius:10px;border:0;background:transparent;color:var(--sw-muted);display:grid;place-items:center;flex:0 0 44px;padding:0}
 .sw-attach:hover{color:var(--sw-text)}

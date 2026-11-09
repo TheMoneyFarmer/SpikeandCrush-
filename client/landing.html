@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0b1220">
+<meta name="theme-color" content="#14213d">
 <meta name="description" content="Spike & Crush is a competitive trading game. 10-minute matches on real market data, 30 sabotage cards, ranked ladders. Free to play with coins.">
 <title>Spike & Crush — Up. Then not.</title>
 <link rel="icon" href="/icons/site.svg" type="image/svg+xml" />
@@ -38,7 +38,7 @@
   --canvas: var(--c-canvas); --deep: var(--c-deep); --elev: var(--c-elev); --card: var(--c-card); --card-2: var(--c-card-2);
   --hair: var(--c-hair); --hair-2: var(--c-hair-2);
   --on: var(--c-on); --body: var(--c-body); --mute: var(--c-mute); --ghost: var(--c-ghost); --ghost-2: var(--c-ghost-2);
-  --ink: #0b1220; --ink-body: rgba(11,18,32,.68); --ink-mute: #6b6b6b; --light: #fff; --light-card: #f5f7fa;
+  --ink: #14213d; --ink-body: rgba(20,33,61,.68); --ink-mute: #6b6b6b; --light: #fff; --light-card: #f5f7fa;
   --blue: var(--c-blue); --blue-press: var(--c-blue-press); --blue-deep: var(--c-blue-deep); --link: var(--c-link);
   --gold: var(--c-gold); --gold-grad: linear-gradient(90deg,#ffce21 0%,#f5a623 50%,#ee8e00 100%);
   --spike: var(--c-spike); --crush: var(--c-crush);
@@ -179,7 +179,7 @@ button { font: inherit; }
 .tile-art svg { width: 100%; height: 100%; transition: transform 400ms var(--ease); }
 .badge { position: absolute; top: 12px; left: 12px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 9999px; background: var(--blue); color: #fff; }
 .badge.free { background: #fff; color: #000; }
-.tile-dur { position: absolute; bottom: 12px; right: 12px; font: 500 12px var(--mono); padding: 4px 8px; border-radius: 4px; background: rgba(0,0,0,.7); color: #fff; }
+.tile-dur { position: absolute; bottom: 12px; right: 12px; font: 500 12px var(--mono); padding: 4px 8px; border-radius: 4px; background: rgba(20,33,61,.7); color: #fff; }
 .tile-body { padding: 16px 18px 20px; }
 .tile-body p { margin: 6px 0 0; font-size: 14px; color: var(--body); line-height: 1.5; }
 .tile-meta { display: flex; gap: 14px; margin-top: 12px; font-size: 13px; color: var(--mute); }
@@ -207,10 +207,10 @@ button { font: inherit; }
 @media (max-width: 860px) { .how-stack { grid-template-columns: minmax(0, 1fr); } }
 
 /* 3D flight */
-.how-3d .how { padding: 0; background: #0a1226; }
+.how-3d .how { padding: 0; background: #14213d; }
 .how-3d .how-track { height: 420vh; height: 420svh; }
-.how-3d .how-stage { position: sticky; top: 64px; height: calc(100vh - 64px); height: calc(100svh - 64px); overflow: hidden; background: #0a1226; color: #f2f5fa;
-  --on: #f2f5fa; --body: rgba(232,238,248,.82); --mute: rgba(200,212,232,.68); --plate: rgba(11,18,38,.9); --line: rgba(160,182,222,.22); --link: #6cb2ff; --blue: #2d7ff9; --blue-press: #1f6ae0; --gold: #f5b83d; --spike: #1fd38a; --crush: #ff4d6a; --hair-2: rgba(160,182,222,.3); }
+.how-3d .how-stage { position: sticky; top: 64px; height: calc(100vh - 64px); height: calc(100svh - 64px); overflow: hidden; background: #14213d; color: #f2f5fa;
+  --on: #f2f5fa; --body: rgba(232,238,248,.82); --mute: rgba(200,212,232,.68); --plate: rgba(20,33,61,.9); --line: rgba(160,182,222,.22); --link: #6cb2ff; --blue: #2d7ff9; --blue-press: #1f6ae0; --gold: #f5b83d; --spike: #1fd38a; --crush: #ff4d6a; --hair-2: rgba(160,182,222,.3); }
 .how-3d .how-canvas { display: block; position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .how-3d .how-poster { display: block; position: absolute; inset: 0; z-index: 1; transition: opacity 400ms var(--ease); pointer-events: none; }
 .how-3d .how-poster img { width: 100%; height: 100%; object-fit: cover; }
@@ -236,7 +236,7 @@ button { font: inherit; }
 .how-trade:active { transform: scale(.96); }
 .how-trade.buy { background: var(--spike); color: #00140c; }
 .how-trade.sell { background: var(--crush); color: #1d0208; }
-.how-trade.close { background: #f2f5fa; color: #0b1220; font-variant-numeric: tabular-nums; flex-basis: 100%; }
+.how-trade.close { background: #f2f5fa; color: #14213d; font-variant-numeric: tabular-nums; flex-basis: 100%; }
 .how-trade[hidden] { display: none; }
 .how-msg { margin: 0; min-height: 1.5em; font-size: 14px; color: var(--on); }
 .how-hand { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -258,13 +258,13 @@ button { font: inherit; }
 .how-3d .how-nav { display: flex; position: absolute; z-index: 5; left: max(24px, calc((100vw - var(--max)) / 2 + var(--gut))); top: 20px; gap: 4px; background: var(--plate); border: 1px solid var(--line); border-radius: 9999px; padding: 4px; }
 .how-nav button { border: 0; background: transparent; color: var(--body); min-height: 40px; padding: 0 16px; border-radius: 9999px; font: 600 14px var(--font); cursor: pointer; }
 .how-nav button:hover { color: var(--on); }
-.how-nav button[aria-current] { background: #f2f5fa; color: #0b1220; }
+.how-nav button[aria-current] { background: #f2f5fa; color: #14213d; }
 .how-3d .how-hud { display: block; position: absolute; z-index: 5; right: max(24px, calc((100vw - var(--max)) / 2 + var(--gut))); top: 20px; width: 264px; background: var(--plate); border: 1px solid var(--line); border-radius: 12px; padding: 12px; transition: opacity 240ms var(--ease); }
 .how-stage[data-chapter="-1"] .how-hud { opacity: 0; pointer-events: none; }
 .how-stage[data-chapter="-1"] .how-nav { opacity: 1; }
 .how-hud-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
 .how-ex { font-size: 12px; font-weight: 500; color: var(--mute); }
-.how-timer { font: 500 13px var(--mono); background: #21304f; padding: 3px 9px; border-radius: 9999px; }
+.how-timer { font: 500 13px var(--mono); background: #2e4270; padding: 3px 9px; border-radius: 9999px; }
 .how-timer.tock { animation: howTock 300ms var(--ease); }
 @keyframes howTock { 0% { transform: scale(1.25); background: var(--crush); } }
 .how-rows { position: relative; height: 144px; }
@@ -296,7 +296,7 @@ button { font: inherit; }
 .how-sizes { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--body); }
 .how-sizes[hidden] { display: none; }
 .how-sizes button { min-height: 40px; min-width: 44px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--hair-2); background: transparent; color: var(--on); font: 600 13px var(--mono); cursor: pointer; }
-.how-sizes button[aria-pressed='true'] { background: #f2f5fa; color: #0b1220; border-color: #f2f5fa; }
+.how-sizes button[aria-pressed='true'] { background: #f2f5fa; color: #14213d; border-color: #f2f5fa; }
 .how-trade.close.in-profit { box-shadow: inset 0 0 0 2px var(--spike); }
 .how-trade.close.in-loss { box-shadow: inset 0 0 0 2px var(--crush); }
 .how-card.deny { animation: howDeny 300ms var(--ease); }
@@ -320,7 +320,7 @@ button { font: inherit; }
 .how-mini[hidden] { display: none; }
 .how-mini.buy { background: var(--spike); color: #00140c; }
 .how-mini.sell { background: var(--crush); color: #1d0208; }
-.how-mini.close { background: #f2f5fa; color: #0b1220; }
+.how-mini.close { background: #f2f5fa; color: #14213d; }
 .how-mini.close.in-profit { box-shadow: inset 0 0 0 2px var(--spike); }
 .how-mini.close.in-loss { box-shadow: inset 0 0 0 2px var(--crush); }
 .how-row .tag.ice { color: #8cc4ff; } .how-row .tag.long { color: var(--spike); } .how-row .tag.short { color: var(--crush); }
@@ -466,7 +466,7 @@ button { font: inherit; }
 @media (max-width: 760px) { .footer-top { grid-template-columns: 1fr 1fr; } .footer-top > :first-child { grid-column: 1 / -1; } }
 
 /* ---------- sign-in drawer ---------- */
-.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.7); opacity: 0; pointer-events: none; transition: opacity 240ms var(--ease); z-index: 90; }
+.scrim { position: fixed; inset: 0; background: rgba(20,33,61,.7); opacity: 0; pointer-events: none; transition: opacity 240ms var(--ease); z-index: 90; }
 .scrim.open { opacity: 1; pointer-events: auto; }
 .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); background: var(--elev); border-left: 1px solid var(--hair);
   transform: translateX(100%); transition: transform 320ms var(--ease); z-index: 100; overflow-y: auto; padding: 28px 32px 40px; }

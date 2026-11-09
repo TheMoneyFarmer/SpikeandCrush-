@@ -953,10 +953,10 @@ window.TW = window.TW || {};
         const x = xFor(m.t);
         const y = yFor(equityAt(m.t));
         if (m.type === 'sabotage') {
-          return `<path d="M ${x.toFixed(1)} ${(y - 7).toFixed(1)} l 5.5 10 l -11 0 z" fill="#ffb020" stroke="#0d0d0d" stroke-width="0.75" />`;
+          return `<path d="M ${x.toFixed(1)} ${(y - 7).toFixed(1)} l 5.5 10 l -11 0 z" fill="#ffb020" stroke="#14213d" stroke-width="0.75" />`;
         }
         const fill = m.type === 'close-loss' ? '#ff4444' : m.type === 'close-win' ? '#00c896' : '#4da6ff';
-        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="${fill}" stroke="#0d0d0d" stroke-width="1" />`;
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="${fill}" stroke="#14213d" stroke-width="1" />`;
       })
       .join('');
 
@@ -1261,7 +1261,7 @@ window.TW = window.TW || {};
 
       const backdrop = document.createElement('div');
       backdrop.className = 'modal-backdrop';
-      backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:400;';
+      backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(20,33,61,0.7);display:flex;align-items:center;justify-content:center;z-index:400;';
       backdrop.innerHTML = `
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;width:420px;max-width:92vw;">
           <img src="${pngDataUrl}" style="width:100%;border-radius:8px;margin-bottom:14px;" />

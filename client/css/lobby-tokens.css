@@ -4,10 +4,10 @@
    <link> with display=swap. */
 
 :root {
-  --bg: #07090F;
-  --panel: #0E1320;
-  --panel-2: #111724;
-  --panel-3: #0B0F19;
+  --bg: #14213d;
+  --panel: #1d2d50;
+  --panel-2: #25375f;
+  --panel-3: #182746;
   --line: #1D2638;
   --line-2: #232C40;
   --text: #E8ECF4;

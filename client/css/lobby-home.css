@@ -109,7 +109,7 @@ body.lb-page {
 .lb-avatar-menu .tw-friends-online-badge { margin-left: auto; position: static; }
 
 /* ---- 3. brand band ---- */
-.lb-brand { min-height: 120px; border-radius: var(--r-card); border: 1px solid var(--line); background: linear-gradient(100deg, #0B1A18 0%, #0B0F19 50%, #1A0E16 100%); padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.lb-brand { min-height: 120px; border-radius: var(--r-card); border: 1px solid var(--line); background: linear-gradient(100deg, #16322f 0%, #182746 50%, #2d1c33 100%); padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .lb-brand-id { min-width: 0; }
 .lb-logo { font-family: var(--font-display); font-weight: 700; font-style: italic; font-size: 44px; line-height: 1; letter-spacing: 0.02em; white-space: nowrap; }
 .lb-logo .s { color: var(--spike); }
@@ -118,13 +118,13 @@ body.lb-page {
 .lb-tag { margin-top: 6px; font-size: 15px; color: var(--muted); }
 .lb-tag2 { margin-top: 2px; font-size: 13px; color: var(--gold); }
 .lb-stats { display: grid; grid-template-columns: repeat(4, 150px); gap: 12px; }
-.lb-stat { height: 76px; padding: 12px 14px; border-radius: var(--r-tile); background: rgba(11,15,25,0.72); border: 1px solid var(--line); display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+.lb-stat { height: 76px; padding: 12px 14px; border-radius: var(--r-tile); background: rgba(20,33,61,0.72); border: 1px solid var(--line); display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
 .lb-stat.lb-skel { border: 0; }
 .lb-stat-label { font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
 .lb-short { display: none; }
 .lb-stat-value { font-size: 26px; font-weight: 700; line-height: 1; overflow: hidden; text-overflow: ellipsis; }
 .lb-stat-value .lb-coin-unit { display: none; }
-.lb-stats-empty { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; max-width: 636px; padding: 16px 18px; border-radius: var(--r-tile); background: rgba(11,15,25,0.72); border: 1px solid var(--line); color: var(--text); font-size: 15px; }
+.lb-stats-empty { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; max-width: 636px; padding: 16px 18px; border-radius: var(--r-tile); background: rgba(20,33,61,0.72); border: 1px solid var(--line); color: var(--text); font-size: 15px; }
 .lb-stats-empty .tw-icon { color: var(--gold); flex-shrink: 0; }
 .lb-stats .lb-error { grid-column: 1 / -1; flex-direction: row; padding: 12px; }
 
@@ -163,7 +163,7 @@ body.lb-page {
 .tw-tier-badge { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: var(--r-chip); border: 1px solid color-mix(in srgb, var(--tier) 55%, transparent); background: color-mix(in srgb, var(--tier) 14%, transparent); color: var(--tier); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; width: max-content; }
 
 /* hero */
-.lb-hero { padding: 28px; background: radial-gradient(120% 140% at 0% 0%, #13202A 0%, var(--panel) 55%); min-height: 300px; }
+.lb-hero { padding: 28px; background: radial-gradient(120% 140% at 0% 0%, #1c3a4a 0%, var(--panel) 55%); min-height: 300px; }
 .lb-hero-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .lb-live { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: var(--r-chip); background: var(--crush); color: #fff; font-weight: 700; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; }
 .lb-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #fff; display: inline-block; animation: lb-pulse 1.6s ease-in-out infinite; }
@@ -172,7 +172,7 @@ body.lb-page {
 .lb-soon { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: var(--r-chip); background: var(--gold-bg); color: var(--gold); font-weight: 700; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; }
 .lb-hero-title { margin: 14px 0 0; font: 700 clamp(44px, 5vw, 72px) / 0.95 var(--font-display); letter-spacing: 0.02em; text-transform: uppercase; overflow-wrap: anywhere; }
 .lb-hero-title-sm { font-size: clamp(30px, 3vw, 40px); margin: 6px 0 4px; }
-.lb-presented { display: inline-flex; align-items: center; gap: 10px; margin-top: 14px; padding: 6px 12px; min-height: var(--touch); border-radius: var(--r-btn); background: rgba(11,15,25,0.7); border: 1px solid var(--line-2); text-decoration: none; color: var(--text); }
+.lb-presented { display: inline-flex; align-items: center; gap: 10px; margin-top: 14px; padding: 6px 12px; min-height: var(--touch); border-radius: var(--r-btn); background: rgba(20,33,61,0.7); border: 1px solid var(--line-2); text-decoration: none; color: var(--text); }
 .lb-presented-img { height: 26px; max-width: 120px; object-fit: contain; }
 .lb-hero-nums { display: grid; grid-template-columns: repeat(3, max-content); gap: 12px 36px; margin-top: 22px; }
 .lb-hero-num { margin-top: 4px; font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -244,7 +244,7 @@ body.lb-page {
 .lb-footer { margin-top: 32px; }
 .lb-footer .legal-coins { color: var(--text); font-weight: 600; }
 .lb-mprofile { display: none; }
-.lb-sheet-backdrop { position: fixed; inset: 0; background: rgba(3,5,10,0.7); z-index: 9400; }
+.lb-sheet-backdrop { position: fixed; inset: 0; background: rgba(20,33,61,0.7); z-index: 9400; }
 
 /* ---- fluid desktop: 1024 to 1279 ---- */
 @media (min-width: 1024px) and (max-width: 1399px) {
@@ -328,7 +328,7 @@ body.lb-page {
   .lb-join .lb-label { grid-column: 1 / -1; }
 
   /* Bottom tab bar: 80px, raised 80px gold Play circle. */
-  body.lb-page .bottom-tab-bar { display: flex; height: calc(80px + env(safe-area-inset-bottom)); background: rgba(11,15,25,0.97); border-top: 1px solid var(--line); }
+  body.lb-page .bottom-tab-bar { display: flex; height: calc(80px + env(safe-area-inset-bottom)); background: rgba(20,33,61,0.97); border-top: 1px solid var(--line); }
   body.lb-page .tab-item { color: var(--muted); }
   body.lb-page .tab-item.active { color: var(--gold); }
   body.lb-page .tab-label { font: 600 11px var(--font-display); letter-spacing: 0.1em; }

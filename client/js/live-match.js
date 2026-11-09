@@ -14,7 +14,7 @@
   const OPEN_KEY = 'sc_live_match_open';
 
   const STYLE = `
-    .lm-card { position: fixed; left: 20px; bottom: 20px; z-index: 9000; width: 340px; max-width: calc(100vw - 32px); border-radius: 14px; background: var(--surface, #12192b); border: 1px solid var(--border, #2a3550); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); color: var(--text-primary, #fff); font-family: inherit; font-size: 14px; }
+    .lm-card { position: fixed; left: 20px; bottom: 20px; z-index: 9000; width: 340px; max-width: calc(100vw - 32px); border-radius: 14px; background: var(--surface, #1d2d50); border: 1px solid var(--border, #2a3550); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); color: var(--text-primary, #fff); font-family: inherit; font-size: 14px; }
     .lm-bar { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 12px; background: none; border: 0; border-radius: 14px; color: inherit; font: inherit; text-align: left; cursor: pointer; }
     .lm-bar:focus-visible, .lm-card button:focus-visible, .lm-card a:focus-visible { outline: 2px solid var(--accent, #4d8dff); outline-offset: 2px; }
     .lm-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--sell, #ff3d5c); animation: lm-pulse 1.6s ease-in-out infinite; }

@@ -98,7 +98,7 @@
     stage.prepend(canvas);
 
     const scene = new THREE.Scene();
-    const SKY = new THREE.Color('#0a1226');
+    const SKY = new THREE.Color('#14213d');
     scene.background = SKY;
     scene.fog = new THREE.Fog(SKY, 140, 340);
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);

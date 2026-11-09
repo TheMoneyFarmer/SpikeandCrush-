@@ -31,13 +31,13 @@
 :root,
 [data-theme='default'] {
   /* ── Backgrounds ── */
-  --bg-base: #0A0C14;
+  --bg-base: #14213d;
   --bg-surface-1: #1A1E2A;
   --bg-surface-2: #1E2438;
   --bg-surface-3: #242C44;
   --bg-elevated: #2A3450;
   --bg-card: #1A1E2A;
-  --bg-overlay: rgba(10, 12, 20, 0.92);
+  --bg-overlay: rgba(20,33,61, 0.92);
 
   /* ── Borders ── */
   --border-subtle: rgba(42, 48, 64, 0.8);
@@ -102,7 +102,7 @@
   --grad-teal: linear-gradient(135deg, #00C896 0%, #00956F 100%);
   --grad-red: linear-gradient(135deg, #FF3D5C 0%, #CC1F40 100%);
   --grad-surface: linear-gradient(135deg, #1A1E2A 0%, #1E2438 100%);
-  --grad-hero: linear-gradient(160deg, #0A0C14 0%, #0E1220 30%, #121830 60%, #0A0C14 100%);
+  --grad-hero: linear-gradient(160deg, #14213d 0%, #0E1220 30%, #121830 60%, #14213d 100%);
   --grad-card: linear-gradient(160deg, #1A1E2A 0%, #1E2438 100%);
 
   /* ── Shadows ── */
@@ -114,7 +114,7 @@
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 
   /* ── Navigation ── */
-  --nav-bg: rgba(10, 12, 20, 0.95);
+  --nav-bg: rgba(20,33,61, 0.95);
   --nav-border: #2A3040;
   --nav-height: 60px;
 
@@ -126,7 +126,7 @@
   --input-ph: #4A5870;
 
   /* ── Chart ── */
-  --chart-bg: #0A0C14;
+  --chart-bg: #14213d;
   --chart-grid: rgba(42, 48, 64, 0.6);
   --chart-text: #4A5870;
   --chart-border: #2A3040;
@@ -215,7 +215,7 @@
   --bg-surface-3: #1E1A36;
   --bg-elevated: #261F44;
   --bg-card: #100D1C;
-  --bg-overlay: rgba(8, 6, 15, 0.95);
+  --bg-overlay: rgba(20,33,61, 0.95);
 
   --border-subtle: rgba(100, 80, 180, 0.12);
   --border-normal: rgba(120, 100, 200, 0.2);
@@ -285,7 +285,7 @@
   --shadow-teal: 0 0 30px rgba(160, 96, 224, 0.2);
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(180, 160, 255, 0.05) inset;
 
-  --nav-bg: rgba(8, 6, 15, 0.95);
+  --nav-bg: rgba(20,33,61, 0.95);
   --nav-border: rgba(100, 80, 180, 0.2);
   --nav-height: 60px;
 
@@ -378,7 +378,7 @@
   --bg-surface-3: #2A1420;
   --bg-elevated: #32182A;
   --bg-card: #1A0C10;
-  --bg-overlay: rgba(14, 5, 8, 0.95);
+  --bg-overlay: rgba(20,33,61, 0.95);
 
   --border-subtle: rgba(180, 40, 60, 0.1);
   --border-normal: rgba(200, 50, 70, 0.18);
@@ -447,7 +447,7 @@
   --shadow-teal: 0 0 30px rgba(255, 61, 92, 0.2);
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 100, 80, 0.05) inset;
 
-  --nav-bg: rgba(14, 5, 8, 0.95);
+  --nav-bg: rgba(20,33,61, 0.95);
   --nav-border: rgba(180, 40, 60, 0.15);
   --nav-height: 60px;
 
@@ -631,7 +631,7 @@
   --btn-primary-text: #FFFFFF;
   --btn-danger-bg: var(--grad-red);
   --btn-danger-text: #FFFFFF;
-  --btn-ghost-bg: rgba(0, 0, 0, 0.05);
+  --btn-ghost-bg: rgba(20,33,61, 0.05);
   --btn-ghost-text: #0A0E18;
   --btn-ghost-border: rgba(0, 0, 0, 0.12);
 
@@ -683,8 +683,8 @@
   --card-shadow: var(--shadow-card);
   --shadow-elevated: var(--shadow-lg);
   --shadow-glow-teal: var(--shadow-teal);
-  --overlay-soft: rgba(0, 0, 0, 0.03);
-  --overlay-medium: rgba(0, 0, 0, 0.06);
+  --overlay-soft: rgba(20,33,61, 0.03);
+  --overlay-medium: rgba(20,33,61, 0.06);
   --border-accent: var(--border-gold);
   --text-accent: var(--gold);
   --btn-secondary-bg: var(--btn-ghost-bg);

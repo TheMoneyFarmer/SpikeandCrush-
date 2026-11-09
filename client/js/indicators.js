@@ -112,7 +112,7 @@ TW.Indicators = (function () {
     pane.classList.remove('hidden');
     if (rsiChart) return;
     rsiChart = LightweightCharts.createChart(pane, {
-      layout: { background: { color: '#0d0d0d' }, textColor: '#888888' },
+      layout: { background: { color: '#14213d' }, textColor: '#888888' },
       grid: { vertLines: { color: '#1f1f1f' }, horzLines: { color: '#1f1f1f' } },
       timeScale: {
         timeVisible: true,
@@ -150,7 +150,7 @@ TW.Indicators = (function () {
     pane.classList.remove('hidden');
     if (macdChart) return;
     macdChart = LightweightCharts.createChart(pane, {
-      layout: { background: { color: '#0d0d0d' }, textColor: '#888888' },
+      layout: { background: { color: '#14213d' }, textColor: '#888888' },
       grid: { vertLines: { color: '#1f1f1f' }, horzLines: { color: '#1f1f1f' } },
       timeScale: {
         timeVisible: true,

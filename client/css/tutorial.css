@@ -148,7 +148,7 @@
 .mode-card-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(20,33,61, 0.85);
   z-index: 9998;
   display: flex;
   align-items: center;
@@ -292,7 +292,7 @@
 .bp-tutorial-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(20,33,61, 0.85);
   z-index: 9998;
   display: flex;
   align-items: center;
@@ -329,7 +329,7 @@
 .tutorial-confirm-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(20,33,61, 0.6);
   z-index: 10001;
   display: flex;
   align-items: center;

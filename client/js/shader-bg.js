@@ -15,11 +15,11 @@
   // ADJUST HERE: colours per palette and theme, overall speed, resolution, frame rate.
   const PALETTES = {
     coins: {
-      dark: ['#0e1628', '#17305c', '#4a3614'],
+      dark: ['#182746', '#17305c', '#4a3614'],
       light: ['#ffffff', '#eaf1fc', '#fdf3de'],
     },
     war: {
-      dark: ['#0e1628', '#0d3a30', '#431828'],
+      dark: ['#182746', '#0d3a30', '#431828'],
       light: ['#ffffff', '#e4f6ee', '#fce9ec'],
     },
   };

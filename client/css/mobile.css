@@ -265,7 +265,7 @@ button,
     left: 0;
     right: 0;
     height: 64px;
-    background: rgba(10,12,20,0.97);
+    background: rgba(20,33,61,0.97);
     border-top: 1px solid rgba(255,255,255,0.08);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -436,7 +436,7 @@ button,
     padding: 0 10px !important;
     gap: 10px !important;
     flex-wrap: nowrap !important;
-    background: rgba(10,12,20,0.85) !important;
+    background: rgba(20,33,61,0.85) !important;
     backdrop-filter: blur(12px) !important;
     -webkit-backdrop-filter: blur(12px) !important;
     z-index: 200 !important;
@@ -483,7 +483,7 @@ button,
     left: 0 !important;
     right: auto !important;
     z-index: 90 !important;
-    background: rgba(10,12,20,0.7) !important;
+    background: rgba(20,33,61,0.7) !important;
     padding: 3px 8px !important;
     font-size: 11px !important;
     gap: 8px !important;
@@ -506,7 +506,7 @@ button,
     padding: 8px !important;
     gap: 8px !important;
     border-radius: 14px !important;
-    background: rgba(10,12,20,0.9) !important;
+    background: rgba(20,33,61,0.9) !important;
     backdrop-filter: blur(16px) !important;
     -webkit-backdrop-filter: blur(16px) !important;
     border: 1px solid rgba(255,255,255,0.12) !important;
@@ -550,7 +550,7 @@ button,
     left: 8px !important;
     width: 150px !important;
     max-height: calc(100vh - 60px) !important;
-    background: rgba(10,12,20,0.82) !important;
+    background: rgba(20,33,61,0.82) !important;
     backdrop-filter: blur(12px) !important;
     -webkit-backdrop-filter: blur(12px) !important;
     border: 1px solid rgba(255,255,255,0.08) !important;
@@ -577,7 +577,7 @@ button,
     transform: translateX(-50%) !important;
     width: auto !important;
     max-width: 62vw !important;
-    background: rgba(10,12,20,0.75) !important;
+    background: rgba(20,33,61,0.75) !important;
     backdrop-filter: blur(10px) !important;
     border-radius: 0 0 12px 12px !important;
     z-index: 96 !important;
@@ -833,7 +833,7 @@ button,
     bottom: 0;
     height: 54px;
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    background: rgba(10,12,20,0.97);
+    background: rgba(20,33,61,0.97);
     border-top: 1px solid var(--border);
     z-index: 210;
   }

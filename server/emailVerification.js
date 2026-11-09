@@ -67,7 +67,7 @@ function verificationEmail({ username, link }) {
     text: `Hi ${username},\n\nVerify your email to start playing:\n${link}\n\nThe link works for 24 hours. If you didn't sign up, you can ignore this email.`,
     html: `<p>Hi ${username},</p>
 <p>Verify your email to start playing Spike &amp; Crush.</p>
-<p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#1fd38a;color:#0b1220;border-radius:8px;font-weight:700;text-decoration:none">Verify my email</a></p>
+<p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#1fd38a;color:#14213d;border-radius:8px;font-weight:700;text-decoration:none">Verify my email</a></p>
 <p>The link works for 24 hours. If you didn't sign up, you can ignore this email.</p>`,
   };
 }
@@ -98,7 +98,7 @@ function passwordResetEmail({ link }) {
     subject: 'Reset your Spike & Crush password',
     text: `Reset your Spike & Crush password:\n${link}\n\nIf you didn't ask for this, you can ignore this email and your password stays the same.`,
     html: `<p>Reset your Spike &amp; Crush password.</p>
-<p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#1fd38a;color:#0b1220;border-radius:8px;font-weight:700;text-decoration:none">Choose a new password</a></p>
+<p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#1fd38a;color:#14213d;border-radius:8px;font-weight:700;text-decoration:none">Choose a new password</a></p>
 <p>If you didn't ask for this, you can ignore this email and your password stays the same.</p>`,
   };
 }

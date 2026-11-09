@@ -3,8 +3,8 @@
 (function () {
   const TW = window.TW;
   const STYLE = `
-    .ec-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(4, 8, 16, 0.72); }
-    .ec-modal { width: 100%; max-width: 440px; max-height: calc(100vh - 32px); overflow-y: auto; padding: 24px; border-radius: 16px; background: var(--surface, #12192b); border: 1px solid var(--border, #2a3550); color: var(--text-primary, #fff); }
+    .ec-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(20,33,61, 0.72); }
+    .ec-modal { width: 100%; max-width: 440px; max-height: calc(100vh - 32px); overflow-y: auto; padding: 24px; border-radius: 16px; background: var(--surface, #1d2d50); border: 1px solid var(--border, #2a3550); color: var(--text-primary, #fff); }
     .ec-modal h2 { margin: 0 32px 8px 0; font-size: 20px; }
     .ec-modal p { margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: var(--text-secondary, #aab4c8); }
     .ec-close { float: right; display: flex; padding: 6px; background: none; border: 0; border-radius: 8px; color: var(--text-secondary, #aab4c8); cursor: pointer; }

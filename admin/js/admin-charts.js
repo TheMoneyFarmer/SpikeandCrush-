@@ -91,7 +91,7 @@ window.Admin = window.Admin || {};
       data: {
         datasets: [{
           data: [value, Math.max(0, max - value)],
-          backgroundColor: [value / max > 0.85 ? PALETTE.red : color, 'rgba(15,15,30,0.08)'],
+          backgroundColor: [value / max > 0.85 ? PALETTE.red : color, 'rgba(20,33,61,0.08)'],
           borderWidth: 0,
         }],
       },

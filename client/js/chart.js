@@ -164,7 +164,7 @@ TW.Chart = (function () {
     const style = getComputedStyle(document.documentElement);
     const get = (name, fallback) => style.getPropertyValue(name).trim() || fallback;
     return {
-      bg: get('--chart-bg', '#080D14'),
+      bg: get('--chart-bg', '#14213d'),
       text: get('--chart-text', '#5A7090'),
       grid: get('--chart-grid', 'rgba(100,140,200,0.06)'),
       border: get('--chart-border', 'rgba(100,140,200,0.12)'),
@@ -481,7 +481,7 @@ TW.Chart = (function () {
     const isLight = settings.background === 'light';
     chart.applyOptions({
       layout: {
-        background: { color: isLight ? '#ffffff' : '#0d0d0d' },
+        background: { color: isLight ? '#ffffff' : '#14213d' },
         textColor: isLight ? '#333333' : '#888888',
       },
       grid: {
@@ -621,7 +621,7 @@ TW.Chart = (function () {
       if (!tooltipEl) {
         tooltipEl = document.createElement('div');
         tooltipEl.style.cssText =
-          'position:absolute;pointer-events:none;z-index:20;background:rgba(13,13,13,0.95);' +
+          'position:absolute;pointer-events:none;z-index:20;background:rgba(20,33,61,0.95);' +
           'border:1px solid #ffeb3b;border-radius:6px;padding:6px 10px;font-size:12px;' +
           "font-family:'JetBrains Mono',monospace;color:#fff;white-space:nowrap;display:none;line-height:1.5;";
         overlayParent.appendChild(tooltipEl);
