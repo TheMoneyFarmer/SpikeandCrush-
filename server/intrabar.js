@@ -106,18 +106,61 @@ function barPathPoints(o, h, l, c, n, rand) {
   return out;
 }
 
+// Swing mode for long bars (5-minute competition bars): waypoints every
+// maxLeg seconds or less that alternate down/up by at least minSwing points,
+// visiting the bar's low and high exactly, then the close. Any stretch of
+// 3 x maxLeg seconds then holds a complete swing of at least minSwing - so
+// every rolling 3-minute window ranges at least the median 1-minute move
+// even though the base data is 5-minute bars. Falls back to the plain path
+// when the bar's range is smaller than minSwing.
+function swingPathPoints(o, h, l, c, n, rand, minSwing, maxLeg) {
+  if (h - l < minSwing || n < 4 * maxLeg) return barPathPoints(o, h, l, c, n, rand);
+  const last = n - 1;
+  const times = [0];
+  while (last - times[times.length - 1] > maxLeg) {
+    const step = Math.max(2, Math.floor(maxLeg * (0.55 + 0.45 * rand())));
+    times.push(Math.min(last - 2, times[times.length - 1] + step));
+  }
+  times.push(last);
+  const k = times.length - 1; // legs
+  const values = new Array(k + 1);
+  values[0] = o;
+  values[k] = c;
+  let up = c >= o ? rand() < 0.35 : rand() < 0.65; // direction of the first swing
+  for (let j = 1; j < k; j++) {
+    const prev = values[j - 1];
+    if (j === 1) values[j] = up ? h : l;
+    else if (j === 2) values[j] = up ? h : l;
+    else if (up) {
+      const lo = Math.min(h, (j === 1 ? l : prev) + minSwing);
+      values[j] = lo + Math.floor(rand() * (h - lo + 1));
+    } else {
+      const hi = Math.max(l, (j === 1 ? h : prev) - minSwing);
+      values[j] = l + Math.floor(rand() * (hi - l + 1));
+    }
+    up = !up;
+  }
+  const out = new Int32Array(n);
+  out[0] = o;
+  const scale = Math.max(1, (h - l) * 0.12);
+  for (let j = 1; j <= k; j++) walk(out, times[j - 1], values[j - 1], values[j], times[j] - times[j - 1], l, h, rand, scale);
+  return out;
+}
+
 // Price-space wrapper. decimals = instrument decimals. Returns Float64Array.
-function barPath(bar, n, decimals, seed, key) {
+// opts.minSwing (price units) + opts.maxLeg (seconds) switch on swing mode.
+function barPath(bar, n, decimals, seed, key, opts = null) {
   const p = 10 ** decimals;
   const toPts = (v) => Math.round(v * p);
   const o = toPts(bar.open);
   const c = toPts(bar.close);
   const h = Math.max(toPts(bar.high), o, c);
   const l = Math.min(toPts(bar.low), o, c);
-  const pts = barPathPoints(o, h, l, c, n, rngFor(seed, key));
+  const rand = rngFor(seed, key);
+  const pts = opts && opts.minSwing ? swingPathPoints(o, h, l, c, n, rand, Math.max(1, Math.round(opts.minSwing * p)), opts.maxLeg || 60) : barPathPoints(o, h, l, c, n, rand);
   const out = new Float64Array(n);
   for (let i = 0; i < n; i++) out[i] = Number((pts[i] / p).toFixed(decimals));
   return out;
 }
 
-module.exports = { hashString, rng, rngFor, barPathPoints, barPath };
+module.exports = { hashString, rng, rngFor, barPathPoints, swingPathPoints, barPath };

@@ -464,6 +464,17 @@
     "label": "measured busiest hours (no prior hint)",
     "held": "n/a",
     "note": "busiest New York hours: 10:00 (1.52x), 11:00 (1.36x), 09:00 (1.31x), 12:00 (1.16x)"
+   },
+   "comp": {
+    "file": "ETHUSD.comp.json",
+    "activeMinutes": 106190,
+    "segments": 537,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -5.82,
+     "high": 7.65
+    },
+    "driftPct": -0.941
    }
   },
   "AAPL": {
@@ -563,6 +574,17 @@
     "label": "US cash session 09:30-16:00 New York",
     "held": "did not hold",
     "note": "hint hours run at 1.10x the day average; busiest NY hours measured: 09:00 (2.51x), 10:00 (1.24x), 11:00 (0.93x), 15:00 (0.89x)"
+   },
+   "comp": {
+    "file": "AAPL.comp.json",
+    "activeMinutes": 34205,
+    "segments": 202,
+    "sourceDays": 206.8,
+    "bandPct": {
+     "low": -4.61,
+     "high": 13.87
+    },
+    "driftPct": 0.565
    }
   },
   "BTCUSD": {
@@ -850,6 +872,17 @@
     "label": "measured busiest hours (no prior hint)",
     "held": "n/a",
     "note": "busiest New York hours: 10:00 (1.66x), 11:00 (1.39x), 09:00 (1.38x), 12:00 (1.17x)"
+   },
+   "comp": {
+    "file": "BTCUSD.comp.json",
+    "activeMinutes": 189135,
+    "segments": 533,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -5.31,
+     "high": 5.78
+    },
+    "driftPct": -0.996
    }
   },
   "BRENT": {
@@ -1137,6 +1170,17 @@
     "label": "US session open 08:00-10:59 New York",
     "held": "HELD",
     "note": "hint hours run at 1.31x the day average; busiest NY hours measured: 11:00 (1.49x), 10:00 (1.46x), 09:00 (1.45x), 12:00 (1.30x)"
+   },
+   "comp": {
+    "file": "BRENT.comp.json",
+    "activeMinutes": 125480,
+    "segments": 361,
+    "sourceDays": 206.9,
+    "bandPct": {
+     "low": -8.72,
+     "high": 4.75
+    },
+    "driftPct": 0.609
    }
   },
   "USOIL": {
@@ -1440,6 +1484,17 @@
     "label": "US session open 08:00-10:59 New York",
     "held": "HELD",
     "note": "hint hours run at 1.46x the day average; busiest NY hours measured: 09:00 (1.63x), 10:00 (1.61x), 11:00 (1.56x), 12:00 (1.33x)"
+   },
+   "comp": {
+    "file": "USOIL.comp.json",
+    "activeMinutes": 136630,
+    "segments": 351,
+    "sourceDays": 208,
+    "bandPct": {
+     "low": -10.15,
+     "high": 7.71
+    },
+    "driftPct": 0.901
    }
   },
   "XAGUSD": {
@@ -1703,6 +1758,17 @@
     "label": "US session open 08:00-10:59 New York",
     "held": "HELD",
     "note": "hint hours run at 1.50x the day average; busiest NY hours measured: 09:00 (1.74x), 21:00 (1.65x), 10:00 (1.59x), 22:00 (1.31x)"
+   },
+   "comp": {
+    "file": "XAGUSD.comp.json",
+    "activeMinutes": 140490,
+    "segments": 429,
+    "sourceDays": 208,
+    "bandPct": {
+     "low": -3.84,
+     "high": 5.29
+    },
+    "driftPct": -0.124
    }
   },
   "NAS100": {
@@ -1910,6 +1976,17 @@
     "label": "US cash open 09:30-12:30 New York",
     "held": "HELD",
     "note": "hint hours run at 1.52x the day average; busiest NY hours measured: 10:00 (1.87x), 09:00 (1.82x), 16:00 (1.64x), 11:00 (1.30x)"
+   },
+   "comp": {
+    "file": "NAS100.comp.json",
+    "activeMinutes": 119355,
+    "segments": 423,
+    "sourceDays": 208,
+    "bandPct": {
+     "low": -2.38,
+     "high": 2.92
+    },
+    "driftPct": -0.137
    }
   },
   "XAUUSD": {
@@ -2169,6 +2246,17 @@
     "label": "US session open 08:00-10:59 New York",
     "held": "HELD",
     "note": "hint hours run at 1.48x the day average; busiest NY hours measured: 09:00 (1.57x), 10:00 (1.56x), 21:00 (1.50x), 08:00 (1.30x)"
+   },
+   "comp": {
+    "file": "XAUUSD.comp.json",
+    "activeMinutes": 144180,
+    "segments": 433,
+    "sourceDays": 208,
+    "bandPct": {
+     "low": -10.45,
+     "high": 10.28
+    },
+    "driftPct": 0.907
    }
   },
   "GER40": {
@@ -2396,6 +2484,17 @@
     "label": "US cash open 09:30-12:30 New York",
     "held": "HELD",
     "note": "hint hours run at 1.27x the day average; busiest NY hours measured: 04:00 (1.72x), 03:00 (1.72x), 10:00 (1.50x), 09:00 (1.45x)"
+   },
+   "comp": {
+    "file": "GER40.comp.json",
+    "activeMinutes": 123780,
+    "segments": 287,
+    "sourceDays": 208,
+    "bandPct": {
+     "low": -4.47,
+     "high": 6.35
+    },
+    "driftPct": 0.46
    }
   },
   "US30": {
@@ -2619,6 +2718,17 @@
     "label": "US cash open 09:30-12:30 New York",
     "held": "HELD",
     "note": "hint hours run at 1.72x the day average; busiest NY hours measured: 09:00 (2.28x), 10:00 (1.93x), 11:00 (1.45x), 16:00 (1.36x)"
+   },
+   "comp": {
+    "file": "US30.comp.json",
+    "activeMinutes": 120030,
+    "segments": 356,
+    "sourceDays": 208,
+    "bandPct": {
+     "low": -2.6,
+     "high": 7.06
+    },
+    "driftPct": 1.316
    }
   },
   "UK100": {
@@ -2814,6 +2924,17 @@
     "label": "US cash open 09:30-12:30 New York",
     "held": "HELD",
     "note": "hint hours run at 1.33x the day average; busiest NY hours measured: 03:00 (1.78x), 04:00 (1.78x), 09:00 (1.63x), 10:00 (1.51x)"
+   },
+   "comp": {
+    "file": "UK100.comp.json",
+    "activeMinutes": 123910,
+    "segments": 298,
+    "sourceDays": 208,
+    "bandPct": {
+     "low": -3.81,
+     "high": 4.73
+    },
+    "driftPct": 1.848
    }
   },
   "USDJPY": {
@@ -3025,6 +3146,17 @@
     "label": "London/New York overlap 08:00-11:00 New York",
     "held": "HELD",
     "note": "hint hours run at 1.33x the day average; busiest NY hours measured: 10:00 (1.44x), 09:00 (1.40x), 20:00 (1.36x), 03:00 (1.21x)"
+   },
+   "comp": {
+    "file": "USDJPY.comp.json",
+    "activeMinutes": 127745,
+    "segments": 425,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -3.66,
+     "high": 1.33
+    },
+    "driftPct": -1.043
    }
   },
   "USDCHF": {
@@ -3244,7 +3376,19 @@
     "label": "London/New York overlap 08:00-11:00 New York",
     "held": "HELD",
     "note": "hint hours run at 1.48x the day average; busiest NY hours measured: 10:00 (1.63x), 09:00 (1.54x), 17:00 (1.47x), 08:00 (1.27x)"
+   },
+   "comp": {
+    "file": "USDCHF.comp.json",
+    "activeMinutes": 134890,
+    "segments": 412,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -3.22,
+     "high": 2.52
+    },
+    "driftPct": -0.764
    }
   }
- }
+ },
+ "compEpoch": 1893974400
 }

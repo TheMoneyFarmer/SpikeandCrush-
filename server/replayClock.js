@@ -12,8 +12,13 @@
 // so far, and SL/TP checks can walk the exact same path the chart shows.
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const csvLoader = require('./csvLoader');
 const instruments = require('./instruments');
+const curated = require('./curated');
+const intrabar = require('./intrabar');
+const gameFeel = require('./config/gameFeel');
 
 const BASE_SECONDS = 300;
 // No bar for this long (two missing bars) = market closed (weekend,
@@ -24,6 +29,155 @@ const MARKET_CLOSED_AFTER = 2 * BASE_SECONDS;
 const COVERAGE_SLACK_SECONDS = 4 * 86400;
 const WEEK_SECONDS = 7 * 86400;
 const USED_WINDOW_MEMORY = 10;
+
+// ---- activity-filtered (curated) competition series --------------------------
+//
+// scripts/curate-data.js writes data/curated/<SYMBOL>.comp.json: only the live
+// stretches of the 5-minute history, stitched by ratio rebasing into a closed
+// loop. They run on their own synthetic clock from catalog.compEpoch (2030), so
+// a data time at or after the epoch belongs to the curated series and one
+// before it to the raw history - competitions created before this existed keep
+// replaying exactly what they did. Bar i of the virtual series is loop bar
+// i % N; every odd pass through the loop is mirrored (log-reflected around the
+// loop's start price, so returns are inverted and the seam stays exact) so the
+// same path never plays twice in a row. Inside a bar the price follows the
+// seeded intrabar generator (moves every second, touches the bar's high and
+// low), never a straight line.
+const compSeries = new Map();
+const pathCache = new Map();
+const PATH_CACHE_MAX = 4000;
+const HISTORY_BARS_BEFORE_START = 600; // chart history before a curated competition starts
+
+function compEpoch() {
+  const cat = curated.load();
+  return cat && cat.compEpoch ? cat.compEpoch : null;
+}
+
+function getCompSeries(symbol) {
+  if (compSeries.has(symbol)) return compSeries.get(symbol);
+  const cat = curated.load();
+  const entry = cat && cat.instruments[symbol] && cat.instruments[symbol].comp;
+  let s = null;
+  if (entry) {
+    try {
+      s = JSON.parse(fs.readFileSync(path.join(curated.getDir(), entry.file), 'utf8'));
+    } catch (e) {
+      console.warn(`[replayClock] ${symbol} comp series unreadable:`, e.message);
+    }
+  }
+  compSeries.set(symbol, s);
+  return s;
+}
+
+function isCuratedTime(t) {
+  const e = compEpoch();
+  return e !== null && t >= e;
+}
+
+function curatedBar(symbol, i) {
+  const s = getCompSeries(symbol);
+  const n = s.bars.length;
+  const loop = Math.floor(i / n);
+  const [o, h, l, c] = s.bars[((i % n) + n) % n];
+  if (loop % 2 === 0) return { open: o, high: h, low: l, close: c };
+  const p0 = s.bars[0][0];
+  const m = (v) => Number(((p0 * p0) / v).toFixed(s.decimals));
+  return { open: m(o), high: m(l), low: m(h), close: m(c) };
+}
+
+function curatedPath(symbol, i) {
+  const key = `${symbol}:${i}`;
+  let p = pathCache.get(key);
+  if (!p) {
+    const s = getCompSeries(symbol);
+    // Swing mode: a swing of at least the instrument's median 1-minute range
+    // every <= 60s, so every 3-minute stretch of a competition moves at least
+    // that much (the same guarantee short matches get from 1-minute bars).
+    const minSwing = curated.load().instruments[symbol].medRange;
+    p = intrabar.barPath(curatedBar(symbol, i), BASE_SECONDS, s.decimals, `comp:${symbol}`, String(i), { minSwing, maxLeg: 60 });
+    if (pathCache.size >= PATH_CACHE_MAX) pathCache.delete(pathCache.keys().next().value);
+    pathCache.set(key, p);
+  }
+  return p;
+}
+
+function curatedPriceAt(symbol, t) {
+  const rel = t - compEpoch();
+  const i = Math.floor(rel / BASE_SECONDS);
+  return curatedPath(symbol, i)[rel - i * BASE_SECONDS];
+}
+
+function curatedPathBetween(symbol, fromTime, toTime) {
+  const points = [];
+  if (toTime - fromTime <= 2 * 3600) {
+    for (let t = fromTime + 1; t <= toTime; t++) points.push({ t, mid: curatedPriceAt(symbol, t) });
+    return points;
+  }
+  // Long catch-up (a restart): each bar's low and high in the order the path
+  // visits them, then the end price - enough to catch every level crossed.
+  const e = compEpoch();
+  for (let i = Math.floor((fromTime - e) / BASE_SECONDS); e + i * BASE_SECONDS <= toTime; i++) {
+    const p = curatedPath(symbol, i);
+    let lo = 0;
+    let hi = 0;
+    for (let k = 1; k < p.length; k++) {
+      if (p[k] < p[lo]) lo = k;
+      if (p[k] > p[hi]) hi = k;
+    }
+    for (const k of lo < hi ? [lo, hi] : [hi, lo]) {
+      const t = e + i * BASE_SECONDS + k;
+      if (t > fromTime && t < toTime) points.push({ t, mid: p[k] });
+    }
+  }
+  points.push({ t: toTime, mid: curatedPriceAt(symbol, toTime) });
+  return points;
+}
+
+function curatedCandlesUpTo(symbol, fromTime, dataTime) {
+  const e = compEpoch();
+  const rows = [];
+  const first = Math.max(0, Math.ceil((fromTime - e) / BASE_SECONDS));
+  const last = Math.floor((dataTime - e) / BASE_SECONDS);
+  for (let i = first; i <= last; i++) {
+    const start = e + i * BASE_SECONDS;
+    const offset = dataTime - start;
+    if (offset >= BASE_SECONDS) {
+      const b = curatedBar(symbol, i);
+      rows.push([start, b.open, b.high, b.low, b.close]);
+      continue;
+    }
+    const p = curatedPath(symbol, i);
+    let hi = -Infinity;
+    let lo = Infinity;
+    for (let k = 0; k <= offset; k++) {
+      if (p[k] > hi) hi = p[k];
+      if (p[k] < lo) lo = p[k];
+    }
+    rows.push([start, p[0], hi, lo, p[offset]]);
+  }
+  return rows;
+}
+
+// A curated window is used for a new competition when the switch is on and
+// every requested instrument has a curated series. Start = a seeded offset
+// (whole bars) into the loop, never one of the recently used ones; chart
+// history before it is guaranteed by starting at least
+// HISTORY_BARS_BEFORE_START bars into the series.
+function chooseCuratedWindow({ id, requested, usedStarts }) {
+  const e = compEpoch();
+  const series = requested.map((s) => [s, getCompSeries(s)]).filter(([, s]) => s);
+  if (!series.length) return null;
+  const n = Math.min(...series.map(([, s]) => s.bars.length));
+  const used = new Set(usedStarts.map((s) => Math.floor(new Date(s).getTime() / 1000)));
+  const span = Math.max(1, 2 * n - HISTORY_BARS_BEFORE_START); // two passes (normal + mirrored)
+  let k = seedFromId(id) % span;
+  for (let tries = 0; tries < 64 && used.has(e + (HISTORY_BARS_BEFORE_START + k) * BASE_SECONDS); tries++) k = (k + 997) % span;
+  return {
+    dataWindowStart: new Date((e + (HISTORY_BARS_BEFORE_START + k) * BASE_SECONDS) * 1000).toISOString(),
+    instruments: series.map(([s]) => s),
+    dropped: requested.filter((s) => !getCompSeries(s)).map((s) => ({ symbol: s, reason: 'no curated competition series' })),
+  };
+}
 
 function dataTimeFor(comp, nowMs = Date.now()) {
   const elapsed = (nowMs - new Date(comp.starts_at).getTime()) / 1000;
@@ -90,6 +244,7 @@ function quote(symbol, mid, marketClosed) {
 // market gap it's the last traded price with marketClosed = true (new trades
 // are blocked then; closing is always allowed).
 function getPriceAt(symbol, dataTime) {
+  if (isCuratedTime(dataTime) && getCompSeries(symbol)) return quote(symbol, curatedPriceAt(symbol, dataTime), false);
   const candles = csvLoader.getBaseCandles(symbol);
   if (!candles) return null;
   const i = barIndexAt(candles, dataTime);
@@ -103,6 +258,7 @@ function getPriceAt(symbol, dataTime) {
 // order, as {t, mid} - path vertices are the only places a linear path turns,
 // so checking them catches any SL/TP crossed between two ticks, wicks included.
 function pathBetween(symbol, fromTime, toTime) {
+  if (isCuratedTime(fromTime) && getCompSeries(symbol)) return toTime <= fromTime ? [] : curatedPathBetween(symbol, fromTime, toTime);
   const candles = csvLoader.getBaseCandles(symbol);
   if (!candles || toTime <= fromTime) return [];
   const points = [];
@@ -123,6 +279,7 @@ function pathBetween(symbol, fromTime, toTime) {
 // containing dataTime cut off at dataTime (high/low only as far as the path
 // has reached). Never returns anything after dataTime.
 function candlesUpTo(symbol, fromTime, dataTime) {
+  if (isCuratedTime(dataTime) && getCompSeries(symbol)) return curatedCandlesUpTo(symbol, fromTime, dataTime);
   const candles = csvLoader.getBaseCandles(symbol);
   if (!candles) return [];
   const rows = [];
@@ -163,6 +320,12 @@ function seedFromId(id) {
 // chosen deterministically from the competition id. Instruments without
 // enough data are dropped and reported, never silently kept.
 function chooseDataWindow({ id, startsAt, endsAt, replaySpeed = 1, instruments: requested, usedStarts = [] }) {
+  // Activity-filtered series first (switch: market.curatedCompetitions). Speed
+  // stays whatever the caller asked - competitions are created at 1x.
+  if (gameFeel.get().market.curatedCompetitions !== false && curated.isActive() && compEpoch() !== null) {
+    const w = chooseCuratedWindow({ id, requested, usedStarts });
+    if (w && w.instruments.length) return w;
+  }
   const startSec = Math.floor(new Date(startsAt).getTime() / 1000);
   const span = ((new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 1000) * (Number(replaySpeed) || 1);
   const used = new Set(usedStarts.map((s) => Math.floor(new Date(s).getTime() / 1000)));
@@ -217,4 +380,6 @@ module.exports = {
   candlesUpTo,
   coverage,
   chooseDataWindow,
+  isCuratedTime,
+  compEpoch,
 };

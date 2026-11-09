@@ -37,6 +37,10 @@ const HISTORY_MIN = instruments.PRE_MATCH_MINUTES; // chart history before the s
 const WINDOW_MIN = 30; // sliding window for hot-window search
 const WINDOW_STEP = 5;
 const MIN_SEGMENT_MIN = 20; // shortest stretch worth keeping as a playlist segment
+// Curated competition series run on their own synthetic clock starting here
+// (2030-01-07 00:00 UTC), so a data time tells replayClock which series it
+// belongs to and can never be looked up against the real calendar.
+const COMP_EPOCH = Date.UTC(2030, 0, 7) / 1000;
 const KEEP_SHARE = 0.4; // top 40% of instruments...
 const KEEP_MIN = 8; // ...never fewer than 8...
 const PER_CLASS_MIN = 2; // ...and at least 2 per available asset class
@@ -70,8 +74,8 @@ const quantile = (a, q) => {
   return s[Math.min(s.length - 1, Math.floor(q * s.length))];
 };
 
-function loadM1(sym) {
-  const f = path.join(ROOT, 'data/market', sym, 'm1.csv.gz');
+function loadM1(sym, tf = 'm1') {
+  const f = path.join(ROOT, 'data/market', sym, `${tf}.csv.gz`);
   if (!fs.existsSync(f)) return null;
   const rows = zlib.gunzipSync(fs.readFileSync(f)).toString().trim().split('\n');
   rows.shift();
@@ -165,29 +169,38 @@ function rankAndCut(stats) {
 // instrument's median 1-minute range - any 3-minute stretch of real time holds
 // two full bars, so this is the conservative form of "every rolling 3-minute
 // stretch ranges at least the median 1-minute range".
-function hotWindows(bars, st, cfg) {
+function hotWindows(bars, st, cfg, opts = {}) {
+  const barSeconds = opts.barSeconds || 60;
+  const W = opts.window || WINDOW_MIN; // in bars
+  const STEP = opts.step || WINDOW_STEP;
+  const minSeg = opts.minSegment || MIN_SEGMENT_MIN;
+  const pairNeed = opts.pairNeed || st.medRange;
   const point = 10 ** -cfg.decimals;
   const n = bars.length;
-  const alive = bars.map((b) => Math.round((b.high - b.low) / point) >= 2);
-  const contiguous = bars.map((b, i) => i > 0 && b.time - bars[i - 1].time === 60);
-  const pairOk = bars.map((b, i) => i > 0 && contiguous[i] && Math.max(b.high, bars[i - 1].high) - Math.min(b.low, bars[i - 1].low) >= st.medRange);
+  // opts.minBarRange: competition bars must each range at least the median
+  // 1-minute move so the swing-mode path (server/intrabar.js) can guarantee it
+  // inside every 3-minute stretch.
+  const minBar = opts.minBarRange || 0;
+  const alive = bars.map((b) => Math.round((b.high - b.low) / point) >= 2 && b.high - b.low >= minBar);
+  const contiguous = bars.map((b, i) => i > 0 && b.time - bars[i - 1].time === barSeconds);
+  const pairOk = bars.map((b, i) => i > 0 && contiguous[i] && Math.max(b.high, bars[i - 1].high) - Math.min(b.low, bars[i - 1].low) >= pairNeed);
   const rel = bars.map((b) => (b.high - b.low) / st.medRange);
   const windows = [];
-  for (let s = 0; s + WINDOW_MIN <= n; s += WINDOW_STEP) {
+  for (let s = 0; s + W <= n; s += STEP) {
     let ok = alive[s];
     let sum = 0;
-    for (let i = s; i < s + WINDOW_MIN && ok; i++) {
+    for (let i = s; i < s + W && ok; i++) {
       if (!alive[i]) ok = false;
       if (i > s && !pairOk[i]) ok = false;
       sum += Math.min(rel[i], 3);
     }
     if (!ok) continue;
-    windows.push({ start: s, score: sum / WINDOW_MIN });
+    windows.push({ start: s, score: sum / W });
   }
-  // Hot = window activity at least 1.25x the instrument's own median minute.
-  const HOT = 1.25;
+  // Hot = window activity at least HOT x the instrument's own median bar.
+  const HOT = opts.hot || 1.25;
   const chosen = new Uint8Array(n);
-  for (const w of windows) if (w.score >= HOT) for (let i = w.start; i < w.start + WINDOW_MIN; i++) chosen[i] = 1;
+  for (const w of windows) if (w.score >= HOT) for (let i = w.start; i < w.start + W; i++) chosen[i] = 1;
   // Merge into contiguous segments (breaks at time gaps and failed pairs).
   const segments = [];
   let cur = null;
@@ -200,7 +213,7 @@ function hotWindows(bars, st, cfg) {
     }
   }
   if (cur) segments.push(cur);
-  return { windows, hotThreshold: HOT, segments: segments.filter((s) => s.end - s.start >= MIN_SEGMENT_MIN) };
+  return { windows, hotThreshold: HOT, segments: segments.filter((s) => s.end - s.start >= minSeg) };
 }
 
 function sessionProfile(bars, st) {
@@ -240,7 +253,100 @@ function checkHint(cls, profile) {
 // over every minute of the loop (a tiny per-minute factor, far below one
 // price point per minute on every instrument) so the loop closes exactly and
 // no seam carries a correction jump.
-function stitch(bars, segments, cfg, histMedian) {
+// Order segments so the stitched price stays inside the band: date order when
+// that already holds, otherwise a deterministic greedy pass that always takes
+// the earliest remaining segment whose whole path stays within 80% of the
+// band from where the price is now, or else the one that ends closest to the
+// median. Ratio rebasing keeps every segment's own returns intact either way.
+function orderSegments(bars, segments, bandPct) {
+  const info = segments.map((s) => {
+    const base = bars[s.start].open;
+    let hi = 0;
+    let lo = 0;
+    for (let i = s.start; i < s.end; i++) {
+      hi = Math.max(hi, Math.log(bars[i].high / base));
+      lo = Math.min(lo, Math.log(bars[i].low / base));
+    }
+    return { seg: s, ret: Math.log(bars[s.end - 1].close / base), hi, lo };
+  });
+  const limit = Math.log(1 + bandPct / 100);
+  let level = 0;
+  let ok = true;
+  for (const x of info) {
+    if (level + x.hi > limit || level + x.lo < -limit) ok = false;
+    level += x.ret;
+  }
+  if (ok) return { order: segments, reordered: false };
+  const left = info.slice();
+  const order = [];
+  level = 0;
+  const soft = limit * 0.8;
+  while (left.length) {
+    // Among segments whose whole path stays inside the soft band, the one
+    // that ends nearest the median; if none fits, the one that ends nearest.
+    let pick = -1;
+    let best = Infinity;
+    left.forEach((x, k) => {
+      const fits = level + x.hi <= soft && level + x.lo >= -soft;
+      const d = Math.abs(level + x.ret) + (fits ? 0 : 10);
+      if (d < best) {
+        best = d;
+        pick = k;
+      }
+    });
+    const [x] = left.splice(pick, 1);
+    order.push(x.seg);
+    level += x.ret;
+  }
+  return { order, reordered: true };
+}
+
+// The loop's total drift is the sum of every segment's return whatever the
+// order. When the history trended hard (months of 5-minute data), drop the
+// biggest segments moving in the drift's direction until the net drift is
+// within maxDriftPct - real paths only, nothing invented - so the loop can
+// close without tilting every price.
+function balanceDrift(bars, segments, maxDriftPct) {
+  const ret = (s) => Math.log(bars[s.end - 1].close / bars[s.start].open);
+  const keep = segments.slice();
+  let total = keep.reduce((sum, s) => sum + ret(s), 0);
+  const limit = Math.log(1 + maxDriftPct / 100);
+  let dropped = 0;
+  while (Math.abs(total) > limit && keep.length > 2) {
+    const sign = Math.sign(total);
+    let k = -1;
+    let best = 0;
+    keep.forEach((s, i) => {
+      const r = ret(s) * sign;
+      // the largest same-direction move that doesn't overshoot past -limit
+      if (r > best && Math.abs(total) - r > -limit) {
+        best = r;
+        k = i;
+      }
+    });
+    if (k === -1) break;
+    total -= ret(keep[k]);
+    keep.splice(k, 1);
+    dropped++;
+  }
+  return { segments: keep, dropped };
+}
+
+// Long segments (a whole crash or rally day) are cut into pieces of at most
+// maxBars so the band-keeping order can interleave them.
+function splitSegments(segments, maxBars) {
+  if (!maxBars) return segments;
+  const out = [];
+  for (const s of segments) {
+    for (let a = s.start; a < s.end; a += maxBars) out.push({ start: a, end: Math.min(s.end, a + maxBars) });
+  }
+  return out;
+}
+
+function stitch(bars, segmentsRaw, cfg, histMedian, opts = {}) {
+  const segmentsIn = splitSegments(segmentsRaw, opts.maxSegmentBars);
+  const balanced = opts.balanceDriftPct ? balanceDrift(bars, segmentsIn, opts.balanceDriftPct) : { segments: segmentsIn, dropped: 0 };
+  const { order: segments, reordered } = orderSegments(bars, balanced.segments, feel.market.priceBandPct);
   const dec = cfg.decimals;
   const round = (v) => Number(v.toFixed(dec));
   const raw = [];
@@ -300,6 +406,7 @@ function stitch(bars, segments, cfg, histMedian) {
     drift,
     bandPct: { low: ((minP / histMedian) - 1) * 100, high: ((maxP / histMedian) - 1) * 100 },
     loopJump,
+    reordered,
   };
 }
 
@@ -433,6 +540,36 @@ function main() {
     };
     rows.push({ st, hw, pl, starts, sp, hint });
   }
+  // ---- competitions: activity-filtered 5-minute series ----
+  // Same rules on the 5-minute history (about 208 days): live bars, every pair
+  // of consecutive bars ranging at least the instrument's median 1-minute
+  // range, hot 1-hour windows (>= the median 5-minute bar), segments of at
+  // least 30 minutes, stitched by ratio rebasing and detrended into a closed
+  // loop. At runtime (server/replayClock.js) a competition longer than one
+  // loop plays the next pass mirrored (returns inverted) so the same path
+  // never plays twice in a row.
+  const compRows = [];
+  for (const st of ranked) {
+    if (!kept.has(st.sym)) continue;
+    const cfg = instruments.INSTRUMENTS[st.sym];
+    const bars5 = loadM1(st.sym, 'm5');
+    if (!bars5 || bars5.length < 1000) continue;
+    const st5 = measure(st.sym, cfg, bars5);
+    const hw5 = hotWindows(bars5, st5, cfg, { barSeconds: 300, window: 12, step: 1, minSegment: 6, pairNeed: st.medRange, minBarRange: st.medRange, hot: 1.0 });
+    const pl5 = stitch(bars5, hw5.segments, cfg, median(bars5.map((b) => b.close)), { balanceDriftPct: 2, maxSegmentBars: 72 });
+    const file = `${st.sym}.comp.json`;
+    fs.writeFileSync(path.join(OUT, file), JSON.stringify({ symbol: st.sym, decimals: cfg.decimals, barSeconds: 300, bars: pl5.bars }));
+    catalog.instruments[st.sym].comp = {
+      file,
+      activeMinutes: pl5.bars.length * 5,
+      segments: hw5.segments.length,
+      sourceDays: Number(((bars5[bars5.length - 1].time - bars5[0].time) / 86400).toFixed(1)),
+      bandPct: { low: Number(pl5.bandPct.low.toFixed(2)), high: Number(pl5.bandPct.high.toFixed(2)) },
+      driftPct: Number(((pl5.drift - 1) * 100).toFixed(3)),
+    };
+    compRows.push({ sym: st.sym, ...catalog.instruments[st.sym].comp });
+  }
+  catalog.compEpoch = COMP_EPOCH;
   fs.writeFileSync(path.join(OUT, 'catalog.json'), `${JSON.stringify(catalog, null, 1)}\n`);
 
   // ---- report ----
@@ -456,6 +593,22 @@ function main() {
   for (const r of rows) {
     const c = catalog.instruments[r.st.sym];
     md += `- **${r.st.sym}**: ${c.windows.slice(0, 12).map((w) => `${w.from.slice(5, 16).replace('T', ' ')} (${w.minutes}m)`).join(', ')}${c.windows.length > 12 ? `, … ${c.windows.length - 12} more` : ''}\n`;
+  }
+  md += `\n## Competitions: active minutes needed vs available (activity-filtered 5-minute series)\n\n| Instrument | Source days | Active minutes in loop | Segments | Price band % |\n|---|---|---|---|---|\n`;
+  for (const r of compRows) md += `| ${r.sym} | ${r.sourceDays} | ${r.activeMinutes} | ${r.segments} | ${f(r.bandPct.low)} to +${f(r.bandPct.high)} |\n`;
+  const { TEMPLATES, competitionInstruments } = require('../server/compEngine');
+  md += `\n| Template | Needs (minutes of market) | Instruments after curation | Shortest loop among them | Fallback used |\n|---|---|---|---|---|\n`;
+  for (const [name, tpl] of Object.entries(TEMPLATES)) {
+    const occ = tpl.next(Date.UTC(2026, 10, 2)); // a Monday, so every template has its next occurrence
+    const need = Math.round((occ.endsAt - occ.startsAt) / 60000);
+    const syms = competitionInstruments(tpl.instruments);
+    const avail = Math.min(...syms.map((s) => (catalog.instruments[s] && catalog.instruments[s].comp ? catalog.instruments[s].comp.activeMinutes : 0)));
+    const swapped = tpl.instruments.filter((s) => !syms.includes(s));
+    const fb = [];
+    if (swapped.length) fb.push(`(a) rotation: ${swapped.join(', ')} replaced by ${syms.filter((s) => !tpl.instruments.includes(s)).join(', ')}`);
+    if (avail < need) fb.push('(b) random start offset into the loop + (c) mirrored passes after one full loop');
+    else fb.push('(b) random start offset into the loop (no repeat needed)');
+    md += `| ${name} | ${need.toLocaleString()} | ${syms.join(', ')} | ${avail.toLocaleString()} | ${fb.join('; ')} |\n`;
   }
   fs.mkdirSync(path.dirname(REPORT), { recursive: true });
   fs.writeFileSync(REPORT, md);

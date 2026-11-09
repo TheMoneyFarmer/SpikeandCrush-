@@ -17,6 +17,9 @@ const DEFAULTS = {
   market: {
     // Off = matches use the old random window from the raw 1-minute file.
     curatedPlaylists: true,
+    // Off = new competitions pick a raw 5-minute window as before. Running
+    // competitions always keep the series they started on.
+    curatedCompetitions: true,
     // Instruments excluded from every selector (lobby, solo picker, async,
     // private, tournament, competitions). Filled from data/curated/catalog.json
     // at build time; admin can enable/disable on top of that.

@@ -82,3 +82,28 @@ Thresholds derived from the data: a bar is live when it spans at least 2 price p
 - **UK100**: 10-16 07:00 (100m), 10-16 09:00 (70m), 10-16 13:25 (260m), 10-19 05:57 (30m), 10-19 06:47 (190m), 10-19 10:27 (45m), 10-19 11:52 (180m), 10-19 14:57 (50m), 10-20 05:53 (350m), 10-20 11:48 (205m), 10-20 15:29 (60m), 10-21 06:55 (145m), … 28 more
 - **USDJPY**: 10-16 00:50 (30m), 10-16 03:35 (50m), 10-16 06:00 (130m), 10-16 11:35 (45m), 10-16 13:30 (160m), 10-16 16:35 (75m), 10-18 23:51 (35m), 10-19 00:51 (30m), 10-20 05:53 (35m), 10-20 07:08 (30m), 10-20 12:18 (200m), 10-21 13:09 (30m), … 32 more
 - **USDCHF**: 10-16 03:35 (50m), 10-16 06:15 (150m), 10-16 08:50 (185m), 10-16 12:30 (325m), 10-18 23:58 (55m), 10-19 05:48 (35m), 10-19 06:28 (70m), 10-19 07:43 (85m), 10-19 09:13 (30m), 10-19 10:28 (55m), 10-19 12:18 (175m), 10-20 06:58 (40m), … 34 more
+
+## Competitions: active minutes needed vs available (activity-filtered 5-minute series)
+
+| Instrument | Source days | Active minutes in loop | Segments | Price band % |
+|---|---|---|---|---|
+| ETHUSD | 210 | 106190 | 537 | -5.82 to +7.65 |
+| AAPL | 206.8 | 34205 | 202 | -4.61 to +13.87 |
+| BTCUSD | 210 | 189135 | 533 | -5.31 to +5.78 |
+| BRENT | 206.9 | 125480 | 361 | -8.72 to +4.75 |
+| USOIL | 208 | 136630 | 351 | -10.15 to +7.71 |
+| XAGUSD | 208 | 140490 | 429 | -3.84 to +5.29 |
+| NAS100 | 208 | 119355 | 423 | -2.38 to +2.92 |
+| XAUUSD | 208 | 144180 | 433 | -10.45 to +10.28 |
+| GER40 | 208 | 123780 | 287 | -4.47 to +6.35 |
+| US30 | 208 | 120030 | 356 | -2.60 to +7.06 |
+| UK100 | 208 | 123910 | 298 | -3.81 to +4.73 |
+| USDJPY | 210 | 127745 | 425 | -3.66 to +1.33 |
+| USDCHF | 210 | 134890 | 412 | -3.22 to +2.52 |
+
+| Template | Needs (minutes of market) | Instruments after curation | Shortest loop among them | Fallback used |
+|---|---|---|---|---|
+| daily | 1,320 | XAUUSD, NAS100, BTCUSD, USDJPY, USDCHF | 119,355 | (a) rotation: EURUSD, GBPUSD replaced by USDJPY, USDCHF; (b) random start offset into the loop (no repeat needed) |
+| weekly | 7,020 | USDJPY, XAUUSD, NAS100, US30, USOIL, BTCUSD, USDCHF, XAGUSD | 119,355 | (a) rotation: EURUSD, GBPUSD replaced by USDCHF, XAGUSD; (b) random start offset into the loop (no repeat needed) |
+| weekend | 2,820 | BTCUSD, ETHUSD | 106,190 | (b) random start offset into the loop (no repeat needed) |
+| monthly | 44,640 | USDJPY, XAUUSD, XAGUSD, NAS100, US30, GER40, USOIL, BTCUSD, ETHUSD, USDCHF, UK100 | 106,190 | (a) rotation: EURUSD, GBPUSD replaced by USDCHF, UK100; (b) random start offset into the loop (no repeat needed) |
