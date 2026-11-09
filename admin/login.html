@@ -8,25 +8,29 @@
 <link rel="icon" href="/icons/admin-32.png" type="image/png" sizes="32x32" />
 <link rel="stylesheet" href="css/admin-base.css" />
 <link rel="stylesheet" href="css/admin-components.css" />
+<style>
+  .field-error { margin: 6px 0 0; font-size: 12px; color: #ff6b84; }
+  .error-summary { margin: 0 0 12px; padding: 9px 11px; border-radius: 8px; border: 1px solid #ff6b84; font-size: 13px; }
+  [aria-invalid="true"] { border-color: #ff6b84 !important; }
+</style>
 </head>
 <body>
   <div class="admin-login-wrap">
     <div class="admin-login-box">
       <div class="admin-login-title">Admin Panel</div>
       <div class="admin-login-sub">Spike &amp; Crush</div>
-      <div id="loginError" class="admin-login-error"></div>
       <form id="loginForm">
         <div class="field">
-          <label>Username or Email</label>
-          <input type="text" id="username" autocomplete="username" required />
+          <label for="username">Username or Email</label>
+          <input type="text" id="username" data-label="Username or email" autocomplete="username" required />
         </div>
         <div class="field">
-          <label>Password</label>
-          <input type="password" id="password" autocomplete="current-password" required />
+          <label for="password">Password</label>
+          <input type="password" id="password" data-label="Password" autocomplete="current-password" required />
         </div>
         <div class="field" id="codeField" hidden>
-          <label>6-digit code from your authenticator app</label>
-          <input type="text" id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" />
+          <label for="code">6-digit code from your authenticator app</label>
+          <input type="text" id="code" data-label="Code" data-pattern-message="Enter the 6 digits from your app." inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" />
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="loginBtn">Log In</button>
       </form>
@@ -35,14 +39,15 @@
         <img id="setupQr" alt="Authenticator QR code" width="240" height="240" style="display:block;margin:0 auto 12px;border-radius:6px;" />
         <p class="text-secondary" style="font-size:12px;margin:0 0 12px;word-break:break-all;">Can't scan? Enter this key: <code id="setupKey"></code></p>
         <div class="field">
-          <label>6-digit code</label>
-          <input type="text" id="setupCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required />
+          <label for="setupCode">6-digit code</label>
+          <input type="text" id="setupCode" data-label="Code" data-pattern-message="Enter the 6 digits from your app." inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required />
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="setupBtn">Turn on and log in</button>
       </form>
       <div class="text-secondary" style="font-size:12px;text-align:center;margin-top:14px;">Contact Thando for admin access</div>
     </div>
   </div>
+  <script src="/js/form-state.js"></script>
   <script>
     const postJson = (url, body) => fetch(url, {
       method: 'POST',
@@ -68,58 +73,42 @@
       document.getElementById('setupCode').focus();
     }
 
-    document.getElementById('setupForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('setupBtn');
-      const errorEl = document.getElementById('loginError');
-      errorEl.textContent = '';
-      btn.disabled = true;
-      try {
-        const res = await postJson('/api/auth/2fa/confirm', { setupToken, code: document.getElementById('setupCode').value });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Could not turn it on');
-        finishLogin(json);
-      } catch (err) {
-        errorEl.textContent = err.message;
-        btn.disabled = false;
-      }
+    // Server errors keep their wording ("Invalid credentials" etc.); a dropped connection gets a plain message.
+    const readJson = async (res, fallback) => {
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok && !json.needCode) throw new Error(json.error || fallback);
+      return json;
+    };
+
+    const setupForm = document.getElementById('setupForm');
+    SCForm.handle(setupForm, document.getElementById('setupBtn'), 'Turning on…', async () => {
+      const res = await postJson('/api/auth/2fa/confirm', { setupToken, code: document.getElementById('setupCode').value });
+      finishLogin(await readJson(res, 'Could not turn it on'));
+      return true;
     });
 
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('loginBtn');
-      const errorEl = document.getElementById('loginError');
-      errorEl.textContent = '';
-      btn.disabled = true;
-      btn.textContent = 'Logging in…';
-      try {
-        const res = await postJson('/api/auth/login', {
-          username: document.getElementById('username').value,
-          password: document.getElementById('password').value,
-          code: document.getElementById('code').value,
-        });
-        const json = await res.json();
-        if (json.needCode) {
-          const field = document.getElementById('codeField');
-          const input = document.getElementById('code');
-          const firstAsk = field.hidden;
-          field.hidden = false;
-          input.required = true;
-          input.value = '';
-          input.focus();
-          if (!firstAsk) errorEl.textContent = json.error;
-          btn.disabled = false;
-          btn.textContent = 'Log In';
-          return;
-        }
-        if (!res.ok) throw new Error(json.error || 'Login failed');
-        if (json.setup2fa) { await beginSetup(json.setupToken); return; }
-        finishLogin(json);
-      } catch (err) {
-        errorEl.textContent = err.message;
-        btn.disabled = false;
-        btn.textContent = 'Log In';
+    const loginForm = document.getElementById('loginForm');
+    SCForm.handle(loginForm, document.getElementById('loginBtn'), 'Logging in…', async () => {
+      const res = await postJson('/api/auth/login', {
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+        code: document.getElementById('code').value,
+      });
+      const json = await readJson(res, 'Login failed');
+      if (json.needCode) {
+        const field = document.getElementById('codeField');
+        const input = document.getElementById('code');
+        const firstAsk = field.hidden;
+        field.hidden = false;
+        input.required = true;
+        input.value = '';
+        if (!firstAsk) SCForm.fieldError(input, json.error || 'That code did not work. Try the newest one.');
+        setTimeout(() => input.focus(), 0);
+        return;
       }
+      if (json.setup2fa) { await beginSetup(json.setupToken); return; }
+      finishLogin(json);
+      return true;
     });
   </script>
 </body>

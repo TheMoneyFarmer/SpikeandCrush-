@@ -48,7 +48,7 @@ html:root {
   --input-text: var(--c-on); --input-ph: var(--c-mute);
   --chart-bg: var(--c-deep); --chart-grid: var(--c-hair); --chart-text: var(--c-mute); --chart-border: var(--c-hair);
   --candle-up: var(--c-spike); --candle-down: var(--c-crush);
-  --btn-cta-bg: var(--c-blue); --btn-cta-text: #ffffff; --btn-primary-bg: var(--c-blue); --btn-primary-text: #ffffff;
+  --btn-cta-bg: var(--c-blue-fill); --btn-cta-text: #ffffff; --btn-primary-bg: var(--c-blue-fill); --btn-primary-text: #ffffff;
   --btn-danger-bg: var(--c-crush); --btn-danger-text: #ffffff;
   --btn-ghost-bg: transparent; --btn-ghost-text: var(--c-on); --btn-ghost-border: var(--c-hair-2);
   --tier-elite: var(--c-gold); --tier-warlord: #e0a800;
@@ -107,7 +107,7 @@ html:root .btn, html:root .lb-btn {
 html:root .btn:hover, html:root .lb-btn:hover { transform: translateY(-1px); filter: none; box-shadow: none; border-color: var(--c-on); }
 html:root .btn:active, html:root .lb-btn:active { transform: scale(0.97); }
 html:root .btn-primary, html:root .lb-btn-primary, html:root .lb-btn.primary, html:root .lb-btn.lb-btn-gold {
-  background: var(--c-blue); border-color: var(--c-blue); color: #ffffff;
+  background: var(--c-blue-fill); border-color: var(--c-blue-fill); color: #ffffff;
 }
 html:root .btn-primary:hover, html:root .lb-btn-primary:hover, html:root .lb-btn.primary:hover, html:root .lb-btn.lb-btn-gold:hover {
   background: var(--c-blue-press); border-color: var(--c-blue-press); box-shadow: none;
@@ -176,7 +176,7 @@ body.lb-page #twNav { margin: 0 calc(-1 * var(--page-pad, 32px)); }
 .cn-badge { position: absolute; top: 1px; right: 0; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: var(--c-spike); color: #06281a; font-size: 10px; font-weight: 800; line-height: 1; box-shadow: 0 0 0 2px var(--c-canvas); }
 .cn-badge.alert { background: var(--c-crush); color: #fff; }
 .cn-dot { position: absolute; top: 8px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--c-crush); box-shadow: 0 0 0 2px var(--c-canvas); }
-.cn-login { min-height: 40px; display: inline-flex; align-items: center; padding: 0 20px; border-radius: 9999px; background: var(--c-blue); color: #fff; font-weight: 700; text-decoration: none; }
+.cn-login { min-height: 40px; display: inline-flex; align-items: center; padding: 0 20px; border-radius: 9999px; background: var(--c-blue-fill); color: #fff; font-weight: 700; text-decoration: none; }
 .cn-account { position: relative; }
 .cn-avatar { display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 8px 0 4px; border-radius: 9999px; border: 0; background: var(--c-ghost); color: var(--c-body); cursor: pointer; }
 .cn-avatar:hover { background: var(--c-ghost-2); }

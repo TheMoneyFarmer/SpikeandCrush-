@@ -643,19 +643,19 @@ p {
 
 .legal-text {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.62);
   line-height: 1.6;
   margin: 0 0 8px;
 }
 
 .legal-links {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.62);
   margin: 0;
 }
 
 .legal-links a {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.78);
   text-decoration: none;
 }
 

@@ -168,6 +168,7 @@ html.tw-sw-hover #cr,html.tw-sw-hover #cp,html.tw-sw-hover [data-custom-cursor]{
 .sw-card h3{margin:0;font-family:Rajdhani,Inter,sans-serif;font-weight:700;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--sw-text)}
 .sw-card p{margin:0;color:var(--sw-muted);font-size:13px}
 .sw-field{width:100%;background:var(--sw-bg);border:1px solid var(--sw-line);border-radius:10px;color:var(--sw-text);font:inherit;padding:10px 12px;min-height:44px}
+.sw-card .field-error{margin:-4px 0 0;font-size:12px;color:#ff6b84}.sw-card .error-summary{margin:0;padding:8px 10px;border-radius:8px;border:1px solid #ff6b84;color:var(--sw-text);font-size:13px}.sw-card [aria-invalid=true]{border-color:#ff6b84}
 .sw-field::placeholder{color:#8A93A6}
 .sw-btn{min-height:44px;border-radius:12px;border:0;background:var(--sw-gold);color:#14213d;font:inherit;font-weight:600;padding:0 16px}
 .sw-btn:disabled{opacity:.5}
@@ -363,7 +364,7 @@ html.tw-sw-hover #cr,html.tw-sw-hover #cp,html.tw-sw-hover [data-custom-cursor]{
       parts.push(`<div class="sw-row sw-left sw-error"><div class="sw-bubble">${esc(state.pendingError.text)}</div>${state.pendingError.retryBody !== undefined ? '<button class="sw-retry" id="swRetrySend">Try again</button>' : ''}</div>`);
     }
     if (!state.loggedIn && (state.needsEmail || (c && c.needsEmail))) {
-      parts.push(`<form class="sw-card" id="swEmailForm"><h3>Your email</h3><p>So a human agent can reply to you, enter your email.</p><label class="sw-sr" for="swEmail">Email</label><input class="sw-field" id="swEmail" type="email" autocomplete="email" required placeholder="you@example.com" /><button class="sw-btn" type="submit">Continue</button></form>`);
+      parts.push(`<form class="sw-card" id="swEmailForm" novalidate><h3>Your email</h3><p>So a human agent can reply to you, enter your email.</p><label class="sw-sr" for="swEmail">Email</label><input class="sw-field" id="swEmail" type="email" data-label="Email" maxlength="254" autocomplete="email" required placeholder="you@example.com" /><button class="sw-btn" type="submit">Continue</button></form>`);
     }
     if (c && c.status === 'resolved' && !c.csatGiven && !state.csatDone) {
       parts.push(
@@ -387,10 +388,10 @@ html.tw-sw-hover #cr,html.tw-sw-hover #cp,html.tw-sw-hover [data-custom-cursor]{
 
   function renderForm() {
     $('swFoot').style.display = 'none';
-    body.innerHTML = `<form class="sw-card" id="swTicketForm"><h3>Send us a message</h3><p>We will reply by email. You get a ticket number straight away.</p>
-      <label class="sw-sr" for="swTfEmail">Email</label><input class="sw-field" id="swTfEmail" type="email" autocomplete="email" required placeholder="Your email" />
-      <label class="sw-sr" for="swTfSubject">Subject</label><input class="sw-field" id="swTfSubject" required maxlength="200" placeholder="Subject" />
-      <label class="sw-sr" for="swTfMessage">Message</label><textarea class="sw-field" id="swTfMessage" required rows="5" maxlength="4000" placeholder="How can we help?"></textarea>
+    body.innerHTML = `<form class="sw-card" id="swTicketForm" novalidate><h3>Send us a message</h3><p>We will reply by email. You get a ticket number straight away.</p>
+      <label class="sw-sr" for="swTfEmail">Email</label><input class="sw-field" id="swTfEmail" type="email" data-label="Email" maxlength="254" autocomplete="email" required placeholder="Your email" />
+      <label class="sw-sr" for="swTfSubject">Subject</label><input class="sw-field" id="swTfSubject" data-label="Subject" required maxlength="200" placeholder="Subject" />
+      <label class="sw-sr" for="swTfMessage">Message</label><textarea class="sw-field" id="swTfMessage" data-label="Message" required rows="5" maxlength="4000" placeholder="How can we help?"></textarea>
       <div class="sw-btnrow"><button class="sw-btn" type="submit">Send</button><button class="sw-btn sw-ghost" type="button" id="swTfCancel">Back to chat</button></div><div id="swTfResult" class="sw-system" aria-live="polite"></div></form>`;
   }
 
@@ -722,8 +723,32 @@ html.tw-sw-hover #cr,html.tw-sw-hover #cp,html.tw-sw-hover [data-custom-cursor]{
       loadSession(target.dataset.openConv);
     }
   });
+  // Shared form states (js/form-state.js): field errors, one request at a time, a busy button.
+  if (!window.SCForm && !document.querySelector('script[src="/js/form-state.js"]')) {
+    const fs = document.createElement('script');
+    fs.src = '/js/form-state.js';
+    document.head.appendChild(fs);
+  }
   body.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const form = e.target;
+    const F = window.SCForm;
+    if (form.dataset.busy) return;
+    if (F && (form.id === 'swEmailForm' || form.id === 'swTicketForm') && !F.validate(form)) return;
+    const submitBtn = form.querySelector('button[type=submit]');
+    form.dataset.busy = '1';
+    if (F) F.setBusy(submitBtn, true, 'Sending…');
+    try {
+      await handleWidgetSubmit(form, F);
+    } finally {
+      if (form.isConnected) {
+        delete form.dataset.busy;
+        if (F && !form.dataset.done) F.setBusy(submitBtn, false);
+      }
+    }
+  });
+  async function handleWidgetSubmit(form, F) {
+    const e = { target: form };
     if (e.target.id === 'swEmailForm') {
       try {
         const data = await api('/guest-email', { method: 'POST', body: { conversationId: state.conversation && state.conversation.id, email: $('swEmail').value } });
@@ -749,12 +774,15 @@ html.tw-sw-hover #cr,html.tw-sw-hover #cp,html.tw-sw-hover [data-custom-cursor]{
       try {
         const data = await api('/ticket', { method: 'POST', body: { email: $('swTfEmail').value, subject: $('swTfSubject').value, message: $('swTfMessage').value } });
         out.textContent = `Sent. Your ticket is ${data.ticket}. We will reply by email.`;
-        e.target.querySelectorAll('input,textarea,button[type=submit]').forEach((el) => (el.disabled = true));
+        form.dataset.done = '1';
+        if (F) F.setBusy(form.querySelector('button[type=submit]'), false);
+        form.querySelectorAll('input,textarea,button[type=submit]').forEach((el) => (el.disabled = true));
       } catch (err) {
-        out.textContent = err.message;
+        if (F) F.showSummary(form, F.friendly(err));
+        else out.textContent = err.message;
       }
     }
-  });
+  }
 
   $('swTicketsBtn').addEventListener('click', async () => {
     state.view = 'tickets';

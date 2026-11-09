@@ -90,7 +90,7 @@
       .sc-banner p{margin:0 0 12px}.sc-banner a{color:var(--c-link,#6cb2ff)}
       .sc-banner-actions{display:flex;flex-wrap:wrap;gap:8px}
       .sc-banner button{flex:1 1 130px;min-height:44px;border-radius:10px;border:1px solid var(--c-hair-2,rgba(160,182,222,.26));background:transparent;color:inherit;font:600 14px Inter,system-ui,sans-serif;cursor:pointer}
-      .sc-banner button.primary{background:var(--c-blue,#2d7ff9);border-color:var(--c-blue,#2d7ff9);color:#fff}
+      .sc-banner button.primary{background:var(--c-blue-fill,#1d6fe6);border-color:var(--c-blue-fill,#1d6fe6);color:#fff}
       .sc-banner label{display:flex;gap:10px;align-items:flex-start;margin:0 0 10px}
       .sc-banner input{margin-top:3px;width:18px;height:18px}
       body.sc-banner-open .sc-sticky-cta{display:none!important}`;

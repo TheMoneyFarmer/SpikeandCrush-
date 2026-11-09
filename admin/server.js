@@ -262,6 +262,7 @@ app.use((req, res, next) => {
 // The game site's relative-time helper, so both panels format times the same way.
 app.get('/js/time-ago.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'js', 'time-ago.js')));
 app.get('/js/support-markdown.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'js', 'support-markdown.js')));
+app.get('/js/form-state.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'js', 'form-state.js')));
 
 // Static files: ONLY the browser assets and the top-level .html pages. This
 // used to be express.static(__dirname), which served the server's own source

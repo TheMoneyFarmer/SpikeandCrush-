@@ -75,7 +75,7 @@ window.TW = window.TW || {};
   function renderConsoleBar(container, active) {
     container.innerHTML = `
       <nav class="cn-bar" aria-label="Main">
-        <a href="/play" class="cn-logo" aria-label="Spike and Crush, play"><span class="s">Spike</span><span class="a">&amp;</span><span class="c">Crush</span></a>
+        <a href="/play" class="cn-logo" aria-label="Spike &amp; Crush, play"><span class="s">Spike</span><span class="a">&amp;</span><span class="c">Crush</span></a>
         <div class="cn-links">${MAIN_LINKS.map((l) => `<a href="${l.href}" class="cn-link${l.key === active ? ' active' : ''}"${l.key === active ? ' aria-current="page"' : ''}>${l.label}</a>`).join('')}</div>
         <div class="cn-right">
           <a href="/wallet" id="headerCoinWrap" class="cn-coins hidden" aria-label="Coin balance">${ic('coin', 18)}<span id="headerCoinBalance">0</span></a>

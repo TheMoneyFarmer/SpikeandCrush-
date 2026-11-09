@@ -42,3 +42,19 @@ test('the security policy opens for an analytics provider only when one is set',
   assert.doesNotMatch(buildCsp({ admin: true }), /plausible/);
   if (before === undefined) delete process.env.ANALYTICS_PROVIDER; else process.env.ANALYTICS_PROVIDER = before;
 });
+
+test('Google sign-ups from the drawer record Terms acceptance; other routes do not claim it', () => {
+  const fs = require('fs');
+  const read = (f) => fs.readFileSync(require('path').join(__dirname, '..', f), 'utf8');
+  assert.match(read('client/landing.html'), /onclick="TW\.loginWithGoogle\(true\)"/);
+  assert.match(read('client/landing.html'), /By continuing you agree to our <a href="\/terms">Terms<\/a>/);
+  const auth = read('client/js/auth.js');
+  assert.match(auth, /if \(agreed === true\) sessionStorage\.setItem\('sc_oauth_terms', '1'\);\s*else sessionStorage\.removeItem\('sc_oauth_terms'\);/);
+  const cb = read('client/auth-callback.html');
+  assert.match(cb, /sessionStorage\.removeItem\('sc_oauth_terms'\)/);
+  assert.match(cb, /termsAccepted \}\)/);
+  const server = read('server/index.js');
+  const oauth = server.slice(server.indexOf("app.post('/api/auth/oauth-callback'"));
+  assert.match(oauth.slice(0, 3000), /createPlayer[\s\S]{0,120}recordTermsAcceptance\(player, req\.body\?\.termsAccepted\)/);
+  assert.match(server, /async function recordTermsAcceptance\(player, accepted\) \{\s*if \(accepted !== true\) return;/);
+});

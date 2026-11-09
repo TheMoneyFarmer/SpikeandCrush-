@@ -112,13 +112,15 @@
         }
 
         const session = data.session;
+        let termsAccepted = false;
+        try { termsAccepted = sessionStorage.getItem('sc_oauth_terms') === '1'; sessionStorage.removeItem('sc_oauth_terms'); } catch (_) {}
         const res = await fetch('/api/auth/oauth-callback', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ name: session.user?.user_metadata?.full_name || session.user?.user_metadata?.name }),
+          body: JSON.stringify({ name: session.user?.user_metadata?.full_name || session.user?.user_metadata?.name, termsAccepted }),
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {

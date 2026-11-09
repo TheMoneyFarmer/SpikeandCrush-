@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <!-- seo:start -->
 <title>Competitions | Spike &amp; Crush</title>
 <meta name="description" content="Daily, weekly and monthly trading wars with coin prize pools. See what is live and enter before entry closes." />
@@ -228,7 +228,7 @@ let enteredIds    = new Set();
 const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ESC_MAP[ch]);
 
-const TYPE_COLOR = { native: 'var(--c-blue)', external: '#8090F0', sponsored: 'var(--c-gold)' };
+const TYPE_COLOR = { native: 'var(--c-link)', external: '#8090F0', sponsored: 'var(--c-gold)' };
 const TYPE_LABEL = { native: 'Native', external: 'Prop Firm', sponsored: 'Sponsored' };
 const TYPE_LONG  = { native: 'Spike & Crush', external: 'Prop Firm', sponsored: 'Sponsored' };
 const TYPE_MODAL = {

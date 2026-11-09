@@ -604,6 +604,16 @@ async function sendWelcomeEmail(player) {
   }
 }
 
+// Never fatal: a sign-up must not fail over this record.
+async function recordTermsAcceptance(player, accepted) {
+  if (accepted !== true) return;
+  try {
+    await db.updatePlayer(player.id, { terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() });
+  } catch (e) {
+    console.error('[terms record]', e.message);
+  }
+}
+
 app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
   try {
     const { username, email, password, turnstileToken } = req.body || {};
@@ -667,14 +677,7 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
       return res.status(503).json({ error: 'We could not send your verification email. Please try again in a few minutes.' });
     }
 
-    // Never fatal: a sign-up must not fail over this record.
-    if (req.body?.termsAccepted === true) {
-      try {
-        await db.updatePlayer(player.id, { terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() });
-      } catch (e) {
-        console.error('[terms record]', e.message);
-      }
-    }
+    await recordTermsAcceptance(player, req.body?.termsAccepted);
     await attachInvite(req, res, player);
 
     // Referral attribution: if this browser arrived via a partner's /r/:code
@@ -943,6 +946,7 @@ app.post('/api/auth/oauth-callback', authLimiter, requireDb, async (req, res) =>
     }
 
     const player = await db.createPlayer({ username, email, supabaseUserId: user.id });
+    await recordTermsAcceptance(player, req.body?.termsAccepted);
     await attachInvite(req, res, player);
     const session = await db.createSession({ playerId: player.id, userAgent: req.headers['user-agent'], ip: clientIp(req) });
     await db.recordLoginEvent({ playerId: player.id, ip: clientIp(req), userAgent: req.headers['user-agent'] });

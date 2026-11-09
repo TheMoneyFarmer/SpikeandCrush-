@@ -109,7 +109,13 @@ window.TW = window.TW || {};
     }
   };
 
-  TW.loginWithGoogle = async function loginWithGoogle() {
+  // agreed: the button sits beside the "By continuing you agree" line, so a new
+  // account made from it records Terms acceptance (read once by auth-callback).
+  TW.loginWithGoogle = async function loginWithGoogle(agreed) {
+    try {
+      if (agreed === true) sessionStorage.setItem('sc_oauth_terms', '1');
+      else sessionStorage.removeItem('sc_oauth_terms');
+    } catch (_) {}
     await ready;
     if (!supabaseClient) return TW.toast('Sign-in is unavailable right now', 'danger');
     const { error } = await supabaseClient.auth.signInWithOAuth({

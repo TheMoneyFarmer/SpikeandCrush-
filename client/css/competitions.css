@@ -77,7 +77,7 @@ html:has(.comp-hub) {
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
-  color: color-mix(in srgb, var(--c-on) 40%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   border-bottom: 2px solid transparent;
   transition: all 0.15s;
 }
@@ -99,8 +99,8 @@ html:has(.comp-hub) {
 }
 
 .ch-nav-list-btn {
-  background: var(--c-blue);
-  color: var(--c-on);
+  background: var(--c-blue-fill);
+  color: #fff;
   font-size: 12px;
   font-weight: 800;
   padding: 8px 16px;
@@ -173,7 +173,7 @@ html:has(.comp-hub) {
 
 .ch-hero p {
   font-size: 14px;
-  color: color-mix(in srgb, var(--c-on) 45%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   line-height: 1.7;
   margin: 0;
 }
@@ -209,7 +209,7 @@ html:has(.comp-hub) {
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--c-on) 28%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
 }
 
 /* ── Sub-nav ───────────────────────────────── */
@@ -246,7 +246,7 @@ html:has(.comp-hub) {
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  color: color-mix(in srgb, var(--c-on) 38%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -309,7 +309,7 @@ html:has(.comp-hub) {
   gap: 5px;
   font-size: 11px;
   font-weight: 700;
-  color: color-mix(in srgb, var(--c-on) 35%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
 }
 
 .live-dot-sm {
@@ -323,7 +323,7 @@ html:has(.comp-hub) {
   flex: 1;
   text-align: right;
   font-size: 13px;
-  color: color-mix(in srgb, var(--c-on) 25%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
 }
 
 #table-count {
@@ -352,7 +352,7 @@ html:has(.comp-hub) {
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--c-on) 30%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   background: color-mix(in srgb, var(--c-on) 2%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--c-on) 6%, transparent);
   white-space: nowrap;
@@ -434,7 +434,7 @@ td.col-rank {
   font-family: 'JetBrains Mono', monospace;
   font-size: 14px;
   font-weight: 700;
-  color: color-mix(in srgb, var(--c-on) 30%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
 }
 
 td.col-entrants {
@@ -493,7 +493,7 @@ td.col-entrants {
 
 .row-comp-org {
   font-size: 11px;
-  color: color-mix(in srgb, var(--c-on) 35%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -549,7 +549,7 @@ td.col-entrants {
 }
 
 .status-ended {
-  color: color-mix(in srgb, var(--c-on) 20%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   font-size: 11px;
 }
 
@@ -574,18 +574,18 @@ td.col-entrants {
   padding: 1px 6px;
   font-size: 9px;
   font-weight: 700;
-  color: color-mix(in srgb, var(--c-on) 55%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   white-space: nowrap;
 }
 
 .instr-more {
   font-size: 9px;
-  color: color-mix(in srgb, var(--c-on) 30%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   align-self: center;
 }
 
 .instr-none {
-  color: color-mix(in srgb, var(--c-on) 20%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
 }
 
 /* Entry */
@@ -618,8 +618,8 @@ td.col-entrants {
 }
 
 .row-cta.native {
-  background: var(--c-blue);
-  color: var(--c-on);
+  background: var(--c-blue-fill);
+  color: #fff;
 }
 
 .row-cta.ext {
@@ -680,7 +680,7 @@ td.col-entrants {
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
   font-weight: 700;
-  color: color-mix(in srgb, var(--c-on) 25%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   text-align: center;
   flex-shrink: 0;
 }
@@ -716,14 +716,14 @@ td.col-entrants {
 
 .mc-org {
   font-size: 10px;
-  color: color-mix(in srgb, var(--c-on) 35%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   margin-top: 1px;
 }
 
 .mc-live-badge {
   background: rgba(255,77,106,0.12);
   border: 1px solid rgba(255,77,106,0.25);
-  color: var(--c-crush);
+  color: #ff7088;
   font-size: 9px;
   font-weight: 800;
   padding: 2px 7px;
@@ -748,7 +748,7 @@ td.col-entrants {
 .mc-ended-badge {
   background: color-mix(in srgb, var(--c-on) 4%, transparent);
   border: 1px solid color-mix(in srgb, var(--c-on) 8%, transparent);
-  color: color-mix(in srgb, var(--c-on) 35%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   font-size: 9px;
   font-weight: 800;
   padding: 2px 7px;
@@ -787,7 +787,7 @@ td.col-entrants {
   font-weight: 700;
   letter-spacing: .06em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--c-on) 25%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
 }
 
 .mc-footer {
@@ -814,8 +814,8 @@ td.col-entrants {
 }
 
 .mc-cta.native {
-  background: var(--c-blue);
-  color: var(--c-on);
+  background: var(--c-blue-fill);
+  color: #fff;
 }
 
 .mc-cta.ext {
@@ -832,14 +832,14 @@ td.col-entrants {
   gap: 12px;
   padding: 80px 20px;
   text-align: center;
-  color: color-mix(in srgb, var(--c-on) 25%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
 }
 
 .ch-empty-icon { font-size: 3rem; }
 
 .ch-empty h3 {
   font-size: 18px;
-  color: color-mix(in srgb, var(--c-on) 50%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   margin: 0;
 }
 
@@ -900,7 +900,7 @@ td.col-entrants {
 
 .ch-bottom-text p {
   font-size: 13px;
-  color: color-mix(in srgb, var(--c-on) 40%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   line-height: 1.6;
   max-width: 360px;
   margin: 0;
@@ -928,8 +928,8 @@ td.col-entrants {
 }
 
 .ch-cta-btn.native {
-  background: var(--c-blue);
-  color: var(--c-on);
+  background: var(--c-blue-fill);
+  color: #fff;
 }
 
 .ch-cta-btn.ghost {
@@ -978,7 +978,7 @@ td.col-entrants {
 .modal-loading {
   padding: 40px;
   text-align: center;
-  color: color-mix(in srgb, var(--c-on) 40%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   font-size: 13px;
 }
 
@@ -989,7 +989,7 @@ td.col-entrants {
   border: none;
   border-radius: 50%;
   width: 30px; height: 30px;
-  color: color-mix(in srgb, var(--c-on) 50%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   font-size: 14px;
   cursor: pointer;
 }
@@ -1049,7 +1049,7 @@ td.col-entrants {
 
 .modal-org-type {
   font-size: 11px;
-  color: color-mix(in srgb, var(--c-on) 40%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   margin-top: 2px;
 }
 
@@ -1063,7 +1063,7 @@ td.col-entrants {
 
 .modal-desc {
   font-size: 13px;
-  color: color-mix(in srgb, var(--c-on) 50%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   line-height: 1.7;
   margin: 0 0 18px;
   white-space: pre-line;
@@ -1103,7 +1103,7 @@ td.col-entrants {
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--c-on) 30%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
 }
 
 .modal-section {
@@ -1116,7 +1116,7 @@ td.col-entrants {
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--c-on) 30%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   margin-bottom: 8px;
 }
 
@@ -1170,7 +1170,7 @@ td.col-entrants {
 
 .modal-sch-l {
   font-size: 10px;
-  color: color-mix(in srgb, var(--c-on) 30%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   margin-bottom: 2px;
 }
 
@@ -1182,7 +1182,7 @@ td.col-entrants {
 
 .modal-external-note {
   font-size: 12px;
-  color: color-mix(in srgb, var(--c-on) 35%, transparent);
+  color: color-mix(in srgb, var(--c-on) 66%, transparent);
   line-height: 1.6;
   padding: 12px 14px;
   margin-top: 6px;
@@ -1205,8 +1205,8 @@ td.col-entrants {
 }
 
 .modal-cta.native {
-  background: var(--c-blue);
-  color: var(--c-on);
+  background: var(--c-blue-fill);
+  color: #fff;
 }
 
 .modal-cta.ext {

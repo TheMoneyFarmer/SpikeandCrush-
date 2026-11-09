@@ -17,7 +17,7 @@
   style.textContent = `
     .sc-sticky-cta{position:fixed;left:0;right:0;bottom:0;z-index:8000;padding:10px 84px calc(10px + env(safe-area-inset-bottom)) 16px;background:var(--c-elev,#1d2d50);border-top:1px solid var(--c-hair-2,rgba(160,182,222,.26));transition:transform .2s}
     .sc-sticky-cta[hidden]{display:none}
-    .sc-sticky-cta button{width:100%;min-height:48px;border:0;border-radius:999px;background:var(--c-blue,#2d7ff9);color:#fff;font:700 15px Inter,system-ui,sans-serif;cursor:pointer}
+    .sc-sticky-cta button{width:100%;min-height:48px;border:0;border-radius:999px;background:var(--c-blue-fill,#1d6fe6);color:#fff;font:700 15px Inter,system-ui,sans-serif;cursor:pointer}
     @media (prefers-reduced-motion: reduce){.sc-sticky-cta{transition:none}}`;
   document.head.appendChild(style);
 
