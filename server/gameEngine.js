@@ -12,6 +12,7 @@ const personas = require('./personas');
 const gameFeel = require('./config/gameFeel');
 const cardRules = require('./cards');
 const progression = require('./progression');
+const rankSplit = require('./rankSplit');
 const intrabar = require('./intrabar');
 
 // Replay speed for a short-mode match (data seconds per real second), from
@@ -448,6 +449,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       marketSpeed: match.replaySpeed || 1,
       leaderId: match.leaderId || null,
       challenge: match.config.challenge ? { username: match.config.challenge.username, pnl: match.config.challenge.pnl } : null,
+      // Rank-split lobby tier badge (ranked public modes, only when the split is on).
+      lobbyTier: match.lobbyTier || null,
       feed: match.feed.slice(-30),
       players: Object.values(match.players).map((p) => publicPlayer(p, p.id === viewerId)),
       you: viewerId,
@@ -823,6 +826,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       return { success: false, error: LIVE_MATCH_BUSY_ERROR };
     }
     if (Object.keys(match.players).length >= match.config.maxPlayers) return { success: false, error: 'Match is full' };
+    // Rank split (ranked public lobbies only, off by default): own tier or
+    // the allowed tiers above, never down - whichever way the player arrives.
+    if (match.lobbyTier && rankSplit.enabled() && rankSplit.isSplitMode(match.mode) && !playerInfo.isAI) {
+      const mine = rankSplit.lobbyTierFor(playerInfo.tier || tierForRating(playerInfo.war_rating ?? 1000));
+      if (!rankSplit.mayJoin(mine, match.lobbyTier)) return { success: false, error: `This ranked lobby is for ${rankSplit.tierLabel(match.lobbyTier)} tier players` };
+    }
 
     if (!match.hostId) match.hostId = playerInfo.id;
 
