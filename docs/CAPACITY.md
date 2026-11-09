@@ -13,12 +13,16 @@ real bots, no database writes; Railway's CPUs may be slower.
 A second server is not supported yet: live matches, socket rooms and rate limits
 are per process.
 
+Railway replaces `X-Forwarded-For` with `[connecting address, its edge]`, so
+`req.ip` is its edge. Use `visitorIp()` from `server/originLock.js` for anything
+about the visitor. `TRUST_PROXY_HOPS` doesn't need changing.
+
 ## Settings (Railway variables)
 
 | Variable | Default | What it does |
 |---|---|---|
-| `ORIGIN_LOCK` | `report` in production | `on` blocks requests that skip Cloudflare; `off` is the emergency switch |
-| `TRUST_PROXY_HOPS` | `1` | Set `2` while Cloudflare is in front, only with `ORIGIN_LOCK=on` |
+| `ORIGIN_LOCK` | `report` in production | `on` blocks requests that skip Cloudflare; `off` is the emergency switch. `/health` shows the result in its `X-Origin-Check` header |
+| `ORIGIN_SECRET` | unset | Optional stronger check: only requests carrying this in `X-Origin-Secret` (added by a Cloudflare Transform Rule) count as Cloudflare. Set the rule first or the lock blocks everyone |
 | `MAX_LIVE_MATCHES` | `2000` | New matches are refused above this; running ones are never touched |
 | `API_RATE_LIMIT` | `1500` | Requests per 15 minutes per visitor IP |
 | `AUTH_RATE_LIMIT` | `100` | Login and sign-up attempts per 15 minutes per visitor IP |
