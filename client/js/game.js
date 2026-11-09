@@ -1038,6 +1038,7 @@ window.TW = window.TW || {};
       </div>
     `;
     document.body.appendChild(overlay);
+    if (TW.Fire) TW.Fire.renderResults(overlay, me, payload);
     if (me && me.rank === 1 && window.TW && TW.Lottie) TW.Lottie.play('win');
 
     const rankings = document.getElementById('endRankings');
@@ -1415,6 +1416,11 @@ window.TW = window.TW || {};
     lastState = state;
     setupInstrumentTabs(state.instruments);
     TW.Sabotage.render(state);
+    if (TW.Fire) {
+      TW.Fire.setYou(state.you);
+      const self = state.players.find((p) => p.id === state.you);
+      TW.Fire.setMissions(self && self.missions);
+    }
     if (!rulesOverlayShown) {
       rulesOverlayShown = true;
       // Only once per match: not again each time the player comes back.
@@ -1532,6 +1538,13 @@ window.TW = window.TW || {};
   // smoke_screen) now exempt the player who cast them - server confirms it
   // with this event right after the card resolves.
   socket.on('sabotage:immune', () => TW.Sabotage.showImmune());
+  // Fire gameplay: earned cards / streak / Heat, missions, spike alerts, shield.
+  socket.on('cards:update', (payload) => TW.Sabotage.update(payload));
+  socket.on('cards:shield', () => TW.showMatchNotification('Shield up - attack and market cards cannot touch you'));
+  socket.on('missions:update', (payload) => TW.Fire && TW.Fire.setMissions(payload.missions));
+  socket.on('missions:complete', (payload) => TW.Fire && TW.Fire.missionComplete(payload));
+  socket.on('spike:alert', (payload) => TW.Fire && TW.Fire.spikeAlert(payload));
+  socket.on('spike:result', (payload) => TW.Fire && TW.Fire.spikeResult(payload));
   // Reversal Flash: private 1s heads-up before the shared price reversal
   // actually starts - opponents only learn about it once it's already moving.
   socket.on('sabotage:reversal_warning', () => TW.Sabotage.showReversalWarning());
@@ -1553,6 +1566,8 @@ window.TW = window.TW || {};
   let lastViewerRank = null;
   socket.on('leaderboard:update', (payload) => {
     TW.Leaderboard.render(payload, lastState?.you);
+    TW.Sabotage.setLeaderboard(payload.rows);
+    if (TW.Fire) TW.Fire.setLeaderboard(payload.rows);
     const myRow = payload.rows.find((r) => r.id === lastState?.you);
     if (myRow && lastViewerRank !== null && myRow.rank > lastViewerRank) {
       TW.showMatchNotification(`📉 You just got overtaken — now #${myRow.rank}`);

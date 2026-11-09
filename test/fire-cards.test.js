@@ -330,7 +330,8 @@ test('13: spike alerts come from real events ~10 data-seconds ahead, carry no di
   for (let t = 0; t < 300; t++) for (const e of cardRules.spikeTick(fake, t)) out.push({ t, ...e });
   assert.strictEqual(out[0].event, 'spike:alert');
   assert.strictEqual(out[0].t, 110);
-  assert.deepStrictEqual(Object.keys(out[0].payload).sort(), ['id', 'inSeconds', 'symbol']);
+  assert.deepStrictEqual(Object.keys(out[0].payload).sort(), ['id', 'inSeconds']);
+  assert.ok(!/XAUUSD|0\.42|up|down|buy|sell/i.test(JSON.stringify(out[0].payload)), 'alert leaks more than the time');
   assert.strictEqual(out[1].event, 'spike:result');
   assert.strictEqual(out[1].payload.movePct, 0.42);
   gameFeel.applyOverrides({ spikeAlerts: { enabled: false } });

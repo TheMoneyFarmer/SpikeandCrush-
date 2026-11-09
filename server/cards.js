@@ -301,7 +301,8 @@ function spikeTick(match, dataSecond) {
   for (const sp of match.spikePlan || []) {
     if (!sp.alerted && dataSecond >= sp.dataSecond - s.leadDataSeconds && dataSecond < sp.dataSecond) {
       sp.alerted = true;
-      out.push({ event: 'spike:alert', payload: { id: sp.id, symbol: sp.symbol, inSeconds: sp.dataSecond - dataSecond } });
+      // Only the time: never the direction, the size or even the instrument.
+      out.push({ event: 'spike:alert', payload: { id: sp.id, inSeconds: sp.dataSecond - dataSecond } });
     }
     if (sp.alerted && !sp.resolved && dataSecond >= sp.dataSecond + 60) {
       sp.resolved = true;

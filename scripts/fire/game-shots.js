@@ -64,6 +64,28 @@ const BOXES = {
       return out;
     }, BOXES);
   }
+  // Phone portrait keeps cards on the Trade tab: shoot that view too and
+  // check the four card slots fit side by side without horizontal scroll.
+  for (const [w, h] of SIZES.filter(([w, h]) => h > w && w < 600)) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate(() => document.querySelector('.game-mobile-tab[data-view="trade"]')?.click());
+    await page.waitForTimeout(700);
+    const name = `game-${w}x${h}-trade`;
+    await page.screenshot({ path: path.join(DIR, `${name}.png`) });
+    layout[name] = await page.evaluate(() => {
+      const tray = document.getElementById('cardSlots');
+      const slots = Array.from(document.querySelectorAll('#cardSlots .fire-card')).map((e) => e.getBoundingClientRect());
+      const r = tray ? tray.getBoundingClientRect() : null;
+      return {
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+        tray: r ? { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), scrollW: tray.scrollWidth } : null,
+        slots: slots.map((s) => ({ x: Math.round(s.x), w: Math.round(s.width), h: Math.round(s.height) })),
+        allVisible: slots.length === 4 && slots.every((s) => s.x >= 0 && s.right <= window.innerWidth),
+      };
+    });
+    await page.evaluate(() => document.querySelector('.game-mobile-tab[data-view="chart"]')?.click());
+  }
   fs.writeFileSync(path.join(DIR, 'layout.json'), `${JSON.stringify({ errors, layout }, null, 2)}\n`);
   await page.evaluate((id) => TW.emitAck('match:leave', { matchId: id }), made.matchId).catch(() => {});
   console.log(JSON.stringify({ errors, layout }, null, 1));

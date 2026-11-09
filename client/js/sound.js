@@ -371,6 +371,28 @@ TW.Sound = (function () {
     navigate: () => effects.tabSwitch(),
     coinReceived: () => effects.coin(),
     finalTick: () => effects.countdown(),
+
+    // ---- fire gameplay: streaks, spikes, missions, levels, crown ----
+    // Rising two-note step when the streak grows.
+    streakUp: () => {
+      tone({ freq: 660, duration: 0.08, type: 'triangle', gain: 0.18 });
+      tone({ freq: 990, duration: 0.14, type: 'triangle', gain: 0.16, delay: 0.07 });
+    },
+    // Short falling slide: the streak reset (cards in hand are kept).
+    streakLost: () => tone({ freq: 520, freqEnd: 260, duration: 0.25, type: 'sine', gain: 0.16 }),
+    // Spike warning: two quick pulses, no siren.
+    spikeAlert: () => {
+      [0, 0.16].forEach((delay) => tone({ freq: 880, duration: 0.07, type: 'square', gain: 0.1, delay }));
+    },
+    missionDone: () => chime([659, 880, 1175], 70, { gain: 0.15 }),
+    levelUp: () => {
+      [392, 523, 659, 784, 1046].forEach((freq, i) => tone({ freq, duration: 0.18, type: 'triangle', gain: 0.18, delay: i * 0.07 }));
+    },
+    cardUnlocked: () => {
+      playFile('card_slap');
+      tone({ freq: 1318, duration: 0.25, type: 'sine', gain: 0.12, delay: 0.1 });
+    },
+    crownTaken: () => chime([784, 988, 1175], 90, { gain: 0.16 }),
   };
 
   function play(name) {
