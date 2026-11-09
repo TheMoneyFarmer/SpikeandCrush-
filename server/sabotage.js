@@ -298,9 +298,13 @@ function shuffle(arr) {
   return a;
 }
 
-function dealCards(count = 3) {
-  const pool = shuffle(Object.keys(CARDS));
-  return pool.slice(0, count).map((type) => ({ type, used: false }));
+// A saved deck comes first: if it holds more cards than the mode deals, they're
+// picked from it at random, and any slots it can't fill are random cards.
+function dealCards(count = 3, deck = []) {
+  const all = Object.keys(CARDS);
+  const saved = shuffle([...new Set(Array.isArray(deck) ? deck : [])].filter((type) => all.includes(type)));
+  const rest = shuffle(all.filter((type) => !saved.includes(type)));
+  return [...saved, ...rest].slice(0, count).map((type) => ({ type, used: false }));
 }
 
 function getCardCatalog() {

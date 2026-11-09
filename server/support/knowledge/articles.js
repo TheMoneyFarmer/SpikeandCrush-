@@ -159,7 +159,7 @@ ${MODE_ORDER.map(modeRow).join('\n')}
 
 - **${MATCH_MODES.quick.label}**: the standard match.
 - **${MATCH_MODES.blitz.label}**: a short, cheap, unranked sprint.
-- **${MATCH_MODES.grand.label}**: the long mode. You choose your card deck before the match.
+- **${MATCH_MODES.grand.label}**: the long mode. Your saved deck loads, and you can change your cards in the lobby.
 - **${MATCH_MODES.solo.label}**: free, against AI opponents only, with its own rating.
 - **${MATCH_MODES.async.label}**: everyone that day trades the same market window, alone, with no sabotage. Separate daily leaderboard.
 - **${MATCH_MODES.private.label}**: invite friends with a 6-digit room code. The host pays ${coins(PRIVATE_WAR_HOST_FEE)} when the match starts; invited players join free. Unranked.
@@ -245,7 +245,7 @@ ${NO_CASH} Competition prizes are coins only.`,
       title: 'Sabotage cards and abilities',
       category: 'cards',
       tags: ['cards', 'sabotage', 'abilities', 'deck', 'freeze', 'news bomb'],
-      body: `Each player is dealt sabotage cards at the start of a match (how many depends on the mode, see Game modes). Each card can be played once per match. In Grand War you choose your deck before the match.
+      body: `Each player is dealt sabotage cards at the start of a match (how many depends on the mode, see Game modes). Each card can be played once per match. You can save a deck of up to 5 cards on the Cards page, and every mode with cards deals from it. If a mode deals fewer cards than your deck holds, they are picked from it at random, and empty slots get random cards. With no saved deck, all cards are random. In Grand War you can also change your cards in the match lobby.
 
 There are ${Object.keys(CARDS).length} cards:
 ${cardList}

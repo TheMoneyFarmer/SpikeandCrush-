@@ -49,7 +49,7 @@ window.TW = window.TW || {};
     {
       target: null,
       title: 'Your Secret Weapons ⚡',
-      body: 'Each match you receive random sabotage cards. Use them against opponents to gain an edge. Cards like Force Close shut an opponent\'s best position. News Bomb shows them a fake headline. Spread Spike makes their next trade more expensive.',
+      body: 'Each match you get sabotage cards, from your saved deck if you have one, otherwise at random. Use them against opponents to gain an edge. Cards like Force Close shut an opponent\'s best position. News Bomb shows them a fake headline. Spread Spike makes their next trade more expensive.',
       tip: 'You can only use each card once per match. Timing is everything.',
     },
     {

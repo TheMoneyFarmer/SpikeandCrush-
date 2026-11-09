@@ -160,3 +160,48 @@ test('Blitz War deals 5 instruments and 3 cards, like Quick War, in 3 minutes', 
   assert.strictEqual(new Set(match.instruments).size, 5);
   assert.strictEqual(match.players.p1.cards.length, 3);
 });
+
+test('saved deck: every card comes from it when it holds enough', async () => {
+  await instruments.preloadAll?.();
+  const sabotage = require('../server/sabotage');
+  const deck = Object.keys(sabotage.CARDS).slice(0, 5);
+  for (const mode of ['quick', 'blitz', 'solo', 'private', 'tournament', 'grand']) {
+    const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
+    const match = await engine.createMatch(mode);
+    engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck });
+    const cards = match.players.p1.cards.map((c) => c.type);
+    assert.strictEqual(cards.length, match.config.cardsPerPlayer, mode);
+    assert.strictEqual(new Set(cards).size, cards.length, mode + ' has duplicates');
+    assert.ok(cards.every((t) => deck.includes(t)), mode + ' dealt outside the deck');
+  }
+});
+
+test('saved deck: short, empty, duplicate and unknown entries still deal a full valid hand', () => {
+  const sabotage = require('../server/sabotage');
+  const [a, b] = Object.keys(sabotage.CARDS);
+  const short = sabotage.dealCards(3, [a]).map((c) => c.type);
+  assert.strictEqual(short.length, 3);
+  assert.ok(short.includes(a));
+  assert.strictEqual(new Set(short).size, 3);
+  const messy = sabotage.dealCards(3, [b, b, 'not_a_card', null]).map((c) => c.type);
+  assert.strictEqual(new Set(messy).size, 3);
+  assert.ok(messy.includes(b));
+  assert.ok(messy.every((t) => sabotage.CARDS[t]));
+  assert.strictEqual(sabotage.dealCards(3).length, 3);
+  assert.strictEqual(sabotage.dealCards(3, undefined).length, 3);
+  assert.strictEqual(sabotage.dealCards(0, [a]).length, 0);
+});
+
+test('saved deck: never shown to other players, and Grand War can still change cards in the lobby', async () => {
+  await instruments.preloadAll?.();
+  const sabotage = require('../server/sabotage');
+  const all = Object.keys(sabotage.CARDS);
+  const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
+  const match = await engine.createMatch('grand');
+  engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck: all.slice(0, 5) });
+  assert.strictEqual(match.players.p1.deck, undefined);
+  assert.ok(!JSON.stringify(engine.buildMatchStatePayloadFor(match, null)).includes('"deck"'));
+  const swapped = all.slice(1, 6);
+  assert.strictEqual(engine.selectLoadoutCards(match.id, 'p1', swapped).success, true);
+  assert.deepStrictEqual(match.players.p1.cards.map((c) => c.type), swapped);
+});

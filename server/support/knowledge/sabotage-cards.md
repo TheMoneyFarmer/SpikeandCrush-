@@ -9,7 +9,7 @@ needs_review: false
 
 # Sabotage cards and abilities
 
-Each player is dealt sabotage cards at the start of a match (how many depends on the mode, see Game modes). Each card can be played once per match. In Grand War you choose your deck before the match.
+Each player is dealt sabotage cards at the start of a match (how many depends on the mode, see Game modes). Each card can be played once per match. You can save a deck of up to 5 cards on the Cards page, and every mode with cards deals from it. If a mode deals fewer cards than your deck holds, they are picked from it at random, and empty slots get random cards. With no saved deck, all cards are random. In Grand War you can also change your cards in the match lobby.
 
 There are 30 cards:
 - **News Bomb** (information, targets an opponent): Inject a fake news headline into the target's feed for 15s.

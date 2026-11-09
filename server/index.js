@@ -337,6 +337,17 @@ async function authenticate(req, res, next) {
   }
 }
 
+// A deck that can't be loaded must not stop anyone playing: they get random cards.
+async function loadSavedDeck(playerId) {
+  try {
+    const deck = await db.getCardDeck(playerId);
+    return deck?.card_types || [];
+  } catch (e) {
+    console.error('[deck load]', e.message);
+    return [];
+  }
+}
+
 function clientIp(req) {
   // req.ip follows trust proxy. The first X-Forwarded-For entry is whatever the caller sent.
   return String(req.ip || req.socket.remoteAddress || 'unknown').replace('::ffff:', '');
@@ -1020,6 +1031,7 @@ app.post('/api/match/create', deployDrain.blockNewMatches, requireDb, authentica
       grand_war_rating: player.grand_war_rating,
       solo_rating: player.solo_rating,
       tier: player.tier,
+      deck: await loadSavedDeck(player.id),
     };
     let entry;
     try {
@@ -1056,7 +1068,7 @@ app.post('/api/match/join', requireDb, authenticate, async (req, res) => {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
-    const playerInfo = { id: player.id, username: player.username, war_rating: player.war_rating, tier: player.tier };
+    const playerInfo = { id: player.id, username: player.username, war_rating: player.war_rating, tier: player.tier, deck: await loadSavedDeck(player.id) };
     const result = matchmaking.joinByRoomCode(gameEngine, roomCode, playerInfo);
     if (!result.success) return res.status(400).json(result);
     res.json(result);
@@ -2371,14 +2383,14 @@ app.post('/api/tournament/:id/play', deployDrain.blockNewMatches, requireDb, aut
 
     if (matchup.matchId) return res.json({ matchId: matchup.matchId });
 
-    const [playerA, playerB] = await Promise.all([db.getPlayerById(matchup.playerAId), db.getPlayerById(matchup.playerBId)]);
+    const [playerA, playerB, deckA, deckB] = await Promise.all([db.getPlayerById(matchup.playerAId), db.getPlayerById(matchup.playerBId), loadSavedDeck(matchup.playerAId), loadSavedDeck(matchup.playerBId)]);
     const toPlayerInfo = (p) => ({ id: p.id, username: p.username, country: p.country, war_rating: p.war_rating, tier: tierForRating(p.war_rating) });
 
     const match = await gameEngine.createMatch('tournament', {
       configOverrides: { tournamentId: t.id, round: myReg.current_round, matchupIndex: matchup.matchup },
     });
-    gameEngine.joinMatch(match, toPlayerInfo(playerA));
-    gameEngine.joinMatch(match, toPlayerInfo(playerB));
+    gameEngine.joinMatch(match, { ...toPlayerInfo(playerA), deck: deckA });
+    gameEngine.joinMatch(match, { ...toPlayerInfo(playerB), deck: deckB });
 
     matchup.matchId = match.id;
     matchup.status = 'in_progress';
@@ -3178,6 +3190,7 @@ io.on('connection', (socket) => {
       }
 
       const playerInfo = { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, grand_war_rating: player.grand_war_rating, solo_rating: player.solo_rating, tier: tierForRating(player.war_rating) };
+      playerInfo.deck = await loadSavedDeck(player.id);
       let entry;
       try {
         entry = await chargeEntryFee(player.id, entryCoins, match.dbMatchId);

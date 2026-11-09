@@ -11,10 +11,10 @@ window.TW = window.TW || {};
     quickwar: {
       icon: 'swords', name: 'Quick War', tagline: 'The standard battle.', color: 'var(--accent)',
       duration: '10 Minutes', players: '2 to 6 Players', entry: '10 Coins', ranked: 'Yes — affects War Rating',
-      instruments: '5 Random Instruments', cards: '3 Random Sabotage Cards',
+      instruments: '5 Random Instruments', cards: '3 Cards — from your saved deck',
       sections: [
         { title: 'How It Works', content: 'All players start with $10,000 virtual capital. You have 10 minutes to make as much profit as possible by trading any of 5 random instruments. Buy when you think price goes up. Sell when you think price goes down. The player with the highest P&L when the timer hits zero wins.' },
-        { title: 'The Sabotage Layer', content: 'Each player receives 3 random sabotage cards at the start. You can play each card once. Cards affect opponents - freeze their trading, force close their positions, spike their spreads, or show them fake news. Choose when to play them carefully.' },
+        { title: 'The Sabotage Layer', content: 'Each player gets 3 sabotage cards at the start, from their saved deck if they have one, otherwise at random. You can play each card once. Cards affect opponents - freeze their trading, force close their positions, spike their spreads, or show them fake news. Choose when to play them carefully.' },
         { title: 'How You Win Coins', content: 'Entry coins from every player enter the prize pool. The platform keeps 15%. Winners share the rest, weighted toward the top finishers.' },
         { title: 'War Rating', content: 'Finishing 1st gains rating. Finishing last loses rating. Your rating determines your tier from Recruit to War Lord.' },
       ],
@@ -28,10 +28,10 @@ window.TW = window.TW || {};
     blitz: {
       icon: 'bolt', name: 'Blitz War', tagline: 'Three minutes of pure chaos.', color: 'var(--warning)',
       duration: '3 Minutes', players: '2 to 6 Players', entry: '5 Coins', ranked: 'No — casual only',
-      instruments: '5 Random Instruments', cards: '3 Random Sabotage Cards',
+      instruments: '5 Random Instruments', cards: '3 Cards — from your saved deck',
       sections: [
         { title: 'How It Works', content: 'Same as Quick War but 3 minutes only. No time to be patient. No time to wait for the perfect setup. You must act fast. The entire match can flip in the last 30 seconds.' },
-        { title: 'Three Cards, Three Minutes', content: 'Each player gets 3 random sabotage cards, the same as Quick War, but only 3 minutes to use them. You can play each card once, so every one you hold at the buzzer is wasted.' },
+        { title: 'Three Cards, Three Minutes', content: 'Each player gets 3 sabotage cards, the same as Quick War, but only 3 minutes to use them. You can play each card once, so every one you hold at the buzzer is wasted.' },
         { title: 'Why Play Blitz', content: 'It is the fastest way to earn coins. A 3-minute match means you can play several Blitz Wars in the time it takes to play one Quick War. Perfect for short sessions or fast action.' },
       ],
       tips: [
@@ -44,10 +44,10 @@ window.TW = window.TW || {};
     grandwar: {
       icon: 'trophy', name: 'Grand War', tagline: 'The prestige battle.', color: 'var(--gold, var(--accent-gold))',
       duration: '20 Minutes', players: '4 to 8 Players', entry: '25 Coins', ranked: 'Yes — separate Grand War rating',
-      instruments: 'Full instrument list', cards: '5 Cards — you choose your deck',
+      instruments: '5 Random Instruments', cards: '5 Cards — you choose your deck',
       sections: [
-        { title: 'How It Works', content: 'Grand War is the longest and highest-stakes mode. More players, more instruments, more sabotage. You pre-select 5 cards from your collection before the match starts. Strategy matters more here than in Quick War.' },
-        { title: 'Deck Selection', content: 'Before entering the lobby you choose which 5 sabotage cards to bring. Different combinations work for different strategies.' },
+        { title: 'How It Works', content: 'Grand War is the longest and highest-stakes mode. More players, more time, more sabotage. Your 5 cards start from your saved deck, and you can change them in the lobby. Strategy matters more here than in Quick War.' },
+        { title: 'Deck Selection', content: 'Your saved deck loads automatically. You can swap any card in the lobby before the match starts. Different combinations work for different strategies.' },
         { title: 'The Meta Game', content: 'You can see opponents in the pre-match lobby - their tier, favourite instrument, win rate. Use this to decide your card selection and opening strategy.' },
       ],
       tips: [
@@ -60,7 +60,7 @@ window.TW = window.TW || {};
     solo: {
       icon: 'target', name: 'Solo Ranked', tagline: 'You vs the machines.', color: 'var(--info, #4fc3f7)',
       duration: '10 Minutes', players: 'You vs AI Opponents', entry: 'Free', ranked: 'Yes — separate Solo Rating',
-      instruments: 'Random', cards: '3 Random Cards',
+      instruments: 'Random', cards: '3 Cards — from your saved deck',
       sections: [
         { title: 'How It Works', content: 'Solo Ranked is free to enter. You play against AI opponents, each with a distinct personality and strategy - some aggressive, some patient, some unpredictable.' },
         { title: 'Why Play Solo', content: 'Practice new instruments without risking coins in a real match. Learn how sabotage cards work against different opponent types. Improve your rating without spending entry fees, any time.' },

@@ -21,7 +21,7 @@ needs_review: false
 
 - **Quick War**: the standard match.
 - **Blitz War**: a short, cheap, unranked sprint.
-- **Grand War**: the long mode. You choose your card deck before the match.
+- **Grand War**: the long mode. Your saved deck loads, and you can change your cards in the lobby.
 - **Solo Ranked**: free, against AI opponents only, with its own rating.
 - **Async Daily Challenge**: everyone that day trades the same market window, alone, with no sabotage. Separate daily leaderboard.
 - **Private War**: invite friends with a 6-digit room code. The host pays 1 coin when the match starts; invited players join free. Unranked.
