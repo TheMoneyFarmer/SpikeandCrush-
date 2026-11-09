@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- seo:start -->
+<title>Contact | Spike &amp; Crush</title>
+<meta name="description" content="Questions, account help or a partnership idea? Send a message or email hello@spikeandcrush.com." />
+<link rel="canonical" href="https://www.spikeandcrush.com/contact" />
+<meta name="theme-color" content="#14213d" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta property="og:site_name" content="Spike &amp; Crush" />
+<meta property="og:title" content="Contact | Spike &amp; Crush" />
+<meta property="og:description" content="Questions, account help or a partnership idea? Send a message or email hello@spikeandcrush.com." />
+<meta property="og:url" content="https://www.spikeandcrush.com/contact" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://www.spikeandcrush.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Spike &amp; Crush, the competitive trading game. Up. Then not." />
+<meta name="twitter:card" content="summary_large_image" />
+<!-- seo:end -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="/icons/site.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/site-32.png" type="image/png" sizes="32x32" />
+<link rel="alternate icon" href="/favicon.ico" sizes="48x48" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/themes.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<link rel="stylesheet" href="/css/mobile.css">
+  <link rel="stylesheet" href="/css/console.css" />
+<script src="/js/analytics.js" defer></script>
+</head>
+<body data-page="contact">
+  <div id="twNav" data-active=""></div>
+
+  <style>
+    .contact-form { display: grid; gap: 14px; margin-top: 18px; }
+    .contact-form label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+    .contact-form input, .contact-form textarea { width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--c-hair-2); background: var(--c-deep); color: var(--c-on); font: inherit; }
+    .contact-form textarea { min-height: 140px; resize: vertical; }
+    .contact-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .contact-count { display: block; margin-top: 4px; font-size: 12px; color: var(--c-mute); text-align: right; }
+    .contact-company { color: var(--c-body); }
+  </style>
+  <div class="tw-container" style="max-width:640px;">
+    <div class="panel legal-page-content">
+      <h1 style="margin-top:0;">Contact</h1>
+      <p>Email us at <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a>, or send a message here and we'll reply by email.</p>
+      <p class="contact-company" data-company-line hidden></p>
+      <form class="contact-form" id="contactForm">
+        <div><label for="contactEmail">Your email</label><input type="email" id="contactEmail" data-label="Your email" required autocomplete="email" maxlength="200" /></div>
+        <div><label for="contactSubject">Subject</label><input type="text" id="contactSubject" data-label="Subject" required maxlength="200" /></div>
+        <div>
+          <label for="contactMessage">Message</label>
+          <textarea id="contactMessage" data-label="Message" required minlength="5" maxlength="2000"></textarea>
+          <span class="contact-count" id="contactCount" aria-live="polite">0 / 2000</span>
+        </div>
+        <div class="contact-trap" aria-hidden="true"><label for="contactWebsite">Leave this empty</label><input type="text" id="contactWebsite" tabindex="-1" autocomplete="off" /></div>
+        <button type="submit" class="btn btn-primary btn-block" id="contactSubmit">Send message</button>
+      </form>
+    </div>
+  </div>
+  <script src="/js/form-state.js"></script>
+  <script>
+    (function () {
+      const form = document.getElementById('contactForm');
+      const message = document.getElementById('contactMessage');
+      const count = document.getElementById('contactCount');
+      message.addEventListener('input', () => { count.textContent = message.value.length + ' / 2000'; });
+      SCForm.handle(form, document.getElementById('contactSubmit'), 'Sending…', async () => {
+        const res = await fetch('/api/support/ticket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('contactEmail').value.trim(),
+            subject: document.getElementById('contactSubject').value.trim(),
+            message: message.value.trim(),
+            category: 'other',
+            website: document.getElementById('contactWebsite').value,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Could not send your message.');
+        location.href = '/thanks/contact';
+        return true;
+      });
+    })();
+  </script>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/time-ago.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/main.js"></script>
+
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-text legal-coins">Coins have no cash value and cannot be withdrawn or exchanged for money.</p>
+      <p class="legal-links">
+        <a href="/competitions">Competitions</a> · <a href="/sponsor">Sponsor</a> · <a href="/contact">Contact</a> · <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/cookies">Cookies</a> · <a href="/responsible">Responsible Gaming</a><span data-cookie-settings hidden> · <a href="/cookies">Cookie settings</a></span>
+      </p>
+      <p class="legal-support">For support: <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a></p>
+      <p class="legal-text" data-company-line hidden></p>
+      <p class="legal-text">© 2026 Spike &amp; Crush</p>
+    </div>
+  </footer>
+  <script src="js/support-widget.js"></script>
+  <script src="/js/orientation.js"></script>
+  <script src="/js/bottom-nav.js"></script>
+</body>
+</html>
