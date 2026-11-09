@@ -110,15 +110,22 @@ const IGNORABLE = /cloudflareinsights|status of 401|status of 404|favicon|net::E
   await step('a Solo match starts and a trade opens and closes', async () => {
     await page.goto(`${BASE}/play`, { waitUntil: 'load' });
     const made = await page.evaluate(() => TW.api('/api/match/create', { method: 'POST', body: { mode: 'solo' } }));
-    await page.goto(`${BASE}/game.html?matchId=${made.matchId}`, { waitUntil: 'load' });
-    await page.waitForTimeout(6000);
-    for (const [w, h] of sizes) await shot('game', w, h, `${BASE}/game.html?matchId=${made.matchId}`);
+    // The real route: the lobby, Start War, then the game screen.
+    await page.goto(`${BASE}/lobby.html?matchId=${made.matchId}`, { waitUntil: 'load' });
+    await page.waitForFunction(() => typeof currentState !== 'undefined' && currentState, { timeout: 12000 });
+    await page.evaluate(() => TW.emitAck('lobby:start_war', {}));
+    await page.waitForURL('**/game*', { timeout: 30000 });
+    await page.waitForLoadState('load');
+    for (const [w, h] of sizes) await shot('game', w, h, page.url());
     const out = await page.evaluate(async (id) => {
-      const m = await (await fetch(`/api/match/${id}`)).json();
       await TW.emitAck('player:join', { matchId: id });
-      await TW.emitAck('player:ready', {});
-      // Solo has a short countdown after everyone is ready.
-      await new Promise((r) => setTimeout(r, 6000));
+      let m;
+      for (let i = 0; i < 45; i++) {
+        m = await (await fetch(`/api/match/${id}`)).json();
+        if (m.status === 'active') break;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      if (m.status !== 'active') return { error: `status stayed ${m.status}` };
       const opened = await TW.emitAck('trade:open', { symbol: m.instruments[0], direction: 'BUY', lots: 0.01 });
       if (!opened.success) return { error: `open: ${opened.error}` };
       const closed = await TW.emitAck('trade:close', { positionId: opened.position.id });
