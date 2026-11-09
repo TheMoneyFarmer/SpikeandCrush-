@@ -824,6 +824,19 @@ app.post('/api/auth/verify-email', authLimiter, requireDb, async (req, res) => {
 
     const { data, error } = await supabaseAdmin.auth.admin.getUserById(parsed.userId);
     const user = data?.user;
+    if (parsed.change) {
+      if (error || !user) return res.status(400).json({ error: 'This link is not valid' });
+      if (String(user.email).toLowerCase() === parsed.email) return res.json({ verified: true, emailChanged: true });
+      const player = await db.getPlayerBySupabaseUserId(user.id);
+      const taken = await db.getPlayerByEmail(parsed.email);
+      if (!player || (taken && taken.id !== player.id)) return res.status(409).json({ error: 'That email is already in use' });
+      const oldEmail = player.email;
+      const { error: moveErr } = await supabaseAdmin.auth.admin.updateUserById(user.id, { email: parsed.email, email_confirm: true });
+      if (moveErr) throw moveErr;
+      await db.updatePlayer(player.id, { email: parsed.email });
+      if (oldEmail) sendEmail({ to: oldEmail, ...emailVerification.emailChangedNotice({ username: player.username }) }).catch((e) => console.warn('[email change] notice failed:', e.message));
+      return res.json({ verified: true, emailChanged: true });
+    }
     if (error || !user || String(user.email).toLowerCase() !== parsed.email) {
       return res.status(400).json({ error: 'This link is not valid' });
     }
@@ -1195,14 +1208,31 @@ app.patch('/api/player/me', requireDb, authenticate, async (req, res) => {
       updates.username = username;
     }
 
+    let pendingEmail = null;
     if (email && email !== player.email) {
       const existing = await db.getPlayerByEmail(email);
       if (existing && existing.id !== player.id) return res.status(409).json({ error: 'Email already registered' });
-      if (player.supabase_user_id) {
+      if (EMAIL_VERIFICATION_ON && player.supabase_user_id) {
+        // Nothing changes until the link in the NEW inbox is clicked, so an account
+        // can't be moved to an address nobody controls.
+        if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return res.status(400).json({ error: 'Enter a valid email address' });
+        }
+        if (!allowVerificationResend(`change:${player.id}`)) {
+          return res.status(429).json({ error: 'A confirmation email was sent recently. Please check your inbox or try again soon.' });
+        }
+        const token = emailVerification.createToken({ userId: player.supabase_user_id, email, change: true }, process.env.SUPABASE_SERVICE_KEY);
+        const link = `${publicSiteUrl(req)}/verify-email?token=${encodeURIComponent(token)}`;
+        const sent = await sendEmail({ to: email, ...emailVerification.emailChangeEmail({ username: player.username, link }) });
+        if (!sent?.id) return res.status(502).json({ error: 'Could not send the confirmation email. Please try again.' });
+        pendingEmail = email;
+      } else if (player.supabase_user_id) {
         const { error: emailErr } = await supabaseAdmin.auth.admin.updateUserById(player.supabase_user_id, { email });
         if (emailErr) return res.status(400).json({ error: emailErr.message });
+        updates.email = email;
+      } else {
+        updates.email = email;
       }
-      updates.email = email;
     }
 
     if (newPassword) {
@@ -1214,11 +1244,11 @@ app.patch('/api/player/me', requireDb, authenticate, async (req, res) => {
     }
 
     if (Object.keys(updates).length === 0) {
-      return res.json({ player: sanitizePlayer(player) });
+      return res.json({ player: sanitizePlayer(player), pendingEmail });
     }
 
     const updated = await db.updatePlayer(player.id, updates);
-    res.json({ player: sanitizePlayer(updated) });
+    res.json({ player: sanitizePlayer(updated), pendingEmail });
   } catch (e) {
     console.error('[player/me patch]', e);
     res.status(500).json({ error: 'Could not update profile' });
@@ -2459,7 +2489,15 @@ app.post('/api/tournament/:id/play', deployDrain.blockNewMatches, requireDb, aut
     if (matchup.status === 'void') return res.status(400).json({ error: 'This matchup ended in a draw - both players were eliminated' });
     if (matchup.status === 'bye') return res.status(400).json({ error: 'You advanced on a bye - no match to play this round' });
 
-    if (matchup.matchId) return res.json({ matchId: matchup.matchId });
+    if (matchup.matchId && gameEngine.getMatch(matchup.matchId)) return res.json({ matchId: matchup.matchId });
+    if (matchup.matchId) {
+      // The round's match isn't on this server. If it finished, the bracket update
+      // is on its way; if a crash lost it, the round is played again.
+      const row = await db.getMatch(matchup.matchId).catch(() => null);
+      if (row && row.status !== 'voided') return res.status(409).json({ error: 'This round was interrupted. You can replay it in a few minutes.' });
+      matchup.matchId = null;
+      matchup.status = 'ready';
+    }
 
     const [playerA, playerB, deckA, deckB] = await Promise.all([db.getPlayerById(matchup.playerAId), db.getPlayerById(matchup.playerBId), loadSavedDeck(matchup.playerAId), loadSavedDeck(matchup.playerBId)]);
     const toPlayerInfo = (p) => ({ id: p.id, username: p.username, country: p.country, war_rating: p.war_rating, tier: tierForRating(p.war_rating) });

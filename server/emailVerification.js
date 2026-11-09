@@ -17,9 +17,11 @@ function sign(payload, secret) {
   return crypto.createHmac('sha256', signingKey(secret)).update(payload).digest('base64url');
 }
 
-function createToken({ userId, email }, secret, now = Date.now()) {
+// `change` marks a link that switches the account to a new address, so an old
+// sign-up link can never be used to move an account.
+function createToken({ userId, email, change = false }, secret, now = Date.now()) {
   const payload = Buffer.from(
-    JSON.stringify({ u: userId, e: String(email).toLowerCase(), x: now + TOKEN_TTL_MS })
+    JSON.stringify({ u: userId, e: String(email).toLowerCase(), x: now + TOKEN_TTL_MS, ...(change ? { c: 1 } : {}) })
   ).toString('base64url');
   return `${payload}.${sign(payload, secret)}`;
 }
@@ -34,10 +36,10 @@ function readToken(token, secret, now = Date.now()) {
   const given = Buffer.from(sig);
   if (expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) return null;
   try {
-    const { u, e, x } = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    const { u, e, x, c } = JSON.parse(Buffer.from(payload, 'base64url').toString());
     if (!u || !e || !Number.isFinite(x)) return null;
     if (x <= now) return { expired: true };
-    return { userId: u, email: e };
+    return { userId: u, email: e, ...(c === 1 ? { change: true } : {}) };
   } catch (err) {
     return null;
   }
@@ -70,6 +72,27 @@ function verificationEmail({ username, link }) {
   };
 }
 
+function emailChangeEmail({ username, link }) {
+  return {
+    subject: 'Confirm your new Spike & Crush email',
+    text: `Hi ${username},\n\nConfirm this as your new email:\n${link}\n\nThe link works for 24 hours. Your email stays the same until you confirm. If this wasn't you, ignore this email.`,
+    html: `<p>Hi ${username},</p>
+<p>Confirm this as your new Spike &amp; Crush email.</p>
+<p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#1fd38a;color:#0b1220;border-radius:8px;font-weight:700;text-decoration:none">Confirm new email</a></p>
+<p>The link works for 24 hours. Your email stays the same until you confirm. If this wasn't you, ignore this email.</p>`,
+  };
+}
+
+function emailChangedNotice({ username }) {
+  return {
+    subject: 'Your Spike & Crush email was changed',
+    text: `Hi ${username},\n\nThe email on your account was just changed. If this wasn't you, reply to this email or contact hello@spikeandcrush.com straight away.`,
+    html: `<p>Hi ${username},</p>
+<p>The email on your Spike &amp; Crush account was just changed.</p>
+<p>If this wasn't you, contact <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a> straight away.</p>`,
+  };
+}
+
 function passwordResetEmail({ link }) {
   return {
     subject: 'Reset your Spike & Crush password',
@@ -94,4 +117,4 @@ function publicSiteUrl({ origin, allowedOrigins = [], siteUrl, port }) {
   return `http://localhost:${port}`;
 }
 
-module.exports = { TOKEN_TTL_MS, createToken, readToken, createResendGuard, verificationEmail, passwordResetEmail, publicSiteUrl };
+module.exports = { TOKEN_TTL_MS, createToken, readToken, createResendGuard, verificationEmail, emailChangeEmail, emailChangedNotice, passwordResetEmail, publicSiteUrl };

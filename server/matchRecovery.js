@@ -15,9 +15,9 @@ const WAITING_LOST_AFTER_MS = 75 * 60 * 1000; // longer than any lobby may live
 const NEVER_STARTED_LOST_AFTER_MS = 3 * 60 * 60 * 1000;
 const MESSAGE = 'A match you were in was interrupted by a server problem, so your entry coins have been refunded.';
 const NO_FEE_MESSAGE = 'A match you were in was interrupted by a server problem and did not count.';
+const TOURNAMENT_MESSAGE = 'Your tournament round was interrupted by a server problem. Open the tournament to play it again.';
 
 function isLost(row, modes, nowMs) {
-  if (row.mode === 'tournament') return false; // its entry belongs to the bracket
   const created = new Date(row.created_at).getTime();
   if (row.status === 'waiting') return nowMs - created > WAITING_LOST_AFTER_MS;
   if (row.status !== 'active') return false;
@@ -61,10 +61,12 @@ function createMatchRecovery({ db, gameEngine, notifyPlayer }) {
           await db.creditCoins(refund.playerId, refund.amount, { type: 'match_refund', matchId: row.id, idempotencyKey: refund.key });
           refunded++;
         }
+        // A tournament's entry belongs to the bracket: nobody is refunded, the round
+        // is replayed (see /api/tournament/:id/play).
         const refundedPlayers = new Set(due.map((r) => r.playerId));
         for (const playerId of refundedPlayers) notifyPlayer?.(playerId, 'match_voided', MESSAGE);
         for (const playerId of await db.listHumanMatchPlayerIds(row.id)) {
-          if (!refundedPlayers.has(playerId)) notifyPlayer?.(playerId, 'match_voided', NO_FEE_MESSAGE);
+          if (!refundedPlayers.has(playerId)) notifyPlayer?.(playerId, 'match_voided', row.mode === 'tournament' ? TOURNAMENT_MESSAGE : NO_FEE_MESSAGE);
         }
         // Last, so a failure part way through is simply retried next sweep.
         await db.updateMatch(row.id, { status: 'voided', end_time: new Date(nowMs).toISOString() });

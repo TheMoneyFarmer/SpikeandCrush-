@@ -35,7 +35,7 @@ test('a match only counts as lost once it cannot still be running', () => {
   assert.strictEqual(isLost({ mode: 'grand', status: 'active', created_at: ago(35), start_time: ago(35) }, MODES, NOW), true);
   assert.strictEqual(isLost({ mode: 'quick', status: 'waiting', created_at: ago(70) }, MODES, NOW), false);
   assert.strictEqual(isLost({ mode: 'quick', status: 'waiting', created_at: ago(80) }, MODES, NOW), true);
-  assert.strictEqual(isLost({ mode: 'tournament', status: 'waiting', created_at: ago(9999) }, MODES, NOW), false);
+  assert.strictEqual(isLost({ mode: 'tournament', status: 'waiting', created_at: ago(9999) }, MODES, NOW), true);
   assert.strictEqual(isLost({ mode: 'quick', status: 'finished', created_at: ago(9999) }, MODES, NOW), false);
 });
 
@@ -188,4 +188,35 @@ test('alerts are throttled', async () => {
   m.alert('x', 'one', {}); m.alert('x', 'two', {}); m.alert('y', 'three', {});
   await new Promise((r) => setImmediate(r));
   assert.deepStrictEqual(sent, ['one', 'three']);
+});
+
+test('a lost tournament round refunds nobody and tells players to replay it', async () => {
+  const db = recoveryDb([{ id: 't', mode: 'tournament', status: 'active', created_at: ago(60), start_time: ago(60) }], []);
+  const told = [];
+  const recovery = createMatchRecovery({ db, gameEngine: { MATCH_MODES: { tournament: { durationSeconds: 900 } }, getMatch: () => null }, notifyPlayer: (id, type, text) => told.push(text) });
+  assert.deepStrictEqual(await recovery.sweep(NOW), { voided: 1, refunded: 0 });
+  assert.deepStrictEqual(db.calls.credits, []);
+  assert.match(told[0], /play it again/);
+});
+
+test('bot names spread evenly across live matches and free up when a match ends', () => {
+  const personas = require('../server/personas');
+  const style = personas.TRADER_PERSONAS[0].style;
+  const poolSize = personas.TRADER_PERSONAS.filter((p) => p.style === style).length;
+  const names = [];
+  for (let i = 0; i < poolSize; i++) names.push(personas.getPersona(style, `spread-${i}`).username);
+  assert.strictEqual(new Set(names).size, poolSize, 'every name used once before any repeats');
+  for (let i = 0; i < poolSize; i++) personas.resetMatchPersonas(`spread-${i}`);
+  const again = [];
+  for (let i = 0; i < poolSize; i++) again.push(personas.getPersona(style, `again-${i}`).username);
+  assert.strictEqual(new Set(again).size, poolSize, 'counts were released');
+  for (let i = 0; i < poolSize; i++) personas.resetMatchPersonas(`again-${i}`);
+});
+
+test('email links: a change link is marked, and a sign-up link can never move an account', () => {
+  const v = require('../server/emailVerification');
+  const change = v.readToken(v.createToken({ userId: 'u', email: 'New@Example.com', change: true }, 'secret'), 'secret');
+  assert.deepStrictEqual(change, { userId: 'u', email: 'new@example.com', change: true });
+  const signup = v.readToken(v.createToken({ userId: 'u', email: 'a@example.com' }, 'secret'), 'secret');
+  assert.strictEqual(signup.change, undefined);
 });

@@ -11,6 +11,10 @@
 // ORIGIN_LOCK=on blocks direct requests, =report only labels /health with the
 // result, =off does nothing (the emergency switch). Default: DEFAULT_MODE in
 // production, off elsewhere.
+// With ORIGIN_SECRET set, a request is only "through Cloudflare" if it carries the
+// secret header a Cloudflare Transform Rule adds (X-Origin-Secret). Nobody can fake
+// that, unlike guessing from addresses, so it is the check to rely on when it's set.
+const crypto = require('crypto');
 const net = require('net');
 
 const DEFAULT_MODE = 'report';
@@ -48,10 +52,18 @@ function isCloudflareIp(ip) {
 
 // 'cloudflare', 'direct', or 'internal' (no proxy involved: private network,
 // localhost, Railway's health checker).
+function hasOriginSecret(headers = {}) {
+  const expected = process.env.ORIGIN_SECRET;
+  const given = headers['x-origin-secret'];
+  if (!expected || typeof given !== 'string' || given.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+}
+
 function classify(headers = {}) {
   if (String(headers.host || '').split(':')[0] === 'healthcheck.railway.app') return 'internal';
   const forwarded = headers['x-forwarded-for'];
   if (!forwarded) return 'internal';
+  if (process.env.ORIGIN_SECRET) return hasOriginSecret(headers) ? 'cloudflare' : 'direct';
   const hops = String(forwarded).split(',').map((s) => s.trim()).filter(Boolean);
   return isCloudflareIp(hops[hops.length - 1]) ? 'cloudflare' : 'direct';
 }
@@ -82,6 +94,7 @@ function originReport(req, mode, via) {
     `cloudflare-hops=${cfHops.join('+') || 'none'}`,
     `cf-header=${net.isIP(String(headers['cf-connecting-ip'] || '').trim()) ? 'yes' : 'no'}`,
     `cf-ray=${headers['cf-ray'] ? 'yes' : 'no'}`,
+    `secret=${process.env.ORIGIN_SECRET ? (hasOriginSecret(headers) ? 'ok' : 'missing') : 'unset'}`,
     `x-real-ip=${headers['x-real-ip'] ? 'yes' : 'no'}`,
   ].join('; ');
 }

@@ -4,7 +4,7 @@
 // bridge and local development are not. Uses the real middleware.
 const test = require('node:test');
 const assert = require('node:assert');
-const { originLock, classify, isCloudflareIp, isExempt, currentMode, CLOUDFLARE_V4, CLOUDFLARE_V6 } = require('../server/originLock');
+const { visitorIp, originLock, classify, isCloudflareIp, isExempt, currentMode, CLOUDFLARE_V4, CLOUDFLARE_V6 } = require('../server/originLock');
 
 function run(mode, { url = '/', headers = {}, ip } = {}) {
   const before = process.env.ORIGIN_LOCK;
@@ -79,4 +79,19 @@ test('off is the emergency switch, and local development is off by default', () 
   assert.strictEqual(currentMode(), 'off');
   if (env.lock !== undefined) process.env.ORIGIN_LOCK = env.lock;
   if (env.node === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = env.node;
+});
+
+test('with ORIGIN_SECRET set, only the secret header proves Cloudflare', () => {
+  process.env.ORIGIN_SECRET = 'a-long-shared-secret';
+  try {
+    const forwarded = { 'x-forwarded-for': '203.0.113.9, 162.158.1.1', 'cf-connecting-ip': '203.0.113.9' };
+    assert.strictEqual(classify(forwarded), 'direct', 'a Cloudflare-looking address is not enough');
+    assert.strictEqual(classify({ ...forwarded, 'x-origin-secret': 'wrong-secret-of-same-l' }), 'direct');
+    assert.strictEqual(classify({ ...forwarded, 'x-origin-secret': 'a-long-shared-secret' }), 'cloudflare');
+    assert.strictEqual(visitorIp({ headers: { ...forwarded, 'x-origin-secret': 'a-long-shared-secret' }, ip: '1.1.1.1' }), '203.0.113.9');
+    assert.strictEqual(visitorIp({ headers: forwarded, ip: '198.51.100.1' }), '198.51.100.1', 'a faked header is ignored without the secret');
+    assert.strictEqual(classify({ host: 'healthcheck.railway.app' }), 'internal');
+  } finally {
+    delete process.env.ORIGIN_SECRET;
+  }
 });

@@ -134,13 +134,20 @@ function ratingForStyle(style) {
 // keyed by matchId, so the same match never gets two personas with the same
 // name. Cleared via resetMatchPersonas() when a match ends/is removed.
 const usedByMatch = new Map();
+// How many live matches each name is in right now. Picks prefer the least used,
+// so with many matches running the same names don't keep showing up together.
+const liveCount = new Map();
 
 function getPersona(style, matchId) {
   const pool = TRADER_PERSONAS.filter((p) => p.style === style);
   const used = matchId ? usedByMatch.get(matchId) || new Set() : new Set();
   const available = pool.filter((p) => !used.has(p.username));
 
-  const persona = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : pool[Math.floor(Math.random() * pool.length)];
+  const candidates = available.length > 0 ? available : pool;
+  const fewest = Math.min(...candidates.map((p) => liveCount.get(p.username) || 0));
+  const leastUsed = candidates.filter((p) => (liveCount.get(p.username) || 0) === fewest);
+  const persona = leastUsed[Math.floor(Math.random() * leastUsed.length)];
+  if (matchId) liveCount.set(persona.username, (liveCount.get(persona.username) || 0) + 1);
 
   if (matchId) {
     used.add(persona.username);
@@ -151,6 +158,11 @@ function getPersona(style, matchId) {
 }
 
 function resetMatchPersonas(matchId) {
+  for (const username of usedByMatch.get(matchId) || []) {
+    const left = (liveCount.get(username) || 0) - 1;
+    if (left > 0) liveCount.set(username, left);
+    else liveCount.delete(username);
+  }
   usedByMatch.delete(matchId);
 }
 

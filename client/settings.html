@@ -537,7 +537,12 @@
         document.getElementById('pCurrentPassword').value = '';
         document.getElementById('pNewPassword').value = '';
         TW.updateHeader();
-        TW.toast('Account details saved', 'info');
+        if (data.pendingEmail) {
+          document.getElementById('pEmail').value = data.player.email || '';
+          TW.toast(`Check ${data.pendingEmail} and click the link to confirm your new email`, 'info');
+        } else {
+          TW.toast('Account details saved', 'info');
+        }
       } catch (err) {
         errEl.textContent = err.message;
       }

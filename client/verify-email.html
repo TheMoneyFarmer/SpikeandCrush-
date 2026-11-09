@@ -73,7 +73,12 @@
           body: JSON.stringify({ token }),
         });
         const data = await res.json().catch(() => ({}));
-        if (res.ok) {
+        if (res.ok && data.emailChanged) {
+          show('Email changed', 'Your account now uses this address.');
+          loginBtn.hidden = false;
+        } else if (res.status === 409) {
+          show('Email not changed', data.error || 'That email is already in use.');
+        } else if (res.ok) {
           show('Email verified', 'Your account is ready. Log in to start playing.');
           loginBtn.hidden = false;
         } else if (data.expired) {
