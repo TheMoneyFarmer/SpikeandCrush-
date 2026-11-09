@@ -15,6 +15,7 @@ const http = require('http');
 const cors = require('cors');
 const bcrypt = require('bcryptjs'); // still used for the legacy-account migration path in /api/auth/login
 const { createClient } = require('@supabase/supabase-js');
+const { createTokenVerifier } = require('./authTokens');
 const { createPasswordSignIn, isSignInRateLimited, SignInBusyError, BUSY_MESSAGE: SIGN_IN_BUSY_MESSAGE } = require('./passwordSignIn');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
@@ -61,6 +62,11 @@ const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABAS
   auth: { autoRefreshToken: false, persistSession: false },
   global: { fetch: db.fetchWithTimeout }, // shares the ceiling on database traffic
 });
+// Login tokens are checked here, not by asking Supabase Auth each time (server/authTokens.js).
+const tokens = createTokenVerifier({ supabaseUrl: process.env.SUPABASE_URL, supabaseAdmin });
+tokens.loadKeys();
+const getAuthUser = async (token) => ({ data: { user: await tokens.getUser(token, { requireVerifiedEmail: EMAIL_VERIFICATION_ON }) }, error: null });
+
 // See server/passwordSignIn.js. Warns the owner when Supabase's limit is being hit.
 const passwordSignInFor = createPasswordSignIn({
   createClient,
@@ -345,7 +351,7 @@ async function authenticate(req, res, next) {
     const {
       data: { user },
       error,
-    } = await supabaseAdmin.auth.getUser(token);
+    } = await getAuthUser(token);
     if (error || !user) return res.status(401).json({ error: 'Invalid or expired token' });
     if (needsEmailVerification(user)) return res.status(403).json({ error: VERIFY_MESSAGE, needsVerification: true });
 
@@ -914,7 +920,7 @@ app.post('/api/auth/oauth-callback', authLimiter, requireDb, async (req, res) =>
     const {
       data: { user },
       error,
-    } = await supabaseAdmin.auth.getUser(token);
+    } = await getAuthUser(token);
     if (error || !user) return res.status(401).json({ error: 'Invalid or expired token' });
 
     const existing = await db.getPlayerBySupabaseUserId(user.id);
@@ -2846,7 +2852,7 @@ app.all(['/api/withdraw', '/api/withdrawals', '/api/withdrawal-requests', '/api/
 // Everything lives in server/support/ (see support/index.js for the routes,
 // the /support socket namespace and the admin bridge).
 const { mountSupport } = require('./support');
-mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp, limiters: { message: supportChatLimiter, ticket: supportTicketLimiter } });
+mountSupport({ app, io, supabaseAdmin, getAuthUser, db, notifyPlayer, clientIp, limiters: { message: supportChatLimiter, ticket: supportTicketLimiter } });
 
 app.get('/api/version', (req, res) => {
   res.json({ version: require('../package.json').version });
@@ -3026,7 +3032,7 @@ async function optionalViewerId(req) {
   try {
     const {
       data: { user },
-    } = await supabaseAdmin.auth.getUser(token);
+    } = await getAuthUser(token);
     if (!user) return null;
     const player = await db.getPlayerBySupabaseUserId(user.id);
     return player?.id || null;
@@ -3158,7 +3164,7 @@ io.use(async (socket, next) => {
     const {
       data: { user },
       error,
-    } = await supabaseAdmin.auth.getUser(token);
+    } = await getAuthUser(token);
     if (error || !user) return next(new Error('unauthorized'));
     if (needsEmailVerification(user)) return next(new Error('unverified'));
 

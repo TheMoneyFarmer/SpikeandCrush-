@@ -39,10 +39,12 @@ async function logIn(rows, keepMinutes = KEEP_IF_MINUTES_LEFT) {
         row.expires = data.session.expires_at;
         break;
       }
-      if (error.status !== 429 || attempt > 40) throw error;
+      // A wrong password won't change; anything else (rate limit, network blip) can.
+      if (error.code === 'invalid_credentials' || attempt > 40) throw error;
       limited++;
       await sleep(15000);
     }
+    if (i % 25 === 0) writeAccounts(rows); // so a failure doesn't lose the progress
     if ((i + 1) % 100 === 0) console.log(`  ${i + 1}/${due.length} (${Math.round((Date.now() - started) / 1000)}s, rate limited ${limited} times)`);
     await sleep(SIGN_IN_GAP_MS);
   }

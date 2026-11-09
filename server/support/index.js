@@ -34,7 +34,7 @@ function createAdminBridge() {
   };
 }
 
-function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp, limiters = {} }) {
+function mountSupport({ app, io, supabaseAdmin, getAuthUser, db, notifyPlayer, clientIp, limiters = {} }) {
   const pass = (req, res, next) => next();
   const messageLimiter = limiters.message || pass;
   const ticketLimiter = limiters.ticket || pass;
@@ -55,7 +55,7 @@ function mountSupport({ app, io, supabaseAdmin, db, notifyPlayer, clientIp, limi
   async function ownerFromToken(token, guestToken, ip) {
     if (token) {
       try {
-        const { data, error } = await supabaseAdmin.auth.getUser(token);
+        const { data, error } = await (getAuthUser ? getAuthUser(token) : supabaseAdmin.auth.getUser(token));
         if (!error && data && data.user) {
           const player = await db.getPlayerBySupabaseUserId(data.user.id);
           if (player) return { playerId: player.id, actorKey: `p:${player.id}` };

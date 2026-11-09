@@ -45,3 +45,23 @@ about the visitor. `TRUST_PROXY_HOPS` doesn't need changing.
 
 For an outside uptime check, monitor `GET /health` (process up) and `GET /ready`
 (database reachable).
+
+## Login checks
+
+Logged-in requests and socket connections check the login token on this server
+against Supabase's published public key (`server/authTokens.js`), so a slow or
+down Supabase Auth doesn't cut off players already logged in. A logged-out
+session's token keeps working until it expires (an hour at most). Bans are read
+from the player record every time, so they apply at once.
+
+## Load test
+
+`scripts/load-test/`: starts a local server against the dev database and plays
+virtual players through the real lobby, sockets, matches and competitions.
+
+    node scripts/load-test/accounts.js setup 750   # once; logins take ~26 min (Supabase limit)
+    node scripts/load-test/run.js 100,250,500,750 3
+    node scripts/load-test/competition-scale.js 5000 1000
+    node scripts/load-test/accounts.js cleanup
+
+It refuses to run against anything but the dev project.
