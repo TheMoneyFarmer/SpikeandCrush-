@@ -824,9 +824,9 @@ window.TW = window.TW || {};
 
   async function confirmLeaveMatch() {
     const confirmed = await confirmDialog({
-      title: 'Leave this match?',
-      body: 'You will forfeit remaining benefits from this match. Your final rank will be recorded as last place.',
-      confirmLabel: 'Confirm Leave',
+      title: 'Forfeit this match?',
+      body: 'Your open trades close now, you finish last, and you can\'t rejoin. To look at another page without forfeiting, use Home instead.',
+      confirmLabel: 'Forfeit',
     });
     if (!confirmed) return;
 
@@ -1411,20 +1411,20 @@ window.TW = window.TW || {};
     TW.toast(`✅ ${data.username} reconnected`, 'info');
   });
 
-  window.addEventListener('beforeunload', (e) => {
-    if (!matchId || (lastState && lastState.status === 'finished')) return;
-    e.preventDefault();
-    e.returnValue = 'You are in a match. Leaving will result in last place.';
-    return e.returnValue;
-  });
-
   socket.on('match:state', (state) => {
     lastState = state;
     setupInstrumentTabs(state.instruments);
     TW.Sabotage.render(state);
     if (!rulesOverlayShown) {
       rulesOverlayShown = true;
-      showMatchRules(state);
+      // Only once per match: not again each time the player comes back.
+      const rulesKey = `sc_rules_seen_${matchId}`;
+      let seen = false;
+      try {
+        seen = sessionStorage.getItem(rulesKey) === '1';
+        sessionStorage.setItem(rulesKey, '1');
+      } catch (e) { /* storage blocked: show the rules */ }
+      if (!seen) showMatchRules(state);
     }
 
     const me = state.players.find((p) => p.id === state.you);

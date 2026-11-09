@@ -21,7 +21,7 @@ const { Server } = require('socket.io');
 const db = require('./database');
 const { sendEmail, renderTemplate } = require('../admin/lib/email');
 const emailVerification = require('./emailVerification');
-const { createGameEngine, tierForRating, TIERS } = require('./gameEngine');
+const { createGameEngine, LIVE_MATCH_BUSY_ERROR, tierForRating, TIERS } = require('./gameEngine');
 const matchmaking = require('./matchmaking');
 const totp = require('./totp');
 const sabotage = require('./sabotage');
@@ -189,7 +189,7 @@ async function notifyFriendsOfWin(playerId, username, modeLabel, pnl, matchId) {
   }
 }
 
-const gameEngine = createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin);
+const gameEngine = createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, (playerId) => playerSockets.has(playerId));
 const { createCompEngine } = require('./compEngine');
 const { createLobbyRouter } = require('./lobby');
 const compEngine = createCompEngine({ io, notifyPlayer });
@@ -991,6 +991,7 @@ app.post('/api/match/create', deployDrain.blockNewMatches, requireDb, authentica
   try {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
+    if (gameEngine.isInLiveMatch(player.id)) return res.status(409).json({ error: LIVE_MATCH_BUSY_ERROR });
     const mode = MATCHMAKING_BY_MODE[req.body?.mode] ? req.body.mode : 'private';
     const modeConfig = gameEngine.MATCH_MODES[mode];
     const entryCoins = modeConfig ? modeConfig.entryCoins : 0;
@@ -2885,6 +2886,7 @@ io.on('connection', (socket) => {
   if (notifyPid) {
     if (!playerSockets.has(notifyPid)) playerSockets.set(notifyPid, new Set());
     playerSockets.get(notifyPid).add(socket.id);
+    gameEngine.noteSiteConnected(notifyPid);
 
     // A page navigation disconnects the old socket and immediately opens a
     // new one - cancel any pending "went offline" timer so that doesn't
@@ -2902,6 +2904,7 @@ io.on('connection', (socket) => {
         set.delete(socket.id);
         if (set.size === 0) {
           playerSockets.delete(notifyPid);
+          gameEngine.noteSiteDisconnected(notifyPid);
           presence.scheduleOffline(notifyPid, () => broadcastPresenceToFriends(notifyPid, presence.getPresence(notifyPid)));
         }
       }
@@ -3004,6 +3007,17 @@ io.on('connection', (socket) => {
     const result = session
       ? await gameEngine.leaveMatch(session.matchId, session.playerId)
       : { success: false, error: 'Not joined to a match' };
+    if (typeof ack === 'function') ack(result);
+  });
+
+  // Live match card (client/js/live-match.js): the player's current match,
+  // readable and forfeitable from any page, without being bound to the match.
+  socket.on('match:live', (_data, ack) => {
+    if (typeof ack === 'function') ack({ success: true, live: notifyPid ? gameEngine.getLiveMatchStatus(notifyPid) : null });
+  });
+
+  socket.on('match:forfeit', async (data, ack) => {
+    const result = notifyPid ? await gameEngine.forfeitLiveMatch(notifyPid, data?.matchId) : { success: false, error: 'Not logged in' };
     if (typeof ack === 'function') ack(result);
   });
 

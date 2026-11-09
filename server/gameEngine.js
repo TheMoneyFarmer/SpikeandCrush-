@@ -17,6 +17,8 @@ const MAX_POSITIONS = 10;
 const SOFT_LOSS_WINDOW_SECONDS = 120; // 2 minutes
 const SOFT_LOSS_PCT = 0.2; // 20% of starting capital lost within the current window -> locked out until it resets
 const RECONNECT_GRACE_MS = 60000; // disconnect grace before a mid-match forfeit (startDisconnectGrace)
+const LIVE_MATCH_BUSY_ERROR = 'You have a match in progress. Continue or forfeit it first.';
+const DISCONNECT_NOTICE_DELAY_MS = 5000; // a page change drops the socket briefly: don't announce that to the room
 // The core trading rules, shared with long-form competitions (compEngine.js)
 // so both play by the same numbers.
 const GAME_RULES = { STARTING_CAPITAL, MAX_POSITIONS, ...marginRules.MARGIN_RULES };
@@ -323,7 +325,7 @@ async function ensurePersonaPlayer(matchId, style) {
   return { ...resolved, personality: persona.style };
 }
 
-function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) {
+function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, isPlayerOnSite) {
   const matches = new Map();
   const roomCodeIndex = new Map(); // roomCode -> matchId
   const socketSessions = new Map(); // socketId -> { matchId, playerId }
@@ -636,7 +638,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
 
   function getPreMatchHistory(matchId) {
     const match = matches.get(matchId);
-    if (!match) return null;
+    if (!match || match.endPayload) return null;
     // A finished match releases its price windows immediately (endMatch) but the
     // match record itself lingers in `matches` for a few more minutes before
     // cleanup - in that gap, history is simply no longer available rather than
@@ -658,7 +660,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
           instruments.assignMatchWindow(matchId, symbol, seed);
           symbolHistory = instruments.getPreMatchHistory(matchId, symbol);
         }
-        history[symbol] = { ticks: symbolHistory, ...instruments.getChartContext(matchId, symbol) };
+        // Prices already played, so a player returning mid-match sees their
+        // chart filled in. Never anything past the clock: this route is public.
+        const played = match.startedAt
+          ? instruments.getFullLiveSeries(matchId, symbol).slice(0, getElapsedSeconds(match, Date.now()) + 1)
+          : [];
+        history[symbol] = { ticks: symbolHistory.concat(played), ...instruments.getChartContext(matchId, symbol) };
       }
       return history;
     } catch (e) {
@@ -709,10 +716,19 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     };
   }
 
+  function isInLiveMatch(playerId) {
+    return liveMatchesFor(playerId).length > 0;
+  }
+
   function joinMatch(match, playerInfo, socketId = null) {
     if (match.status !== 'waiting') return { success: false, error: 'Match already started' };
     if (match.players[playerInfo.id]) {
       return { success: true, alreadyJoined: true, match };
+    }
+    // Leaving the game screen keeps the seat, so a second match has to wait.
+    // Tournament brackets seat both players themselves on their schedule.
+    if (match.mode !== 'tournament' && isInLiveMatch(playerInfo.id)) {
+      return { success: false, error: LIVE_MATCH_BUSY_ERROR };
     }
     if (Object.keys(match.players).length >= match.config.maxPlayers) return { success: false, error: 'Match is full' };
 
@@ -1998,6 +2014,26 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     // need it) - see the publicPlayer() comment for why.
     const clientResults = results.map(({ isAI, ...r }) => r);
     emitToAll(match, 'match:end', { matchId: match.id, results: clientResults, feed: match.feed });
+    match.endPayload = { matchId: match.id, results: clientResults, feed: match.feed };
+    // Anyone browsing the site when the clock ran out didn't see the results
+    // screen. Same summary as an early leaver gets, minus the "left early".
+    for (const r of results) {
+      if (r.isAI || match.players[r.playerId]?.socketId) continue;
+      const top = results.find((x) => x.rank === 1);
+      notifyPlayer?.(r.playerId, 'match_summary', `Match summary: you finished #${r.rank} in ${match.config.label || match.mode}`, {
+        data: {
+          matchId: match.id,
+          mode: match.config.label || match.mode,
+          yourRank: r.rank,
+          leftEarly: false,
+          yourPnl: r.pnl,
+          winner: top?.username || null,
+          winnerPnl: top?.pnl ?? null,
+          ratingChange: r.ratingChange,
+          newRating: r.newRating,
+        },
+      });
+    }
     for (const r of results) {
       if (!r.isAI) updatePresence?.(r.playerId, { status: 'online', matchId: null, lobbyId: null, mode: null });
     }
@@ -2079,6 +2115,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     socketSessions.set(socket.id, { matchId, playerId });
 
     io.to(socket.id).emit('match:state', buildMatchStatePayloadFor(match, playerId));
+    // Tapped Continue just as the clock ran out: show the results they missed.
+    if (match.endPayload) io.to(socket.id).emit('match:end', match.endPayload);
     if (wasDisconnected) {
       pushFeed(match, `${player.username} reconnected`, { type: 'system' });
       emitToAll(match, 'match:player_reconnected', { playerId, username: player.username });
@@ -2200,46 +2238,136 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     return { success: true };
   }
 
-  // A human who disconnects mid-match (closed the tab, lost wifi) gets 60s to
-  // reconnect (bindSocket below clears this on a successful rejoin) before
-  // being treated as a voluntary leave - reuses leaveMatch's existing
-  // force-close-positions/last-place/rating-penalty logic rather than
-  // duplicating it. AI never disconnects, and a waiting/finished match has
-  // no clock running for anyone to lose out on, so only active/countdown
-  // matches start a timer at all.
+  // A human who has left the site mid-match (closed the tab, lost wifi) gets
+  // 60s to come back before being treated as a voluntary leave - reuses
+  // leaveMatch's force-close-positions/last-place/rating-penalty logic rather
+  // than duplicating it. Being anywhere else on the site is not leaving: the
+  // timer only runs while the player has no socket at all (noteSiteConnected
+  // and noteSiteDisconnected below), so they can open settings or the shop
+  // and pick the match back up from the live match card. AI never disconnects,
+  // and a waiting/finished match has no clock to lose out on, so only
+  // active/countdown matches start a timer.
   function startDisconnectGrace(match, playerId) {
     const key = `${match.id}:${playerId}`;
     if (disconnectTimers.has(key)) return;
     const player = match.players[playerId];
     if (!player) return;
 
-    pushFeed(match, `${player.username} lost connection - 60s to reconnect`, { type: 'system' });
-    emitToAll(match, 'match:player_disconnected', { playerId, username: player.username, graceSeconds: RECONNECT_GRACE_MS / 1000 });
-
-    const timer = setTimeout(() => {
+    const entry = { announced: false, announceTimer: null, timer: null };
+    // Moving between pages drops the socket for a moment. Only tell the room
+    // once it has lasted long enough to be a real connection loss.
+    entry.announceTimer = setTimeout(() => {
+      entry.announced = true;
+      const graceSeconds = (RECONNECT_GRACE_MS - DISCONNECT_NOTICE_DELAY_MS) / 1000;
+      pushFeed(match, `${player.username} lost connection - ${graceSeconds}s to reconnect`, { type: 'system' });
+      emitToAll(match, 'match:player_disconnected', { playerId, username: player.username, graceSeconds });
+    }, DISCONNECT_NOTICE_DELAY_MS);
+    entry.timer = setTimeout(() => {
       disconnectTimers.delete(key);
       const stillMatch = matches.get(match.id);
       const stillPlayer = stillMatch?.players[playerId];
-      // Only forfeit if they genuinely never reconnected - a bound socket
-      // means bindSocket already cleared this timer, but the closure could
-      // still fire on the old timer in a narrow race, so check again here.
-      if (stillPlayer && !stillPlayer.socketId) {
+      // Only forfeit if they genuinely never came back - clearDisconnectGrace
+      // normally cancels this, but check again for a narrow race.
+      if (stillPlayer && !stillPlayer.socketId && !isPlayerOnSite?.(playerId)) {
         leaveMatch(match.id, playerId, 'disconnect').catch((e) => console.error('[gameEngine] disconnect forfeit failed:', e.message));
       }
     }, RECONNECT_GRACE_MS);
-    disconnectTimers.set(key, timer);
+    disconnectTimers.set(key, entry);
   }
 
-  // Returns true if a grace period was actually pending (i.e. this is a
-  // genuine reconnect, not just a first-time join) - callers use that to
-  // decide whether a "player reconnected" notice is warranted.
+  // Returns true if the room was told this player lost connection - callers
+  // use that to decide whether a "player reconnected" notice is warranted.
   function clearDisconnectGrace(matchId, playerId) {
     const key = `${matchId}:${playerId}`;
-    const timer = disconnectTimers.get(key);
-    if (!timer) return false;
-    clearTimeout(timer);
+    const entry = disconnectTimers.get(key);
+    if (!entry) return false;
+    clearTimeout(entry.timer);
+    clearTimeout(entry.announceTimer);
     disconnectTimers.delete(key);
-    return true;
+    return entry.announced;
+  }
+
+  function liveMatchesFor(playerId) {
+    const out = [];
+    for (const match of matches.values()) {
+      if ((match.status === 'active' || match.status === 'countdown') && match.players[playerId] && !match.players[playerId].isAI) out.push(match);
+    }
+    return out;
+  }
+
+  // The player opened a page anywhere on the site.
+  function noteSiteConnected(playerId) {
+    for (const match of liveMatchesFor(playerId)) {
+      const player = match.players[playerId];
+      if (clearDisconnectGrace(match.id, playerId)) {
+        pushFeed(match, `${player.username} reconnected`, { type: 'system' });
+        emitToAll(match, 'match:player_reconnected', { playerId, username: player.username });
+      }
+    }
+  }
+
+  // The player's last socket anywhere on the site just closed.
+  function noteSiteDisconnected(playerId) {
+    for (const match of liveMatchesFor(playerId)) {
+      if (!match.players[playerId].socketId) startDisconnectGrace(match, playerId);
+    }
+  }
+
+  // What the live match card shows on every page outside the game screen.
+  function getLiveMatchStatus(playerId) {
+    const match = liveMatchesFor(playerId)[0];
+    if (!match) return null;
+    const player = match.players[playerId];
+    const nowMs = Date.now();
+    const elapsedSeconds = getElapsedSeconds(match, nowMs);
+    const round2 = (n) => Math.round(n * 100) / 100;
+
+    const positions = player.positions.map((pos) => {
+      const price = getEffectivePrice(match, pos.symbol, elapsedSeconds, nowMs, playerId);
+      const exitPrice = pos.direction === 'BUY' ? price.bid : price.ask;
+      return {
+        id: pos.id,
+        symbol: pos.symbol,
+        direction: pos.direction,
+        lots: pos.lots,
+        pnl: round2(instruments.calculatePnL(pos.direction, pos.lots, pos.entryPrice, exitPrice, pos.symbol)),
+      };
+    });
+    const equity = computeEquity(match, player, elapsedSeconds, nowMs);
+
+    // Smoke Screen hides the standings from everyone but its caster, so the
+    // card must not reveal them either.
+    const hidden = nowMs < match.marketEffects.smokeScreenUntil && match.marketEffects.smokeScreenCasterId !== playerId;
+    let rank = null;
+    if (!hidden) {
+      const ahead = Object.values(match.players).filter((p) => p.id !== playerId && computeEquity(match, p, elapsedSeconds, nowMs) > equity);
+      rank = ahead.length + 1;
+    }
+
+    return {
+      matchId: match.id,
+      modeLabel: match.config.label || (match.mode === 'private' ? 'Private War' : match.mode),
+      status: match.status,
+      remainingSeconds: match.status === 'active' ? Math.max(0, match.config.durationSeconds - elapsedSeconds) : null,
+      pnl: round2(equity - STARTING_CAPITAL),
+      equity: round2(equity),
+      rank,
+      playerCount: Object.keys(match.players).length,
+      eliminated: Boolean(player.eliminated),
+      positions,
+    };
+  }
+
+  // Forfeit from the live match card. The player may have no socket bound to
+  // the match at all, so this is keyed off their account instead of a session.
+  async function forfeitLiveMatch(playerId, matchId) {
+    const match = liveMatchesFor(playerId).find((m) => m.id === matchId);
+    if (!match) return { success: false, error: 'That match has already ended' };
+    // A game screen still open in another tab must not sit there frozen.
+    emitToPlayer(match, playerId, 'match:kicked', { reason: 'You forfeited this match.' });
+    const result = await leaveMatch(match.id, playerId);
+    if (result.success) updatePresence?.(playerId, { status: 'online', matchId: null, lobbyId: null, mode: null });
+    return result;
   }
 
   function handleDisconnect(socketId) {
@@ -2247,9 +2375,11 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     if (!session) return;
     const match = matches.get(session.matchId);
     const player = match?.players[session.playerId];
-    if (player) {
+    // Only the socket currently bound counts: a game screen replaced by a
+    // newer tab closing must not mark the player as gone.
+    if (player && player.socketId === socketId) {
       player.socketId = null;
-      if (!player.isAI && (match.status === 'active' || match.status === 'countdown')) {
+      if (!player.isAI && (match.status === 'active' || match.status === 'countdown') && !isPlayerOnSite?.(session.playerId)) {
         startDisconnectGrace(match, session.playerId);
       }
     }
@@ -2398,6 +2528,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
       return { success: false, error: `Cannot leave a match in status "${match.status}"` };
     }
 
+    clearDisconnectGrace(matchId, playerId);
     player.forfeited = true;
     for (const pos of player.positions.slice()) closeTrade(matchId, playerId, pos.id, 'left_match');
 
@@ -2524,6 +2655,11 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
     buildMatchStatePayloadFor,
     tierForRating,
     leaveMatch,
+    noteSiteConnected,
+    noteSiteDisconnected,
+    getLiveMatchStatus,
+    forfeitLiveMatch,
+    isInLiveMatch,
     // ---- admin panel bridge ----
     listActiveMatches,
     forceEndMatch,
@@ -2533,4 +2669,4 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin) 
   };
 }
 
-module.exports = { createGameEngine, GAME_RULES, MODE_DURATIONS, MATCH_MODES, SOFT_LOSS_PCT, SOFT_LOSS_WINDOW_SECONDS, RECONNECT_GRACE_SECONDS: RECONNECT_GRACE_MS / 1000, MAX_PLAYERS, PRIZE_SHARE_BY_RANK, baseRatingForPosition, tierForRating, TIERS, computeMatchResults, groupByTiedPnl, samePnl, getExperienceLevel, EXPERIENCE_LEVELS, PRIVATE_WAR_HOST_FEE };
+module.exports = { createGameEngine, LIVE_MATCH_BUSY_ERROR, GAME_RULES, MODE_DURATIONS, MATCH_MODES, SOFT_LOSS_PCT, SOFT_LOSS_WINDOW_SECONDS, RECONNECT_GRACE_SECONDS: RECONNECT_GRACE_MS / 1000, MAX_PLAYERS, PRIZE_SHARE_BY_RANK, baseRatingForPosition, tierForRating, TIERS, computeMatchResults, groupByTiedPnl, samePnl, getExperienceLevel, EXPERIENCE_LEVELS, PRIVATE_WAR_HOST_FEE };

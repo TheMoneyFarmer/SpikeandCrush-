@@ -494,5 +494,13 @@ window.TW = window.TW || {};
   }
 
   document.addEventListener('DOMContentLoaded', renderNav);
+  // The live match card: on every page with a nav, added here rather than
+  // to each page's script list.
+  document.addEventListener('DOMContentLoaded', () => {
+    if (document.querySelector('script[src$="live-match.js"]')) return;
+    const s = document.createElement('script');
+    s.src = '/js/live-match.js';
+    document.body.appendChild(s);
+  });
   TW.renderNav = renderNav;
 })();

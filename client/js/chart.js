@@ -370,7 +370,10 @@ TW.Chart = (function () {
         return;
       }
       if (!rawTicks[symbol]) rawTicks[symbol] = [];
-      const preTicks = ticks.map((p) => ({ t: p.t, mid: p.mid }));
+      // A match already underway sends the prices played so far too, which can
+      // overlap ticks that arrived while this was loading.
+      const firstLive = rawTicks[symbol].length ? rawTicks[symbol][0].t : Infinity;
+      const preTicks = ticks.filter((p) => p.t < firstLive).map((p) => ({ t: p.t, mid: p.mid }));
       rawTicks[symbol] = preTicks.concat(rawTicks[symbol]);
       if (entry.context) {
         contextBars[symbol] = entry.context;

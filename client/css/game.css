@@ -1777,6 +1777,11 @@ html, body {
   color: var(--sell);
   border-color: var(--sell);
 }
+.match-home-btn { text-decoration: none; }
+.match-home-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
 
 /* ---- FIX: disconnect reconnect overlay ---------------------------------------- */
 

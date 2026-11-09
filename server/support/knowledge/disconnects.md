@@ -9,12 +9,14 @@ needs_review: false
 
 # Disconnects and leaving a match
 
-If you lose connection during a match, you have **60 seconds** to reconnect. Open the same match again and you continue where you were.
+You can leave the game screen during a match to visit other pages, like Settings or Home. The match keeps running and your open trades stay open. A live match card shows your P&L and open trades on those pages, with **Continue match** and **Forfeit** buttons. You can't start another match until this one ends or you forfeit it.
 
-If you do not reconnect within 60 seconds, it counts as leaving the match (a forfeit):
+If you leave the site completely or lose connection, you have **60 seconds** to come back. Open the site again and tap Continue match on the card.
+
+If you do not come back within 60 seconds, it counts as a forfeit:
 - all your open positions are closed,
 - you are placed last,
 - in ranked modes you get the last-place rating change (-25),
 - the match carries on for everyone else.
 
-Leaving a match on purpose has the same result.
+Tapping Forfeit has the same result.
