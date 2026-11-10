@@ -129,6 +129,7 @@
     $('sellBtn').disabled = !tradeable;
   }
 
+  const openRows = new Set(); // rows the player opened for SL/TP; kept across re-renders
   function renderPositions() {
     const list = $('positionsList');
     const positions = view.positions || [];
@@ -143,14 +144,19 @@
     list.innerHTML = positions
       .map(
         (p) => `
-      <div class="position-row" data-id="${p.id}">
+      <div class="position-row${openRows.has(String(p.id)) ? ' open' : ''}" data-id="${p.id}">
         <div class="position-main-row">
-          <div class="info">
-            <div><strong class="${p.side === 'BUY' ? 'text-buy' : 'text-sell'}">${p.side}</strong> ${p.lots} ${TW.escapeHtml(p.symbol)}</div>
-            <div class="text-secondary">@ ${p.entryPrice}</div>
-          </div>
+          <button type="button" class="pos-toggle" data-toggle aria-expanded="${openRows.has(String(p.id))}" title="Stop loss and take profit">
+            <span class="pos-side ${p.side === 'BUY' ? 'is-buy' : 'is-sell'}">${p.side}</span>
+            <span class="info">
+              <span class="pos-what"><b>${p.lots}</b> ${TW.escapeHtml(p.symbol)}</span>
+              <span class="pos-at text-secondary">@ ${p.entryPrice}<span class="pos-sltp">${p.stopLoss == null && p.takeProfit == null ? '' : `SL ${p.stopLoss ?? '-'} · TP ${p.takeProfit ?? '-'}`}</span></span>
+            </span>
+          </button>
           <div class="pnl ${p.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(p.pnl)}</div>
-          <button class="btn" data-close style="min-height:36px;padding:6px 10px;">Close</button>
+          <button class="btn pos-close" data-close aria-label="Close ${p.side} ${p.lots} ${TW.escapeHtml(p.symbol)}" title="Close position">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
         </div>
         <div class="position-sltp-row">
           <label>SL</label><input type="number" step="any" data-sl value="${p.stopLoss ?? ''}" placeholder="off" />
@@ -358,8 +364,17 @@
     $('positionsList').addEventListener('click', (e) => {
       const row = e.target.closest('.position-row');
       if (!row) return;
+      const toggle = e.target.closest('[data-toggle]');
+      if (toggle) {
+        const open = !row.classList.contains('open');
+        row.classList.toggle('open', open);
+        toggle.setAttribute('aria-expanded', String(open));
+        if (open) openRows.add(row.dataset.id);
+        else openRows.delete(row.dataset.id);
+        return;
+      }
       if (e.target.closest('[data-close]')) {
-        e.target.disabled = true;
+        e.target.closest('[data-close]').disabled = true;
         closePosition(row.dataset.id);
       } else if (e.target.closest('[data-save-sltp]')) {
         modifyPosition(row.dataset.id, row.querySelector('[data-sl]').value || null, row.querySelector('[data-tp]').value || null);

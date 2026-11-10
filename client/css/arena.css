@@ -259,31 +259,7 @@ body.arena .chart-tool-btn { white-space: nowrap; }
   body.arena .arena-dock .sc-card, body.arena .arena-dock .sc-slot { --cw: 84px; --ch: 118px; }
 }
 
-/* ---- open positions: one slim line each, tap for SL/TP and Modify ---- */
-.positions-list { gap: 4px; }
-html:root .position-row { gap: 0; padding: 0; border-radius: 10px; background: var(--c-deep); border: 1px solid var(--c-hair); }
-html:root .position-row .position-main-row { gap: 6px; min-height: 44px; padding: 0 6px 0 4px; }
-.pos-toggle { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--c-on); text-align: left; cursor: pointer; font: inherit; border-radius: 8px; }
-.pos-toggle:focus-visible { outline: 2px solid var(--c-focus); outline-offset: -2px; }
-.pos-side { flex: 0 0 auto; min-width: 34px; padding: 3px 6px; border-radius: 6px; font: 700 10px var(--c-font); letter-spacing: 0.04em; text-align: center; }
-.pos-side.is-buy { background: color-mix(in srgb, var(--c-spike) 18%, transparent); color: var(--c-spike); }
-.pos-side.is-sell { background: color-mix(in srgb, var(--c-crush) 18%, transparent); color: var(--c-crush); }
-html:root .position-row .info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.pos-what { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pos-what b { font-weight: 600; }
-.pos-at { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.pos-sltp:not(:empty)::before { content: ' · '; }
-html:root .position-row .pnl { min-width: 0; flex: 0 0 auto; font-size: 13px; font-weight: 600; }
-html:root .pos-close { flex: 0 0 auto; width: 32px; height: 32px; min-height: 32px !important; padding: 0 !important; display: grid; place-items: center; border-radius: 8px; background: transparent; border: 1px solid var(--c-hair-2); color: var(--c-mute); }
-html:root .pos-close:hover { color: var(--c-crush); border-color: var(--c-crush); }
-html:root .position-row .position-sltp-row { display: none; margin: 0 8px; padding: 8px 0 10px; gap: 6px; border-top: 1px solid var(--c-hair); }
-html:root .position-row.open .position-sltp-row { display: flex; }
-html:root .position-row.open { border-color: var(--c-hair-2); }
-html:root .position-sltp-row input { width: 76px; min-height: 32px; }
-html:root .position-sltp-row .btn { min-height: 32px; padding: 0 12px; font-size: 12px; }
-@media (pointer: coarse) {
-  html:root .pos-close { width: 40px; height: 40px; min-height: 40px !important; }
-}
+/* open position rows: css/positions.css */
 
 /* ---- desktop right rail: compact ticket, positions take the rest ---- */
 body.arena .trading-panel { gap: 12px; padding: 14px 14px 12px; overflow: hidden; }

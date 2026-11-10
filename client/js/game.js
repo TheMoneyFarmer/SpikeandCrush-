@@ -1057,8 +1057,14 @@ window.TW = window.TW || {};
     const ic = (name, size = 16) => (TW.icon ? TW.icon(name, { size }) : '');
     const initials = (name) => esc(String(name || '?').slice(0, 2).toUpperCase());
 
+    const challenge = payload.challenge || null;
+    const solo = playerCount === 1; // Async Daily Challenge, a ghost challenge run
     const headline = !me
       ? 'Match over'
+      : challenge
+        ? (me.pnl > challenge.pnl ? `You beat <b>${esc(challenge.username)}</b>` : `<b>${esc(challenge.username)}</b> held on`)
+      : solo
+        ? `${esc(lastState?.modeLabel || 'Challenge')} <b>complete</b>`
       : me.rank === 1
         ? (me.isDraw ? 'You shared <b>1st</b>' : 'You <b>won</b>')
         : `You finished <b>${ordinal(me.rank)}</b>`;
@@ -1103,16 +1109,17 @@ window.TW = window.TW || {};
         <div>
           <div class="ea-meta">${esc(metaLabel)}</div>
           <h1 class="ea-title">${headline}</h1>
+          ${challenge && me ? `<div class="ea-sub">${TW.formatMoney(me.pnl)} vs ${TW.formatMoney(challenge.pnl)} on the same market</div>` : ''}
           ${me && me.isDraw ? `<div class="ea-sub">Tied with ${me.drawWith.map(esc).join(', ')} · prize split ${me.combinedPrizePercentage}% ÷ ${me.splitCount}</div>` : ''}
         </div>
         ${me ? `<div class="ea-you">
           <div class="ea-lbl">Your P&amp;L</div>
           <div class="ea-big mono ${me.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(me.pnl)}</div>
-          <div class="ea-lbl">${pct(me.pnl)} on $10,000 · #${me.rank} of ${playerCount}</div>
+          <div class="ea-lbl">${pct(me.pnl)} on $10,000${solo ? '' : ` · #${me.rank} of ${playerCount}`}</div>
         </div>` : ''}
       </header>
       <main class="ea-main">
-        <div class="ea-podium" aria-label="Top three">${step(podium[0], 2)}${step(podium[1], 1)}${step(podium[2], 3)}</div>
+        ${solo ? '' : `<div class="ea-podium" aria-label="Top three">${step(podium[0], 2)}${step(podium[1], 1)}${step(podium[2], 3)}</div>`}
         ${rest.length ? `<section class="ea-rest" aria-label="Everyone else">
           <div class="ea-row ea-row-head"><span>#</span><span></span><span>Player</span><span>P&amp;L</span><span>Rating</span><span></span></div>
           ${rest.map(rowHtml).join('')}
