@@ -600,7 +600,7 @@ TW.FriendsPanel = (function () {
     box.innerHTML = `
       <div class="twf-invite-title">${icon('swords', 16)}<span>Match invite</span></div>
       <p class="twf-invite-text"><strong>${esc(invite.fromUsername)}</strong>${invite.fromFriend ? '' : ' <span class="twf-tag">Not a friend</span>'} invited you to ${esc(invite.matchMode)}.</p>
-      <p class="twf-invite-sub">${esc(fee)} · ${esc(invite.currentPlayers)}/${esc(invite.maxPlayers)} players</p>
+      <p class="twf-invite-sub">${esc(fee)} · ${esc(invite.currentPlayers)}${invite.maxPlayers ? `/${esc(invite.maxPlayers)}` : ''} players</p>
       <div class="twf-invite-bar"><span></span></div>
       <div class="twf-actions">
         <button type="button" class="twf-btn primary" data-inv="accept">${icon('check', 16)}<span>Accept</span></button>

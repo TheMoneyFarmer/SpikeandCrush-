@@ -26,7 +26,9 @@ function marketReplaySpeed(mode) {
   return Math.max(1, Math.min(Number(m.maxReplaySpeed) || 1, v));
 }
 
-const MAX_PLAYERS = 8; // raised from 6 so Grand War's 8-player lobbies fit the same player-cap check everywhere
+// Multiplayer modes have no player cap (maxPlayers: null = unlimited). Kept
+// only as an exported constant for older callers; no check uses it.
+const MAX_PLAYERS = null;
 const MIN_PLAYERS = 2;
 const STARTING_CAPITAL = 10000;
 const MAX_POSITIONS = 10;
@@ -75,25 +77,25 @@ function getExperienceLevel(totalMatches) {
 // for unranked modes) - createPlayerState reads the right one per match.
 const MATCH_MODES = {
   quick: {
-    label: 'Quick War', idealPlayers: 4, minPlayers: 2, maxPlayers: 6,
+    label: 'Quick War', idealPlayers: 4, minPlayers: 2, maxPlayers: null,
     lobbyTimeoutMs: 45000, countdownSeconds: 10, durationSeconds: 600,
     instrumentCount: 5, cardsPerPlayer: 3, entryCoins: 10, ranked: true, ratingKey: 'war_rating',
     fillMethod: 'ai',
   },
   blitz: {
-    label: 'Blitz War', idealPlayers: 4, minPlayers: 2, maxPlayers: 6,
+    label: 'Blitz War', idealPlayers: 4, minPlayers: 2, maxPlayers: null,
     lobbyTimeoutMs: 20000, countdownSeconds: 10, durationSeconds: 180,
     instrumentCount: 5, cardsPerPlayer: 3, entryCoins: 5, ranked: false, ratingKey: null,
     fillMethod: 'ai',
   },
   grand: {
-    label: 'Grand War', idealPlayers: 8, minPlayers: 4, maxPlayers: 8,
+    label: 'Grand War', idealPlayers: 8, minPlayers: 4, maxPlayers: null,
     lobbyTimeoutMs: 90000, countdownSeconds: 10, durationSeconds: 1200,
     instrumentCount: 5, cardsPerPlayer: 5, entryCoins: 25, ranked: true, ratingKey: 'grand_war_rating',
     fillMethod: 'ai', deckSelection: true,
   },
   private: {
-    label: 'Private War', idealPlayers: 4, minPlayers: 2, maxPlayers: 8,
+    label: 'Private War', idealPlayers: 4, minPlayers: 2, maxPlayers: null,
     lobbyTimeoutMs: 45000, countdownSeconds: 10, durationSeconds: 600,
     instrumentCount: 5, cardsPerPlayer: 3, entryCoins: 0, ranked: false, ratingKey: null,
     fillMethod: 'host',
@@ -351,6 +353,16 @@ async function ensurePersonaPlayer(matchId, style) {
 // match_market_stats too when that table exists.
 const MARKET_STATS = [];
 const MARKET_STATS_MAX = 20000;
+
+// Player cap: null (or 0) = unlimited. Only fixed-format modes (Solo with its
+// AI seats, Tournament 1v1, Async solo) have one.
+function hasCap(match) {
+  const cap = Number(match.config.maxPlayers);
+  return Number.isFinite(cap) && cap > 0;
+}
+function isFull(match) {
+  return hasCap(match) && Object.keys(match.players).length >= Number(match.config.maxPlayers);
+}
 
 function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, isPlayerOnSite) {
   let onFlatAlert = null; // set by index.js: throttled email when a match goes flat
@@ -826,7 +838,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (match.mode !== 'tournament' && isInLiveMatch(playerInfo.id)) {
       return { success: false, error: LIVE_MATCH_BUSY_ERROR };
     }
-    if (Object.keys(match.players).length >= match.config.maxPlayers) return { success: false, error: 'Match is full' };
+    if (isFull(match)) return { success: false, error: 'Match is full' };
     // Rank split (ranked public lobbies only, off by default): own tier or
     // the allowed tiers above, never down - whichever way the player arrives.
     if (match.lobbyTier && rankSplit.enabled() && rankSplit.isSplitMode(match.mode) && !playerInfo.isAI) {
@@ -852,10 +864,10 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // No mode auto-starts just because it reached idealPlayers anymore - the
     // host presses Start War instead, so a friend invite that's still
     // pending accept doesn't get raced by an instant AI fill. The one
-    // exception is hitting literal maxPlayers, where there's nothing left to
-    // wait for (this is also how Tournament War and Async, whose idealPlayers
-    // equals maxPlayers, still start the instant both/the one seat fills).
-    if (Object.keys(match.players).length >= match.config.maxPlayers) {
+    // exception is a mode with a fixed size reaching it, where there's nothing
+    // left to wait for (Tournament War and Async start the instant both/the
+    // one seat fills). Unlimited modes never fill up, so the host starts them.
+    if (hasCap(match) && isFull(match)) {
       tryStartLobby(match.id, false);
     }
     return { success: true, match };
@@ -918,7 +930,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const targetSize =
       match.config.fillMethod === 'ai_only'
         ? 1 + (match.config.aiOpponents || 3)
-        : Math.max(match.config.minPlayers, Math.min(match.config.idealPlayers, match.config.maxPlayers));
+        : Math.max(match.config.minPlayers, hasCap(match) ? Math.min(match.config.idealPlayers, match.config.maxPlayers) : match.config.idealPlayers);
     const needed = match.config.fillMethod === 'none' ? 0 : Math.max(0, targetSize - currentCount);
     const stagger = match.config.fillMethod === 'ai';
 
@@ -983,6 +995,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   async function activateMatch(matchId) {
     const match = matches.get(matchId);
     if (!match) return;
+    // A match ended or voided during its countdown must never start.
+    if (match.status === 'resolving' || match.status === 'finished' || match.status === 'voided' || match.status === 'active') return;
     match.status = 'active';
     match.startedAt = Date.now();
 
@@ -2335,6 +2349,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   async function endMatch(match) {
     if (match.status === 'resolving' || match.status === 'finished') return;
     match.status = 'resolving';
+    clearInterval(match.timers.countdownInterval); // force-ended during the countdown
     clearInterval(match.timers.tickInterval);
     clearInterval(match.timers.leaderboardInterval);
 
@@ -2590,10 +2605,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
     instruments.releaseMatchWindows(match.id);
     personas.resetMatchPersonas(match.id);
+    // unref: this housekeeping timer alone never keeps the process running
+    // (the server's own listener does; tests can exit).
     setTimeout(() => {
       matches.delete(match.id);
       roomCodeIndex.delete(match.roomCode);
-    }, 5 * 60 * 1000);
+    }, 5 * 60 * 1000).unref();
   }
 
   // ---- socket session binding -----------------------------------------------
@@ -3221,6 +3238,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     voidMatch,
     kickPlayerFromMatch,
     applyConfigOverrides,
+    isFull,
     // ---- fire gameplay ----
     getMarketStats: () => MARKET_STATS.slice(),
     setFlatAlertHandler: (fn) => {

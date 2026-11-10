@@ -54,7 +54,7 @@ function modeRow(key) {
     : key === 'tournament' ? 'set per tournament'
     : coins(m.entryCoins);
   const ranked = m.ranked ? `yes (${m.ratingKey === 'war_rating' ? 'War Rating' : m.ratingKey === 'grand_war_rating' ? 'separate Grand War rating' : 'separate Solo rating'})` : 'no';
-  return `| ${m.label} | ${minutes(MODE_DURATIONS[key])} | ${entry} | ${m.minPlayers}-${m.maxPlayers} | ${m.cardsPerPlayer} | ${ranked} |`;
+  return `| ${m.label} | ${minutes(MODE_DURATIONS[key])} | ${entry} | ${m.maxPlayers ? `${m.minPlayers}-${m.maxPlayers}` : `${m.minPlayers}+ (no limit)`} | ${m.cardsPerPlayer} | ${ranked} |`;
 }
 
 function compTemplateBlock(key) {

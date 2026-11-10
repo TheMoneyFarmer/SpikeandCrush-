@@ -111,7 +111,7 @@
     function roomHtml(r) {
       return `<div class="dc-row" data-room="${esc(r.matchId)}">
         <div class="dc-av">${esc(r.players)}</div>
-        <div><div class="dc-name">${esc(r.label)}</div><div class="dc-meta"><span>${r.players} / ${r.maxPlayers} players</span><span>${r.entryCoins ? `${r.entryCoins} coins to enter` : 'Free'}</span>${r.lobbyTier ? `<span>${esc(r.lobbyTier)} lobby</span>` : ''}<span>Open until it starts</span></div></div>
+        <div><div class="dc-name">${esc(r.label)}</div><div class="dc-meta"><span>${r.players}${r.maxPlayers ? ` / ${r.maxPlayers}` : ''} player${r.players === 1 ? '' : 's'}</span><span>${r.entryCoins ? `${r.entryCoins} coins to enter` : 'Free'}</span>${r.lobbyTier ? `<span>${esc(r.lobbyTier)} lobby</span>` : ''}<span>Open until it starts</span></div></div>
         <div class="dc-actions"><button class="primary" data-act="joinroom">Join</button></div></div>`;
     }
 

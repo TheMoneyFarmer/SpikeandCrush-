@@ -12,8 +12,8 @@
 }
 
 /* ---- pre-match screen: you vs. opponents ------------------------------------------
-   This game has no real teams (quick/blitz/private are 2-6 player free-for-alls,
-   grand war up to 8) - "opponents" is every other player in the lobby individually,
+   This game has no real teams (quick/blitz/grand/private are free-for-alls with
+   no player cap) - "opponents" is every other player in the lobby individually,
    not a fabricated allied team, which is why this is a 1-vs-many layout rather than
    a literal two-team mirror. */
 

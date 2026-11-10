@@ -2055,7 +2055,7 @@ app.get('/api/discover', requireDb, authenticate, async (req, res) => {
       // Public lobbies still open to join (closed once a short game starts).
       const rooms = ['quick', 'blitz', 'grand']
         .flatMap((mode) => gameEngine.listWaitingMatchesByMode(mode))
-        .filter((m) => m.status === 'waiting' && Object.keys(m.players).length < m.config.maxPlayers)
+        .filter((m) => m.status === 'waiting' && !gameEngine.isFull(m))
         .filter((m) => !Object.keys(m.players).some((id) => blocks.has(id)))
         .map((m) => ({ matchId: m.id, mode: m.mode, label: m.config.label, players: Object.values(m.players).length, maxPlayers: m.config.maxPlayers, entryCoins: m.config.entryCoins || 0, lobbyTier: m.lobbyTier || null }));
       return res.json(discover.paginate(rooms, req.query.page));
@@ -3302,7 +3302,7 @@ function fallbackFor(match, playerId) {
   if (humans.length > 1 || waited < cfg.emptyLobbyFallbackSeconds) return { offer: false, waitSeconds: Math.max(0, Math.ceil(cfg.emptyLobbyFallbackSeconds - waited)) };
   const up = rankSplit.tierAbove(match.lobbyTier);
   const room = up
-    ? gameEngine.listWaitingMatchesByMode(match.mode).find((m) => m.id !== match.id && m.lobbyTier === up && Object.keys(m.players).length < m.config.maxPlayers)
+    ? gameEngine.listWaitingMatchesByMode(match.mode).find((m) => m.id !== match.id && m.lobbyTier === up && !gameEngine.isFull(m))
     : null;
   return { offer: true, upTier: room ? { matchId: room.id, tier: rankSplit.tierLabel(up), players: Object.keys(room.players).length } : null, solo: true, ghost: true };
 }

@@ -10,7 +10,7 @@ window.TW = window.TW || {};
   const modeData = {
     quickwar: {
       icon: 'swords', name: 'Quick War', tagline: 'The standard battle.', color: 'var(--accent)',
-      duration: '10 Minutes', players: '2 to 6 Players', entry: '10 Coins', ranked: 'Yes — affects War Rating',
+      duration: '10 Minutes', players: '2+ Players, no limit', entry: '10 Coins', ranked: 'Yes — affects War Rating',
       instruments: '5 Random Instruments', cards: '3 Cards — from your saved deck',
       sections: [
         { title: 'How It Works', content: 'All players start with $10,000 virtual capital. You have 10 minutes to make as much profit as possible by trading any of 5 random instruments. Buy when you think price goes up. Sell when you think price goes down. The player with the highest P&L when the timer hits zero wins.' },
@@ -27,7 +27,7 @@ window.TW = window.TW || {};
     },
     blitz: {
       icon: 'bolt', name: 'Blitz War', tagline: 'Three minutes of pure chaos.', color: 'var(--warning)',
-      duration: '3 Minutes', players: '2 to 6 Players', entry: '5 Coins', ranked: 'No — casual only',
+      duration: '3 Minutes', players: '2+ Players, no limit', entry: '5 Coins', ranked: 'No — casual only',
       instruments: '5 Random Instruments', cards: '3 Cards — from your saved deck',
       sections: [
         { title: 'How It Works', content: 'Same as Quick War but 3 minutes only. No time to be patient. No time to wait for the perfect setup. You must act fast. The entire match can flip in the last 30 seconds.' },
@@ -43,7 +43,7 @@ window.TW = window.TW || {};
     },
     grandwar: {
       icon: 'trophy', name: 'Grand War', tagline: 'The prestige battle.', color: 'var(--gold, var(--accent-gold))',
-      duration: '20 Minutes', players: '4 to 8 Players', entry: '25 Coins', ranked: 'Yes — separate Grand War rating',
+      duration: '20 Minutes', players: '4+ Players, no limit', entry: '25 Coins', ranked: 'Yes — separate Grand War rating',
       instruments: '5 Random Instruments', cards: '5 Cards — you choose your deck',
       sections: [
         { title: 'How It Works', content: 'Grand War is the longest and highest-stakes mode. More players, more time, more sabotage. Your 5 cards start from your saved deck, and you can change them in the lobby. Strategy matters more here than in Quick War.' },
