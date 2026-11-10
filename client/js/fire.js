@@ -144,7 +144,9 @@ TW.Fire = (function () {
       ${pr && pr.unlocked && pr.unlocked.length ? `<div class="fr-unlocks"><b>Unlocked</b>${pr.unlocked.map((c) => `<span class="fr-unlock rarity-${c.rarity}">${icon(c.icon, 16)} ${TW.escapeHtml(c.name)}</span>`).join('')}<a href="/cards">Card collection</a></div>` : ''}
       <p class="fr-note">Heat is a separate score. It never changes P&amp;L, rank, prizes or ratings.</p>`;
     const actions = overlay.querySelector('.end-actions');
-    overlay.insertBefore(panel, actions || null);
+    const slot = overlay.querySelector('[data-fire-slot]');
+    if (slot) slot.appendChild(panel);
+    else overlay.insertBefore(panel, actions || null);
     if (levelUp) setTimeout(() => TW.Sound.play('levelUp'), 600);
     if (pr && pr.unlocked && pr.unlocked.length) setTimeout(() => TW.Sound.play('cardUnlocked'), levelUp ? 1500 : 600);
 
@@ -159,8 +161,16 @@ TW.Fire = (function () {
       challenge.type = 'button';
       challenge.textContent = 'Challenge a friend';
       challenge.addEventListener('click', () => doChallenge(payload.matchId, challenge));
-      actions.insertBefore(challenge, actions.firstChild ? actions.firstChild.nextSibling : null);
-      actions.insertBefore(rematch, challenge);
+      if (slot) {
+        // Podium end screen: Rematch leads the button bar.
+        rematch.className = 'ea-pill ea-primary';
+        challenge.className = 'ea-pill';
+        actions.prepend(challenge);
+        actions.prepend(rematch);
+      } else {
+        actions.insertBefore(challenge, actions.firstChild ? actions.firstChild.nextSibling : null);
+        actions.insertBefore(rematch, challenge);
+      }
     }
   }
 

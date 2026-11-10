@@ -1041,156 +1041,147 @@ window.TW = window.TW || {};
   function buildResultsScreen(payload) {
     document.getElementById('endIntro')?.remove();
 
-    const sortedDesc = [...payload.results].sort((a, b) => b.rank - a.rank); // reveal last place first, winner last
-    const me = payload.results.find((r) => r.playerId === lastState?.you);
-    const playerCount = payload.results.length;
-
+    // End screen, Podium layout (chosen 2026-11-10; css/end-screen.css): the
+    // headline and your P&L, a 1-2-3 podium, everyone else as rows, your
+    // rewards on the right, actions along the bottom.
+    const results = [...payload.results].sort((a, b) => a.rank - b.rank);
+    const youId = lastState?.you;
+    const me = results.find((r) => r.playerId === youId);
+    const playerCount = results.length;
     const durationLabel = matchStartedAtMs ? formatClock((Date.now() - matchStartedAtMs) / 1000) : '10:00';
-    const instrumentsLabel = (lastState?.instruments || ['EURUSD', 'XAUUSD']).join(' / ');
+    const instrumentsLabel = (lastState?.instruments || []).join(' / '); // the share card uses this
+    const metaLabel = [lastState?.modeLabel, durationLabel, ...(lastState?.instruments || [])].filter(Boolean).join(' · ');
+    const money = (n) => `${n >= 0 ? '+' : '-'}${TW.formatMoney(Math.abs(n))}`;
+    const pct = (n) => { const v = (n / 10000) * 100; return `${v >= 0 ? '+' : ''}${v.toFixed(Math.abs(v) < 1 ? 2 : 1)}%`; };
+    const esc = TW.escapeHtml;
+    const ic = (name, size = 16) => (TW.icon ? TW.icon(name, { size }) : '');
+    const initials = (name) => esc(String(name || '?').slice(0, 2).toUpperCase());
 
+    const headline = !me
+      ? 'Match over'
+      : me.rank === 1
+        ? (me.isDraw ? 'You shared <b>1st</b>' : 'You <b>won</b>')
+        : `You finished <b>${ordinal(me.rank)}</b>`;
+
+    const step = (r, place) => {
+      if (!r) return `<div class="ea-step ea-step-${place} is-empty"></div>`;
+      const isYou = r.playerId === youId;
+      return `<div class="ea-step ea-step-${place}${isYou ? ' is-you' : ''}">
+        ${place === 1 ? `<span class="ea-crown">${ic('crown', 26)}</span>` : ''}
+        <span class="ea-av" style="background:${TW.avatarColor ? TW.avatarColor(r.username) : '#2d7ff9'}">${initials(r.username)}</span>
+        <span class="ea-name">${isYou ? 'You' : esc(r.username)}</span>
+        <span class="ea-pnl mono ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(r.pnl)}</span>
+        ${!isYou ? `<button type="button" class="ea-link" data-friend-target="${r.playerId}">Add friend</button>` : ''}
+        <span class="ea-place mono">${r.rank}</span>
+      </div>`;
+    };
+    const top = results.filter((r) => r.rank <= 3);
+    const byPlace = (n) => top.find((r) => r.rank === n) || null;
+    // Ties share a rank, so fill the podium in order rather than by rank number.
+    const podium = [top[1] || byPlace(2), top[0] || byPlace(1), top[2] || byPlace(3)];
+    const rest = results.filter((r) => !podium.includes(r));
+
+    const rowHtml = (r) => {
+      const isYou = r.playerId === youId;
+      return `<div class="ea-row${isYou ? ' is-you' : ''}">
+        <span class="mono ea-rank">${r.rank}</span>
+        <span class="ea-av sm" style="background:${TW.avatarColor ? TW.avatarColor(r.username) : '#6cb2ff'}">${initials(r.username)}</span>
+        <span class="ea-row-name">${isYou ? 'You' : esc(r.username)}${r.isDraw ? ' <span class="ea-tag">Tied</span>' : ''}</span>
+        <span class="mono ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(r.pnl)}</span>
+        <span class="mono ${r.ratingChange >= 0 ? 'text-buy' : 'text-sell'}">${r.ratingChange >= 0 ? '+' : ''}${r.ratingChange}</span>
+        <span class="ea-row-act">${isYou ? '' : `
+          <button type="button" class="ea-icon" data-rate="like" data-target="${r.playerId}" aria-label="Good trader" title="Good trader"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v11H4V10zM7 10l4-8a2 2 0 0 1 3 2l-1 5h6a2 2 0 0 1 2 2.3l-1.3 8A2 2 0 0 1 17.7 21H7"/></svg></button>
+          <button type="button" class="ea-pill" data-friend-target="${r.playerId}">Add friend</button>`}</span>
+      </div>`;
+    };
+
+    const tierChanged = me && me.oldTier && me.oldTier !== me.newTier;
     const overlay = document.createElement('div');
-    overlay.className = 'end-screen';
+    overlay.className = 'end-screen end-a';
     overlay.innerHTML = `
-      <div class="end-header">
-        <h1 class="end-title">BATTLE COMPLETE</h1>
-        <div class="end-subheader">${durationLabel} · ${TW.escapeHtml(instrumentsLabel)}</div>
-      </div>
-      <div class="end-rankings" id="endRankings"></div>
-      <div class="end-personal-summary hidden" id="endPersonalSummary"></div>
-      <div class="end-replay-timeline hidden" id="endReplayTimeline"></div>
-      <div class="end-actions">
-        <button class="btn btn-primary" id="playAgainBtn">⚔️ Play Again</button>
-        <button class="btn btn-outline" id="shareResultBtn">📤 Share Result</button>
-        <a class="btn" href="/profile">👤 View Stats</a>
-        <a class="btn" href="/play">🏠 Home</a>
-      </div>
+      <header class="ea-head">
+        <div>
+          <div class="ea-meta">${esc(metaLabel)}</div>
+          <h1 class="ea-title">${headline}</h1>
+          ${me && me.isDraw ? `<div class="ea-sub">Tied with ${me.drawWith.map(esc).join(', ')} · prize split ${me.combinedPrizePercentage}% ÷ ${me.splitCount}</div>` : ''}
+        </div>
+        ${me ? `<div class="ea-you">
+          <div class="ea-lbl">Your P&amp;L</div>
+          <div class="ea-big mono ${me.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(me.pnl)}</div>
+          <div class="ea-lbl">${pct(me.pnl)} on $10,000 · #${me.rank} of ${playerCount}</div>
+        </div>` : ''}
+      </header>
+      <main class="ea-main">
+        <div class="ea-podium" aria-label="Top three">${step(podium[0], 2)}${step(podium[1], 1)}${step(podium[2], 3)}</div>
+        ${rest.length ? `<section class="ea-rest" aria-label="Everyone else">
+          <div class="ea-row ea-row-head"><span>#</span><span></span><span>Player</span><span>P&amp;L</span><span>Rating</span><span></span></div>
+          ${rest.map(rowHtml).join('')}
+        </section>` : ''}
+      </main>
+      <aside class="ea-side" aria-label="Your results">
+        ${me ? `<div class="ea-stats">
+          <div class="ea-stat"><span class="ea-lbl">War Rating</span><b class="${me.ratingChange >= 0 ? 'text-buy' : 'text-sell'}">${me.ratingChange >= 0 ? '+' : ''}${me.ratingChange} <span class="mono ea-dim">${me.newRating}</span></b></div>
+          <div class="ea-stat"><span class="ea-lbl">Coins won</span><b class="ea-gold">${me.coinsAwarded ? `+${me.coinsAwarded} coins` : '0 coins'}</b></div>
+          <div class="ea-stat"><span class="ea-lbl">Best trade</span><b class="mono ${me.bestTrade >= 0 ? 'text-buy' : 'text-sell'}">${money(me.bestTrade || 0)}</b></div>
+          <div class="ea-stat"><span class="ea-lbl">Trades · Cards played</span><b>${me.tradesMade} · ${me.cardsPlayed}</b></div>
+        </div>
+        ${tierChanged ? `<div class="ea-rankup">${ic('trophy', 16)} Rank up: you are now ${esc(me.newTier)}</div>` : ''}
+        <div class="ea-fire" data-fire-slot></div>
+        <div class="ea-stat ea-equity"><span class="ea-lbl">Your equity</span><div class="end-equity-curve">${buildEquitySvg(me.equityHistory, payload.feed, TW.getPlayer()?.username)}</div></div>` : ''}
+      </aside>
+      <footer class="end-actions ea-actions">
+        <a class="ea-pill" href="/play">Play another mode</a>
+        <button type="button" class="ea-pill" id="shareResultBtn">Share result</button>
+        <a class="ea-pill ea-push" href="/replay?match=${encodeURIComponent(matchId)}">Watch replay</a>
+        <a class="ea-pill" href="/play">Home</a>
+      </footer>
     `;
     document.body.appendChild(overlay);
     if (TW.Fire) TW.Fire.renderResults(overlay, me, payload);
     if (me && me.rank === 1 && window.TW && TW.Lottie) TW.Lottie.play('win');
 
-    const rankings = document.getElementById('endRankings');
-    sortedDesc.forEach((r, i) => {
-      const row = document.createElement('div');
-      row.className = 'end-rank-row' + (r.rank === 1 ? ' winner' : '');
-      row.style.animationDelay = `${i * 1}s`;
-      const changeSign = r.ratingChange >= 0 ? '+' : '';
-      const pnlPct = ((r.pnl / 10000) * 100).toFixed(1);
-      row.innerHTML = `
-        ${r.rank === 1 ? '<div class="winner-label"><span class="winner-label-text">WINNER</span></div>' : ''}
-        <div class="rr-main">
-          <div class="crown">${r.rank === 1 ? '👑' : MEDALS[r.rank] || `#${r.rank}`}</div>
-          <div class="rank-num">#${r.rank}</div>
-          <div class="rr-name">
-            <strong>${TW.escapeHtml(r.username)}</strong>
-            <span class="pill ${TW.tierClass(r.newTier)}" style="font-size:10px;">${TW.TIER_ICON[r.newTier]} ${TW.escapeHtml(r.newTier)}</span>
-            ${r.playerId === lastState?.you ? '<span class="pill pill-gold">YOU</span>' : ''}
-          </div>
-          <div class="rr-pnl ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(r.pnl)}<span class="pct">${
-        r.pnl >= 0 ? '+' : ''
-      }${pnlPct}%</span></div>
-        </div>
-        ${
-          r.isDraw
-            ? `<div class="rr-draw-notice">🤝 Shared ${ordinal(r.rank)} with ${r.drawWith.map((n) => TW.escapeHtml(n)).join(', ')}<br />Prize split: ${r.combinedPrizePercentage}% ÷ ${r.splitCount} = ${r.prizePercentage}%</div>`
-            : r.rank === 1
-              ? `<div class="rr-result-irony text-buy">You spiked. They got crushed.</div>`
-              : r.rank === playerCount
-                ? `<div class="rr-result-irony text-sell">You got crushed. They spiked.</div>`
-                : ''
-        }
-        <div class="rr-stats">
-          <span>Trades: <strong>${r.tradesMade}</strong></span>
-          <span>Best: <strong class="text-buy">${TW.formatMoney(r.bestTrade)}</strong></span>
-          <span>Worst: <strong class="text-sell">${TW.formatMoney(r.worstTrade)}</strong></span>
-          <span>Cards: <strong>${r.cardsPlayed}</strong></span>
-          <span>Rating: <strong class="rr-rating-change ${r.ratingChange >= 0 ? 'text-buy' : 'text-sell'}">${changeSign}${
-        r.ratingChange
-      }</strong> → ${r.newRating}</span>
-          ${r.coinsAwarded ? `<span>🪙 +${r.coinsAwarded}</span>` : ''}
-        </div>
-        ${
-          r.playerId !== lastState?.you
-            ? `<div class="rr-actions">
-                <button class="rr-rate-btn" data-rate="like" data-target="${r.playerId}" title="Good trader">👍</button>
-                <button class="rr-rate-btn" data-rate="dislike" data-target="${r.playerId}" title="Poor sportsmanship">👎</button>
-                <button class="rr-friend-btn" data-friend-target="${r.playerId}" data-friend-name="${TW.escapeHtml(r.username)}">+ Add Friend</button>
-                <a class="rr-profile-btn" href="/profile/${encodeURIComponent(r.username)}">Profile</a>
-              </div>`
-            : ''
-        }
-      `;
-      rankings.appendChild(row);
+    // reveal: 3rd, then 2nd, then 1st
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    overlay.querySelectorAll('.ea-step').forEach((el) => {
+      const place = el.classList.contains('ea-step-1') ? 1 : el.classList.contains('ea-step-2') ? 2 : 3;
+      el.style.animationDelay = reduce ? '0s' : `${(3 - place) * 0.45}s`;
+    });
+    setTimeout(() => {
+      if (me && me.rank === 1) { spawnGoldParticles(); TW.Sound.play('win_fanfare'); }
+    }, reduce ? 0 : 1100);
 
-      if (r.playerId !== lastState?.you) {
-        row.querySelectorAll('.rr-rate-btn').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            const rating = btn.dataset.rate;
-            const targetId = btn.dataset.target;
-            const result = await TW.api('/api/players/rate', { method: 'POST', body: { targetId, matchId, rating } }).catch((e) => ({ error: e.message }));
-            if (result?.error) return TW.toast(result.error, 'danger');
-            row.querySelectorAll('.rr-rate-btn').forEach((b) => { b.disabled = true; });
-            btn.classList.add('active');
-          });
-        });
-        const friendBtn = row.querySelector('.rr-friend-btn');
-        friendBtn?.addEventListener('click', async () => {
-          friendBtn.disabled = true;
-          try {
-            await TW.api('/api/friends/request', { method: 'POST', body: { targetId: friendBtn.dataset.friendTarget } });
-            friendBtn.textContent = 'Pending';
-          } catch (e) {
-            friendBtn.disabled = false;
-            TW.toast(e.message || 'Could not send request', 'danger');
-          }
-        });
-      }
-
-      if (r.rank === 1) {
-        setTimeout(() => {
-          spawnGoldParticles();
-          TW.Sound.play('win_fanfare');
-        }, i * 1000 + 200);
-      }
+    overlay.querySelectorAll('[data-rate]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const result = await TW.api('/api/players/rate', { method: 'POST', body: { targetId: btn.dataset.target, matchId, rating: btn.dataset.rate } }).catch((e) => ({ error: e.message }));
+        if (result?.error) return TW.toast(result.error, 'danger');
+        btn.disabled = true;
+        btn.classList.add('active');
+      });
+    });
+    overlay.querySelectorAll('[data-friend-target]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await TW.api('/api/friends/request', { method: 'POST', body: { targetId: btn.dataset.friendTarget } });
+          btn.textContent = 'Request sent';
+        } catch (e) {
+          btn.disabled = false;
+          TW.toast(e.message || 'Could not send request', 'danger');
+        }
+      });
     });
 
-    // Personal summary + equity curve, revealed after the full rankings sequence.
     if (me) {
+      const cached = TW.getPlayer();
+      if (cached) {
+        cached.war_rating = me.newRating;
+        cached.tier = me.newTier;
+        // The header's coin balance reads this same cache.
+        cached.coins = (cached.coins || 0) + (me.coinsAwarded || 0);
+        TW.updatePlayerCache(cached);
+        TW.updateHeader();
+      }
       setTimeout(() => {
-        const cached = TW.getPlayer();
-        const tierChanged = cached && me.oldTier !== me.newTier;
-        if (cached) {
-          cached.war_rating = me.newRating;
-          cached.tier = me.newTier;
-          // The header's coin balance reads this same cache - without bumping it here,
-          // coins earned this match wouldn't show up until the next full page load.
-          cached.coins = (cached.coins || 0) + (me.coinsAwarded || 0);
-          TW.updatePlayerCache(cached);
-          TW.updateHeader();
-        }
-        const section = document.getElementById('endPersonalSummary');
-        section.classList.remove('hidden');
-        const ratingUp = me.ratingChange >= 0;
-        section.innerHTML = `
-          <h3 style="margin-top:0;">Your War, Summarized</h3>
-          <div class="rr-stats" style="border-top:none;padding-top:0;margin-top:0;">
-            <span>Your rank: <strong>#${me.rank} of ${playerCount} players</strong></span>
-            <span>P&amp;L this match: <strong class="${me.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(me.pnl)}</strong></span>
-            <span>War Rating: <strong class="rating-change ${ratingUp ? 'text-buy' : 'text-sell'}"><span class="rating-arrow">${
-          ratingUp ? '▲' : '▼'
-        }</span> ${ratingUp ? '+' : ''}${me.ratingChange}</strong> → <strong>${me.newRating}</strong></span>
-            <span>Best trade: <strong class="text-buy">${TW.formatMoney(me.bestTrade)}</strong></span>
-            ${me.coinsAwarded ? `<span class="coin-pop">🪙 Coins earned: <strong>+${me.coinsAwarded}</strong></span>` : ''}
-          </div>
-          ${
-            tierChanged
-              ? me.newTier === 'War Lord'
-                ? `<div class="pill pill-gold rank-up-banner">👑 War Lord unlocked. You crushed it.</div>`
-                : `<div class="pill pill-gold rank-up-banner">🎉 RANK UP! You are now a ${TW.escapeHtml(me.newTier)}!</div>`
-              : ''
-          }
-          <div class="end-equity-curve">${buildEquitySvg(me.equityHistory, payload.feed, cached?.username)}</div>
-        `;
         if (me.coinsAwarded) {
           TW.Sound.play('coin');
           if (window.TW && TW.Lottie) TW.Lottie.play('coins');
@@ -1199,30 +1190,8 @@ window.TW = window.TW || {};
           TW.Sound.play('coinEarned');
           if (window.TW && TW.Lottie) TW.Lottie.play('rankup');
         }
-
-        const timelineEl = document.getElementById('endReplayTimeline');
-        const relevant = (payload.feed || []).filter(
-          (entry) => entry.text.includes(cached?.username) || /played|hit stop loss|hit take profit/i.test(entry.text)
-        );
-        if (relevant.length > 0) {
-          timelineEl.classList.remove('hidden');
-          timelineEl.innerHTML =
-            '<strong style="color:var(--text);">Match Replay</strong>' +
-            relevant.map((e) => `<div>${TW.escapeHtml(e.text)}</div>`).join('') +
-            `<div style="margin-top:8px;"><a href="/replay?match=${matchId}" class="text-secondary" style="font-size:12px;">🎬 Watch full replay →</a></div>`;
-        }
-      }, sortedDesc.length * 1000 + 400);
+      }, reduce ? 0 : 1500);
     }
-
-    document.getElementById('playAgainBtn').addEventListener('click', async () => {
-      try {
-        const data = await TW.api('/api/match/create', { method: 'POST', body: { mode: 'quick' } });
-        window.location.href = `lobby.html?matchId=${data.matchId}`;
-      } catch (err) {
-        TW.toast(err.message, 'danger');
-        window.location.href = '/play';
-      }
-    });
 
     function drawResultCardPng() {
       const cached = TW.getPlayer();
