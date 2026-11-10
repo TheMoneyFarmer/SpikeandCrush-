@@ -1,0 +1,149 @@
+/* Lobby, Versus layout (chosen 2026-11-10). Traders line up as tall cards,
+   your opening hand sits in a dock below with Start war, chat on the side.
+   The 5-second countdown overlay shows the match rules. Palette tokens from
+   css/palette.css. */
+
+body[data-page="lobby"] { background: radial-gradient(70% 55% at 50% 30%, color-mix(in srgb, var(--c-blue) 22%, var(--c-canvas)) 0%, var(--c-canvas) 70%) fixed, var(--c-canvas); }
+
+.vs-wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 16px 28px 32px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-areas:
+    "top top"
+    "head chat"
+    "fighters chat"
+    "dock dock";
+  column-gap: 28px;
+  row-gap: 22px;
+  color: var(--c-on);
+}
+.vs-lbl { font-size: 12px; font-weight: 500; color: var(--c-mute); }
+.vs-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 9999px;
+  border: 1px solid var(--c-hair-2);
+  background: transparent;
+  color: var(--c-on);
+  font: 500 13px var(--c-font);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vs-pill:hover { border-color: var(--c-on); }
+.vs-pill:focus-visible, .vs-cta:focus-visible { outline: 2px solid var(--c-focus); outline-offset: 2px; }
+.vs-pill.hidden, .vs-cta.hidden { display: none; }
+
+/* top row: room code, share, leave */
+.vs-top { grid-area: top; display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.vs-room { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.vs-code { font-size: 18px; letter-spacing: 0.16em; }
+.vs-leave { margin-left: auto; min-width: 200px; }
+.vs-leave .btn { min-height: 36px; border-radius: 9999px; }
+
+/* heading */
+.vs-head { grid-area: head; text-align: center; }
+.vs-meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-mute); }
+.vs-meta .instrument-chip { margin: 0 2px; }
+.vs-title { margin: 10px 0 0; font-weight: 300; font-size: clamp(32px, 4vw, 48px); line-height: 1.05; letter-spacing: -0.015em; }
+.vs-rules { margin-top: 6px; font-size: 12px; color: var(--c-mute); }
+.vs-timer { margin-top: 10px; min-height: 20px; font-size: 14px; color: #9cc4ff; }
+
+/* the lineup */
+.vs-fighters { grid-area: fighters; list-style: none; margin: 0; padding: 8px 0 4px; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+.vs-fighter {
+  position: relative;
+  width: 188px;
+  height: 284px;
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  text-align: center;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c-blue) 14%, var(--c-elev)), var(--c-deep));
+  box-shadow: inset 0 0 0 1px var(--c-hair);
+}
+.vs-fighter.is-you { box-shadow: inset 0 0 0 2px var(--c-blue); transform: translateY(-8px); }
+.vs-glow { position: absolute; left: -20%; right: -20%; top: -12%; height: 70%; border-radius: 50%; background: radial-gradient(closest-side, var(--glow), transparent); opacity: 0.35; pointer-events: none; }
+.vs-av { position: absolute; left: 50%; top: 48px; transform: translateX(-50%) scale(1.4); transform-origin: 50% 0; }
+.vs-name { position: relative; font-weight: 600; font-size: 16px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-tier { position: relative; font-size: 12px; color: var(--c-mute); }
+.vs-ready { position: relative; margin-top: 8px; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: var(--c-ghost); color: var(--c-mute); }
+.vs-ready.is-ready { background: color-mix(in srgb, var(--c-spike) 18%, transparent); color: var(--c-spike); }
+.vs-fighter.is-open { justify-content: center; gap: 10px; background: color-mix(in srgb, var(--c-canvas) 50%, transparent); box-shadow: none; border: 1.5px dashed var(--c-hair-2); }
+.vs-q { font-size: 44px; color: var(--c-mute); opacity: 0.5; }
+
+/* dock: hand, then the start button */
+.vs-dock {
+  grid-area: dock;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 260px;
+  align-items: center;
+  gap: 32px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--c-deep) 85%, transparent);
+  box-shadow: inset 0 0 0 1px var(--c-hair);
+}
+.vs-hand-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.vs-hand-title { font-weight: 600; font-size: 16px; }
+.vs-hand { justify-content: center; }
+.vs-hand .sc-card { --cw: 112px; --ch: 158px; }
+.vs-actions { display: flex; flex-direction: column; gap: 10px; }
+.vs-cta { min-height: 56px; border: 0; border-radius: 9999px; background: var(--c-blue); color: #fff; font: 600 17px var(--c-font); cursor: pointer; }
+.vs-cta:disabled { opacity: 0.6; cursor: default; }
+.vs-note { text-align: center; }
+
+/* chat */
+.vs-chat { grid-area: chat; display: flex; flex-direction: column; gap: 10px; min-height: 0; padding: 16px; border-radius: 14px; background: color-mix(in srgb, var(--c-elev) 80%, transparent); box-shadow: inset 0 0 0 1px var(--c-hair); align-self: start; }
+.vs-chat-title { font-weight: 600; font-size: 14px; }
+.vs-chat .chat-log { max-height: 260px; min-height: 120px; overflow-y: auto; font-size: 13px; line-height: 1.45; }
+.vs-chat .chat-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.vs-chat .chat-presets .vs-pill { min-height: 32px; font-size: 12px; padding: 0 12px; }
+
+/* the 5-second start, with the rules */
+.countdown-overlay { background: rgba(10, 18, 36, 0.86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 16px; box-sizing: border-box; }
+.cd-card { width: min(720px, 100%); box-sizing: border-box; padding: 24px; border-radius: 18px; background: var(--c-elev); box-shadow: 0 24px 60px var(--c-shadow), inset 0 0 0 1px var(--c-hair); color: var(--c-on); }
+.cd-top { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.cd-mode { font-weight: 300; font-size: 30px; line-height: 1.1; margin-top: 2px; }
+.cd-num { margin-left: auto; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 40px; font-weight: 600; background: var(--c-blue); color: #fff; animation: cd-pop 1s ease-out infinite; }
+@keyframes cd-pop { 0% { transform: scale(1.12); } 30% { transform: scale(1); } }
+.cd-rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.cd-rule { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 10px; background: var(--c-deep); }
+.cd-rule b { font-weight: 600; font-size: 15px; }
+.cd-tip { margin-top: 14px; font-size: 13px; color: var(--c-body); }
+
+@media (max-width: 1100px) {
+  .vs-wrap { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "head" "fighters" "dock" "chat"; }
+  .vs-dock { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .vs-hand-copy { align-items: center; text-align: center; }
+}
+@media (max-width: 760px) {
+  .vs-wrap { padding: 12px 16px 96px; row-gap: 16px; }
+  .vs-leave { margin-left: 0; width: 100%; }
+  .vs-fighters { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; padding: 12px 2px 6px; scroll-snap-type: x mandatory; }
+  .vs-fighter { flex: 0 0 140px; width: 140px; height: 210px; padding: 12px; scroll-snap-align: start; }
+  .vs-av { top: 26px; transform: translateX(-50%) scale(1.05); }
+  .vs-meta > span[aria-hidden] { display: none; }
+  .vs-meta { gap: 6px 10px; }
+  .vs-name { font-size: 14px; }
+  .vs-hand .sc-card { --cw: 76px; --ch: 107px; }
+  .cd-card { padding: 18px; }
+  .cd-mode { font-size: 22px; }
+  .cd-num { width: 64px; height: 64px; font-size: 30px; }
+  .cd-rules { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .cd-rule { flex-direction: row; justify-content: space-between; align-items: center; padding: 10px 12px; }
+  .cd-rule b { font-size: 13px; text-align: right; }
+}
+@media (prefers-reduced-motion: reduce) { .cd-num { animation: none; } }

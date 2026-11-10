@@ -502,6 +502,10 @@ window.TW = window.TW || {};
     document.getElementById('quoteBid').textContent = price.bid;
     document.getElementById('quoteAsk').textContent = price.ask;
     document.getElementById('quoteSpread').textContent = price.spread;
+    const buyPx = document.getElementById('buyBtnPx');
+    const sellPx = document.getElementById('sellBtnPx');
+    if (buyPx) buyPx.textContent = price.ask;
+    if (sellPx) sellPx.textContent = price.bid;
   }
 
   function formatTimeframeLabel(seconds) {
@@ -1414,6 +1418,8 @@ window.TW = window.TW || {};
 
   socket.on('match:state', (state) => {
     lastState = state;
+    const modeEl = document.getElementById('topbarMode');
+    if (modeEl) modeEl.textContent = state.modeLabel || '';
     setupInstrumentTabs(state.instruments);
     TW.Sabotage.render(state);
     if (TW.Fire) {
@@ -1470,6 +1476,9 @@ window.TW = window.TW || {};
 
     const timerEl = document.getElementById('topbarTimer');
     timerEl.textContent = formatClock(data.timeRemaining);
+    const ring = document.getElementById('timerRing');
+    const total = (lastState && lastState.durationSeconds) || 0;
+    if (ring && total > 0) ring.style.setProperty('--ring', Math.max(0, Math.min(1, data.timeRemaining / total)).toFixed(4));
     const wasLow = timerEl.classList.contains('low');
     timerEl.classList.toggle('low', data.timeRemaining <= 60);
     timerEl.classList.toggle('critical', data.timeRemaining <= 10 && data.timeRemaining > 0);
@@ -1571,6 +1580,8 @@ window.TW = window.TW || {};
     TW.Sabotage.setLeaderboard(payload.rows);
     if (TW.Fire) TW.Fire.setLeaderboard(payload.rows);
     const myRow = payload.rows.find((r) => r.id === lastState?.you);
+    const rankEl = document.getElementById('topbarRank');
+    if (rankEl && myRow) rankEl.innerHTML = payload.blurred ? '#?' : `#${myRow.rank} <span>of ${payload.rows.length}</span>`;
     if (myRow && lastViewerRank !== null && myRow.rank > lastViewerRank) {
       TW.showMatchNotification(`📉 You just got overtaken — now #${myRow.rank}`);
     }

@@ -38,58 +38,26 @@
 <link rel="stylesheet" href="css/premium.css" />
 <link rel="stylesheet" href="/css/mobile.css">
   <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/cards.css" />
+  <link rel="stylesheet" href="/css/lobby-versus.css" />
 <script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="lobby">
   <div id="twNav" data-active=""></div>
 
-  <div class="tw-container">
-    <div class="sc-logo-wrapper lobby-logo" style="margin-bottom:24px;">
-      <div class="sc-logo">
-        <span class="sc-s1">S</span><span class="sc-p">P</span><span class="sc-i">I</span><span class="sc-k">K</span><span class="sc-e">E</span><span class="sc-amp">&amp;</span><span class="sc-c">C</span><span class="sc-r">R</span><span class="sc-u">U</span><span class="sc-s2">S</span><span class="sc-h">H</span>
+  <!-- Lobby, Versus layout (chosen 2026-11-10): css/lobby-versus.css. Every
+       id the script below uses is kept. -->
+  <main class="vs-wrap">
+    <div class="vs-top">
+      <div class="vs-room">
+        <span class="vs-lbl">Room</span>
+        <span class="vs-code mono" id="roomCodeValue">------</span>
+        <button id="copyCodeBtn" type="button" class="vs-pill">Copy code</button>
+        <button id="shareLinkBtn" type="button" class="vs-pill">Share link</button>
+        <button id="inviteFriendsBtn" type="button" class="vs-pill">Invite friends</button>
       </div>
-      <span class="sc-logo-tagline">Up. Then not.</span>
-    </div>
-    <div class="tw-prematch-grid">
-      <div class="tw-prematch-side side-you">
-        <div class="tw-prematch-side-label">You</div>
-        <ul class="player-list" id="youSlot"></ul>
-      </div>
-
-      <div class="tw-prematch-center">
-        <div class="panel tw-prematch-match-card" id="matchInfoCard">
-          <div class="tw-prematch-match-mode" id="matchModeValue">-</div>
-          <div class="tw-prematch-match-row">
-            <span>Instruments</span><span id="matchInstrumentsValue">-</span>
-          </div>
-          <div class="tw-prematch-match-row">
-            <span>Duration</span><span id="matchDurationValue">-</span>
-          </div>
-          <div class="tw-prematch-match-row">
-            <span>Entry</span><span id="matchEntryValue">-</span>
-          </div>
-          <div class="tw-prematch-match-row">
-            <span>Starting Capital</span><span>$10,000</span>
-          </div>
-          <div class="tw-prematch-rules-brief">Leverage 100:1 · No lot limit · Max 10 positions · Margin call 100% · Stop out 50%</div>
-        </div>
-
-        <div class="panel room-code-panel">
-          <div class="text-secondary">ROOM CODE</div>
-          <div class="room-code-value" id="roomCodeValue">------</div>
-          <div class="room-code-actions">
-            <button id="copyCodeBtn" class="btn btn-primary">Copy code</button>
-            <button id="shareLinkBtn" class="btn btn-outline">Share link</button>
-          </div>
-          <div class="lobby-fill-timer" id="lobbyFillTimer"></div>
-          <button id="startNowBtn" class="btn btn-outline hidden" style="margin-top: 10px;">Start Now</button>
-          <div style="display:flex;gap:8px;margin-top:10px;">
-            <button id="loadoutBtn" class="btn btn-outline" style="flex:1;">Trade setup</button>
-            <button id="inviteFriendsBtn" class="btn btn-outline" style="flex:1;">Invite friends</button>
-          </div>
-          <button id="startWarBtn" class="btn btn-primary btn-block hidden" style="margin-top: 10px">Start war</button>
-          <button id="readyBtn" class="btn btn-primary btn-block" style="margin-top: 10px">Ready</button>
-          <div id="leaveLobbyWrap" style="margin-top:10px;">
+      <div class="vs-leave">
+          <div id="leaveLobbyWrap">
             <button id="leaveLobbyBtn" type="button" class="btn btn-outline btn-block">Leave lobby</button>
             <div id="leaveLobbyConfirm" class="hidden" role="alertdialog" aria-labelledby="leaveLobbyQ" style="display:flex;flex-direction:column;gap:8px;">
               <p id="leaveLobbyQ" style="margin:0;text-align:center;color:var(--text-secondary);">Leave this lobby? Any entry coins you paid are refunded.</p>
@@ -99,33 +67,59 @@
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="tw-prematch-side side-opponents">
-        <div class="tw-prematch-side-label">Opponents (<span id="playerCount">0</span>)</div>
-        <ul class="player-list" id="opponentSlots"></ul>
       </div>
     </div>
 
-    <div class="tw-prematch-bottom-text">Invite friends to trade alongside you - more traders means more sabotage to go around.</div>
+    <header class="vs-head" id="matchInfoCard">
+      <div class="vs-meta"><span id="matchModeValue">-</span><span aria-hidden="true">·</span><span id="matchDurationValue">-</span><span aria-hidden="true">·</span><span id="matchInstrumentsValue">-</span><span aria-hidden="true">·</span><span>Entry <span id="matchEntryValue">-</span></span></div>
+      <h1 class="vs-title" id="vsTitle">Waiting for rivals</h1>
+      <div class="vs-timer" id="lobbyFillTimer"></div>
+      <div class="vs-rules">$10,000 to start · Leverage 100:1 · No lot limit · Max 10 positions · Margin call 100% · Stop out 50%</div>
+    </header>
 
-    <div class="panel chat-panel">
-      <h3>Match Chat</h3>
+    <ul class="vs-fighters" id="fighterRow" aria-label="Traders in this lobby"></ul>
+
+    <section class="vs-dock" aria-label="Your opening hand">
+      <div class="vs-hand-copy">
+        <div class="vs-hand-title">Your opening hand</div>
+        <div class="vs-lbl">Dealt for this match. Drag a card to turn it over.</div>
+        <button id="loadoutBtn" type="button" class="vs-pill">Trade setup</button>
+      </div>
+      <div class="vs-hand card-tray sc-tray" id="vsHand"></div>
+      <div class="vs-actions">
+        <button id="startWarBtn" type="button" class="vs-cta hidden">Start war</button>
+        <button id="readyBtn" type="button" class="vs-cta">Ready</button>
+        <button id="startNowBtn" type="button" class="vs-pill hidden">Start now</button>
+        <div class="vs-lbl vs-note" id="vsNote"></div>
+      </div>
+    </section>
+
+    <aside class="vs-chat" aria-label="Lobby chat">
+      <div class="vs-chat-title">Chat</div>
       <div class="chat-log" id="chatLog"></div>
       <div class="chat-presets" id="chatPresets">
-        <button class="btn" data-msg="GL HF">GL HF</button>
-        <button class="btn" data-msg="Let's go">Let's go</button>
-        <button class="btn" data-msg="May the best trader win">May the best trader win</button>
-        <button class="btn" data-msg="Ready to war">Ready to war</button>
+        <button type="button" class="vs-pill" data-msg="GL HF">GL HF</button>
+        <button type="button" class="vs-pill" data-msg="Let's go">Let's go</button>
+        <button type="button" class="vs-pill" data-msg="May the best trader win">May the best trader win</button>
+        <button type="button" class="vs-pill" data-msg="Ready to war">Ready to war</button>
       </div>
-    </div>
-  </div>
+    </aside>
+  </main>
 
-  <div class="countdown-overlay hidden" id="countdownOverlay">
-    <div class="text-secondary">MATCH STARTING</div>
-    <div class="text-secondary" style="font-size:13px;font-style:italic;margin-top:2px;">May the best spike win.</div>
-    <div class="countdown-number" id="countdownNumber">10</div>
+  <!-- The 5-second start: the match rules show here, so the game screen
+       doesn't show them again (game.js checks sc_rules_seen_<matchId>). -->
+  <div class="countdown-overlay hidden" id="countdownOverlay" role="dialog" aria-modal="true" aria-labelledby="cdTitle">
+    <div class="cd-card">
+      <div class="cd-top">
+        <div>
+          <div class="vs-lbl" id="cdTitle">Match starting</div>
+          <div class="cd-mode" id="cdMode"></div>
+        </div>
+        <div class="cd-num mono" id="countdownNumber">5</div>
+      </div>
+      <div class="cd-rules" id="cdRules"></div>
+      <div class="cd-tip">All positions close automatically when the timer ends. Highest P&amp;L wins.</div>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -140,6 +134,8 @@
   <script src="js/socket.js"></script>
   <script src="js/device.js"></script>
   <script src="js/friends-panel.js"></script>
+  <script src="js/card-icons.js"></script>
+  <script src="js/sabotage.js"></script>
   <script>
     TW.requireAuth();
 
@@ -155,53 +151,69 @@
       return String.fromCodePoint(...code.toUpperCase().split('').map((c) => 127397 + c.charCodeAt(0)));
     }
 
-    function playerCardHtml(p, isYou) {
-      const flag = countryFlag(p.country);
-      return `
-        ${TW.createAvatar(p, isYou ? 'lg' : 'md')}
-        <div class="meta">
-          <div class="name">${TW.renderUsername(p)} ${flag}</div>
-          <div class="rating ${TW.tierClass(p.tier)}">${TW.TIER_ICON[p.tier]} ${TW.escapeHtml(p.tier)} · ${p.warRating}</div>
-        </div>
-        <span class="ready-badge ${p.ready ? 'ready' : ''}">${p.ready ? 'READY' : 'WAITING'}</span>
-      `;
-    }
-
-    function emptySlotHtml() {
-      return `<div class="player-avatar tw-empty-silhouette"></div><div class="meta"><div class="name text-secondary">Finding opponent<span class="tw-finding-dots">•••</span></div></div>`;
-    }
-
+    // Versus row: you first, then rivals, then open seats.
+    const FIGHTER_COLORS = ['#2d7ff9', '#f5b83d', '#6cb2ff', '#b77dff', '#4fe0a6', '#ff8a5c', '#e879b9', '#9cc4ff'];
     function renderPlayers(state) {
-      const youSlot = document.getElementById('youSlot');
-      const opponentSlots = document.getElementById('opponentSlots');
-      youSlot.innerHTML = '';
-      opponentSlots.innerHTML = '';
-
+      const row = document.getElementById('fighterRow');
       const me = state.players.find((p) => p.id === state.you);
-      const opponents = state.players.filter((p) => p.id !== state.you);
+      const ordered = (me ? [me] : []).concat(state.players.filter((p) => p.id !== state.you));
+      const open = Math.max(0, Math.min(8, state.lobbyTargetSize || 4) - state.players.length);
+      row.innerHTML = ordered.map((p, i) => {
+        const isYou = p.id === state.you;
+        const flag = countryFlag(p.country);
+        return `<li class="vs-fighter${isYou ? ' is-you' : ''}" style="--glow:${FIGHTER_COLORS[i % FIGHTER_COLORS.length]}">
+          <span class="vs-glow" aria-hidden="true"></span>
+          <div class="vs-av">${TW.createAvatar(p, 'xl')}</div>
+          <div class="vs-name">${isYou ? 'You' : TW.renderUsername(p)} ${flag}</div>
+          <div class="vs-tier ${TW.tierClass(p.tier)}">${TW.escapeHtml(p.tier || '')} · ${p.warRating ?? ''}</div>
+          <span class="vs-ready${p.ready || p.id === state.hostId ? ' is-ready' : ''}">${p.id === state.hostId ? 'Host' : p.ready ? 'Ready' : 'Waiting'}</span>
+        </li>`;
+      }).join('') + Array.from({ length: open }, () => `<li class="vs-fighter is-open">
+          <span class="vs-q mono" aria-hidden="true">?</span>
+          <div class="vs-lbl">Open seat</div>
+          <button type="button" class="vs-pill vs-invite">Invite</button>
+        </li>`).join('');
+      row.querySelectorAll('.vs-invite').forEach((b) => b.addEventListener('click', () => document.getElementById('inviteFriendsBtn').click()));
+      const title = document.getElementById('vsTitle');
+      if (title) title.textContent = state.status === 'countdown' ? 'Match starting' : state.players.length >= (state.lobbyTargetSize || 4) ? 'Everyone is in' : 'Waiting for rivals';
+    }
 
-      if (me) {
-        const li = document.createElement('li');
-        li.className = 'player-row player-row-you';
-        li.innerHTML = playerCardHtml(me, true) + '<span class="pill pill-gold">YOU</span>';
-        youSlot.appendChild(li);
+    // Your opening hand, drawn with the same card as the game (js/sabotage.js).
+    let handKey = '';
+    function renderHand(state) {
+      const box = document.getElementById('vsHand');
+      const me = state.players.find((p) => p.id === state.you);
+      if (!box || !me || !TW.Sabotage || !TW.Sabotage.cardHtml) return;
+      const defs = (me.cards || []).filter((c) => !c.used).map((c) => (state.cardCatalog || []).find((d) => d.id === c.type)).filter(Boolean);
+      const key = defs.map((d) => d.id).join(',');
+      if (key === handKey) return;
+      handKey = key;
+      box.innerHTML = defs.length ? defs.map((d) => TW.Sabotage.cardHtml(d)).join('') : '<div class="vs-lbl">Cards are dealt when the match starts.</div>';
+      box.querySelectorAll('.sc-card').forEach((el) => TW.Sabotage.makeSpinnable(el, {}));
+    }
+
+    // The 5-second countdown doubles as the rules screen.
+    function showCountdown(state) {
+      const overlay = document.getElementById('countdownOverlay');
+      if (!overlay.classList.contains('hidden')) return;
+      const st = state || currentState;
+      if (st) {
+        const r = st.rules || {};
+        const items = [
+          ['Starting capital', '$10,000'],
+          ['Duration', `${Math.round((st.durationSeconds || 0) / 60)} minutes`],
+          ['Leverage', `${r.leverage || 100}:1, no lot limit`],
+          ['Open positions', `Up to ${r.maxPositions || 10}`],
+          ['Margin call / stop out', `${r.marginCallLevel || 100}% / ${r.stopOutLevel || 50}%`],
+          ['Loss limit', r.softLossPct ? `-${r.softLossPct * 100}% in ${Math.round((r.softLossWindowSeconds || 0) / 60)} min pauses new trades` : 'None'],
+          ['Cards', `${st.cardsPerPlayer ?? 3} to start, win trades to earn more`],
+          ['Markets', (st.instruments || []).join(' · ')],
+        ];
+        document.getElementById('cdMode').textContent = st.modeLabel || '';
+        document.getElementById('cdRules').innerHTML = items.map(([k, v]) => `<div class="cd-rule"><span class="vs-lbl">${k}</span><b>${TW.escapeHtml(String(v))}</b></div>`).join('');
       }
-
-      opponents.forEach((p) => {
-        const li = document.createElement('li');
-        li.className = 'player-row player-row-opponent';
-        li.innerHTML = playerCardHtml(p, false);
-        opponentSlots.appendChild(li);
-      });
-
-      const remaining = Math.max(0, (state.lobbyTargetSize || 4) - state.players.length);
-      for (let i = 0; i < remaining; i++) {
-        const li = document.createElement('li');
-        li.className = 'player-row player-row-opponent pending';
-        li.innerHTML = emptySlotHtml();
-        opponentSlots.appendChild(li);
-      }
-      document.getElementById('playerCount').textContent = opponents.length;
+      overlay.classList.remove('hidden');
+      try { sessionStorage.setItem(`sc_rules_seen_${matchId}`, '1'); } catch (e) { /* the game screen shows them instead */ }
     }
 
     function updateLobbyTimer(state) {
@@ -284,6 +296,7 @@
       document.getElementById('matchEntryValue').textContent =
         state.mode === 'private' ? '🪙 1 coin (host only) · free for friends' : state.entryCoins > 0 ? `🪙 ${state.entryCoins} coins` : 'Free';
       renderPlayers(state);
+      renderHand(state);
       updateLobbyTimer(state);
       updateStartNowButton(state);
 
@@ -308,14 +321,16 @@
         const enough = state.players.length >= (state.minPlayers || 2);
         startWarBtn.disabled = !enough;
         startWarBtn.textContent = enough
-          ? `Start war · ${state.players.length} joined`
+          ? 'Start war'
           : `Waiting for ${Math.max(0, (state.minPlayers || 2) - state.players.length)} more player(s)...`;
+        document.getElementById('vsNote').textContent = `You are the host · ${state.players.length} trader${state.players.length === 1 ? '' : 's'} in`;
       } else {
         startWarBtn.classList.add('hidden');
         readyBtn.classList.remove('hidden');
+        document.getElementById('vsNote').textContent = `${state.players.length} trader${state.players.length === 1 ? '' : 's'} in · the host starts the war`;
       }
 
-      if (state.status === 'countdown') document.getElementById('countdownOverlay').classList.remove('hidden');
+      if (state.status === 'countdown') showCountdown(state);
       // Instant-start modes (Async Daily Challenge, sometimes Solo Ranked) can
       // finish their countdown before this socket even binds, so the one-shot
       // match:start broadcast is missed entirely - self-heal from the state
@@ -374,7 +389,7 @@
     });
     socket.on('lobby:chat', (data) => appendChat(`${data.username}: ${data.message}`, false));
     socket.on('match:countdown', (data) => {
-      document.getElementById('countdownOverlay').classList.remove('hidden');
+      showCountdown();
       document.getElementById('countdownNumber').textContent = data.secondsRemaining;
       TW.Sound.play('countdownTick');
     });

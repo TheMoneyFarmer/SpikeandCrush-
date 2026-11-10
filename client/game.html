@@ -41,23 +41,39 @@
   <link rel="stylesheet" href="/css/game-console.css" />
   <link rel="stylesheet" href="/css/fire.css" />
   <link rel="stylesheet" href="/css/cards.css" />
+  <link rel="stylesheet" href="/css/arena.css" />
 <script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="game">
   <div class="game-shell" data-mobile-view="chart">
+    <!-- Arena layout (css/arena.css, js/arena-layout.js). The .tb-zone
+         wrappers are display:contents below desktop width, so phones keep
+         the flat top bar mobile.css was written for. -->
     <div class="game-topbar">
-      <div class="topbar-timer" id="topbarTimer">10:00</div>
-      <span class="market-speed-badge" id="marketSpeedBadge" hidden title="The market replays faster than real time in this mode. The clock shows real match time.">MARKET x1</span>
-      <div class="topbar-pnl-block">
-        <div class="topbar-pnl-label">Your P&amp;L</div>
-        <div class="topbar-pnl-value" id="topbarPnl">$0.00</div>
-        <div class="topbar-equity" id="topbarEquity">Equity: $10,000.00</div>
+      <div class="tb-zone tb-left">
+        <span class="tb-brand" aria-hidden="true"><span class="tb-s">Spike</span>&amp;<span class="tb-c">Crush</span></span>
+        <span class="tb-mode" id="topbarMode"></span>
+        <span class="market-speed-badge" id="marketSpeedBadge" hidden title="The market replays faster than real time in this mode. The clock shows real match time.">MARKET x1</span>
+      </div>
+      <div class="tb-zone tb-center">
+        <div class="topbar-pnl-block">
+          <div class="topbar-pnl-label">Your P&amp;L</div>
+          <div class="topbar-pnl-value" id="topbarPnl">$0.00</div>
+          <div class="topbar-equity" id="topbarEquity">Equity: $10,000.00</div>
+        </div>
+        <div class="timer-ring" id="timerRing"><div class="topbar-timer" id="topbarTimer">10:00</div></div>
+        <div class="tb-rank"><div class="topbar-pnl-label">Rank</div><div class="tb-rank-value" id="topbarRank">-</div></div>
       </div>
       <div class="instrument-tabs" id="instrumentTabs"></div>
-      <a href="/play" id="headerCoinWrap" class="tw-coin-balance hidden">🪙 <span id="headerCoinBalance">0</span></a>
-      <a href="/play" class="leave-match-btn match-home-btn" id="matchHomeBtn" title="Go to Home. Your match keeps running.">Home</a>
-      <button type="button" class="leave-match-btn" id="leaveMatchBtn" title="Forfeit this match">Forfeit</button>
+      <div class="tb-zone tb-right">
+        <a href="/play" id="headerCoinWrap" class="tw-coin-balance hidden">🪙 <span id="headerCoinBalance">0</span></a>
+        <a href="/play" class="leave-match-btn match-home-btn" id="matchHomeBtn" title="Go to Home. Your match keeps running.">Home</a>
+        <button type="button" class="leave-match-btn" id="leaveMatchBtn" title="Forfeit this match">Forfeit</button>
+      </div>
     </div>
+
+    <!-- Desktop only: standings and the card feed, filled by js/arena-layout.js -->
+    <aside class="arena-race" id="arenaRace" aria-label="Standings"></aside>
 
     <div class="game-main">
       <div class="chart-section">
@@ -128,14 +144,16 @@
         <div class="chart-subpane hidden" id="rsiPane"></div>
         <div class="chart-subpane hidden" id="macdPane"></div>
         <div class="news-ticker hidden" id="newsTicker"></div>
+        <!-- Desktop only: the cards dock under the chart (js/arena-layout.js) -->
+        <div class="arena-dock" id="arenaDock"></div>
       </div>
 
       <div class="trading-panel" id="tradingPanel">
         <div class="trading-panel-handle" id="tradingPanelHandle">▲ Trade</div>
 
         <div class="trade-buttons">
-          <button class="btn btn-buy" id="buyBtn">BUY</button>
-          <button class="btn btn-sell" id="sellBtn">SELL</button>
+          <button class="btn btn-buy" id="buyBtn"><span>BUY</span><span class="btn-px mono" id="buyBtnPx"></span></button>
+          <button class="btn btn-sell" id="sellBtn"><span>SELL</span><span class="btn-px mono" id="sellBtnPx"></span></button>
         </div>
 
         <div>
@@ -223,7 +241,8 @@
         <div class="card-slots card-tray" id="cardSlots"></div>
       </div>
       <div class="leaderboard-panel" id="leaderboardPanel">
-        <div class="text-secondary" style="font-size:12px;margin-bottom:8px;">Live leaderboard</div>
+        <div class="lb-head"><span class="lb-title">Standings</span><span class="lb-live">Live</span></div>
+        <div class="race-list" id="raceList"></div>
         <table class="leaderboard-table">
           <thead>
             <tr><th>#</th><th>Player</th><th>P&amp;L</th><th>Trades</th></tr>
@@ -284,6 +303,7 @@
   <script src="js/sabotage.js"></script>
   <script src="js/fire.js"></script>
   <script src="js/leaderboard.js"></script>
+  <script src="js/arena-layout.js"></script>
   <script src="js/game.js"></script>
   <footer class="legal-footer">
     <div class="legal-footer-content">

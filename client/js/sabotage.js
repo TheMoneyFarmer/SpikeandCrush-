@@ -507,5 +507,5 @@ TW.Sabotage = (function () {
     TW.showMatchNotification('Reversal incoming');
   }
 
-  return { render, update, setLeaderboard, showIncoming, showImmune, showReversalWarning, closeSheet };
+  return { render, update, setLeaderboard, showIncoming, showImmune, showReversalWarning, closeSheet, cardHtml, makeSpinnable };
 })();

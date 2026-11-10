@@ -78,37 +78,37 @@ function getExperienceLevel(totalMatches) {
 const MATCH_MODES = {
   quick: {
     label: 'Quick War', idealPlayers: 4, minPlayers: 2, maxPlayers: null,
-    lobbyTimeoutMs: 45000, countdownSeconds: 10, durationSeconds: 600,
+    lobbyTimeoutMs: 45000, countdownSeconds: 5, durationSeconds: 600,
     instrumentCount: 5, cardsPerPlayer: 3, entryCoins: 10, ranked: true, ratingKey: 'war_rating',
     fillMethod: 'ai',
   },
   blitz: {
     label: 'Blitz War', idealPlayers: 4, minPlayers: 2, maxPlayers: null,
-    lobbyTimeoutMs: 20000, countdownSeconds: 10, durationSeconds: 180,
+    lobbyTimeoutMs: 20000, countdownSeconds: 5, durationSeconds: 180,
     instrumentCount: 5, cardsPerPlayer: 3, entryCoins: 5, ranked: false, ratingKey: null,
     fillMethod: 'ai',
   },
   grand: {
     label: 'Grand War', idealPlayers: 8, minPlayers: 4, maxPlayers: null,
-    lobbyTimeoutMs: 90000, countdownSeconds: 10, durationSeconds: 1200,
+    lobbyTimeoutMs: 90000, countdownSeconds: 5, durationSeconds: 1200,
     instrumentCount: 5, cardsPerPlayer: 5, entryCoins: 25, ranked: true, ratingKey: 'grand_war_rating',
     fillMethod: 'ai', deckSelection: true,
   },
   private: {
     label: 'Private War', idealPlayers: 4, minPlayers: 2, maxPlayers: null,
-    lobbyTimeoutMs: 45000, countdownSeconds: 10, durationSeconds: 600,
+    lobbyTimeoutMs: 45000, countdownSeconds: 5, durationSeconds: 600,
     instrumentCount: 5, cardsPerPlayer: 3, entryCoins: 0, ranked: false, ratingKey: null,
     fillMethod: 'host',
   },
   solo: {
     label: 'Solo Ranked', idealPlayers: 1, minPlayers: 1, maxPlayers: 4,
-    lobbyTimeoutMs: 0, countdownSeconds: 3, durationSeconds: 600,
+    lobbyTimeoutMs: 0, countdownSeconds: 5, durationSeconds: 600,
     instrumentCount: 2, cardsPerPlayer: 3, entryCoins: 0, ranked: true, ratingKey: 'solo_rating',
     fillMethod: 'ai_only', aiOpponents: 3,
   },
   tournament: {
     label: 'Tournament War', idealPlayers: 2, minPlayers: 2, maxPlayers: 2,
-    lobbyTimeoutMs: 0, countdownSeconds: 10, durationSeconds: 900,
+    lobbyTimeoutMs: 0, countdownSeconds: 5, durationSeconds: 900,
     instrumentCount: 5, cardsPerPlayer: 4, entryCoins: 0, ranked: false, ratingKey: null,
     fillMethod: 'none',
   },
