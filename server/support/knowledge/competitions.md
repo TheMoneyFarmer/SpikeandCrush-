@@ -15,14 +15,14 @@ Competitions are long trading sessions (hours to a month) on one account. Times 
 One full trading day: Asian open to New York close. Best equity at the bell wins.
 
 - Entry: 10 coins
-- Instruments: EURUSD, GBPUSD, XAUUSD, NAS100, BTCUSD
+- Instruments: XAUUSD, NAS100, BTCUSD, USDJPY, USDCHF
 - Default prizes (coins): 1st: 150 coins, 2nd: 75 coins, 3rd: 40 coins
 
 ### Weekly War — Mon to Fri
 The whole trading week. Five sessions, one account, no resets.
 
 - Entry: 25 coins
-- Instruments: EURUSD, GBPUSD, USDJPY, XAUUSD, NAS100, US30, USOIL, BTCUSD
+- Instruments: USDJPY, XAUUSD, NAS100, US30, USOIL, BTCUSD, USDCHF, XAGUSD
 - Default prizes (coins): 1st: 600 coins, 2nd: 300 coins, 3rd: 150 coins
 
 ### Weekend Blitz
@@ -36,7 +36,7 @@ Crypto never sleeps. Saturday and Sunday on Bitcoin and Ethereum.
 A full month of markets. The long game — patience and risk control win this one.
 
 - Entry: 50 coins
-- Instruments: EURUSD, GBPUSD, USDJPY, XAUUSD, XAGUSD, NAS100, US30, GER40, USOIL, BTCUSD, ETHUSD
+- Instruments: USDJPY, XAUUSD, XAGUSD, NAS100, US30, GER40, USOIL, BTCUSD, ETHUSD, USDCHF, UK100
 - Default prizes (coins): 1st: 2500 coins, 2nd: 1250 coins, 3rd: 600 coins, 4th: 100 coins, 5th: 100 coins, 6th: 100 coins, 7th: 100 coins, 8th: 100 coins, 9th: 100 coins, 10th: 100 coins
 
 **How they work**

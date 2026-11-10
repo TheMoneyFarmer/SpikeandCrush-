@@ -9,6 +9,6 @@ needs_review: false
 
 # Fair play, reports and bans
 
-- **Reporting a player:** there is no report button yet. Ask for a human agent in this chat and give the player's username and what happened. A human will review it.
+- **Reporting a player:** tap **Report** on the player's row in Discover (or ask for a human agent in this chat and give the player's username and what happened). Reports go to the moderation team. You can also **Block** a player there: they disappear from your lists and can't invite you.
 - **Harassment or safety concerns:** tell support and ask for a human. These are always passed to the team.
 - **Bans and suspensions** are decided by the team. A banned account cannot log in or play while the ban lasts, but can still use this support chat. Support (including this assistant) cannot ban, unban or change a ban. If you want to appeal, ask for a human agent and a ticket will be opened.
