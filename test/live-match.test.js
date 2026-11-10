@@ -110,7 +110,8 @@ test('status reports the player\'s own P&L and trades', async (t) => {
   assert.strictEqual(live.matchId, match.id);
   assert.strictEqual(live.positions.length, 1);
   assert.strictEqual(live.positions[0].symbol, symbol);
-  assert.strictEqual(live.pnl, live.positions[0].pnl);
+  // Each figure is rounded to the cent on its own, so they can differ by one.
+  assert.ok(Math.abs(live.pnl - live.positions[0].pnl) <= 0.011, `${live.pnl} vs ${live.positions[0].pnl}`);
   assert.strictEqual(live.rank, 1);
   assert.strictEqual(engine.getLiveMatchStatus('someone-else'), null);
 });
