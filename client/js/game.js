@@ -304,15 +304,26 @@ window.TW = window.TW || {};
   function buildPositionRow(pos) {
     const row = document.createElement('div');
     row.className = 'position-row';
+    // One slim line per position; tapping it opens SL/TP and Modify, so a
+    // long list of trades still fits (css/arena.css).
+    const sltpText = () => {
+      const sl = pos.stopLoss ?? null;
+      const tp = pos.takeProfit ?? null;
+      return sl === null && tp === null ? '' : `SL ${sl ?? '-'} · TP ${tp ?? '-'}`;
+    };
     row.innerHTML = `
       <div class="position-main-row">
-        <div class="info">
-          <div><strong class="${pos.direction === 'BUY' ? 'text-buy' : 'text-sell'}">${pos.direction}</strong> ${pos.lots} ${pos.symbol}</div>
-          <div class="text-secondary">@ ${pos.entryPrice}</div>
-        </div>
+        <button type="button" class="pos-toggle" data-toggle aria-expanded="false" title="Stop loss, take profit and more">
+          <span class="pos-side ${pos.direction === 'BUY' ? 'is-buy' : 'is-sell'}">${pos.direction}</span>
+          <span class="info">
+            <span class="pos-what"><b>${pos.lots}</b> ${pos.symbol}</span>
+            <span class="pos-at text-secondary">@ ${pos.entryPrice}<span class="pos-sltp" data-sltp-text>${sltpText()}</span></span>
+          </span>
+        </button>
         <div class="pnl" data-pnl>${TW.formatMoney(0)}</div>
-        <button class="btn" data-modify style="min-height:36px;padding:6px 10px;">Modify</button>
-        <button class="btn" data-close style="min-height:36px;padding:6px 10px;">Close</button>
+        <button class="btn pos-close" data-close aria-label="Close ${pos.direction} ${pos.lots} ${pos.symbol}" title="Close position">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
       </div>
       <div class="position-sltp-row">
         <label>SL</label>
@@ -320,8 +331,14 @@ window.TW = window.TW || {};
         <label>TP</label>
         <input type="number" step="0.00001" data-tp value="${pos.takeProfit ?? ''}" placeholder="off" />
         <button class="btn" data-save-sltp>Set</button>
+        <button class="btn pos-more" data-modify>Modify</button>
       </div>
     `;
+    row.querySelector('[data-toggle]').addEventListener('click', (e) => {
+      const open = !row.classList.contains('open');
+      row.classList.toggle('open', open);
+      e.currentTarget.setAttribute('aria-expanded', String(open));
+    });
 
     row.querySelector('[data-close]').addEventListener('click', async (e) => {
       e.target.disabled = true;
@@ -339,7 +356,12 @@ window.TW = window.TW || {};
       const takeProfit = tpInput.value === '' ? null : Number(tpInput.value);
       const result = await TW.emitAck('trade:modify', { positionId: pos.id, stopLoss, takeProfit });
       if (!result.success) TW.toast(result.error, 'danger');
-      else TW.toast('Stop loss / take profit updated', 'info');
+      else {
+        pos.stopLoss = stopLoss;
+        pos.takeProfit = takeProfit;
+        row.querySelector('[data-sltp-text]').textContent = sltpText();
+        TW.toast('Stop loss / take profit updated', 'info');
+      }
     });
 
     row.querySelector('[data-modify]').addEventListener('click', () => openModifyModal(pos));
@@ -454,6 +476,8 @@ window.TW = window.TW || {};
     // Trade tab so an open position isn't easy to forget about while
     // parked on the Chart tab. No-op (element doesn't exist) on desktop/
     // landscape pages that never render the mobile tab bar.
+    const countEl = document.getElementById('positionsCount');
+    if (countEl) countEl.textContent = positions.length ? `· ${positions.length}` : '';
     const tradeBadge = document.getElementById('gameMobileTradeBadge');
     if (tradeBadge) tradeBadge.classList.toggle('hidden', positions.length === 0);
 

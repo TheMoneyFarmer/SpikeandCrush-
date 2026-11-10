@@ -258,3 +258,65 @@ body.arena .chart-tool-btn { white-space: nowrap; }
   body.arena .arena-dock .fire-tray-head { margin-bottom: 0; }
   body.arena .arena-dock .sc-card, body.arena .arena-dock .sc-slot { --cw: 84px; --ch: 118px; }
 }
+
+/* ---- open positions: one slim line each, tap for SL/TP and Modify ---- */
+.positions-list { gap: 4px; }
+html:root .position-row { gap: 0; padding: 0; border-radius: 10px; background: var(--c-deep); border: 1px solid var(--c-hair); }
+html:root .position-row .position-main-row { gap: 6px; min-height: 44px; padding: 0 6px 0 4px; }
+.pos-toggle { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--c-on); text-align: left; cursor: pointer; font: inherit; border-radius: 8px; }
+.pos-toggle:focus-visible { outline: 2px solid var(--c-focus); outline-offset: -2px; }
+.pos-side { flex: 0 0 auto; min-width: 34px; padding: 3px 6px; border-radius: 6px; font: 700 10px var(--c-font); letter-spacing: 0.04em; text-align: center; }
+.pos-side.is-buy { background: color-mix(in srgb, var(--c-spike) 18%, transparent); color: var(--c-spike); }
+.pos-side.is-sell { background: color-mix(in srgb, var(--c-crush) 18%, transparent); color: var(--c-crush); }
+html:root .position-row .info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pos-what { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos-what b { font-weight: 600; }
+.pos-at { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.pos-sltp:not(:empty)::before { content: ' · '; }
+html:root .position-row .pnl { min-width: 0; flex: 0 0 auto; font-size: 13px; font-weight: 600; }
+html:root .pos-close { flex: 0 0 auto; width: 32px; height: 32px; min-height: 32px !important; padding: 0 !important; display: grid; place-items: center; border-radius: 8px; background: transparent; border: 1px solid var(--c-hair-2); color: var(--c-mute); }
+html:root .pos-close:hover { color: var(--c-crush); border-color: var(--c-crush); }
+html:root .position-row .position-sltp-row { display: none; margin: 0 8px; padding: 8px 0 10px; gap: 6px; border-top: 1px solid var(--c-hair); }
+html:root .position-row.open .position-sltp-row { display: flex; }
+html:root .position-row.open { border-color: var(--c-hair-2); }
+html:root .position-sltp-row input { width: 76px; min-height: 32px; }
+html:root .position-sltp-row .btn { min-height: 32px; padding: 0 12px; font-size: 12px; }
+@media (pointer: coarse) {
+  html:root .pos-close { width: 40px; height: 40px; min-height: 40px !important; }
+}
+
+/* ---- desktop right rail: compact ticket, positions take the rest ---- */
+body.arena .trading-panel { gap: 12px; padding: 14px 14px 12px; overflow: hidden; }
+body.arena .trading-panel .lot-chip { min-height: 34px; padding: 0 12px; font-size: 13px; }
+body.arena .lot-selector { gap: 6px; }
+body.arena .pretrade-sltp-row { gap: 6px; flex-wrap: nowrap; }
+body.arena .pretrade-sltp-row input { min-height: 34px; width: 74px; flex: 0 0 auto; }
+body.arena .pretrade-sltp-row .lot-chip { min-height: 30px; padding: 0 9px; font-size: 12px; }
+body.arena .sltp-header { margin-bottom: 6px; }
+body.arena .sltp-header .lot-chip { min-height: 28px; }
+body.arena .positions-block { flex: 1 1 auto; min-height: 96px; display: flex; flex-direction: column; }
+body.arena .positions-list { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; padding-right: 2px; }
+body.arena .account-summary { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 8px; padding: 10px 12px; border-radius: 10px; background: var(--c-deep); margin: 0; }
+body.arena .account-summary .stat { text-align: left; }
+body.arena .account-summary .stat .label { font-size: 11px; }
+body.arena .account-summary .stat .value { font-size: 13px; }
+
+/* ---- desktop chart header: the timeframes get the room ---- */
+body.arena .chart-quotes .quote:has(#quoteBid), body.arena .chart-quotes .quote:has(#quoteAsk) { display: none; } /* shown on Buy/Sell */
+body.arena .chart-quotes .timeframe-selector { flex: 1 1 auto; min-width: 150px; gap: 4px; }
+body.arena .chart-quotes .timeframe-selector button { min-height: 30px; padding: 0 9px; font-size: 12px; }
+
+/* keep the ticket rows on one line on narrower desktops */
+body.arena { --rail-r: clamp(304px, 24vw, 340px); }
+body.arena .pretrade-sltp-row .lot-selector { flex-wrap: nowrap; gap: 4px; }
+body.arena .pretrade-sltp-row input { flex: 1 1 56px; width: auto; min-width: 0; }
+body.arena .pretrade-sltp-row .lot-chip { padding: 0 7px; font-size: 11px; }
+body.arena .lot-selector#lotSelector { flex-wrap: nowrap; }
+body.arena #lotSelector .lot-chip { flex: 1 1 0; min-width: 0; padding: 0 4px; }
+body.arena #lotSelector .custom-chip { flex: 1.6 1 0; gap: 4px; padding: 0 6px; }
+body.arena #lotSelector .custom-chip span { display: none; }
+body.arena #customLotInput { width: 100%; min-width: 0; }
+body.arena .account-summary .help-btn { display: none; }
+body.arena .account-summary .stat .value { white-space: nowrap; }
+body.arena #lotSelector .custom-chip { flex: 2 1 0; }
+body.arena #customLotInput { text-align: center; padding: 0 2px; }
