@@ -35,6 +35,12 @@ Inside every bar, `server/intrabar.js` makes a seeded one-second path. It starts
 
 **Rebuild playlists:** admin → Fire Gameplay → Market Curation → Rebuild (super admins). The game server runs the curation into `data/curated-next`, validates it with `scripts/fire/validate-curated.js` (no flat stretch over the limit in sampled matches, exact seams, band), and only then swaps it in. A failed rebuild keeps the old playlists live. Running matches keep their prices. Competition series are carried over unchanged, because running competitions depend on them.
 
+## Cosmetics and seasons
+
+- **Rank cosmetics** (`server/cosmetics.js`): each rating tier has frames, titles, nameplates or backgrounds. A player may equip every item of their tier and the tiers below; reaching a tier also stores its items in `earned_cosmetics` so they're kept. They use the existing equip slots plus a new `title` slot, and the shop never sells them.
+- **Monthly season:** season XP counts XP earned in the calendar month (UTC). The season rank (Bronze, Silver, Gold, Platinum, Diamond) resets each month; the lifetime level never does. `server/seasons.js` runs hourly on one server. Once a month it pays the previous season's top 100 (by `season_top()` over `xp_events`): #1 gets a champion title and frame, the top 10 a title and nameplate, the top 100 a frame. Each season is paid once.
+- Not built: chart themes, candle colours, sound packs, victory animations and result banners as cosmetics. They need new rendering systems; frames, titles, nameplates and backgrounds use the ones that exist.
+
 ## Fire monitor
 
 Admin → Fire Gameplay → Fire Monitor: for the last 24 hours, per mode and instrument, matches played, median and worst flat stretch, matches over the limit, price changes per minute and range. The data comes from `match_market_stats` once the migration is applied, and until then from the game server's memory. A match whose broadcast price stays flat longer than `market.flatLimitSeconds` emails hello@spikeandcrush.com (`FIRE_ALERT_EMAIL` to change), at most once an hour, with a count of the alerts held back.
@@ -79,10 +85,13 @@ Admin edits are partial objects merged over these defaults, per section, and eve
 | `rankSplit.enabled` | `false` |
 | `rankSplit.tiers` | Rookie = Recruit; Trader = Trader, Broker; Veteran = Analyst, Veteran; Warlord = Elite, War Lord |
 | `rankSplit.joinUpTiers` | `1` |
+| `rankSplit.emptyLobbyFallbackSeconds` | `60` (alone this long in a ranked lobby → offer a lobby one tier up, or Solo) |
+| `rankSplit.playerOverrides` | `{}` (playerId → tierId; set from admin with a logged reason) |
 | `rankSplit.suggestedTriggerConcurrent` | `200` |
 | `heat.enabled / multipliers / basePerWin / sabotageLeaderBonus` | `true / [1,1.5,2,3] / 100 / 40` |
 | `missions.enabled / perMatch / coinsPerMission / perMatchCoinCap / perDayCoinCap` | `true / 2 / 3 / 6 / 30` |
 | `spikeAlerts.enabled / leadDataSeconds / resultShowSeconds / topPercent` | `true / 10 / 4 / 1` |
+| `spikeAlerts.minGapSecondsLong` | `1800` (long competitions: at most one alert per 30 data-minutes) |
 | `crown.enabled / dethroneCard / dethroneCooldownSeconds` | `true / true / 60` |
 | `ghostChallenge.enabled / expiryDays` | `true / 7` |
 | `discover.enabled / pageSize / suggestionCacheSeconds` | `true / 30 / 60` |
@@ -105,6 +114,7 @@ Each one is a save in admin → Fire Gameplay (or a `game_feel` override). All t
 | Ghost challenges | `ghostChallenge.enabled = false` |
 | Level unlocks | `progression.enabled = false` stops XP; to give everyone every card, set `progression.unlockOverrides` |
 | Rank split | `rankSplit.enabled = false` (default) |
+| Spike alerts in competitions | `spikeAlerts.enabled = false` (same switch) |
 | Discover | `discover.enabled = false` |
 
 ## Tests and tools

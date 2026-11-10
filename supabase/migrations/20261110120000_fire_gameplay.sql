@@ -96,3 +96,32 @@ alter table public.xp_events enable row level security;
 alter table public.player_card_unlocks enable row level security;
 alter table public.mission_claims enable row level security;
 alter table public.challenge_links enable row level security;
+
+-- 2E.5 Earned cosmetics: rank items once reached, monthly season rewards.
+-- Never sold (the shop catalog doesn't contain them). One row per item.
+create table if not exists public.earned_cosmetics (
+  player_id uuid not null references public.players(id) on delete cascade,
+  item_id text not null,
+  source text not null check (source in ('rank', 'season', 'admin')),
+  season text,
+  created_at timestamptz not null default now(),
+  primary key (player_id, item_id)
+);
+alter table public.earned_cosmetics enable row level security;
+
+-- Final standings of one monthly season: XP earned inside the month, from
+-- the per-match XP log (so a player starting the next season early never
+-- erases their result in the last one). Real players only.
+create or replace function public.season_top(p_from timestamptz, p_to timestamptz, p_limit integer default 100)
+returns table (player_id uuid, xp bigint)
+language sql stable security definer set search_path = public as $$
+  select e.player_id, sum(e.amount)::bigint as xp
+  from xp_events e
+  join players p on p.id = e.player_id and p.is_persona = false
+  where e.created_at >= p_from and e.created_at < p_to
+  group by e.player_id
+  having sum(e.amount) > 0
+  order by xp desc, e.player_id
+  limit p_limit;
+$$;
+revoke all on function public.season_top(timestamptz, timestamptz, integer) from public, anon, authenticated;

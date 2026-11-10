@@ -13,6 +13,7 @@ const gameFeel = require('./config/gameFeel');
 const cardRules = require('./cards');
 const progression = require('./progression');
 const rankSplit = require('./rankSplit');
+const cosmetics = require('./cosmetics');
 const intrabar = require('./intrabar');
 
 // Replay speed for a short-mode match (data seconds per real second), from
@@ -2370,6 +2371,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
             if (ratingField === 'war_rating') updateFields.tier = p.tier;
             if (ratingField === 'war_rating' && p.tier !== r.oldTier && r.newRating > r.oldRating && !r.isAI) {
               notifyPlayer?.(r.playerId, 'rank_up', `You are now ${p.tier} tier! (${r.oldRating} → ${r.newRating} rating)`);
+              // Rank cosmetics are kept once reached (server/cosmetics.js).
+              db.grantCosmetics(cosmetics.rankItemsFor(p.tier).map((it) => ({ player_id: r.playerId, item_id: it.id, source: 'rank' }))).catch(() => {});
             }
           }
           await db.updatePlayer(r.playerId, updateFields);

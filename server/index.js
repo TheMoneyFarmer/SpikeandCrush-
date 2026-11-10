@@ -35,6 +35,7 @@ const battlepass = require('./battlepass');
 const progression = require('./progression');
 const discover = require('./discover');
 const rankSplit = require('./rankSplit');
+const cosmetics = require('./cosmetics');
 const gameFeel = require('./config/gameFeel');
 const tournament = require('./tournament');
 const presence = require('./presence');
@@ -598,6 +599,8 @@ app.use('/internal/admin/fire', require('./bridgeAuth').requireBridgeSecret, fir
   getOnlineSettings: async (ids) => (await discoverRows(ids.slice(0, 5000))).map((p) => p.settings || {}),
 }));
 fireAdmin.loadConfig(db);
+// Monthly season end: exclusive cosmetics for the top finishers (server/seasons.js).
+require('./seasons').startSeasonJob(db, notifyPlayer);
 // Saved admin Match Settings (game_config 'match_settings') apply at startup
 // too, not only after an admin presses Save.
 if (db.isConfigured) {
@@ -2099,7 +2102,13 @@ app.get('/api/discover', requireDb, authenticate, async (req, res) => {
       })
       .filter((x) => x.view.state !== 'offline');
     const page = discover.paginate(visible, req.query.page);
-    page.items = page.items.map(({ c, rel, view }) => discover.row(c, view, { relation: rel, mutualFriends: mutual(c.id), canRequest: rel !== 'friend' && discover.canRequest(c.settings, rel), canInvite: discover.canInvite(c.settings, rel) }));
+    const equippedById = await db.getEquippedCosmeticsForPlayers(page.items.map((x) => x.c.id)).catch(() => ({}));
+    const titleOf = (id) => {
+      const t = equippedById[id] && equippedById[id].title;
+      const it = t && cosmetics.findItem(t);
+      return it ? it.name : null;
+    };
+    page.items = page.items.map(({ c, rel, view }) => discover.row(c, view, { relation: rel, title: titleOf(c.id), mutualFriends: mutual(c.id), canRequest: rel !== 'friend' && discover.canRequest(c.settings, rel), canInvite: discover.canInvite(c.settings, rel) }));
     // An honest empty state: no padding with fake or seeded players.
     page.emptyMessage = page.total ? null : section === 'friends' ? 'None of your friends are online right now.' : 'Not many traders are online right now. Try a ghost challenge or a Solo match.';
     res.json(page);
@@ -2431,14 +2440,22 @@ app.post('/api/shop/purchase', requireDb, authenticate, async (req, res) => {
 app.post('/api/shop/equip', requireDb, authenticate, async (req, res) => {
   try {
     const { itemId } = req.body || {};
-    const item = shop.findItem(itemId);
+    // Shop items, or earned cosmetics (rank items, season rewards - never sold).
+    const earnedItem = shop.findItem(itemId) ? null : cosmetics.findItem(itemId);
+    const item = shop.findItem(itemId) || earnedItem;
     if (!item) return res.status(404).json({ error: 'Unknown item' });
-    const slot = shop.SLOT_BY_TYPE[item.type];
+    const slot = earnedItem ? cosmetics.SLOT_BY_TYPE[item.type] : shop.SLOT_BY_TYPE[item.type];
     if (!slot) return res.status(400).json({ error: 'This item type is not equippable' });
 
-    const owned = await db.listShopPurchases(req.tokenPlayer.id);
-    const isFree = item.price === 0;
-    if (!isFree && !owned.some((o) => o.item_id === itemId)) return res.status(403).json({ error: 'You do not own this item' });
+    if (earnedItem) {
+      const me = await db.getPlayerById(req.tokenPlayer.id);
+      const stored = (await db.listEarnedCosmetics(me.id)).map((r) => r.item_id);
+      if (!cosmetics.entitled(tierForRating(me.war_rating), stored).some((i) => i.id === itemId)) return res.status(403).json({ error: 'You have not earned this item yet' });
+    } else {
+      const owned = await db.listShopPurchases(req.tokenPlayer.id);
+      const isFree = item.price === 0;
+      if (!isFree && !owned.some((o) => o.item_id === itemId)) return res.status(403).json({ error: 'You do not own this item' });
+    }
 
     await db.equipCosmetic(req.tokenPlayer.id, slot, itemId);
     res.json({ success: true });
@@ -3163,6 +3180,39 @@ app.get('/api/progression/me', requireDb, authenticate, async (req, res) => {
   } catch (e) {
     console.error('[progression/me]', e);
     res.status(500).json({ error: 'Could not load progression' });
+  }
+});
+
+// Earned cosmetics and the monthly season (rank page).
+app.get('/api/cosmetics/me', requireDb, authenticate, async (req, res) => {
+  try {
+    const me = await db.getPlayerById(req.tokenPlayer.id);
+    const [storedRows, equipped, stored] = await Promise.all([db.listEarnedCosmetics(me.id), db.getEquippedCosmetics(me.id).catch(() => []), db.getProgress(me.id).catch(() => null)]);
+    const slots = Object.fromEntries((equipped || []).map((r) => [r.slot, r.item_id]));
+    const items = cosmetics.entitled(tierForRating(me.war_rating), storedRows.map((r) => r.item_id)).map((i) => ({ ...i, slot: cosmetics.SLOT_BY_TYPE[i.type], equipped: slots[cosmetics.SLOT_BY_TYPE[i.type]] === i.id }));
+    const season = progression.season();
+    const seasonXp = stored && stored.season === season ? stored.season_xp : 0;
+    const now = new Date();
+    const end = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
+    res.json({
+      items,
+      season: {
+        id: season,
+        xp: seasonXp,
+        rank: cosmetics.seasonRank(seasonXp),
+        ranks: cosmetics.SEASON_RANKS,
+        daysLeft: Math.ceil((end - now.getTime()) / 86400000),
+        rewards: [
+          { place: '1st', items: cosmetics.seasonRewardsFor(season, 1).map((i) => i.name) },
+          { place: 'Top 10', items: cosmetics.seasonRewardsFor(season, 10).map((i) => i.name) },
+          { place: 'Top 100', items: cosmetics.seasonRewardsFor(season, 100).map((i) => i.name) },
+        ],
+      },
+      rankItems: cosmetics.RANK_ITEMS.map((i) => ({ id: i.id, name: i.name, type: i.type, tier: i.tier })),
+    });
+  } catch (e) {
+    console.error('[cosmetics/me]', e);
+    res.status(500).json({ error: 'Could not load cosmetics' });
   }
 });
 

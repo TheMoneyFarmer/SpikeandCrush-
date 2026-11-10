@@ -60,6 +60,31 @@
   <script src="js/auth.js"></script>
   <script>
     TW.requireAuth();
+    // Season (monthly, resets) and earned cosmetics (rank items, season rewards).
+    async function loadCosmetics() {
+      const c = await TW.api('/api/cosmetics/me');
+      const s = c.season;
+      const next = s.rank.next;
+      document.getElementById('rkSeason').innerHTML = `<h2 class="rk-h">Season ${TW.escapeHtml(s.id)} · ${TW.escapeHtml(s.rank.name)}</h2>
+        <div class="rk-bar"><div style="width:${next ? Math.min(100, Math.round(((s.xp - s.rank.min) / (next.min - s.rank.min)) * 100)) : 100}%"></div></div>
+        <div class="rk-sub">${s.xp} season XP${next ? ` · ${next.min - s.xp} to ${TW.escapeHtml(next.name)}` : ' · top season rank'} · ${s.daysLeft} day${s.daysLeft === 1 ? '' : 's'} left. The season rank resets each month; your level never does.</div>
+        <div class="rk-next" style="margin-top:10px">${s.rewards.map((r) => `<span class="rk-pill"><b>${TW.escapeHtml(r.place)}</b> <i>${r.items.map((x) => TW.escapeHtml(x)).join(', ')}</i></span>`).join('')}</div>`;
+      const box = document.getElementById('rkCosmetics');
+      const draw = () => {
+        box.innerHTML = `<h2 class="rk-h">Your earned cosmetics</h2><p class="rk-sub">Earned by rank and season finishes. They can't be bought and never change your results.</p>
+          <div class="rk-next">${c.items.map((i) => `<span class="rk-pill">${TW.escapeHtml(i.name)} <i>${TW.escapeHtml(i.type.replace('_', ' '))}</i> ${i.equipped ? '<b style="color:#2EE6A6">Equipped</b>' : `<button class="btn" data-equip="${TW.escapeHtml(i.id)}" style="min-height:32px;padding:0 10px">Equip</button>`}</span>`).join('') || '<span class="rk-sub">Rank up or finish high in a season to earn some.</span>'}</div>`;
+        box.querySelectorAll('[data-equip]').forEach((b) => b.addEventListener('click', async () => {
+          try {
+            await TW.api('/api/shop/equip', { method: 'POST', body: { itemId: b.dataset.equip } });
+            const slot = c.items.find((x) => x.id === b.dataset.equip).slot;
+            c.items.forEach((x) => { if (x.slot === slot) x.equipped = x.id === b.dataset.equip; });
+            draw();
+            TW.toast('Equipped', 'success');
+          } catch (e) { TW.toast(e.message, 'danger'); }
+        }));
+      };
+      draw();
+    }
     (async () => {
       const root = document.getElementById('rankRoot');
       try {
@@ -83,6 +108,8 @@
             <div class="rk-stat"><b>${d.bestHeat}</b><span>Best Heat</span></div>
             <div class="rk-stat"><b>${d.season.xp}</b><span>Season ${TW.escapeHtml(d.season.id)} XP</span></div>
           </section>
+          <section class="rk-card" id="rkSeason"></section>
+          <section class="rk-card" id="rkCosmetics"></section>
           <section class="rk-card">
             <h2 class="rk-h">Next unlocks</h2>
             <div class="rk-next">${d.nextUnlocks.length ? d.nextUnlocks.map((c) => `<span class="rk-pill">${icon(c.icon, 16)} ${TW.escapeHtml(c.name)} <i>${TW.escapeHtml(c.unlockText)}</i></span>`).join('') : '<span class="rk-sub">Every level unlock is yours.</span>'}</div>
@@ -100,6 +127,7 @@
             <table class="rk-table"><tbody>${d.collection.map((c) => `<tr class="${c.unlocked ? '' : 'locked'}"><td>${icon(c.unlocked ? c.icon : 'lock', 16)} ${TW.escapeHtml(c.name)}</td><td style="text-transform:capitalize">${TW.escapeHtml(c.rarity)}</td><td>${c.unlocked ? 'Unlocked' : TW.escapeHtml(c.unlockText)}</td></tr>`).join('')}</tbody></table>
             <p class="rk-sub" style="margin:10px 0 0"><a href="/cards">Open the card collection</a></p>
           </section>`;
+        await loadCosmetics();
       } catch (e) {
         root.innerHTML = `<div class="rk-card">${TW.escapeHtml(e.message || 'Could not load your rank')}</div>`;
       }

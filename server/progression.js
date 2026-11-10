@@ -168,15 +168,8 @@ function rankBenefits() {
   return Object.entries(t).map(([tier, n]) => ({
     tier,
     extraStartingCards: n,
-    cosmetics: {
-      Recruit: 'Rookie frame',
-      Trader: 'Trader title + green nameplate',
-      Broker: 'Broker title + chart theme "Night desk"',
-      Analyst: 'Analyst title + candle colours "Signal"',
-      Veteran: 'Veteran frame + trade sound pack "Bell"',
-      Elite: 'Elite crown skin + victory animation',
-      'War Lord': 'War Lord gold nameplate + leaderboard flair + result banner',
-    }[tier] || '',
+    // The real earned items for this tier (server/cosmetics.js).
+    cosmetics: require('./cosmetics').RANK_ITEMS.filter((it) => it.tier === tier).map((it) => `${it.name} ${it.type === 'title' ? 'title' : it.type.replace('_', ' ')}`).join(', '),
   }));
 }
 

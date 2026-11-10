@@ -102,7 +102,7 @@
       actions.push(`<button class="ghost" data-act="block">Block</button><button class="ghost" data-act="report">Report</button>`);
       return `<div class="dc-row" data-id="${esc(p.id)}">
         <div class="dc-av">${p.avatarUrl ? `<img src="${esc(p.avatarUrl)}" alt="" />` : esc(p.username[0] || '?').toUpperCase()}</div>
-        <div><div class="dc-name">${esc(p.username)}</div>
+        <div><div class="dc-name">${esc(p.username)}${p.title ? ` <span style="font-size:11px;color:#F5B83D;font-weight:600">${esc(p.title)}</span>` : ''}</div>
           <div class="dc-meta"><span class="dc-state st-${esc(p.state)}"><span class="dc-dot"></span><span class="dc-st">${STATE[p.state] || 'Online'}${p.mode ? ` · ${esc(p.mode)}` : ''}</span></span>
           ${p.tier ? `<span>${esc(p.tier)}</span>` : ''}${p.mutualFriends ? `<span>${p.mutualFriends} mutual friend${p.mutualFriends === 1 ? '' : 's'}</span>` : ''}${p.relation === 'friend' ? '<span>Friend</span>' : ''}</div></div>
         <div class="dc-actions">${actions.join('')}</div></div>`;

@@ -2350,6 +2350,45 @@ async function createPlayerReport({ reporterId, reportedId, reason, matchId = nu
   return true;
 }
 
+// Earned cosmetics (rank items, season rewards). Missing table = none yet.
+async function listEarnedCosmetics(playerId) {
+  if (!isConfigured) return [];
+  const { data, error } = await supabase.from('earned_cosmetics').select('item_id, source, season').eq('player_id', playerId);
+  if (fireTableMissing('earned_cosmetics', error)) return [];
+  if (error) throw error;
+  return data || [];
+}
+
+// Insert grants, skipping ones the player already has. Returns rows written
+// or null when the table doesn't exist yet.
+async function grantCosmetics(rows) {
+  if (!isConfigured || !rows.length) return [];
+  const { data, error } = await supabase.from('earned_cosmetics').upsert(rows, { onConflict: 'player_id,item_id', ignoreDuplicates: true }).select();
+  if (fireTableMissing('earned_cosmetics', error)) return null;
+  if (error) throw error;
+  return data || [];
+}
+
+async function seasonAlreadyRewarded(season) {
+  if (!isConfigured) return true;
+  const { data, error } = await supabase.from('earned_cosmetics').select('player_id').eq('season', season).limit(1);
+  if (fireTableMissing('earned_cosmetics', error)) return true;
+  if (error) throw error;
+  return (data || []).length > 0;
+}
+
+// Final standings of a season (supabase/migrations/..._fire_gameplay.sql season_top).
+async function seasonTop(fromIso, toIso, limit = 100) {
+  if (!isConfigured) return null;
+  const { data, error } = await supabase.rpc('season_top', { p_from: fromIso, p_to: toIso, p_limit: limit });
+  if (error && (error.code === 'PGRST202' || /season_top|does not exist|Could not find the function/i.test(error.message || ''))) {
+    fireTableMissing('season_top()', { code: '42P01' });
+    return null;
+  }
+  if (error) throw error;
+  return data || [];
+}
+
 // Admin config stored by the admin panel (game_config table, key/value).
 async function getGameConfig(key) {
   if (!isConfigured) return null;
@@ -2392,6 +2431,10 @@ module.exports = {
   setCardGrant,
   recordMarketStats,
   listFriendIdsForMany,
+  listEarnedCosmetics,
+  grantCosmetics,
+  seasonAlreadyRewarded,
+  seasonTop,
   listPlayHabits,
   getGameConfig,
   listPlayersForUnlockReport,

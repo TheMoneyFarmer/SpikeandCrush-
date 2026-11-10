@@ -117,6 +117,9 @@ const IGNORABLE = /cloudflareinsights|status of 401|status of 404|favicon|net::E
     await page.waitForURL('**/game*', { timeout: 30000 });
     await page.waitForLoadState('load');
     for (const [w, h] of sizes) await shot('game', w, h, page.url());
+    // The game page's socket connects ~150ms after load; the match is already
+    // live by then. Wait for it like a player's first click would.
+    await page.waitForFunction(() => window.TW && TW.socket && TW.socket.connected, { timeout: 15000 });
     const out = await page.evaluate(async (id) => {
       await TW.emitAck('player:join', { matchId: id });
       let m;
