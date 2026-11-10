@@ -79,3 +79,23 @@ test('flag OFF (the default): every ranked player shares one pool', async () => 
   assert.strictEqual(a.matchId, b.matchId);
   assert.strictEqual(engine.getMatch(a.matchId).lobbyTier, undefined);
 });
+
+test('admin tier override moves one player; fallback allows exactly one tier up, never two', async () => {
+  const rankSplit = require('../server/rankSplit');
+  gameFeel.applyOverrides({ rankSplit: { enabled: true, joinUpTiers: 0, playerOverrides: { moved1: 'veteran' } } });
+  assert.strictEqual(rankSplit.lobbyTierFor('Recruit', 'moved1'), 'veteran');
+  assert.strictEqual(rankSplit.lobbyTierFor('Recruit', 'someone'), 'rookie');
+  const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
+  const lobby = await matchmaking.quickPlay(engine, player('moved1', 700));
+  assert.strictEqual(engine.getMatch(lobby.matchId).lobbyTier, 'veteran');
+  // Fallback: joinUpTiers 0 still lets a lonely player go one tier up, not two.
+  assert.strictEqual(rankSplit.mayJoin('rookie', 'trader', 0), false);
+  assert.strictEqual(rankSplit.mayJoin('rookie', 'trader', 1), true);
+  assert.strictEqual(rankSplit.mayJoin('rookie', 'veteran', 1), false);
+  assert.strictEqual(rankSplit.tierAbove('trader'), 'veteran');
+  assert.strictEqual(rankSplit.tierAbove('warlord'), null);
+  const traderRoom = await engine.createMatch('quick');
+  traderRoom.lobbyTier = 'trader';
+  assert.strictEqual(engine.joinMatch(traderRoom, player('r9', 700)).success, false);
+  assert.strictEqual(engine.joinMatch(traderRoom, { ...player('r9', 700), fallbackUp: true }).success, true);
+});

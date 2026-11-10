@@ -26,8 +26,12 @@ function enabled() {
 }
 
 // Lobby tier id for a rating tier name (gameEngine TIERS), from the config.
-function lobbyTierFor(rankName) {
+// An admin can move one player to another lobby tier by hand
+// (rankSplit.playerOverrides { playerId: tierId }, set with a logged reason).
+function lobbyTierFor(rankName, playerId = null) {
   const tiers = config().tiers;
+  const forced = playerId && config().playerOverrides && config().playerOverrides[playerId];
+  if (forced && tiers.some((t) => t.id === forced)) return forced;
   const t = tiers.find((x) => x.ranks.includes(rankName));
   return t ? t.id : tiers[0].id;
 }
@@ -38,11 +42,19 @@ function tierIndex(id) {
 
 // May a player whose lobby tier is `playerTier` join a lobby of `lobbyTier`?
 // Own tier, or up to joinUpTiers above - never down.
-function mayJoin(playerTier, lobbyTier) {
+// extraUp: the empty-lobby fallback may offer exactly one tier more.
+function mayJoin(playerTier, lobbyTier, extraUp = 0) {
   const p = tierIndex(playerTier);
   const l = tierIndex(lobbyTier);
   if (p === -1 || l === -1) return true;
-  return l >= p && l - p <= (Number(config().joinUpTiers) || 0);
+  return l >= p && l - p <= (Number(config().joinUpTiers) || 0) + extraUp;
+}
+
+// The lobby tier one step above, or null at the top.
+function tierAbove(id) {
+  const i = tierIndex(id);
+  const tiers = config().tiers;
+  return i >= 0 && i + 1 < tiers.length ? tiers[i + 1].id : null;
 }
 
 function tierLabel(id) {
@@ -50,4 +62,4 @@ function tierLabel(id) {
   return t ? t.label : null;
 }
 
-module.exports = { RANKED_PUBLIC_MODES, isSplitMode, enabled, lobbyTierFor, mayJoin, tierLabel, tierIndex };
+module.exports = { RANKED_PUBLIC_MODES, isSplitMode, enabled, lobbyTierFor, mayJoin, tierAbove, tierLabel, tierIndex };

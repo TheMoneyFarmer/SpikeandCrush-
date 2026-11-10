@@ -102,6 +102,11 @@ const DEFAULTS = {
       { id: 'warlord', label: 'Warlord', ranks: ['Elite', 'War Lord'] },
     ],
     joinUpTiers: 1,
+    // Empty-lobby fallback: alone in a ranked lobby this long -> offer a lobby
+    // one tier up, or Solo / a ghost challenge.
+    emptyLobbyFallbackSeconds: 60,
+    // Admin moves: { playerId: tierId } (each change audit-logged with a reason).
+    playerOverrides: {},
     suggestedTriggerConcurrent: 200,
   },
 

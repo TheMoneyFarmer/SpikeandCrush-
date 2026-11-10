@@ -189,8 +189,14 @@
       el.innerHTML = `<div class="panel fx-section"><h4>Status: ${rs.enabled ? '<span class="fx-ok">ON</span>' : '<span class="fx-bad">OFF</span> (all ranked players share one pool)'}</h4>
         <p class="fx-note">Applies to ranked public matches only (Quick War, Grand War). Suggested trigger: ${esc(rs.suggestedTrigger)}.</p>
         <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mode</th><th>Lobby tier</th><th>Players waiting</th></tr></thead><tbody>${rs.lobbies.map((l) => `<tr><td>${esc(l.mode)}</td><td>${esc(l.tier)}</td><td>${l.players}</td></tr>`).join('') || '<tr><td colspan="3">No ranked lobbies open right now</td></tr>'}</tbody></table></div></div>` +
-        jsonEditor('rankSplit', 'enabled, tiers [{ id, label, ranks }], joinUpTiers. Tier edits apply to new lobbies only. To move one player, change their rating tier in Players.');
+        `<div class="panel fx-section"><h4>Move one player to another lobby tier</h4><p class="fx-note">Super admins only. A reason is required and the move is logged. Leave the tier empty to put the player back on their rating tier.</p>
+          <div class="fx-row"><input id="toPlayer" placeholder="Player id (uuid)" style="min-width:280px" /><select id="toTier"><option value="">(rating tier)</option>${S.config.rankSplit.tiers.map((t) => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')}</select><input id="toReason" placeholder="Reason" style="min-width:220px" /><button class="btn" id="toSave">Save move</button></div>
+          <p class="fx-note">Current moves: ${Object.entries(S.config.rankSplit.playerOverrides || {}).map(([p, t]) => `${esc(p)} → ${esc(t)}`).join(', ') || 'none'}</p></div>` +
+        jsonEditor('rankSplit', 'enabled, tiers [{ id, label, ranks }], joinUpTiers, emptyLobbyFallbackSeconds. Tier edits apply to new lobbies only.');
       bindSaves(el);
+      document.getElementById('toSave').onclick = async () => {
+        try { await Admin.api('/fire/tier-override', { method: 'POST', body: { playerId: document.getElementById('toPlayer').value.trim(), tierId: document.getElementById('toTier').value || null, reason: document.getElementById('toReason').value.trim() } }); Admin.toast('Player moved', 'success'); load(); } catch (e) { alert(e.message); }
+      };
     }
 
     function renderDiscover() {

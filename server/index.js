@@ -34,6 +34,7 @@ const shop = require('./shop');
 const battlepass = require('./battlepass');
 const progression = require('./progression');
 const discover = require('./discover');
+const rankSplit = require('./rankSplit');
 const gameFeel = require('./config/gameFeel');
 const tournament = require('./tournament');
 const presence = require('./presence');
@@ -597,6 +598,13 @@ app.use('/internal/admin/fire', require('./bridgeAuth').requireBridgeSecret, fir
   getOnlineSettings: async (ids) => (await discoverRows(ids.slice(0, 5000))).map((p) => p.settings || {}),
 }));
 fireAdmin.loadConfig(db);
+// Saved admin Match Settings (game_config 'match_settings') apply at startup
+// too, not only after an admin presses Save.
+if (db.isConfigured) {
+  db.getGameConfig('match_settings')
+    .then((rows) => gameEngine.applyConfigOverrides(require('./internalAdmin').sanitizeMatchSettings(rows)))
+    .catch((e) => console.warn('[config] match_settings not loaded:', e.message));
+}
 gameEngine.setFlatAlertHandler(fireAdmin.flatAlertHandler);
 
 // ---- auth -----------------------------------------------------------------
@@ -1683,7 +1691,7 @@ app.get('/api/player/:id', requireDb, async (req, res) => {
 // ---- friends (Block 12) ----------------------------------------------------------
 
 // Charges a lobby's entry fee and seats the player, refunding if the seat fails.
-async function joinLobbyWithEntryFee(match, playerId, socketId) {
+async function joinLobbyWithEntryFee(match, playerId, socketId, extra = {}) {
   const player = await db.getPlayerById(playerId);
   const entryCoins = match.config.entryCoins || 0;
   if (entryCoins > 0 && player.coins < entryCoins) {
@@ -1691,7 +1699,7 @@ async function joinLobbyWithEntryFee(match, playerId, socketId) {
   }
 
   const playerInfo = { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, grand_war_rating: player.grand_war_rating, solo_rating: player.solo_rating, tier: tierForRating(player.war_rating) };
-  Object.assign(playerInfo, await loadCardLoadout(player));
+  Object.assign(playerInfo, await loadCardLoadout(player), extra.fallbackUp ? { fallbackUp: true } : {});
   let entry;
   try {
     entry = await chargeEntryFee(player.id, entryCoins, match.dbMatchId);
@@ -1971,6 +1979,22 @@ const discoverWatchers = new Map(); // watched playerId -> Set(socketId)
 const discoverWatching = new Map(); // socketId -> Set(watched playerIds)
 const reportLimiter = friendsHub.createWindowLimiter({ max: 10, windowMs: 60 * 60 * 1000 });
 
+const habitCache = new Map(); // playerId -> { habit, at }
+async function playHabits(ids) {
+  const now = Date.now();
+  const missing = ids.filter((id) => !habitCache.has(id) || now - habitCache.get(id).at > 10 * 60 * 1000);
+  if (missing.length) {
+    try {
+      const got = await db.listPlayHabits(missing);
+      for (const [id, h] of got) habitCache.set(id, { habit: h, at: now });
+    } catch (e) {
+      console.warn('[discover] play habits:', e.message);
+    }
+  }
+  if (habitCache.size > 20000) for (const [k, v] of habitCache) if (now - v.at > 10 * 60 * 1000) habitCache.delete(k);
+  return new Map(ids.map((id) => [id, habitCache.get(id) ? habitCache.get(id).habit : { modes: new Set(), hours: new Set() }]));
+}
+
 async function discoverRows(ids) {
   const ttl = gameFeel.get().discover.suggestionCacheSeconds * 1000;
   const now = Date.now();
@@ -2050,7 +2074,14 @@ app.get('/api/discover', requireDb, authenticate, async (req, res) => {
     const theirFriends = await db.listFriendIdsForMany(list.slice(0, 400).map((c) => c.id)).catch(() => new Map());
     const mutual = (id) => [...(theirFriends.get(id) || [])].filter((f) => friendIds.has(f)).length;
     if (section === 'suggested') {
-      const ctx = { me, fofCount: mutual, playedWith };
+      // Same modes and similar hours come from real match history (cached
+      // per player for a few minutes; neither is ever shown).
+      const pool = list.filter((c) => !friendIds.has(c.id)).slice(0, 400);
+      const habits = await playHabits([myId, ...pool.map((c) => c.id)]);
+      const mine = habits.get(myId) || { modes: new Set(), hours: new Set() };
+      // Hours within one hour either side count as "similar".
+      const myHours = new Set([...mine.hours].flatMap((h) => [(h + 23) % 24, h, (h + 1) % 24]));
+      const ctx = { me, fofCount: mutual, playedWith, myModes: mine.modes, theirModes: (id) => (habits.get(id) || {}).modes, myHours, theirHours: (id) => (habits.get(id) || {}).hours };
       list = list.filter((c) => !friendIds.has(c.id)).map((c) => ({ c, s: discover.score(c, ctx) })).sort((a, b) => b.s - a.s).map((x) => x.c);
     } else {
       list = friendsHub.rankOnlinePlayers(list, me);
@@ -3206,6 +3237,44 @@ app.post('/api/challenge/:code/start', requireDb, authenticate, async (req, res)
   } catch (e) {
     console.error('[challenge start]', e);
     res.status(500).json({ error: 'Could not start the challenge' });
+  }
+});
+
+// Rank-split empty-lobby fallback (only when the split is on): alone in a
+// ranked lobby for rankSplit.emptyLobbyFallbackSeconds -> offer an open lobby
+// one tier up (allowed once even when joinUpTiers is 0), or Solo / a ghost
+// challenge. No bots are added for this.
+function fallbackFor(match, playerId) {
+  const cfg = gameFeel.get().rankSplit;
+  if (!rankSplit.enabled() || !match || match.status !== 'waiting' || !match.lobbyTier || !match.players[playerId]) return null;
+  const humans = Object.values(match.players).filter((p) => !p.isAI);
+  const waited = (Date.now() - match.createdAt) / 1000;
+  if (humans.length > 1 || waited < cfg.emptyLobbyFallbackSeconds) return { offer: false, waitSeconds: Math.max(0, Math.ceil(cfg.emptyLobbyFallbackSeconds - waited)) };
+  const up = rankSplit.tierAbove(match.lobbyTier);
+  const room = up
+    ? gameEngine.listWaitingMatchesByMode(match.mode).find((m) => m.id !== match.id && m.lobbyTier === up && Object.keys(m.players).length < m.config.maxPlayers)
+    : null;
+  return { offer: true, upTier: room ? { matchId: room.id, tier: rankSplit.tierLabel(up), players: Object.keys(room.players).length } : null, solo: true, ghost: true };
+}
+
+app.get('/api/match/:id/fallback', requireDb, authenticate, (req, res) => {
+  res.json(fallbackFor(gameEngine.getMatch(req.params.id), req.tokenPlayer.id) || { offer: false });
+});
+
+app.post('/api/match/:id/fallback', requireDb, authenticate, async (req, res) => {
+  try {
+    const current = gameEngine.getMatch(req.params.id);
+    const f = fallbackFor(current, req.tokenPlayer.id);
+    if (!f || !f.offer || !f.upTier) return res.status(400).json({ error: 'No lobby one tier up is open right now' });
+    const target = gameEngine.getMatch(f.upTier.matchId);
+    const left = await gameEngine.leaveMatch(current.id, req.tokenPlayer.id);
+    if (!left.success) return res.status(400).json(left);
+    const result = await joinLobbyWithEntryFee(target, req.tokenPlayer.id, null, { fallbackUp: true });
+    if (!result.success) return res.status(400).json({ error: result.error });
+    res.json({ success: true, matchId: target.id });
+  } catch (e) {
+    console.error('[rank fallback]', e);
+    res.status(500).json({ error: 'Could not move you to that lobby' });
   }
 });
 

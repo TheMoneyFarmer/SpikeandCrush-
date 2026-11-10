@@ -15,6 +15,7 @@ TW.Fire = (function () {
   let resultTimer = null;
   let mode = 'idle'; // idle | alert | result
   let challenge = null; // ghost challenge: { username, pnl } to beat
+  let lobbyTier = null; // rank-split lobby tier badge
 
   const strip = () => document.getElementById('spikeStrip');
 
@@ -24,6 +25,11 @@ TW.Fire = (function () {
 
   function setChallenge(c) {
     challenge = c || null;
+    drawIdle();
+  }
+
+  function setLobbyTier(t) {
+    lobbyTier = t || null;
     drawIdle();
   }
 
@@ -37,6 +43,7 @@ TW.Fire = (function () {
     const chips = missions.map((m) => `<span class="ms-chip${m.done ? ' done' : ''}" title="${TW.escapeHtml(m.label)}">${m.done ? icon('check', 12) : ''}<span>${TW.escapeHtml(m.label)}</span><b>${Math.min(m.progress, m.target)}/${m.target}</b></span>`).join('');
     el.className = 'match-strip';
     el.innerHTML = `
+      ${lobbyTier ? `<span class="ms-tier">${TW.escapeHtml(lobbyTier.charAt(0).toUpperCase() + lobbyTier.slice(1))} lobby</span>` : ''}
       <span class="ms-crown" title="Current leader">${icon('crown', 14)}<span>${leader ? TW.escapeHtml(leader.username) : '-'}</span></span>
       ${challenge ? `<span class="ms-rival">To beat: <b>${TW.escapeHtml(challenge.username)}</b> <i class="${challenge.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(challenge.pnl)}</i>${mine ? ` <i>(you ${TW.formatMoney(mine.pnl)})</i>` : ''}</span>` : mine && mine.rank === 1 ? '<span class="ms-rival you-lead">You wear the crown</span>' : above ? `<span class="ms-rival">Rival above: <b>${TW.escapeHtml(above.username)}</b> <i class="${above.pnl - mine.pnl > 0 ? 'text-sell' : ''}">${TW.formatMoney(above.pnl - mine.pnl)} ahead</i></span>` : ''}
       <span class="ms-missions">${chips}</span>`;
@@ -196,5 +203,5 @@ TW.Fire = (function () {
     });
   }
 
-  return { setYou, setChallenge, setLeaderboard, setMissions, missionComplete, spikeAlert, spikeResult, renderResults, drawIdle };
+  return { setYou, setChallenge, setLobbyTier, setLeaderboard, setMissions, missionComplete, spikeAlert, spikeResult, renderResults, drawIdle };
 })();

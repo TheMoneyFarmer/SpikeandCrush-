@@ -829,8 +829,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // Rank split (ranked public lobbies only, off by default): own tier or
     // the allowed tiers above, never down - whichever way the player arrives.
     if (match.lobbyTier && rankSplit.enabled() && rankSplit.isSplitMode(match.mode) && !playerInfo.isAI) {
-      const mine = rankSplit.lobbyTierFor(playerInfo.tier || tierForRating(playerInfo.war_rating ?? 1000));
-      if (!rankSplit.mayJoin(mine, match.lobbyTier)) return { success: false, error: `This ranked lobby is for ${rankSplit.tierLabel(match.lobbyTier)} tier players` };
+      const mine = rankSplit.lobbyTierFor(playerInfo.tier || tierForRating(playerInfo.war_rating ?? 1000), playerInfo.id);
+      if (!rankSplit.mayJoin(mine, match.lobbyTier, playerInfo.fallbackUp ? 1 : 0)) return { success: false, error: `This ranked lobby is for ${rankSplit.tierLabel(match.lobbyTier)} tier players` };
     }
 
     if (!match.hostId) match.hostId = playerInfo.id;

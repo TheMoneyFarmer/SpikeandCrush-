@@ -39,6 +39,7 @@
 }
 .match-strip svg { flex: none; }
 .match-strip b { color: var(--fx-text); font-weight: 600; }
+.ms-tier { padding: 2px 8px; border-radius: 6px; background: rgba(245,184,61,.15); color: var(--fx-gold); font: 700 11px/1.4 var(--fx-display); text-transform: uppercase; letter-spacing: .05em; }
 .ms-crown { display: inline-flex; align-items: center; gap: 5px; color: var(--fx-gold); font-family: var(--fx-display); font-weight: 600; font-size: 13px; }
 .ms-crown span { color: var(--fx-text); }
 .ms-rival { overflow: hidden; text-overflow: ellipsis; }

@@ -14,7 +14,7 @@ async function joinOpenLobby(gameEngine, mode, playerInfo) {
   // only match lobbies of the player's own lobby tier or the allowed tiers
   // above; with no such lobby a new one is created at the player's tier.
   const split = rankSplit.enabled() && rankSplit.isSplitMode(mode);
-  const myTier = split ? rankSplit.lobbyTierFor(playerInfo.tier || gameEngine.tierForRating(playerInfo.war_rating ?? 1000)) : null;
+  const myTier = split ? rankSplit.lobbyTierFor(playerInfo.tier || gameEngine.tierForRating(playerInfo.war_rating ?? 1000), playerInfo.id) : null;
   const candidates = gameEngine
     .listWaitingMatchesByMode(mode)
     .filter((m) => Object.keys(m.players).length < idealPlayers && (!split || rankSplit.mayJoin(myTier, m.lobbyTier || myTier)));

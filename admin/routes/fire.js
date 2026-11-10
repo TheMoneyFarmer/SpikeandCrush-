@@ -83,6 +83,30 @@ function router() {
     }
   });
 
+  // Move one player's ranked lobby tier by hand (super_admin, reason
+  // required, logged). tierId null clears it back to their rating tier.
+  r.post('/tier-override', requireSuperAdmin, async (req, res) => {
+    const { playerId, tierId, reason } = req.body || {};
+    if (!playerId || !/^[0-9a-f-]{36}$/i.test(playerId)) return res.status(400).json({ error: 'playerId (uuid) is required' });
+    if (!reason || String(reason).trim().length < 3) return res.status(400).json({ error: 'A reason is required' });
+    try {
+      const all = await stored();
+      const rs = { ...(all.rankSplit || {}) };
+      const overrides = { ...(rs.playerOverrides || {}) };
+      const before = overrides[playerId] || null;
+      if (tierId) overrides[playerId] = String(tierId);
+      else delete overrides[playerId];
+      rs.playerOverrides = overrides;
+      all.rankSplit = rs;
+      await supabase.from('game_config').upsert({ key: 'game_feel', value: all, updated_by: req.admin.username, updated_at: new Date().toISOString() });
+      await internal.fire('/reload', {});
+      await logAdminAction({ adminUsername: req.admin.username, actionType: 'move_player_lobby_tier', targetType: 'player', targetId: playerId, details: { before, after: tierId || null, reason }, ip: clientIp(req) });
+      res.json({ success: true });
+    } catch (e) {
+      res.status(502).json({ error: e.message });
+    }
+  });
+
   r.get('/unlock-report', async (req, res) => {
     try {
       res.json(await internal.fire('/unlock-report'));

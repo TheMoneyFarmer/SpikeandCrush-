@@ -2320,6 +2320,28 @@ async function listRecentCoPlayers(playerId, matches = 20) {
   return [...new Set((data || []).map((r) => r.player_id))];
 }
 
+// Discover suggestions: the modes each player played recently and the UTC
+// hours they usually play at, from their real match history.
+async function listPlayHabits(ids, perPlayer = 20) {
+  assertConfigured();
+  const out = new Map(ids.map((id) => [id, { modes: new Set(), hours: new Set() }]));
+  if (!ids.length) return out;
+  const { data, error } = await supabase
+    .from('match_players')
+    .select('player_id, matches!inner(mode, created_at)')
+    .in('player_id', ids)
+    .order('created_at', { foreignTable: 'matches', ascending: false })
+    .limit(Math.min(5000, ids.length * perPlayer));
+  if (error) throw error;
+  for (const r of data || []) {
+    const h = out.get(r.player_id);
+    if (!h || !r.matches) continue;
+    if (r.matches.mode) h.modes.add(r.matches.mode);
+    if (r.matches.created_at) h.hours.add(new Date(r.matches.created_at).getUTCHours());
+  }
+  return out;
+}
+
 // A player's report goes to the existing moderation queue (admin "reports").
 async function createPlayerReport({ reporterId, reportedId, reason, matchId = null }) {
   assertConfigured();
@@ -2370,6 +2392,7 @@ module.exports = {
   setCardGrant,
   recordMarketStats,
   listFriendIdsForMany,
+  listPlayHabits,
   getGameConfig,
   listPlayersForUnlockReport,
   listRecentCoPlayers,

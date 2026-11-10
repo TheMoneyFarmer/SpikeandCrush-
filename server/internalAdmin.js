@@ -10,6 +10,24 @@
 const express = require('express');
 const { requireBridgeSecret } = require('./bridgeAuth');
 
+// Only the fields the admin Match Settings form edits, as positive whole
+// numbers, for modes that exist - a bad saved value can never break a mode.
+const MATCH_SETTING_FIELDS = ['entryCoins', 'durationSeconds', 'maxPlayers', 'minPlayers', 'lobbyTimeoutMs', 'cardsPerPlayer', 'instrumentCount'];
+function sanitizeMatchSettings(rows) {
+  if (!rows || typeof rows !== 'object') return null;
+  const out = {};
+  for (const [mode, patch] of Object.entries(rows)) {
+    if (!patch || typeof patch !== 'object') continue;
+    const clean = {};
+    for (const f of MATCH_SETTING_FIELDS) {
+      const v = Number(patch[f]);
+      if (patch[f] !== undefined && patch[f] !== '' && Number.isFinite(v) && v >= 0 && Number.isInteger(v)) clean[f] = v;
+    }
+    if (Object.keys(clean).length) out[mode] = clean;
+  }
+  return out;
+}
+
 function createInternalAdminRouter({ gameEngine, compEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }) {
   const router = express.Router();
   router.use(requireBridgeSecret);
@@ -60,10 +78,13 @@ function createInternalAdminRouter({ gameEngine, compEngine, io, db, instruments
     res.json(result);
   });
 
+  // Fixed: the admin panel calls this with no body after saving
+  // game_config 'match_settings', so the saved values used to be dropped.
+  // The game server now reads them back from the database itself.
   router.post('/reload-config', async (req, res) => {
     try {
-      const rows = req.body?.matchSettings;
-      gameEngine.applyConfigOverrides(rows || null);
+      const rows = req.body?.matchSettings || (db.getGameConfig ? await db.getGameConfig('match_settings') : null);
+      gameEngine.applyConfigOverrides(sanitizeMatchSettings(rows));
       res.json({ success: true, matchModes: gameEngine.MATCH_MODES });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -125,4 +146,4 @@ function createInternalAdminRouter({ gameEngine, compEngine, io, db, instruments
   return router;
 }
 
-module.exports = { createInternalAdminRouter };
+module.exports = { createInternalAdminRouter, sanitizeMatchSettings };

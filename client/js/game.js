@@ -1419,6 +1419,7 @@ window.TW = window.TW || {};
     if (TW.Fire) {
       TW.Fire.setYou(state.you);
       TW.Fire.setChallenge(state.challenge);
+      TW.Fire.setLobbyTier(state.lobbyTier);
       const self = state.players.find((p) => p.id === state.you);
       TW.Fire.setMissions(self && self.missions);
     }
