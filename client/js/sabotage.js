@@ -5,7 +5,8 @@ window.TW = window.TW || {};
 // Card tray (up to 4 cards), Heat meter and the target sheet. The server
 // decides everything (grants, plays, shields); this only shows it and sends
 // the player's choice. Targeting: tap a card, pick a player from the same
-// ranked list as the leaderboard (searchable, with quick picks), confirm.
+// ranked list as the leaderboard (searchable, with quick picks), right there
+// in the cards panel. Cards look like the landing page card and can be spun.
 TW.Sabotage = (function () {
   let lastState = null;
   let hand = []; // [{ type, used, earned }]
@@ -43,7 +44,7 @@ TW.Sabotage = (function () {
     heat = payload.heat ?? heat;
     heatMult = payload.heatMultiplier ?? heatMult;
     const after = hand.filter((c) => !c.used).length;
-    drawTray(after > before);
+    drawTray();
     drawHeat(streak !== prevStreak);
     if (streak > prevStreak) TW.Sound.play('streakUp');
     else if (streak === 0 && prevStreak > 0) TW.Sound.play('streakLost');
@@ -65,26 +66,205 @@ TW.Sabotage = (function () {
     return 'Next win = new card';
   }
 
-  function drawTray(flash = false) {
+  // ---- the cards themselves -------------------------------------------------------
+  // Same face as the landing page card (js/card-art.js), built in HTML so it
+  // stays sharp at tray size. Faint candles are seeded by the card name, like
+  // the landing art, so every card has its own chart behind it.
+
+  const KIND_LABEL = { defense: 'Defense card', market: 'Market card' };
+  const candleCache = {};
+  function candleSvg(seed, alpha, base, spread) {
+    const key = `${seed}:${alpha}:${base}`;
+    if (candleCache[key]) return candleCache[key];
+    let s = seed >>> 0;
+    let v = base;
+    const r = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const W = 1000, cw = W / 26;
+    let out = '';
+    for (let i = 0; i < 26; i++) {
+      const open = v, close = v + (r() - 0.5) * spread, up = close < open;
+      const fill = up ? `rgba(31,211,138,${alpha})` : `rgba(255,77,106,${alpha})`;
+      const top = Math.min(open, close);
+      out += `<rect x="${(i * cw + cw * 0.46).toFixed(1)}" y="${(top - spread * 0.25).toFixed(1)}" width="${(cw * 0.08).toFixed(1)}" height="${(Math.abs(close - open) + spread * 0.5).toFixed(1)}" fill="${fill}"/>`;
+      out += `<rect x="${(i * cw + cw * 0.2).toFixed(1)}" y="${top.toFixed(1)}" width="${(cw * 0.6).toFixed(1)}" height="${Math.max(3, Math.abs(close - open)).toFixed(1)}" fill="${fill}"/>`;
+      v = close;
+    }
+    return (candleCache[key] = `<svg class="sc-art" viewBox="0 0 1000 1409" preserveAspectRatio="none" aria-hidden="true">${out}</svg>`);
+  }
+
+  function cardHtml(d, extraClass = '') {
+    return `<button type="button" class="sc-card kind-${d.kind} rarity-${d.rarity} ${extraClass}" data-card="${d.id}" aria-label="${TW.escapeHtml(d.name)}: ${TW.escapeHtml(d.description)}">
+      <span class="sc-spin">
+        <span class="sc-face sc-front">
+          ${candleSvg(d.name.length * 97, 0.42, 1409 * 0.38, 1409 * 0.06)}
+          <span class="sc-bar"></span>
+          <span class="sc-icon">${icon(d.icon, 24)}</span>
+          <span class="sc-text">
+            <span class="sc-label">${KIND_LABEL[d.kind] || 'Sabotage card'}</span>
+            <span class="sc-name">${TW.escapeHtml(d.name)}</span>
+            <span class="sc-desc">${TW.escapeHtml(d.description)}</span>
+          </span>
+          <span class="sc-sheen"></span>
+        </span>
+        <span class="sc-face sc-back">
+          ${candleSvg(4242, 0.5, 1409 * 0.5, 1409 * 0.075)}
+          <span class="sc-mark"><b class="s">Spike</b><i>&amp;</i><b class="c">Crush</b></span>
+          <span class="sc-sheen"></span>
+        </span>
+      </span>
+    </button>`;
+  }
+
+  // Drag sideways to spin, like the landing card: it keeps turning after you
+  // let go and settles on whichever face is nearer. A tap (no drag) is a click.
+  // On a mouse the card also tilts toward the pointer.
+  function makeSpinnable(el, { onTap, settleTo = 180 } = {}) {
+    const spin = el.querySelector('.sc-spin');
+    let angle = 0, vel = 0, dragging = false, moved = false, startX = 0, lastX = 0, lastT = 0, raf = 0;
+    const set = () => {
+      el.style.setProperty('--ry', `${angle}deg`);
+      const a = ((angle % 360) + 360) % 360;
+      el.style.setProperty('--sheen', `${20 + (a / 360) * 160}%`);
+    };
+    const facingBack = () => {
+      const a = ((angle % 360) + 360) % 360;
+      return a > 90 && a < 270;
+    };
+    function settle() {
+      cancelAnimationFrame(raf);
+      const step = () => {
+        if (Math.abs(vel) > 0.05 && !reduceMotion) {
+          angle += vel;
+          vel *= 0.93;
+          set();
+          raf = requestAnimationFrame(step);
+          return;
+        }
+        vel = 0;
+        el.classList.remove('is-turning');
+        angle = Math.round(angle / settleTo) * settleTo;
+        set();
+      };
+      raf = requestAnimationFrame(step);
+    }
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button > 0) return;
+      dragging = true;
+      moved = false;
+      startX = lastX = e.clientX;
+      lastT = performance.now();
+      vel = 0;
+      cancelAnimationFrame(raf);
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!dragging) {
+        if (e.pointerType === 'mouse' && !el.classList.contains('is-turning')) {
+          const r = el.getBoundingClientRect();
+          el.style.setProperty('--rx', `${(((e.clientY - r.top) / r.height) - 0.5) * -10}deg`);
+          el.style.setProperty('--sheen', `${((e.clientX - r.left) / r.width) * 100}%`);
+        }
+        return;
+      }
+      const dx = e.clientX - lastX;
+      if (!moved && Math.abs(e.clientX - startX) > 6) {
+        moved = true;
+        el.classList.add('is-turning');
+        el.setPointerCapture(e.pointerId);
+        el.style.setProperty('--rx', '0deg');
+      }
+      if (!moved) return;
+      const now = performance.now();
+      angle += dx * 0.9;
+      vel = (dx * 0.9) * Math.min(1, 16 / Math.max(1, now - lastT));
+      lastX = e.clientX;
+      lastT = now;
+      set();
+    });
+    const end = () => {
+      if (!dragging) return;
+      dragging = false;
+      if (moved) settle();
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('pointerleave', () => { if (!dragging) el.style.setProperty('--rx', '0deg'); });
+    el.addEventListener('click', (e) => {
+      if (moved) { e.preventDefault(); moved = false; return; }
+      if (facingBack()) { turnBy(180); return; } // first tap turns a face-down card over
+      onTap && onTap(e);
+    });
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        turnBy(e.key === 'ArrowLeft' ? -180 : 180);
+      }
+    });
+    function turnBy(deg) {
+      cancelAnimationFrame(raf);
+      angle = Math.round((angle + deg) / settleTo) * settleTo;
+      el.classList.remove('is-turning');
+      set();
+    }
+    set();
+    void spin;
+    return { turnBy };
+  }
+
+  // The tray keeps each card's element (and so its angle) between updates;
+  // only cards that are new get dealt in. Keyed by position in the hand,
+  // which the server never reorders (used cards stay in place, marked used).
+  const trayEls = new Map(); // key -> { el, type }
+  let trayDrawn = false;
+
+  function drawTray() {
     const box = document.getElementById('cardSlots');
     if (!box) return;
+    box.classList.add('sc-tray');
     const size = fire().handSize || 4;
-    const live = hand.filter((c) => !c.used).slice(0, size);
-    let html = '';
-    live.forEach((c, i) => {
-      const d = def(c.type);
+    const live = [];
+    hand.forEach((c, i) => { if (!c.used && live.length < size) live.push({ key: `${i}`, type: c.type }); });
+
+    const keep = new Set();
+    const nodes = [];
+    live.forEach(({ key, type }) => {
+      const d = def(type);
       if (!d) return;
-      html += `<button type="button" class="fire-card rarity-${d.rarity} kind-${d.kind}${flash && i === live.length - 1 ? ' fire-card-new' : ''}${pendingCard === c.type ? ' selected' : ''}" data-card="${c.type}" title="${TW.escapeHtml(d.name)}: ${TW.escapeHtml(d.description)}" aria-label="${TW.escapeHtml(d.name)}: ${TW.escapeHtml(d.description)}">
-        <span class="fc-icon">${icon(d.icon, 22)}</span>
-        <span class="fc-name">${TW.escapeHtml(d.name)}</span>
-        <span class="fc-kind">${d.kind === 'defense' ? 'Self' : d.kind === 'market' ? 'All' : 'Target'}</span>
-      </button>`;
+      let entry = trayEls.get(key);
+      if (!entry || entry.type !== type) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = cardHtml(d);
+        const el = tmp.firstElementChild;
+        makeSpinnable(el, { onTap: () => choose(type, el) });
+        if (!reduceMotion) {
+          el.classList.add('is-dealing');
+          el.style.setProperty('--deal-delay', '0ms');
+          el.addEventListener('animationend', () => el.classList.remove('is-dealing'), { once: true });
+          if (!trayDrawn) el.querySelector('.sc-spin').style.animationDelay = `${nodes.length * 110}ms`;
+        }
+        entry = { el, type };
+        trayEls.set(key, entry);
+      }
+      entry.el.classList.toggle('selected', pendingCard === type);
+      keep.add(key);
+      nodes.push(entry.el);
     });
-    for (let i = live.length; i < size; i++) {
-      html += `<div class="fire-card empty" aria-label="Empty card slot"><span class="fc-icon">${icon('plus', 18)}</span><span class="fc-next">${TW.escapeHtml(nextCardText())}</span></div>`;
+    for (const [key, entry] of trayEls) {
+      if (!keep.has(key)) {
+        entry.el.remove();
+        trayEls.delete(key);
+      }
     }
-    box.innerHTML = html;
-    box.querySelectorAll('button.fire-card').forEach((b) => b.addEventListener('click', () => choose(b.dataset.card)));
+    for (let i = nodes.length; i < size; i++) {
+      const slot = document.createElement('div');
+      slot.className = 'sc-slot';
+      slot.setAttribute('aria-label', 'Empty card slot');
+      slot.innerHTML = `${icon('plus', 18)}<span>${TW.escapeHtml(nextCardText())}</span>`;
+      nodes.push(slot);
+    }
+    // Re-append in order: existing cards move without being rebuilt.
+    box.querySelectorAll('.sc-slot').forEach((s) => s.remove());
+    nodes.forEach((n) => box.appendChild(n));
+    trayDrawn = true;
   }
 
   function drawHeat(animate = false) {
@@ -112,7 +292,8 @@ TW.Sabotage = (function () {
 
   // ---- playing a card -------------------------------------------------------------
 
-  function choose(type) {
+  let playEl = null; // the card that was tapped, to return focus to
+  function choose(type, fromEl) {
     const d = def(type);
     if (!d) return;
     if (d.kind === 'defense') {
@@ -120,6 +301,7 @@ TW.Sabotage = (function () {
       return;
     }
     pendingCard = type;
+    playEl = fromEl || null;
     drawTray();
     openSheet(d);
   }
@@ -132,8 +314,8 @@ TW.Sabotage = (function () {
       return false;
     }
     TW.Sound.play('cardPlayedByYou');
-    const el = document.querySelector(`.fire-card[data-card="${type}"]`);
-    if (el && !reduceMotion) el.classList.add('fire-card-played');
+    const el = document.querySelector(`#cardSlots .sc-card[data-card="${type}"]`);
+    if (el && !reduceMotion) el.classList.add('is-played');
     TW.toast(`${d.name} played`, 'info');
     return true;
   }
@@ -151,58 +333,69 @@ TW.Sabotage = (function () {
     return null;
   }
 
+  // The picker opens inside the cards panel, in place of the tray, so the
+  // chart stays visible. The chosen card sits beside it and can be spun.
   function openSheet(d) {
-    closeSheet();
+    document.getElementById('targetSheet')?.remove(); // switching cards: keep pendingCard
+    const panel = document.querySelector('.sabotage-panel');
+    const tray = document.getElementById('cardSlots');
+    if (!panel || !tray) return;
     const you = lastState.you;
-    const sheet = document.createElement('div');
-    sheet.className = 'fire-sheet';
-    sheet.id = 'targetSheet';
-    sheet.setAttribute('role', 'dialog');
-    sheet.setAttribute('aria-label', `Play ${d.name}`);
+    const box = document.createElement('div');
+    box.className = 'sc-play';
+    box.id = 'targetSheet';
+    box.setAttribute('role', 'region');
+    box.setAttribute('aria-label', `Play ${d.name}`);
     const needsTarget = d.targeted;
     const instrumentsList = lastState.instruments || [];
-    sheet.innerHTML = `
-      <div class="fs-panel">
-        <div class="fs-head">
-          <span class="fs-icon">${icon(d.icon, 22)}</span>
-          <div><strong>${TW.escapeHtml(d.name)}</strong><div class="fs-desc">${TW.escapeHtml(d.description)}</div></div>
+    box.innerHTML = `
+      <div class="sc-stage">${cardHtml(d, 'is-entering is-swaying')}<span class="sc-stage-hint">Drag to turn</span></div>
+      <div class="sc-pick">
+        <div class="sc-pick-head">
+          <div><strong>${TW.escapeHtml(d.name)}</strong><p title="${TW.escapeHtml(d.description)}">${TW.escapeHtml(d.description)}</p></div>
           <button type="button" class="fs-close" aria-label="Cancel">&times;</button>
         </div>
         ${needsTarget ? `
-        <div class="fs-quick">
-          <button type="button" data-pick="random">${icon('dice', 14)} Random</button>
-          <button type="button" data-pick="leader">${icon('crown', 14)} Leader</button>
-          <button type="button" data-pick="above">${icon('up', 14)} Above me</button>
-          <button type="button" data-pick="below">${icon('down', 14)} Below me</button>
+        <div class="sc-pick-tools">
+          <div class="fs-quick">
+            <button type="button" data-pick="random">${icon('dice', 14)} Random</button>
+            <button type="button" data-pick="leader">${icon('crown', 14)} Leader</button>
+            <button type="button" data-pick="above">${icon('up', 14)} Above</button>
+            <button type="button" data-pick="below">${icon('down', 14)} Below</button>
+          </div>
+          <label class="fs-search">${icon('search', 14)}<input type="search" placeholder="Search players" aria-label="Search players" /></label>
         </div>
-        <label class="fs-search">${icon('search', 14)}<input type="search" placeholder="Search players" aria-label="Search players" /></label>
         <div class="fs-list" role="listbox" aria-label="Choose a target"></div>` : `
         <p class="fs-note">Hits every other player who is not shielded.</p>
         ${d.requiresSymbol ? `<label class="fs-symbol">Instrument <select>${instrumentsList.map((s) => `<option value="${s}">${s}</option>`).join('')}</select></label>` : ''}
         <button type="button" class="btn btn-primary fs-play">Play ${TW.escapeHtml(d.name)}</button>`}
       </div>`;
-    document.body.appendChild(sheet);
-    const close = () => {
-      pendingCard = null;
-      closeSheet();
-      drawTray();
-    };
-    sheet.querySelector('.fs-close').addEventListener('click', close);
-    sheet.addEventListener('click', (e) => {
-      if (e.target === sheet) close();
-    });
+    tray.after(box);
+    panel.classList.add('sc-playing');
+
+    const stageCard = box.querySelector('.sc-stage .sc-card');
+    stageCard.tabIndex = 0;
+    stageCard.addEventListener('animationend', (e) => { if (e.animationName === 'sc-enter') stageCard.classList.remove('is-entering'); });
+    makeSpinnable(stageCard, { settleTo: 180 });
+    // Swaying stops for good once the player takes hold of the card.
+    stageCard.addEventListener('pointerdown', () => stageCard.classList.remove('is-swaying', 'is-entering'));
+    stageCard.addEventListener('keydown', () => stageCard.classList.remove('is-swaying', 'is-entering'));
+
+    const close = () => closeSheet(true);
+    box.querySelector('.fs-close').addEventListener('click', close);
     document.addEventListener('keydown', escClose);
 
     if (!needsTarget) {
-      sheet.querySelector('.fs-play').addEventListener('click', async () => {
-        const sym = sheet.querySelector('.fs-symbol select');
-        if (await send(d.id, { symbol: sym ? sym.value : undefined })) close();
+      box.querySelector('.fs-play').addEventListener('click', async () => {
+        const sym = box.querySelector('.fs-symbol select');
+        if (await send(d.id, { symbol: sym ? sym.value : undefined })) closeSheet(false);
       });
+      box.querySelector('.fs-play').focus({ preventScroll: true });
       return;
     }
 
-    const list = sheet.querySelector('.fs-list');
-    const search = sheet.querySelector('.fs-search input');
+    const list = box.querySelector('.fs-list');
+    const search = box.querySelector('.fs-search input');
     const others = () => rows.filter((r) => r.id !== you);
     const draw = () => {
       const q = (search.value || '').trim().toLowerCase();
@@ -219,10 +412,10 @@ TW.Sabotage = (function () {
       list.querySelectorAll('.fs-row:not(.blocked)').forEach((b) => b.addEventListener('click', () => fireAt(b.dataset.id)));
     };
     const fireAt = async (targetId) => {
-      if (await send(d.id, { targetId })) close();
+      if (await send(d.id, { targetId })) closeSheet(false);
     };
     search.addEventListener('input', draw);
-    sheet.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => {
+    box.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => {
       const ok = others().filter((r) => !blockedReason(r));
       if (!ok.length) return TW.toast('No player can be targeted right now', 'warning');
       const mine = rows.find((r) => r.id === you);
@@ -235,20 +428,25 @@ TW.Sabotage = (function () {
       fireAt(pick.id);
     }));
     draw();
-    search.focus({ preventScroll: true });
+    // A phone keyboard would cover the list, so only focus search with a mouse.
+    if (window.matchMedia('(pointer: fine)').matches) search.focus({ preventScroll: true });
+    else box.querySelector('[data-pick]').focus({ preventScroll: true });
   }
 
   function escClose(e) {
-    if (e.key === 'Escape') {
-      pendingCard = null;
-      closeSheet();
-      drawTray();
-    }
+    if (e.key === 'Escape') closeSheet(true);
   }
 
-  function closeSheet() {
-    document.getElementById('targetSheet')?.remove();
+  function closeSheet(returnFocus) {
+    const box = document.getElementById('targetSheet');
     document.removeEventListener('keydown', escClose);
+    if (!box) return;
+    box.remove();
+    document.querySelector('.sabotage-panel')?.classList.remove('sc-playing');
+    pendingCard = null;
+    drawTray();
+    if (returnFocus && playEl && playEl.isConnected) playEl.focus({ preventScroll: true });
+    playEl = null;
   }
 
   function setLeaderboard(newRows) {

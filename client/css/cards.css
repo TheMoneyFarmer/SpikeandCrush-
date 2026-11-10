@@ -1,0 +1,221 @@
+/* Sabotage cards in a match: the same card as the landing page showcase
+   (card-art.js draws that one on a canvas; this is its HTML twin so it stays
+   sharp at tray size). Front: navy gradient, faint candles, coloured top bar,
+   tinted icon tile, small label, light name, effect. Back: the Spike & Crush
+   mark. Drag sideways to spin, tap to play. Motion code: js/sabotage.js. */
+
+.sc-card {
+  --cw: 108px;
+  --ch: 152px;
+  --accent: #ff4d6a;
+  --accent-soft: rgba(255, 77, 106, 0.16);
+  --accent-ink: #ff6b84;
+  position: relative;
+  flex: 0 0 var(--cw);
+  width: var(--cw);
+  height: var(--ch);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #f2f5fa;
+  font-family: 'Inter', system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  perspective: 700px;
+  touch-action: pan-y; /* vertical swipes still scroll; sideways drags spin */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sc-card.kind-defense { --accent: #1fd38a; --accent-soft: rgba(31, 211, 138, 0.16); --accent-ink: #4fe0a6; }
+.sc-card.kind-market { --accent: #f5b83d; --accent-soft: rgba(245, 184, 61, 0.16); --accent-ink: #f7c766; }
+
+.sc-spin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: translateY(var(--lift, 0px)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 180ms ease;
+}
+.sc-card.is-turning .sc-spin { transition: none; }
+
+.sc-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: calc(var(--cw) * 0.064);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 0 0 1px rgba(91, 118, 184, 0.75), 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+.sc-front { background: linear-gradient(180deg, #26386a, #141f3c); }
+.sc-back { transform: rotateY(180deg); background: #1a2850; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+.sc-art { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.sc-bar { position: absolute; left: 0; right: 0; top: 0; height: 2.6%; background: var(--accent); }
+.sc-icon {
+  position: absolute;
+  left: 8.4%;
+  top: 8.5%;
+  width: 19%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14.7%/14.7%;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.sc-icon svg { width: 63%; height: 63%; }
+.sc-text { position: absolute; left: 8.4%; right: 8.4%; bottom: 7%; display: flex; flex-direction: column; gap: calc(var(--cw) * 0.02); }
+.sc-label { font-size: calc(var(--cw) * 0.074); font-weight: 500; color: rgba(232, 238, 248, 0.62); }
+.sc-name {
+  font-size: calc(var(--cw) * 0.13);
+  font-weight: 300;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sc-desc {
+  font-size: calc(var(--cw) * 0.083);
+  line-height: 1.3;
+  color: rgba(232, 238, 248, 0.82);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sc-mark { position: relative; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.sc-mark b { font-weight: 800; font-size: calc(var(--cw) * 0.122); }
+.sc-mark i { font-style: normal; font-weight: 300; font-size: calc(var(--cw) * 0.08); color: #f2f5fa; margin: calc(var(--cw) * 0.02) 0; }
+.sc-mark .s { color: #1fd38a; }
+.sc-mark .c { color: #ff4d6a; }
+/* moving sheen, like the 3D card's reflections */
+.sc-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.13) 45%, transparent 60%);
+  background-size: 250% 100%;
+  background-position: var(--sheen, 80%) 0;
+  mix-blend-mode: screen;
+}
+
+.sc-card.rarity-rare .sc-face { box-shadow: 0 0 0 1px rgba(90, 169, 255, 0.85), 0 8px 18px rgba(0, 0, 0, 0.35); }
+.sc-card.rarity-epic .sc-face { box-shadow: 0 0 0 1px rgba(183, 125, 255, 0.9), 0 8px 18px rgba(0, 0, 0, 0.35); }
+.sc-card.rarity-legendary .sc-face { box-shadow: 0 0 0 1.5px rgba(245, 184, 61, 0.95), 0 8px 18px rgba(0, 0, 0, 0.35); }
+
+.sc-card:hover { --lift: -4px; }
+.sc-card:focus-visible { outline: none; }
+.sc-card:focus-visible .sc-face { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent); }
+.sc-card.selected { --lift: -6px; }
+.sc-card.selected .sc-face { box-shadow: 0 0 0 2px var(--accent), 0 10px 24px rgba(0, 0, 0, 0.45); }
+
+/* dealt face down, then turned over */
+.sc-card.is-dealing .sc-spin { animation: sc-deal 760ms cubic-bezier(0.2, 0.8, 0.25, 1) both; }
+@keyframes sc-deal {
+  0% { transform: translateY(26px) scale(0.8) rotateY(180deg); opacity: 0; }
+  35% { transform: translateY(-6px) scale(1.02) rotateY(180deg); opacity: 1; }
+  100% { transform: translateY(0) scale(1) rotateY(360deg); }
+}
+.sc-card.is-played .sc-spin { animation: sc-play 380ms ease-in forwards; }
+@keyframes sc-play { to { transform: translateY(-40px) scale(0.85) rotateY(var(--ry, 0deg)); opacity: 0; } }
+
+/* empty slot */
+.sc-slot {
+  flex: 0 0 var(--cw, 108px);
+  width: var(--cw, 108px);
+  height: var(--ch, 152px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  color: rgba(232, 237, 246, 0.6);
+  font: 500 11px/1.25 'Inter', system-ui, sans-serif;
+  text-align: center;
+}
+.sc-slot svg { opacity: 0.6; }
+
+.card-tray.sc-tray { display: flex; flex-wrap: nowrap; gap: 10px; padding: 4px 2px 6px; }
+
+/* ---- playing a card, inside the cards panel ---- */
+.sc-play { display: flex; gap: 14px; align-items: flex-start; min-height: 0; }
+.sc-play[hidden] { display: none; }
+.sabotage-panel.sc-playing .card-tray { display: none; }
+/* the Heat header steps aside while picking, to give the list room */
+.sabotage-panel.sc-playing .fire-tray-head { display: none; }
+.sc-stage { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.sc-stage .sc-card { flex: 0 0 auto; cursor: grab; }
+.sc-stage .sc-card.is-turning { cursor: grabbing; }
+.sc-stage-hint { font: 500 11px/1 'Inter', system-ui, sans-serif; color: rgba(232, 237, 246, 0.6); }
+.sc-stage .sc-card.is-entering .sc-spin { animation: sc-enter 700ms cubic-bezier(0.2, 0.8, 0.25, 1) both; }
+@keyframes sc-enter { from { transform: rotateY(-360deg) scale(0.85); } }
+.sc-stage .sc-card.is-swaying .sc-spin { animation: sc-sway 5.6s ease-in-out infinite; }
+@keyframes sc-sway { 0%, 100% { transform: rotateY(calc(var(--ry, 0deg) - 16deg)); } 50% { transform: rotateY(calc(var(--ry, 0deg) + 16deg)); } }
+
+.sc-pick { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.sc-pick-head { display: flex; align-items: flex-start; gap: 8px; }
+.sc-pick-head strong { font: 600 15px/1.2 'Inter', system-ui, sans-serif; color: #f2f5fa; }
+.sc-pick-head p { margin: 2px 0 0; font-size: 12px; line-height: 1.35; color: rgba(232, 237, 246, 0.65); }
+.sc-pick-head .fs-close { margin-left: auto; flex: 0 0 auto; min-width: 40px; min-height: 40px; font-size: 22px; }
+.sc-pick .fs-quick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.sc-pick .fs-quick button { min-height: 36px; font-size: 12px; }
+.sc-pick .fs-search { min-height: 38px; }
+.sc-pick .fs-list { min-height: 0; max-height: 240px; }
+.sc-pick .fs-row { min-height: 44px; }
+
+/* tools row: quick picks and search share one line where there is room */
+.sc-pick-tools { display: flex; gap: 6px; align-items: stretch; }
+.sc-pick-tools .fs-quick { display: flex; gap: 4px; flex: 0 0 auto; }
+.sc-pick-tools .fs-quick button { padding: 0 8px; white-space: nowrap; }
+.sc-pick-tools .fs-search { flex: 1 1 120px; min-width: 0; }
+.sc-pick-head p { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* desktop: the bottom row is 220px tall, so the list scrolls inside it */
+@media (min-width: 761px) and (orientation: portrait), (min-width: 1025px) {
+  .sc-pick .fs-list { max-height: 96px; }
+}
+
+/* phones, portrait: four cards across a 360px screen */
+@media (max-width: 760px) {
+  .sc-card, .sc-slot { --cw: 76px; --ch: 107px; }
+  .sc-card .sc-desc, .sc-card .sc-label { display: none; }
+  .sc-card .sc-name { font-size: 11px; font-weight: 400; }
+  .sc-stage .sc-card { --cw: 96px; --ch: 135px; }
+  .sc-slot { font-size: 9px; padding: 4px; }
+  .card-tray.sc-tray { gap: 6px; }
+  .sc-play { gap: 10px; }
+  .sc-pick-tools { flex-wrap: wrap; }
+  .sc-pick-tools .fs-quick { flex: 1 1 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sc-pick-tools .fs-quick button { font-size: 11px; padding: 0 2px; }
+  .sc-pick-head p { -webkit-line-clamp: 2; }
+}
+/* phone landscape: the cards float in a strip over the chart (mobile.css) */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .sc-card, .sc-slot { --cw: 60px !important; --ch: 84px !important; }
+  .sc-card .sc-desc, .sc-card .sc-label { display: none; }
+  .sc-card .sc-name { font-size: 9px; font-weight: 400; }
+  .sc-slot { font-size: 8px; padding: 3px; }
+  .card-tray.sc-tray { gap: 6px; padding: 2px; }
+  .sabotage-panel.sc-playing { max-width: 92vw !important; width: 560px !important; }
+  .sc-stage .sc-card { --cw: 72px !important; --ch: 101px !important; }
+  .sc-stage-hint { display: none; }
+  .sc-pick .fs-list { max-height: 34vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-spin { transition: none; }
+  .sc-card.is-dealing .sc-spin, .sc-card.is-played .sc-spin,
+  .sc-stage .sc-card.is-entering .sc-spin, .sc-stage .sc-card.is-swaying .sc-spin { animation: none; }
+}
+
+/* the site's global input style would draw a second box inside the search field */
+.sc-pick .fs-search input { border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; min-height: 0 !important; height: auto !important; }

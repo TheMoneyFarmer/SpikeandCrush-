@@ -64,49 +64,7 @@
 
 /* ---- card tray ---- */
 .fire-tray-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-html:root .card-tray, .card-tray { display: flex; flex-wrap: nowrap; gap: 8px; }
-.fire-card {
-  position: relative;
-  flex: 0 0 64px;
-  width: 64px;
-  height: 88px;
-  min-height: 44px;
-  box-sizing: border-box;
-  padding: 7px 4px 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  gap: 3px;
-  border-radius: 10px;
-  border: 1px solid var(--fx-line);
-  background: linear-gradient(180deg, var(--fx-panel-2), var(--fx-panel));
-  color: var(--fx-text);
-  font: 600 10px/1.1 var(--fx-body);
-  text-align: center;
-  cursor: pointer;
-  box-shadow: inset 0 2px 0 var(--fx-crush);
-  transition: transform 160ms ease, border-color 160ms ease;
-}
-.fire-card .fc-icon { color: var(--fx-crush); display: inline-flex; }
-.fire-card .fc-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.fire-card .fc-kind { font: 600 9px/1 var(--fx-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fx-dim); }
-.fire-card.kind-defense { box-shadow: inset 0 2px 0 var(--fx-spike); }
-.fire-card.kind-defense .fc-icon { color: var(--fx-spike); }
-.fire-card.kind-market { box-shadow: inset 0 2px 0 var(--fx-gold); }
-.fire-card.kind-market .fc-icon { color: var(--fx-gold); }
-.fire-card.rarity-rare { border-color: rgba(90, 169, 255, 0.45); }
-.fire-card.rarity-epic { border-color: rgba(183, 125, 255, 0.5); }
-.fire-card.rarity-legendary { border-color: rgba(245, 184, 61, 0.65); }
-.fire-card:hover, .fire-card:focus-visible { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.3); outline: none; }
-.fire-card.selected { border-color: var(--fx-gold); transform: translateY(-3px); }
-.fire-card.empty { cursor: default; border-style: dashed; background: transparent; box-shadow: none; color: var(--fx-dim); justify-content: center; }
-.fire-card.empty .fc-icon { color: var(--fx-dim); opacity: 0.6; }
-.fire-card .fc-next { font: 500 9px/1.15 var(--fx-body); }
-.fire-card-new { animation: fx-card-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2); }
-.fire-card-played { animation: fx-card-out 300ms ease forwards; }
-@keyframes fx-card-in { from { transform: translateY(14px) scale(0.85); opacity: 0; } }
-@keyframes fx-card-out { to { transform: translateY(-18px) scale(0.9); opacity: 0; } }
+/* the cards themselves: css/cards.css */
 
 /* ---- Heat meter ---- */
 .heat-meter { min-width: 150px; max-width: 220px; flex: 1; }
@@ -182,8 +140,6 @@ html:root .card-tray, .card-tray { display: flex; flex-wrap: nowrap; gap: 8px; }
 
 /* ---- phones ---- */
 @media (max-width: 760px) {
-  .fire-card { flex-basis: 56px; width: 56px; height: 76px; font-size: 9px; padding: 6px 3px 5px; }
-  .card-tray { gap: 6px; }
   .heat-meter { min-width: 120px; }
   .fire-sheet { align-items: flex-end; }
   .fs-panel { width: 100%; max-height: 82vh; border-radius: 14px 14px 0 0; }
@@ -207,14 +163,12 @@ html:root .card-tray, .card-tray { display: flex; flex-wrap: nowrap; gap: 8px; }
   .chart-quotes { top: 74px !important; }
   .sabotage-panel { top: 74px !important; }
   .leaderboard-panel { top: 80px !important; }
-  .fire-card { flex-basis: 56px !important; width: 56px !important; height: 64px !important; padding: 5px 3px 4px !important; font-size: 9px !important; }
-  .fire-card .fc-kind { display: none; }
   .fire-tray-head { margin-bottom: 4px; }
   .heat-meter { min-width: 110px; }
   .hm-sub { display: none; }
   .ms-note { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fire-card, .hm-fill { transition: none; }
-  .fire-card-new, .fire-card-played, .match-strip.ms-pulse, .fr-levelup .fr-up, .fr-xpbar div, .fr-unlock, .hm-pulse { animation: none; }
+  .hm-fill { transition: none; }
+  .match-strip.ms-pulse, .fr-levelup .fr-up, .fr-xpbar div, .fr-unlock, .hm-pulse { animation: none; }
 }
