@@ -1,5 +1,5 @@
--- "Make every minute fire": market telemetry, progression, card unlocks,
--- quick-mission claims and ghost-challenge links. Additive only: no existing
+-- "Make every minute fire": market telemetry, XP and levels, card unlock
+-- grants, earned cosmetics and season standings. Additive only: no existing
 -- table, column or function is changed. Coins still move only through
 -- public.coin_apply (idempotency keys); admin edits are logged in the existing
 -- public.admin_activity_log.
@@ -58,44 +58,12 @@ create table if not exists public.player_card_unlocks (
   primary key (player_id, card_id)
 );
 
--- 3.2 Quick missions: one row per completed mission per match (idempotent).
-create table if not exists public.mission_claims (
-  id bigserial primary key,
-  player_id uuid not null references public.players(id) on delete cascade,
-  match_id uuid not null,
-  mission_id text not null,
-  coins integer not null default 0,
-  claim_day date not null default (now() at time zone 'utc')::date,
-  created_at timestamptz not null default now(),
-  unique (player_id, match_id, mission_id)
-);
-create index if not exists mission_claims_day_idx on public.mission_claims (player_id, claim_day);
-
--- 3.5 Ghost challenge links: same instruments, offsets and seed as the
--- challenger's match, with the challenger's result to beat.
-create table if not exists public.challenge_links (
-  code text primary key,
-  creator_id uuid not null references public.players(id) on delete cascade,
-  source_match_id uuid,
-  mode text not null,
-  instruments text[] not null,
-  market_seed text not null,
-  market_starts jsonb not null,
-  duration_seconds integer not null,
-  creator_result jsonb not null,
-  created_at timestamptz not null default now(),
-  expires_at timestamptz not null
-);
-create index if not exists challenge_links_creator_idx on public.challenge_links (creator_id, created_at desc);
-
 -- Server-only tables: the service role bypasses RLS; nothing is exposed to
 -- the anon/authenticated roles.
 alter table public.match_market_stats enable row level security;
 alter table public.player_progress enable row level security;
 alter table public.xp_events enable row level security;
 alter table public.player_card_unlocks enable row level security;
-alter table public.mission_claims enable row level security;
-alter table public.challenge_links enable row level security;
 
 -- 2E.5 Earned cosmetics: rank items once reached, monthly season rewards.
 -- Never sold (the shop catalog doesn't contain them). One row per item.
