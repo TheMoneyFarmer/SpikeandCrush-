@@ -129,6 +129,8 @@ const DEFAULTS = {
     leadDataSeconds: 10,
     resultShowSeconds: 4,
     topPercent: 1,
+    // Long competitions: at most one alert per this many data seconds.
+    minGapSecondsLong: 1800,
   },
   crown: {
     enabled: true,

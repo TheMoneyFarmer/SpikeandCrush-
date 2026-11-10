@@ -16,6 +16,7 @@ TW.Fire = (function () {
   let mode = 'idle'; // idle | alert | result
   let challenge = null; // ghost challenge: { username, pnl } to beat
   let lobbyTier = null; // rank-split lobby tier badge
+  let idleText = null; // pages without a leaderboard strip (competitions)
 
   const strip = () => document.getElementById('spikeStrip');
 
@@ -28,6 +29,11 @@ TW.Fire = (function () {
     drawIdle();
   }
 
+  function setIdleText(t) {
+    idleText = t;
+    drawIdle();
+  }
+
   function setLobbyTier(t) {
     lobbyTier = t || null;
     drawIdle();
@@ -37,6 +43,11 @@ TW.Fire = (function () {
   function drawIdle() {
     const el = strip();
     if (!el || mode !== 'idle') return;
+    if (idleText !== null) {
+      el.className = 'match-strip';
+      el.innerHTML = `<span class="ms-spike" style="color:var(--fx-dim)">${icon('spike', 14)}<span>${TW.escapeHtml(idleText)}</span></span>`;
+      return;
+    }
     const leader = rows.find((r) => r.crown) || rows[0];
     const mine = rows.find((r) => r.id === you);
     const above = mine ? rows.find((r) => r.rank === mine.rank - 1) : null;
@@ -203,5 +214,5 @@ TW.Fire = (function () {
     });
   }
 
-  return { setYou, setChallenge, setLobbyTier, setLeaderboard, setMissions, missionComplete, spikeAlert, spikeResult, renderResults, drawIdle };
+  return { setYou, setChallenge, setLobbyTier, setIdleText, setLeaderboard, setMissions, missionComplete, spikeAlert, spikeResult, renderResults, drawIdle };
 })();

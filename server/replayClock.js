@@ -179,6 +179,39 @@ function chooseCuratedWindow({ id, requested, usedStarts }) {
   };
 }
 
+// Spike bars of a curated competition series: the top topPercent% of 5-minute
+// bars by range (same rule as short-match spikes), found once per series.
+const spikeSets = new Map();
+function compSpikeSet(symbol) {
+  if (spikeSets.has(symbol)) return spikeSets.get(symbol);
+  const s = getCompSeries(symbol);
+  let set = null;
+  if (s) {
+    const bps = s.bars.map(([o, h, l]) => ((h - l) / o) * 1e4);
+    const sorted = bps.slice().sort((a, b) => a - b);
+    const thr = sorted[Math.min(sorted.length - 1, Math.floor((1 - gameFeel.get().spikeAlerts.topPercent / 100) * sorted.length))];
+    set = new Set();
+    bps.forEach((v, i) => v >= thr && set.add(i));
+  }
+  spikeSets.set(symbol, set);
+  return set;
+}
+
+// The first real spike bar starting in (fromTime, toTime] on a curated
+// competition series, as { t, movePct } - or null. Never invented.
+function compSpikeBetween(symbol, fromTime, toTime) {
+  if (!isCuratedTime(fromTime) || !getCompSeries(symbol)) return null;
+  const set = compSpikeSet(symbol);
+  const n = getCompSeries(symbol).bars.length;
+  const e = compEpoch();
+  for (let i = Math.floor((fromTime - e) / BASE_SECONDS) + 1; e + i * BASE_SECONDS <= toTime; i++) {
+    if (!set.has(((i % n) + n) % n)) continue;
+    const b = curatedBar(symbol, i);
+    return { t: e + i * BASE_SECONDS, movePct: Number((((b.close - b.open) / b.open) * 100).toFixed(3)) };
+  }
+  return null;
+}
+
 function dataTimeFor(comp, nowMs = Date.now()) {
   const elapsed = (nowMs - new Date(comp.starts_at).getTime()) / 1000;
   return Math.floor(new Date(comp.data_window_start).getTime() / 1000 + elapsed * (Number(comp.replay_speed) || 1));
@@ -382,4 +415,5 @@ module.exports = {
   chooseDataWindow,
   isCuratedTime,
   compEpoch,
+  compSpikeBetween,
 };

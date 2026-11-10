@@ -85,3 +85,39 @@ test('switch off: new competitions use raw history again; running curated ones k
   const e = replayClock.compEpoch();
   assert.strictEqual(replayClock.getPriceAt('BTCUSD', e + 1000).marketClosed, false);
 });
+
+test('long competitions: spike alerts only for real spike bars, time only, spaced out, off when disabled', () => {
+  const { makeSpikeTracker } = require('../server/compEngine');
+  const tpl = TEMPLATES.daily;
+  const occ = tpl.next(Date.UTC(2026, 10, 10));
+  const w = replayClock.chooseDataWindow({ id: 'spike-sim', startsAt: occ.startsAt, endsAt: occ.endsAt, instruments: competitionInstruments(tpl.instruments) });
+  const comp = { id: 'spike-sim-comp', instruments: w.instruments };
+  const start = Math.floor(new Date(w.dataWindowStart).getTime() / 1000);
+  const track = makeSpikeTracker();
+  const alerts = [];
+  const results = [];
+  for (let t = start; t < start + 22 * 3600; t += 5) {
+    for (const ev of track(comp, t)) (ev.event === 'comp:spike_alert' ? alerts : results).push({ t, ...ev.payload });
+  }
+  console.log(`22h Daily: ${alerts.length} spike alerts, ${results.length} results`);
+  assert.ok(alerts.length > 0, 'no spikes announced in 22 hours');
+  assert.strictEqual(results.length, alerts.length);
+  const gap = gameFeel.get().spikeAlerts.minGapSecondsLong;
+  for (let i = 0; i < alerts.length; i++) {
+    assert.deepStrictEqual(Object.keys(alerts[i]).sort(), ['id', 'inSeconds', 't']);
+    assert.ok(!w.instruments.some((s) => alerts[i].id.includes(s)), 'alert id names the instrument');
+    if (i) assert.ok(alerts[i].t - alerts[i - 1].t >= gap, 'alerts too close together');
+    const r = results[i];
+    // The announced move is the real bar's move on the curated series.
+    const barStart = Number(r.id.split('-').pop());
+    const q0 = replayClock.getPriceAt(r.symbol, barStart).mid;
+    const q1 = replayClock.getPriceAt(r.symbol, barStart + 299).mid;
+    assert.ok(Math.abs(((q1 - q0) / q0) * 100 - r.movePct) < 0.01, `${r.symbol} move ${r.movePct} vs ${((q1 - q0) / q0) * 100}`);
+  }
+  gameFeel.applyOverrides({ spikeAlerts: { enabled: false } });
+  const off = makeSpikeTracker();
+  let any = 0;
+  for (let t = start; t < start + 6 * 3600; t += 5) any += off(comp, t).length;
+  gameFeel.applyOverrides({});
+  assert.strictEqual(any, 0);
+});

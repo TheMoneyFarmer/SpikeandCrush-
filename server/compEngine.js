@@ -15,6 +15,7 @@ const marginRules = require('./marginRules');
 const replayClock = require('./replayClock');
 const { GAME_RULES, baseRatingForPosition, tierForRating } = require('./gameEngine');
 const { runPool, createMemo } = require('./concurrency');
+const gameFeel = require('./config/gameFeel');
 
 const NO_CASH_VALUE_LINE = 'Coins have no cash value and cannot be withdrawn or exchanged for money.';
 
@@ -214,6 +215,37 @@ function rankAccounts(accounts) {
     if (dq) return dq;
     return Number(b.equity) - Number(a.equity) || a.trade_count - b.trade_count || new Date(a.created_at) - new Date(b.created_at);
   });
+}
+
+// Spike alerts for long competitions: one tracker per competition engine.
+// Returns events for this tick: an alert a few data-seconds before a real spike
+// bar (time only), and its result once the bar is over.
+function makeSpikeTracker() {
+  const spikeState = new Map(); // compId -> { lastAlertAt (data time), pending }
+  return function spikeEvents(comp, dataTime) {
+    const cfg = gameFeel.get().spikeAlerts;
+    const out = [];
+    if (!cfg.enabled || !replayClock.isCuratedTime(dataTime)) return out;
+    let st = spikeState.get(comp.id);
+    if (!st) spikeState.set(comp.id, (st = { lastAlertAt: -Infinity, pending: null }));
+    if (st.pending && dataTime >= st.pending.t + replayClock.BASE_SECONDS) {
+      out.push({ event: 'comp:spike_result', payload: { id: st.pending.id, symbol: st.pending.symbol, movePct: st.pending.movePct, showSeconds: cfg.resultShowSeconds } });
+      st.pending = null;
+    }
+    if (st.pending || dataTime - st.lastAlertAt < cfg.minGapSecondsLong) return out;
+    // A tick runs every few seconds: look one tick plus the lead time ahead.
+    const ahead = cfg.leadDataSeconds + Math.ceil(TICK_MS / 1000);
+    for (const symbol of comp.instruments || []) {
+      const sp = replayClock.compSpikeBetween(symbol, dataTime, dataTime + ahead);
+      if (!sp) continue;
+      st.pending = { id: `cspike-${comp.id.slice(0, 6)}-${sp.t}`, symbol, t: sp.t, movePct: sp.movePct };
+      st.lastAlertAt = dataTime;
+      out.push({ event: 'comp:spike_alert', payload: { id: st.pending.id, inSeconds: Math.max(1, sp.t - dataTime) } });
+      break;
+    }
+    if (spikeState.size > 500) for (const k of spikeState.keys()) if (k !== comp.id) { spikeState.delete(k); break; }
+    return out;
+  };
 }
 
 function createCompEngine({ io, notifyPlayer }) {
@@ -644,6 +676,8 @@ function createCompEngine({ io, notifyPlayer }) {
     return { balance, live };
   }
 
+  const spikeEvents = makeSpikeTracker();
+
   async function tickCompetition(comp, nowMs) {
     const dataTime = replayClock.dataTimeFor(comp, nowMs);
     const lastData = comp.last_tick_data_time
@@ -680,6 +714,11 @@ function createCompEngine({ io, notifyPlayer }) {
     await db.compApplyTicks(writes);
 
     const ranked = rankAccounts(fresh);
+    // Spike alerts (long competitions): only real spike bars of the curated
+    // series, at most one per spikeAlerts.minGapSecondsLong, time only.
+    for (const ev of spikeEvents(comp, dataTime)) {
+      for (const acc of ranked) if (isWatching(comp.id, acc.player_id)) emit(comp.id, acc.player_id, ev.event, ev.payload);
+    }
     ranked.forEach((acc, i) => {
       if (!isWatching(comp.id, acc.player_id)) return;
       const open = byAccount[acc.id] || [];
@@ -1065,4 +1104,4 @@ function createCompEngine({ io, notifyPlayer }) {
   };
 }
 
-module.exports = { createCompEngine, TEMPLATES, competitionInstruments, rankAccounts, sessionLabel };
+module.exports = { createCompEngine, TEMPLATES, competitionInstruments, rankAccounts, sessionLabel, TICK_MS, makeSpikeTracker };

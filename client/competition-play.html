@@ -85,6 +85,7 @@
 </style>
   <link rel="stylesheet" href="/css/console.css" />
   <link rel="stylesheet" href="/css/game-console.css" />
+  <link rel="stylesheet" href="/css/fire.css" />
 <script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="competition">
@@ -106,6 +107,8 @@
 
     <div class="game-main">
       <div class="chart-section">
+        <!-- Spike alerts (long competitions): a fixed 32px row, never over the chart. -->
+        <div class="match-strip" id="spikeStrip" aria-live="polite"></div>
         <div class="chart-quotes">
           <div class="quote"><span class="label">Bid</span><span class="bid mono" id="quoteBid">-</span></div>
           <div class="quote"><span class="label">Ask</span><span class="ask mono" id="quoteAsk">-</span></div>
@@ -204,6 +207,8 @@
   <script src="/js/socket.js"></script>
   <script src="/js/sound.js"></script>
   <script src="/js/chart.js"></script>
+  <script src="/js/card-icons.js"></script>
+  <script src="/js/fire.js"></script>
   <script src="/js/competition-play.js"></script>
 <script src="/js/support-widget.js"></script>
 <script src="/js/live-match.js"></script>
