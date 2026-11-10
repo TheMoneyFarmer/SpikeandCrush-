@@ -39,41 +39,56 @@
 <link rel="stylesheet" href="/css/mobile.css">
   <link rel="stylesheet" href="/css/console.css" />
   <link rel="stylesheet" href="/css/game-console.css" />
+  <link rel="stylesheet" href="/css/spectate.css" />
 <script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="spectate">
-  <div class="game-shell">
-    <div class="game-topbar">
-      <div class="topbar-timer" id="topbarTimer">--:--</div>
-      <div class="topbar-pnl-block">
-        <div class="topbar-pnl-label">SPECTATING</div>
-        <div class="topbar-pnl-value">👁️</div>
+  <!-- Spectate, Broadcast + race lanes (chosen 2026-11-11): css/spectate.css.
+       Watchers see standings, prices and the public feed only, never anyone's
+       open positions. -->
+  <div class="sp-shell">
+    <header class="sp-top">
+      <span class="sp-brand" aria-hidden="true"><span class="s">Spike</span>&amp;<span class="c">Crush</span></span>
+      <span class="sp-live" id="spLive"><span class="sp-live-dot"></span>LIVE</span>
+      <span class="sp-mode" id="spMode"></span>
+      <span class="sp-markets" id="spMarkets"></span>
+      <div class="sp-ring" id="spRing"><span class="mono" id="topbarTimer">--:--</span></div>
+      <div class="sp-actions">
+        <a class="sp-pill sp-primary" href="/play">Play the next match</a>
+        <a class="sp-pill" href="/play">Exit</a>
       </div>
-      <div class="instrument-tabs" id="instrumentTabs"></div>
-      <a href="/play" class="btn btn-outline">Exit</a>
+    </header>
+
+    <div class="sp-headline">
+      <h1 id="spHeadline">Waiting for the first trade</h1>
+      <div class="sp-seg" role="group" aria-label="Main view">
+        <button type="button" data-view="race" class="on" aria-pressed="true">Race</button>
+        <button type="button" data-view="chart" aria-pressed="false">Chart</button>
+      </div>
     </div>
 
-    <div class="game-main">
-      <div class="chart-section">
-        <div class="chart-quotes">
-          <div class="quote"><span class="label">Bid</span><span class="bid mono" id="quoteBid">-</span></div>
-          <div class="quote"><span class="label">Ask</span><span class="ask mono" id="quoteAsk">-</span></div>
-          <div class="quote"><span class="label">Spread</span><span class="mono" id="quoteSpread">-</span></div>
+    <main class="sp-main" id="spMain" data-view="race">
+      <section class="sp-race" aria-label="The race">
+        <div class="sp-lane sp-lane-head" aria-hidden="true"><span></span><span></span><span>Trader</span><span class="sp-scale"><span>Losing</span><span>Break-even</span><span>Winning</span></span><span>P&amp;L</span></div>
+        <div id="spLanes"></div>
+      </section>
+      <section class="sp-chart" aria-label="Price chart">
+        <div class="sp-chart-head">
+          <div class="instrument-tabs" id="instrumentTabs"></div>
+          <span class="sp-lbl">Spread</span><span class="mono" id="quoteSpread">-</span>
+          <span hidden><span id="quoteBid"></span><span id="quoteAsk"></span></span>
         </div>
-        <div id="chartCanvas"></div>
-      </div>
-      <div class="trading-panel">
-        <h3>Live Leaderboard</h3>
-        <table class="leaderboard-table">
-          <thead><tr><th>#</th><th>Player</th><th>P&amp;L</th><th>Trades</th></tr></thead>
-          <tbody id="leaderboardBody"></tbody>
-        </table>
-      </div>
-    </div>
+        <div class="sp-chart-body"><div id="chartCanvas"></div></div>
+        <div class="sp-caption" id="spCaption" hidden></div>
+      </section>
+      <section class="sp-mini" id="spMini" aria-label="Standings"></section>
+    </main>
 
-    <div class="match-feed">
-      <div class="match-feed-track" id="feedTrack"></div>
-    </div>
+    <aside class="sp-feed" aria-label="Play by play">
+      <div class="sp-moment" id="spMoment" hidden></div>
+      <div class="sp-feed-head"><span>Play by play</span><span class="sp-lbl">Newest first</span></div>
+      <div class="sp-events" id="spEvents"><div class="sp-lbl">Nothing yet. The calm before the crush.</div></div>
+    </aside>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -93,17 +108,29 @@
     if (!matchId) window.location.href = '/play';
 
     TW.Chart.init('chartCanvas');
-    let activeInstrument = 'EURUSD';
+    let activeInstrument = null;
     let lastPrices = {};
+    let state = null; // latest match:state (public view: no positions)
+    let rows = []; // latest leaderboard rows
+    let blurred = false;
+    let startMs = null; // match clock origin, from the price ticks
+    let ended = false;
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => TW.escapeHtml(String(s ?? ''));
+    const money = (n) => `${n >= 0 ? '+' : '-'}${TW.formatMoney(Math.abs(n))}`;
+    const COLORS = ['#2d7ff9', '#f5b83d', '#6cb2ff', '#b77dff', '#4fe0a6', '#ff8a5c', '#e879b9', '#9cc4ff'];
+    const colorFor = (id) => { let h = 0; for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return COLORS[h % COLORS.length]; };
 
     function formatClock(totalSeconds) {
-      const m = Math.floor(totalSeconds / 60);
-      const s = Math.floor(totalSeconds % 60);
-      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      const t = Math.max(0, totalSeconds);
+      return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
     }
 
+    // Prices already played, so joining mid-match shows a full chart.
+    fetch(`/api/match/${encodeURIComponent(matchId)}/history`).then((r) => (r.ok ? r.json() : null)).then((h) => { if (h) TW.Chart.loadPreMatchHistory(h); }).catch(() => {});
+
     function setupInstrumentTabs(instruments) {
-      const wrap = document.getElementById('instrumentTabs');
+      const wrap = $('instrumentTabs');
       if (wrap.dataset.built) return;
       wrap.dataset.built = '1';
       instruments.forEach((sym, i) => {
@@ -125,25 +152,111 @@
 
     function renderQuotes() {
       const price = lastPrices[activeInstrument];
-      if (!price) return;
-      document.getElementById('quoteBid').textContent = price.bid;
-      document.getElementById('quoteAsk').textContent = price.ask;
-      document.getElementById('quoteSpread').textContent = price.spread;
+      if (price) $('quoteSpread').textContent = price.spread;
     }
 
-    const feedEntries = [];
-    function renderFeed() {
-      const track = document.getElementById('feedTrack');
-      track.innerHTML = feedEntries.map((t) => `<span>${TW.escapeHtml(t)}</span>`).join('<span>•</span>');
-      track.style.animation = 'none';
-      void track.offsetWidth;
-      track.style.animation = '';
+    // ---- the race ----
+    const TAG = { shield: 'Shield', protected: 'Protected', frozen: 'Frozen', affected: 'Hit', offline: 'Offline' };
+    function tagsFor(r) {
+      const t = [];
+      if (r.crown) t.push('<span class="sp-tag crown">Crown</span>');
+      if (r.eliminated) t.push('<span class="sp-tag hit">Out</span>');
+      (r.status || []).forEach((s) => { if (TAG[s]) t.push(`<span class="sp-tag ${s === 'shield' || s === 'protected' ? 'good' : 'hit'}">${TAG[s]}</span>`); });
+      return t.join('');
     }
-    function pushFeed(text) {
-      feedEntries.push(text);
-      if (feedEntries.length > 25) feedEntries.shift();
-      renderFeed();
+    function renderRace() {
+      const players = new Map(((state && state.players) || []).map((p) => [p.id, p]));
+      const scale = Math.max(100, ...rows.map((r) => Math.abs(r.pnl)));
+      $('spLanes').innerHTML = rows.map((r) => {
+        const p = players.get(r.id) || {};
+        const w = Math.min(50, (Math.abs(r.pnl) / scale) * 50);
+        const up = r.pnl >= 0;
+        const cards = p.cardsPlayed ?? 0;
+        return `<div class="sp-lane${r.rank === 1 ? ' lead' : ''}">
+          <span class="sp-rank mono">${r.rank}</span>
+          <span class="sp-av" style="background:${colorFor(r.id)}" aria-hidden="true">${esc((r.username || '?').slice(0, 2).toUpperCase())}</span>
+          <span class="sp-who"><span class="sp-name">${esc(r.username)}</span>${tagsFor(r)}<span class="sp-meta">${r.tradesMade || 0} trades · ${p.openPositions ?? 0} open · ${cards} card${cards === 1 ? '' : 's'}</span></span>
+          <span class="sp-track" aria-hidden="true"><span class="sp-mid"></span><span class="sp-bar ${up ? 'up' : 'down'}" style="width:${w.toFixed(1)}%"></span><span class="sp-knob" style="left:calc(50% ${up ? '+' : '-'} ${w.toFixed(1)}%);background:${colorFor(r.id)}"></span></span>
+          <span class="sp-pnl mono ${up ? 'text-buy' : 'text-sell'}">${money(r.pnl)}</span>
+        </div>`;
+      }).join('');
+      $('spMini').innerHTML = rows.map((r) => `<div class="sp-mini-row"><span class="mono sp-lbl">${r.rank}</span><span class="sp-av sm" style="background:${colorFor(r.id)}" aria-hidden="true">${esc((r.username || '?').slice(0, 2).toUpperCase())}</span><span class="sp-name">${esc(r.username)}</span><span class="mono ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(r.pnl)}</span></div>`).join('');
+      document.querySelector('.sp-race').classList.toggle('blurred', blurred);
+      $('spMini').classList.toggle('blurred', blurred);
+      if (!ended) renderHeadline();
     }
+    function renderHeadline() {
+      const h = $('spHeadline');
+      if (blurred) { h.textContent = 'Smoke Screen: the standings are hidden'; return; }
+      if (!rows.length) return;
+      const [a, b] = rows;
+      if (!b) { h.innerHTML = `${esc(a.username)} <span class="mono ${a.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(a.pnl)}</span>`; return; }
+      const gap = a.pnl - b.pnl;
+      h.innerHTML = gap < 0.01 ? 'Neck and neck at the top' : `${esc(a.username)} leads by <span class="mono text-buy">${TW.formatMoney(gap)}</span>`;
+    }
+
+    // ---- play by play ----
+    const KINDS = {
+      card: ['#ff4d6a', '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>'],
+      buy: ['#1fd38a', '<path d="M12 19V5M5 12l7-7 7 7"/>'],
+      sell: ['#ff8a5c', '<path d="M12 5v14M19 12l-7 7-7-7"/>'],
+      close: ['#6cb2ff', '<path d="M5 12l5 5L20 7"/>'],
+      crown: ['#f5b83d', '<path d="M3 18h18M3 18 5 7l5 5 2-7 2 7 5-5 2 11"/>'],
+      shield: ['#4fe0a6', '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'],
+      info: ['#9cc4ff', '<circle cx="12" cy="12" r="2"/>'],
+    };
+    function kindOf(text) {
+      if (/shield/i.test(text)) return 'shield';
+      if (/played|\bhit\b.*\bwith\b/i.test(text)) return 'card';
+      if (/crown/i.test(text)) return 'crown';
+      if (/opened BUY/i.test(text)) return 'buy';
+      if (/opened SELL/i.test(text)) return 'sell';
+      if (/closed|stop loss|take profit/i.test(text)) return 'close';
+      return 'info';
+    }
+    const events = [];
+    function stamp(ts) {
+      if (!startMs || !ts || ts < startMs) return '';
+      return formatClock((ts - startMs) / 1000);
+    }
+    function renderEvents() {
+      $('spEvents').innerHTML = events.length
+        ? events.slice(-40).reverse().map((e) => {
+          const [col, path] = KINDS[e.kind];
+          return `<div class="sp-ev"><span class="mono sp-lbl">${stamp(e.ts)}</span><span class="sp-dot" style="background:${col}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg></span><span>${esc(e.text)}</span></div>`;
+        }).join('')
+        : '<div class="sp-lbl">Nothing yet. The calm before the crush.</div>';
+    }
+    let captionTimer = null;
+    function addEvent(entry, live) {
+      if (!entry || !entry.text) return;
+      const e = { ts: entry.ts, text: entry.text, kind: kindOf(entry.text) };
+      events.push(e);
+      if (events.length > 100) events.shift();
+      if (e.kind === 'card' || e.kind === 'crown') {
+        $('spMoment').hidden = false;
+        $('spMoment').innerHTML = `<div class="sp-lbl sp-moment-k">Big moment${stamp(e.ts) ? ` · ${stamp(e.ts)}` : ''}</div><div>${esc(e.text)}</div>`;
+        if (live) {
+          const cap = $('spCaption');
+          cap.innerHTML = `<span class="sp-dot" style="background:${KINDS[e.kind][0]}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${KINDS[e.kind][1]}</svg></span><span>${esc(e.text)}</span>`;
+          cap.hidden = false;
+          clearTimeout(captionTimer);
+          captionTimer = setTimeout(() => { cap.hidden = true; }, 6000);
+        }
+      }
+    }
+
+    // ---- view switch ----
+    document.querySelectorAll('.sp-seg button').forEach((b) => b.addEventListener('click', () => {
+      document.querySelectorAll('.sp-seg button').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+      $('spMain').dataset.view = b.dataset.view;
+      try { sessionStorage.setItem('sc_spectate_view', b.dataset.view); } catch (e) { /* not remembered */ }
+      window.dispatchEvent(new Event('resize')); // the chart sizes itself to its box
+    }));
+    try {
+      const v = sessionStorage.getItem('sc_spectate_view');
+      if (v === 'chart') document.querySelector('.sp-seg button[data-view="chart"]').click();
+    } catch (e) { /* default view */ }
 
     const socket = TW.connectSocket();
     if (!socket) window.location.href = '/play';
@@ -153,18 +266,44 @@
       if (!result.success) TW.toast(result.error || 'Could not spectate this match', 'danger');
     });
 
-    socket.on('match:state', (state) => setupInstrumentTabs(state.instruments));
+    socket.on('match:state', (s) => {
+      const first = !state;
+      state = s;
+      setupInstrumentTabs(s.instruments || []);
+      $('spMode').textContent = s.modeLabel || '';
+      $('spMarkets').textContent = (s.instruments || []).join(' · ');
+      if (first && Array.isArray(s.feed)) { s.feed.forEach((e) => addEvent(e, false)); renderEvents(); }
+      renderRace();
+    });
     socket.on('price:update', (data) => {
+      if (startMs === null) { startMs = Date.now() - data.elapsedSeconds * 1000; renderEvents(); }
       lastPrices = data.prices;
       Object.entries(data.prices).forEach(([symbol, price]) => TW.Chart.pushTick(symbol, data.elapsedSeconds, price.mid));
       renderQuotes();
-      document.getElementById('topbarTimer').textContent = formatClock(data.timeRemaining);
+      $('topbarTimer').textContent = formatClock(data.timeRemaining);
+      const total = (state && state.durationSeconds) || 0;
+      if (total) $('spRing').style.setProperty('--ring', Math.max(0, Math.min(1, data.timeRemaining / total)).toFixed(4));
+      $('spRing').classList.toggle('low', data.timeRemaining <= 60);
     });
-    socket.on('match:feed', (entry) => pushFeed(entry.text));
-    socket.on('leaderboard:update', (payload) => TW.Leaderboard.render(payload, null));
-    socket.on('match:end', () => {
-      TW.toast('This match has ended', 'info');
-      setTimeout(() => (window.location.href = '/play'), 2500);
+    socket.on('match:feed', (entry) => { addEvent(entry, true); renderEvents(); });
+    socket.on('leaderboard:update', (payload) => {
+      rows = payload.rows || [];
+      blurred = Boolean(payload.blurred);
+      renderRace();
+    });
+    socket.on('match:end', (payload) => {
+      ended = true;
+      const results = (payload && payload.results) || [];
+      const win = results.find((r) => r.rank === 1);
+      $('spLive').classList.add('final');
+      $('spLive').innerHTML = 'FINAL';
+      $('topbarTimer').textContent = '0:00';
+      $('spHeadline').innerHTML = win ? `${esc(win.username)} wins with <span class="mono ${win.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(win.pnl)}</span>` : 'Match over';
+      if (results.length) {
+        rows = results.map((r) => ({ id: r.playerId, username: r.username, pnl: r.pnl, rank: r.rank, tradesMade: r.tradesMade, crown: r.rank === 1 }));
+        blurred = false;
+        renderRace();
+      }
     });
   </script>
   <footer class="legal-footer">
