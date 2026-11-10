@@ -33,6 +33,10 @@
 
 .twf-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; }
 .twf-head h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--c-on); }
+/* Discover: players live now and open lobbies (/discover) */
+.twf-discover { margin-left: auto; margin-right: 6px; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 9999px; border: 1px solid var(--c-hair-2); color: var(--c-on); font-size: 13px; font-weight: 600; text-decoration: none; }
+.twf-discover:hover { border-color: var(--c-on); }
+.twf-discover:focus-visible { outline: 2px solid var(--c-focus); outline-offset: 2px; }
 .twf-close {
   width: 44px; height: 44px; margin-right: -8px;
   display: inline-flex; align-items: center; justify-content: center;
