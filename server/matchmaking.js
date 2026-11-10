@@ -1,6 +1,7 @@
 'use strict';
 
 const db = require('./database');
+const rankSplit = require('./rankSplit');
 
 // Routes players into matches. gameEngine owns match lifecycle/state; this
 // module only decides *which* match a player lands in.
@@ -8,11 +9,25 @@ const db = require('./database');
 // Quick War, Blitz War, and Grand War all use the same "join an open lobby of
 // this mode, or start a fresh one" pattern - only the mode differs.
 async function joinOpenLobby(gameEngine, mode, playerInfo) {
-  const idealPlayers = gameEngine.MATCH_MODES[mode].idealPlayers;
-  const open = gameEngine
+  // Rank split (server/rankSplit.js, off by default): ranked public modes
+  // only match lobbies of the player's own lobby tier or the allowed tiers
+  // above; with no such lobby a new one is created at the player's tier.
+  const split = rankSplit.enabled() && rankSplit.isSplitMode(mode);
+  const myTier = split ? rankSplit.lobbyTierFor(playerInfo.tier || gameEngine.tierForRating(playerInfo.war_rating ?? 1000), playerInfo.id) : null;
+  const candidates = gameEngine
     .listWaitingMatchesByMode(mode)
-    .find((m) => Object.keys(m.players).length < idealPlayers);
-  const match = open || (await gameEngine.createMatch(mode));
+    // No player cap: everyone joins the open lobby (oldest first) instead of
+    // being split into a new one every few players.
+    .filter((m) => !gameEngine.isFull(m) && (!split || rankSplit.mayJoin(myTier, m.lobbyTier || myTier)))
+    .sort((a, b) => a.createdAt - b.createdAt);
+  // Own tier first, then the nearest tier above.
+  if (split) candidates.sort((a, b) => rankSplit.tierIndex(a.lobbyTier || myTier) - rankSplit.tierIndex(b.lobbyTier || myTier));
+  const open = candidates[0];
+  let match = open;
+  if (!match) {
+    match = await gameEngine.createMatch(mode);
+    if (split) match.lobbyTier = myTier;
+  }
   const result = gameEngine.joinMatch(match, playerInfo);
   if (!result.success) return result;
   return { success: true, matchId: match.id, roomCode: match.roomCode };

@@ -22,10 +22,27 @@ function getPresence(playerId) {
   );
 }
 
+// Discover subscribes here to push live changes to whoever is looking at
+// this player (server/index.js). Listeners must never throw into presence.
+const listeners = new Set();
+function onChange(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
 function setPresence(playerId, patch) {
   const existing = getPresence(playerId);
   const updated = { ...existing, ...patch, lastSeen: Date.now() };
   presenceMap.set(playerId, updated);
+  if (existing.status !== updated.status || existing.mode !== updated.mode || existing.lobbyId !== updated.lobbyId) {
+    for (const fn of listeners) {
+      try {
+        fn(playerId, updated, existing);
+      } catch (e) {
+        console.warn('[presence] listener failed:', e.message);
+      }
+    }
+  }
   const pendingOffline = offlineTimers.get(playerId);
   if (pendingOffline && updated.status !== 'offline') {
     clearTimeout(pendingOffline);
@@ -56,4 +73,11 @@ function cancelScheduledOffline(playerId) {
   }
 }
 
-module.exports = { getPresence, setPresence, scheduleOffline, cancelScheduledOffline, OFFLINE_GRACE_MS };
+// Everyone with a live presence that isn't offline (Discover's live pool).
+function listOnline() {
+  const out = [];
+  for (const [id, p] of presenceMap) if (p.status !== 'offline') out.push(id);
+  return out;
+}
+
+module.exports = { getPresence, setPresence, scheduleOffline, cancelScheduledOffline, onChange, listOnline, OFFLINE_GRACE_MS };

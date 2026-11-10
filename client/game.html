@@ -39,12 +39,14 @@
 <link rel="stylesheet" href="/css/mobile.css">
   <link rel="stylesheet" href="/css/console.css" />
   <link rel="stylesheet" href="/css/game-console.css" />
+  <link rel="stylesheet" href="/css/fire.css" />
 <script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="game">
   <div class="game-shell" data-mobile-view="chart">
     <div class="game-topbar">
       <div class="topbar-timer" id="topbarTimer">10:00</div>
+      <span class="market-speed-badge" id="marketSpeedBadge" hidden title="The market replays faster than real time in this mode. The clock shows real match time.">MARKET x1</span>
       <div class="topbar-pnl-block">
         <div class="topbar-pnl-label">Your P&amp;L</div>
         <div class="topbar-pnl-value" id="topbarPnl">$0.00</div>
@@ -58,6 +60,10 @@
 
     <div class="game-main">
       <div class="chart-section">
+        <!-- Match strip: crown, rival, missions; spike alerts use this same
+             row. Its 32px height is always reserved, so the chart never
+             moves or shrinks when an alert appears (css/fire.css). -->
+        <div class="match-strip" id="spikeStrip" aria-live="polite"></div>
         <div class="chart-quotes">
           <div class="quote"><span class="label">Bid</span><span class="bid mono" id="quoteBid">-</span></div>
           <div class="quote"><span class="label">Ask</span><span class="ask mono" id="quoteAsk">-</span></div>
@@ -209,9 +215,11 @@
 
     <div class="game-bottom" id="gameBottom">
       <div class="sabotage-panel">
-        <div class="text-secondary" style="font-size:12px;margin-bottom:8px;">Sabotage cards</div>
-        <div class="card-slots" id="cardSlots"></div>
-        <div class="target-picker hidden" id="targetPicker"></div>
+        <div class="fire-tray-head">
+          <span class="text-secondary" style="font-size:12px;">Cards</span>
+          <div class="heat-meter" id="heatMeter" hidden></div>
+        </div>
+        <div class="card-slots card-tray" id="cardSlots"></div>
       </div>
       <div class="leaderboard-panel" id="leaderboardPanel">
         <div class="text-secondary" style="font-size:12px;margin-bottom:8px;">Live leaderboard</div>
@@ -271,7 +279,9 @@
   <script src="js/chart.js"></script>
   <script src="js/indicators.js"></script>
   <script src="js/drawing.js"></script>
+  <script src="js/card-icons.js"></script>
   <script src="js/sabotage.js"></script>
+  <script src="js/fire.js"></script>
   <script src="js/leaderboard.js"></script>
   <script src="js/game.js"></script>
   <footer class="legal-footer">

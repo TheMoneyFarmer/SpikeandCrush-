@@ -57,6 +57,8 @@ module.exports = {
   kickPlayer: (matchId, playerId) =>
     callInternal(`/internal/admin/matches/${matchId}/kick/${playerId}`, { method: 'POST' }),
   reloadConfig: () => callInternal('/internal/admin/reload-config', { method: 'POST' }),
+  // Fire gameplay admin (server/fireAdmin.js): GET without a body, POST with one.
+  fire: (path, body) => callInternal(`/internal/admin/fire${path}`, body === undefined ? {} : { method: 'POST', body }),
   broadcastAnnouncement: (announcement) =>
     callInternal('/internal/admin/broadcast-announcement', { method: 'POST', body: announcement }),
   settleCompetition: (id) => callInternal(`/internal/admin/competitions/${id}/settle`, { method: 'POST' }),

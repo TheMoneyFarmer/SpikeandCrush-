@@ -6,3 +6,8 @@ node_modules/
 .playwright-mcp/
 npm-debug.log*
 *.log
+
+# fire gameplay: playlist rebuild staging and backup (server/fireAdmin.js)
+data/curated-next/
+data/curated-prev/
+docs/fire/curation-next.md

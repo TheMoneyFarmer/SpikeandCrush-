@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ghost Challenge | Spike &amp; Crush</title>
+<meta name="description" content="A friend challenged you to beat their result on the exact same market." />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#07090F" />
+<meta property="og:title" content="Beat my result on the same market | Spike &amp; Crush" />
+<meta property="og:description" content="Same chart, same seconds. A Spike &amp; Crush ghost challenge." />
+<meta property="og:image" content="https://www.spikeandcrush.com/og-image.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/icons/play.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/play-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/console.css" />
+<style>
+  body { background: #07090F; color: #E8EDF6; }
+  .ch-wrap { max-width: 520px; margin: 0 auto; padding: 32px 16px; }
+  .ch-card { background: #0E1320; border: 1px solid rgba(255,255,255,0.09); border-radius: 16px; padding: 22px; }
+  .ch-kicker { color: #F5B83D; font: 700 13px Rajdhani, Inter, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
+  .ch-title { font: 700 30px/1.1 Rajdhani, Inter, sans-serif; margin: 8px 0 6px; }
+  .ch-sub { color: rgba(232,237,246,0.65); font-size: 14px; }
+  .ch-score { margin: 18px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ch-score div { background: #141B2D; border-radius: 12px; padding: 12px; }
+  .ch-score b { display: block; font: 700 24px Rajdhani, Inter, sans-serif; }
+  .ch-score span { color: rgba(232,237,246,0.6); font-size: 12px; }
+  .ch-btn { width: 100%; min-height: 48px; font-size: 16px; }
+  .ch-err { color: #FF4D5E; }
+</style>
+</head>
+<body data-page="challenge">
+  <main class="ch-wrap"><div class="ch-card" id="chRoot">Loading the challenge…</div></main>
+  <script src="/js/icons.js"></script>
+  <script src="/js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    (async () => {
+      const root = document.getElementById('chRoot');
+      const code = decodeURIComponent(location.pathname.split('/challenge/')[1] || '');
+      try {
+        const res = await fetch(`/api/challenge/${encodeURIComponent(code)}`);
+        const c = await res.json();
+        if (!res.ok) throw new Error(c.error || 'Invalid challenge');
+        const mins = Math.round(c.durationSeconds / 60);
+        root.innerHTML = `
+          <div class="ch-kicker">Ghost challenge</div>
+          <h1 class="ch-title">${TW.escapeHtml(c.username)} dares you to beat their result</h1>
+          <p class="ch-sub">You play the exact same market they did: the same instruments, the same seconds of price, a ${mins}-minute match. No luck of the draw. Just who trades it better.</p>
+          <div class="ch-score">
+            <div><span>Result to beat</span><b class="${c.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(c.pnl)}</b></div>
+            <div><span>Market</span><b>${c.instruments.map((s) => TW.escapeHtml(s)).join(' / ')}</b></div>
+          </div>
+          <button type="button" class="btn btn-primary ch-btn" id="chPlay">Play this market</button>
+          <p class="ch-sub" style="margin-top:12px">Free to play. It does not change your rating or ranking. Link valid until ${new Date(c.expiresAt).toLocaleDateString()}.</p>`;
+        document.getElementById('chPlay').addEventListener('click', async () => {
+          if (!TW.getToken || !TW.getToken()) {
+            sessionStorage.setItem('sc_after_login', location.pathname);
+            location.href = `/login?next=${encodeURIComponent(location.pathname)}`;
+            return;
+          }
+          try {
+            const r = await TW.api(`/api/challenge/${encodeURIComponent(code)}/start`, { method: 'POST' });
+            location.href = `/lobby.html?matchId=${r.matchId}`;
+          } catch (e) {
+            TW.toast(e.message || 'Could not start', 'danger');
+          }
+        });
+      } catch (e) {
+        root.innerHTML = `<div class="ch-kicker">Ghost challenge</div><h1 class="ch-title">This challenge can't be played</h1><p class="ch-err">${TW.escapeHtml(e.message)}</p><a class="btn" href="/play">Go to the game</a>`;
+      }
+    })();
+  </script>
+</body>
+</html>

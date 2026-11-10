@@ -18,6 +18,14 @@ window.TW = window.TW || {};
     if (!token) return null;
     if (TW.socket) TW.socket.disconnect();
     TW.socket = io({ auth: { token } });
+    // Presence: "Away" while the app is hidden, "Online" again when it's
+    // visible (Discover). One listener per page, re-sent on every reconnect.
+    const beat = () => TW.socket && TW.socket.connected && TW.socket.emit('presence:heartbeat', { visible: document.visibilityState !== 'hidden' });
+    TW.socket.on('connect', beat);
+    if (!TW._presenceBeatBound) {
+      TW._presenceBeatBound = true;
+      document.addEventListener('visibilitychange', beat);
+    }
     return TW.socket;
   };
 

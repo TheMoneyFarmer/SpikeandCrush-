@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fire Gameplay — Spike & Crush Admin</title>
+<link rel="icon" href="/icons/admin.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/admin-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<style>
+  .fx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .fx-kpi { background: var(--surface-2, #141b2d); border-radius: 10px; padding: 10px 12px; }
+  .fx-kpi b { display: block; font-size: 20px; }
+  .fx-kpi span { font-size: 12px; opacity: .7; }
+  textarea.fx-json { width: 100%; min-height: 220px; font: 12px/1.45 ui-monospace, Menlo, monospace; background: #07090f; color: #e8edf6; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 10px; }
+  .fx-section { margin-bottom: 18px; }
+  .fx-note { font-size: 12px; opacity: .7; margin: 6px 0 10px; }
+  .fx-ok { color: #2ee6a6; } .fx-bad { color: #ff4d5e; }
+  .fx-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  .fx-row input, .fx-row select { min-height: 34px; }
+</style>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="fire-market"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+        <div class="admin-tabs">
+          <button class="admin-tab" data-tab="market">Market Curation</button>
+          <button class="admin-tab" data-tab="monitor">Fire Monitor</button>
+          <button class="admin-tab" data-tab="settings">Cards, Heat, Missions</button>
+          <button class="admin-tab" data-tab="progression">Progression</button>
+          <button class="admin-tab" data-tab="ranksplit">Rank Split</button>
+          <button class="admin-tab" data-tab="discover">Discover</button>
+        </div>
+        <div class="admin-tab-panel" id="tab-market"></div>
+        <div class="admin-tab-panel" id="tab-monitor"></div>
+        <div class="admin-tab-panel" id="tab-settings"></div>
+        <div class="admin-tab-panel" id="tab-progression"></div>
+        <div class="admin-tab-panel" id="tab-ranksplit"></div>
+        <div class="admin-tab-panel" id="tab-discover"></div>
+      </div>
+    </main>
+  </div>
+  <script src="js/time-ago.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Fire Gameplay');
+    const esc = (s) => Admin.escapeHtml(String(s ?? ''));
+    let S = null;
+
+    function tabs() {
+      const want = new URLSearchParams(location.search).get('tab') || 'market';
+      document.querySelectorAll('.admin-tab').forEach((b) => {
+        b.classList.toggle('active', b.dataset.tab === want);
+        b.onclick = () => { history.replaceState(null, '', `?tab=${b.dataset.tab}`); tabs(); };
+      });
+      document.querySelectorAll('.admin-tab-panel').forEach((p) => (p.style.display = p.id === `tab-${want}` ? '' : 'none'));
+    }
+
+    async function saveSection(section, value) {
+      try {
+        await Admin.api(`/fire/config/${section}`, { method: 'PUT', body: { value } });
+        Admin.toast ? Admin.toast(`${section} saved and live`, 'success') : alert(`${section} saved and live`);
+        await load();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function jsonEditor(section, note) {
+      const cur = S.overrides[section] || {};
+      return `<div class="panel fx-section"><h4>${esc(section)}</h4><p class="fx-note">${note || ''} Edit the overrides only (merged over the defaults below). Every save is audit-logged.</p>
+        <textarea class="fx-json" id="ov-${section}">${esc(JSON.stringify(cur, null, 2))}</textarea>
+        <div class="fx-row"><button class="btn btn-primary" data-save="${section}">Save ${esc(section)}</button></div>
+        <details><summary class="fx-note">Defaults and current live values</summary><pre class="fx-json" style="white-space:pre-wrap">${esc(JSON.stringify(S.config[section], null, 2))}</pre></details></div>`;
+    }
+
+    function bindSaves(root) {
+      root.querySelectorAll('[data-save]').forEach((b) => b.addEventListener('click', () => {
+        try { saveSection(b.dataset.save, JSON.parse(document.getElementById(`ov-${b.dataset.save}`).value || '{}')); } catch (e) { alert(`Invalid JSON: ${e.message}`); }
+      }));
+    }
+
+    function renderMarket() {
+      const el = document.getElementById('tab-market');
+      const cat = S.catalog;
+      if (!cat) { el.innerHTML = '<div class="panel">No curated catalog on the game server.</div>'; return; }
+      const ov = (S.overrides.market && S.overrides.market.enabledOverride) || {};
+      const rows = cat.ranking.map((r) => {
+        const inst = cat.instruments[r.sym];
+        const on = ov[r.sym] === false ? false : r.kept || ov[r.sym] === true;
+        return `<tr><td>${r.rank}</td><td><b>${esc(r.sym)}</b></td><td>${esc(r.cls)}</td><td>${r.score}</td><td>${r.kept ? (r.forcedForClass ? 'kept (class minimum)' : 'kept') : 'dropped'}</td>
+          <td>${inst ? inst.activeMinutes : '-'}</td><td>${inst ? `${inst.validStarts[180]} / ${inst.validStarts[600]} / ${inst.validStarts[900]} / ${inst.validStarts[1200]}` : '-'}</td><td>${inst ? inst.spikes : '-'}</td>
+          <td>${inst ? esc(inst.sessionHint.held) : '-'}</td>
+          <td><label><input type="checkbox" data-inst="${esc(r.sym)}" ${on ? 'checked' : ''} ${inst ? '' : 'disabled title="No playlist: rebuild with this instrument kept first"'} /> enabled</label></td></tr>`;
+        }).join('') + (cat.excluded || []).map((x) => `<tr><td>-</td><td>${esc(x.sym)}</td><td colspan="8">${esc(x.reason)}</td></tr>`).join('');
+      const speeds = S.config.market.replaySpeed;
+      const rb = S.rebuild;
+      el.innerHTML = `
+        <div class="panel fx-section"><h4>Instrument catalog (activity ranking, cutoff after rank ${cat.cutoffAfterRank})</h4>
+          <p class="fx-note">Disabled instruments disappear from every selector: lobbies, Solo, Async, Private, tournaments and new competitions. Data files are kept.</p>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>#</th><th>Instrument</th><th>Class</th><th>Score</th><th>Data verdict</th><th>Active min</th><th>Valid starts 180/600/900/1200s</th><th>Spikes</th><th>Session hint</th><th>Switch</th></tr></thead><tbody>${rows}</tbody></table></div>
+          <div class="fx-row"><button class="btn btn-primary" id="saveInst">Save instrument switches</button></div></div>
+        <div class="panel fx-section"><h4>Replay speed per mode (data seconds per real second)</h4>
+          <p class="fx-note">Measured choice is 1x everywhere (docs/fire/replay-speed.md). Competitions always run at 1x. Max ${S.config.market.maxReplaySpeed}x.</p>
+          <div class="fx-row">${Object.entries(speeds).map(([m, v]) => `<label>${esc(m)} <input type="number" min="1" max="${S.config.market.maxReplaySpeed}" step="1" data-speed="${esc(m)}" value="${v}" style="width:60px" /></label>`).join('')}</div>
+          <div class="fx-row"><button class="btn" id="saveSpeed">Save speeds</button></div></div>
+        <div class="panel fx-section"><h4>Rebuild playlists</h4>
+          <p class="fx-note">Super admins only. Runs the curation script on the game server in the background, validates the no-flat guarantee, and swaps only if it passes. Running matches keep their prices; competition series are never swapped.</p>
+          <div class="fx-row"><button class="btn btn-primary" id="rebuildBtn" ${rb.running ? 'disabled' : ''}>Rebuild playlists</button>
+            <span>${rb.running ? `Running: ${esc(rb.step)}` : rb.result ? (rb.result.swapped ? '<span class="fx-ok">Last rebuild swapped in</span>' : `<span class="fx-bad">Last rebuild not swapped: ${esc(rb.result.reason)}</span>`) : 'No rebuild yet'} ${rb.finishedAt ? `(${esc(rb.finishedAt)})` : ''}</span></div>
+          ${rb.log.length ? `<pre class="fx-json" style="min-height:0;white-space:pre-wrap">${esc(rb.log.join('\n'))}</pre>` : ''}</div>
+        <div class="panel fx-section"><h4>Hot windows per instrument</h4>${Object.entries(cat.instruments).map(([s, v]) => `<p class="fx-note"><b>${esc(s)}</b>: ${v.windows.slice(0, 14).map((w) => `${esc(w.from.slice(5, 16).replace('T', ' '))} (${w.minutes}m)`).join(', ')}${v.windows.length > 14 ? ' …' : ''} · ${v.seams} seams · band ${v.bandPct.low}..${v.bandPct.high}%</p>`).join('')}</div>`;
+      document.getElementById('saveInst').onclick = () => {
+        const enabledOverride = {};
+        el.querySelectorAll('[data-inst]').forEach((c) => {
+          const r = cat.ranking.find((x) => x.sym === c.dataset.inst);
+          if (c.checked !== Boolean(r && r.kept)) enabledOverride[c.dataset.inst] = c.checked;
+        });
+        saveSection('market', { ...(S.overrides.market || {}), enabledOverride });
+      };
+      document.getElementById('saveSpeed').onclick = () => {
+        const replaySpeed = {};
+        el.querySelectorAll('[data-speed]').forEach((i) => (replaySpeed[i.dataset.speed] = Number(i.value) || 1));
+        saveSection('market', { ...(S.overrides.market || {}), replaySpeed });
+      };
+      document.getElementById('rebuildBtn').onclick = async () => {
+        if (!confirm('Rebuild the curated playlists now?')) return;
+        try { await Admin.api('/fire/rebuild', { method: 'POST' }); poll(); } catch (e) { alert(e.message); }
+      };
+    }
+
+    async function poll() {
+      const rb = await Admin.api('/fire/rebuild');
+      S.rebuild = rb;
+      renderMarket();
+      if (rb.running) setTimeout(poll, 2000);
+    }
+
+    function renderMonitor() {
+      const el = document.getElementById('tab-monitor');
+      const limit = S.config.market.flatLimitSeconds;
+      el.innerHTML = `<div class="panel fx-section"><h4>Last 24 hours, real matches (${esc(S.monitorSource)})</h4>
+        <p class="fx-note">Flat = consecutive seconds with an unchanged price. Limit ${limit}s. A match above the limit emails hello@spikeandcrush.com (at most once an hour).</p>
+        ${S.monitor.length ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mode</th><th>Instrument</th><th>Matches</th><th>Median flat (s)</th><th>Worst flat (s)</th><th>Over limit</th><th>Changes/min</th><th>Range bps</th></tr></thead><tbody>
+        ${S.monitor.map((m) => `<tr><td>${esc(m.mode)}</td><td>${esc(m.symbol)}</td><td>${m.matches}</td><td>${m.medianFlat}</td><td class="${m.worstFlat > limit ? 'fx-bad' : 'fx-ok'}">${m.worstFlat}</td><td>${m.overLimit}</td><td>${m.changesPerMin}</td><td>${m.rangeBps}</td></tr>`).join('')}</tbody></table></div>` : '<p>No matches recorded in the last 24 hours yet.</p>'}
+        ${S.tables && S.tables.missing.length ? `<p class="fx-note fx-bad">Missing tables: ${esc(S.tables.missing.join(', '))}. Apply supabase/migrations/20261110120000_fire_gameplay.sql.</p>` : ''}</div>`;
+    }
+
+    function renderSettings() {
+      const el = document.getElementById('tab-settings');
+      el.innerHTML = jsonEditor('cards', 'Earned cards (streak rewards, hand size, caps), shields and damage guards.') + jsonEditor('heat', 'Cosmetic Heat score. Never touches P&L, rank, prizes or ratings.') + jsonEditor('missions', 'Quick missions and coin caps (per match and per day).') + jsonEditor('spikeAlerts', 'Spike alerts from real indexed events.') + jsonEditor('crown', 'Crown and Dethrone card.') + jsonEditor('ghostChallenge', 'Challenge links.');
+      bindSaves(el);
+    }
+
+    async function renderProgression() {
+      const el = document.getElementById('tab-progression');
+      el.innerHTML = jsonEditor('progression', 'XP values, caps, level thresholds, starting cards by rank, unlock overrides { cardId: { level } }.') + `
+        <div class="panel fx-section"><h4>Grant or revoke a card for one player</h4><p class="fx-note">Super admins only, reason required, logged.</p>
+          <div class="fx-row"><input id="gPlayer" placeholder="Player id (uuid)" style="min-width:280px" /><input id="gCard" placeholder="Card id, e.g. pip_theft" /><input id="gReason" placeholder="Reason" style="min-width:220px" />
+          <button class="btn" id="gGrant">Grant</button><button class="btn" id="gRevoke">Revoke</button></div></div>
+        <div class="panel fx-section"><h4>Unlock-rate report</h4><div id="unlockReport">Loading…</div></div>`;
+      bindSaves(el);
+      const send = async (revoke) => {
+        try { await Admin.api('/fire/card-grant', { method: 'POST', body: { playerId: document.getElementById('gPlayer').value.trim(), cardId: document.getElementById('gCard').value.trim(), reason: document.getElementById('gReason').value.trim(), revoke } }); alert('Done'); } catch (e) { alert(e.message); }
+      };
+      document.getElementById('gGrant').onclick = () => send(false);
+      document.getElementById('gRevoke').onclick = () => send(true);
+      try {
+        const r = await Admin.api('/fire/unlock-report');
+        document.getElementById('unlockReport').innerHTML = r.error ? esc(r.error) : `<p class="fx-note">${r.players} real players (levels from real match history)</p>
+          <div class="fx-grid">${r.byLevel.map((l) => `<div class="fx-kpi"><b>${l.share}%</b><span>Level ${l.level} (${l.count})</span></div>`).join('')}</div>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Card</th><th>Players with it unlocked</th></tr></thead><tbody>${r.byCard.map((c) => `<tr><td>${esc(c.name)}</td><td>${c.share}% (${c.count})</td></tr>`).join('')}</tbody></table></div>`;
+      } catch (e) {
+        document.getElementById('unlockReport').textContent = e.message;
+      }
+    }
+
+    function renderRankSplit() {
+      const el = document.getElementById('tab-ranksplit');
+      const rs = S.rankSplit;
+      el.innerHTML = `<div class="panel fx-section"><h4>Status: ${rs.enabled ? '<span class="fx-ok">ON</span>' : '<span class="fx-bad">OFF</span> (all ranked players share one pool)'}</h4>
+        <p class="fx-note">Applies to ranked public matches only (Quick War, Grand War). Suggested trigger: ${esc(rs.suggestedTrigger)}.</p>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mode</th><th>Lobby tier</th><th>Players waiting</th></tr></thead><tbody>${rs.lobbies.map((l) => `<tr><td>${esc(l.mode)}</td><td>${esc(l.tier)}</td><td>${l.players}</td></tr>`).join('') || '<tr><td colspan="3">No ranked lobbies open right now</td></tr>'}</tbody></table></div></div>` +
+        `<div class="panel fx-section"><h4>Move one player to another lobby tier</h4><p class="fx-note">Super admins only. A reason is required and the move is logged. Leave the tier empty to put the player back on their rating tier.</p>
+          <div class="fx-row"><input id="toPlayer" placeholder="Player id (uuid)" style="min-width:280px" /><select id="toTier"><option value="">(rating tier)</option>${S.config.rankSplit.tiers.map((t) => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')}</select><input id="toReason" placeholder="Reason" style="min-width:220px" /><button class="btn" id="toSave">Save move</button></div>
+          <p class="fx-note">Current moves: ${Object.entries(S.config.rankSplit.playerOverrides || {}).map(([p, t]) => `${esc(p)} → ${esc(t)}`).join(', ') || 'none'}</p></div>` +
+        jsonEditor('rankSplit', 'enabled, tiers [{ id, label, ranks }], joinUpTiers, emptyLobbyFallbackSeconds. Tier edits apply to new lobbies only.');
+      bindSaves(el);
+      document.getElementById('toSave').onclick = async () => {
+        try { await Admin.api('/fire/tier-override', { method: 'POST', body: { playerId: document.getElementById('toPlayer').value.trim(), tierId: document.getElementById('toTier').value || null, reason: document.getElementById('toReason').value.trim() } }); Admin.toast('Player moved', 'success'); load(); } catch (e) { alert(e.message); }
+      };
+    }
+
+    function renderDiscover() {
+      const el = document.getElementById('tab-discover');
+      const p = S.presence;
+      const a = S.privacyAdoption;
+      el.innerHTML = `<div class="fx-grid">
+          <div class="fx-kpi"><b>${p.total}</b><span>Online now</span></div><div class="fx-kpi"><b>${p.online || 0}</b><span>In the app</span></div>
+          <div class="fx-kpi"><b>${p.in_lobby || 0}</b><span>In a lobby</span></div><div class="fx-kpi"><b>${p.in_match || 0}</b><span>In a match</span></div><div class="fx-kpi"><b>${p.away || 0}</b><span>Away</span></div></div>
+        <div class="panel fx-section"><h4>Privacy adoption (players online now, sample ${a.sample})</h4><div class="fx-grid">
+          <div class="fx-kpi"><b>${a.appearOffline ?? '-'}%</b><span>Appear offline</span></div><div class="fx-kpi"><b>${a.statusFriendsOrNobody ?? '-'}%</b><span>Status not public</span></div>
+          <div class="fx-kpi"><b>${a.hiddenFromDiscover ?? '-'}%</b><span>Hidden from Discover</span></div><div class="fx-kpi"><b>${a.requestsNotEveryone ?? '-'}%</b><span>Requests limited</span></div></div>
+          <p class="fx-note">Reports and blocks: <a href="/players.html?tab=reports">the existing reports queue</a>.</p></div>` + jsonEditor('discover', 'enabled (switch Discover off), weights (suggestion order; proximity uses only the self-chosen country and is never shown), pageSize, suggestionCacheSeconds.');
+      bindSaves(el);
+    }
+
+    async function load() {
+      try {
+        S = await Admin.api('/fire/state');
+        renderMarket(); renderMonitor(); renderSettings(); renderProgression(); renderRankSplit(); renderDiscover();
+        tabs();
+      } catch (e) {
+        document.querySelector('.admin-content').insertAdjacentHTML('afterbegin', `<div class="panel fx-bad">${esc(e.message)}</div>`);
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

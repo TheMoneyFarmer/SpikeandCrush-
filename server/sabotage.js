@@ -1,298 +1,153 @@
 'use strict';
 
-// All 30 sabotage cards. `targeted` cards require a target player; market
-// cards (`targeted: false`) affect the whole match environment. Cards with
-// `requiresSymbol` act on one instrument (defaults to a random one if the
-// caller doesn't supply one). `duration: 0` cards are instantaneous.
-const CARDS = {
-  news_bomb: {
-    id: 'news_bomb',
-    name: 'News Bomb',
-    category: 'information',
-    icon: '📰',
-    description: "Inject a fake news headline into the target's feed for 15s.",
-    duration: 15,
-    targeted: true,
-  },
-  chart_ghost: {
-    id: 'chart_ghost',
-    name: 'Chart Ghost',
-    category: 'information',
-    icon: '👻',
-    description: "Freeze the target's price display for 10s.",
-    duration: 10,
-    targeted: true,
-  },
-  false_signal: {
-    id: 'false_signal',
-    name: 'False Signal',
-    category: 'information',
-    icon: '📉',
-    description: "Show a fake RSI divergence on the target's chart for 20s.",
-    duration: 20,
-    targeted: true,
-  },
-  smoke_screen: {
-    id: 'smoke_screen',
-    name: 'Smoke Screen',
-    category: 'information',
-    icon: '💨',
-    description: 'Blur the leaderboard for all players for 30s.',
-    duration: 30,
-    targeted: false,
-  },
-  spread_spike: {
-    id: 'spread_spike',
-    name: 'Spread Spike',
-    category: 'market',
-    icon: '⚡',
-    description: 'Triple the spread on one instrument for 20s.',
-    duration: 20,
-    targeted: false,
-    requiresSymbol: true,
-  },
-  volatility_surge: {
-    id: 'volatility_surge',
-    name: 'Volatility Surge',
-    category: 'market',
-    icon: '🌪️',
-    description: 'Double price movement speed for 25s.',
-    duration: 25,
-    targeted: false,
-  },
-  liquidity_drain: {
-    id: 'liquidity_drain',
-    name: 'Liquidity Drain',
-    category: 'market',
-    icon: '🏜️',
-    description: 'Cap max lot size at 0.1 for all players for 30s.',
-    duration: 30,
-    targeted: false,
-  },
-  reversal_flash: {
-    id: 'reversal_flash',
-    name: 'Reversal Flash',
-    category: 'market',
-    icon: '↩️',
-    description: 'Force a sharp 10 pip reversal, then snap back, over 8s.',
-    duration: 8,
-    targeted: false,
-    requiresSymbol: true,
-  },
-  position_freeze: {
-    id: 'position_freeze',
-    name: 'Position Freeze',
-    category: 'opponent',
-    icon: '🧊',
-    description: 'Target cannot open new trades for 15s.',
-    duration: 15,
-    targeted: true,
-  },
-  force_close: {
-    id: 'force_close',
-    name: 'Force Close',
-    category: 'opponent',
-    icon: '🔒',
-    description: "Force close the target's best-performing position at market.",
-    duration: 0,
-    targeted: true,
-  },
-  capital_drain: {
-    id: 'capital_drain',
-    name: 'Capital Drain',
-    category: 'opponent',
-    icon: '💸',
-    description: "Deduct $200 from the target's capital.",
-    duration: 0,
-    targeted: true,
-  },
-  mirror_trade: {
-    id: 'mirror_trade',
-    name: 'Mirror Trade',
-    category: 'opponent',
-    icon: '🪞',
-    description: "Copy your current position onto the target's account.",
-    duration: 0,
-    targeted: true,
-  },
+// The card deck: 30 attack cards + 2 defensive cards.
+//
+// `kind`: 'attack' (targets one player), 'market' (hits every player except the
+// caster and anyone shielded), 'defense' (plays on yourself, no target).
+// Every attack and market card changes real, server-enforced trading state -
+// the 11 old "threat-only" cards that only drew something on the target's
+// screen were replaced in the fire-gameplay rework (old -> new id in
+// REPLACED_THREAT_ONLY below, kept for the support knowledge base and tests).
+// `requiresSymbol` cards act on one instrument (random if none given).
+// `duration: 0` cards are instant. `rarity` weights random fills
+// (server/config/gameFeel.js cards.rarityWeights). `icon` is an SVG icon key
+// drawn by client/js/card-icons.js - never an emoji.
+//
+// Amounts (steal sizes, shares, fill penalties) live in CARD_AMOUNTS so admin
+// can tune them; nothing touches P&L, equity or margin maths directly except
+// through the same balance/position operations the original cards used.
 
-  // ---- expansion set (18 more, added to reach 30 total) -------------------
-  margin_scare: {
-    id: 'margin_scare',
-    name: 'Margin Scare',
-    category: 'information',
-    icon: '🚨',
-    description: "Flash a fake margin-call warning on the target's screen for 10s.",
-    duration: 10,
-    targeted: true,
-  },
-  phantom_candle: {
-    id: 'phantom_candle',
-    name: 'Phantom Candle',
-    category: 'information',
-    icon: '🕯️',
-    description: "Inject one fake bearish candle into the target's chart for 8s.",
-    duration: 8,
-    targeted: true,
-  },
-  blackout: {
-    id: 'blackout',
-    name: 'Blackout',
-    category: 'information',
-    icon: '⬛',
-    description: "Blank out the target's live P&L display for 12s.",
-    duration: 12,
-    targeted: true,
-  },
-  static_burst: {
-    id: 'static_burst',
-    name: 'Static Burst',
-    category: 'information',
-    icon: '📺',
-    description: "Cover the target's chart in visual static for 10s.",
-    duration: 10,
-    targeted: true,
-  },
-  decoy_order: {
-    id: 'decoy_order',
-    name: 'Decoy Order',
-    category: 'information',
-    icon: '🐋',
-    description: 'Show the target a fake giant sell-wall alert for 12s.',
-    duration: 12,
-    targeted: true,
-  },
-  mirage: {
-    id: 'mirage',
-    name: 'Mirage',
-    category: 'information',
-    icon: '👁️',
-    description: "Plant a fake ghost position in the target's position list for 15s.",
-    duration: 15,
-    targeted: true,
-  },
-  intel_leak: {
-    id: 'intel_leak',
-    name: 'Intel Leak',
-    category: 'information',
-    icon: '🕵️',
-    description: "Reveal the target's real P&L and open positions to you for 10s.",
-    duration: 10,
-    targeted: true,
-  },
-  double_spread: {
-    id: 'double_spread',
-    name: 'Double Spread',
-    category: 'market',
-    icon: '〽️',
-    description: 'Double the spread on every instrument for everyone except you, for 15s.',
-    duration: 15,
-    targeted: false,
-  },
-  time_warp: {
-    id: 'time_warp',
-    name: 'Time Warp',
-    category: 'market',
-    icon: '📡',
-    description: 'Delay the price feed by 3 seconds for everyone except you, for 10s.',
-    duration: 10,
-    targeted: false,
-  },
-  fog_of_war: {
-    id: 'fog_of_war',
-    name: 'Fog of War',
-    category: 'market',
-    icon: '🌫️',
-    description: 'Throw random price jitter into the feed for everyone except you, for 10s.',
-    duration: 10,
-    targeted: false,
-  },
-  panic_wave: {
-    id: 'panic_wave',
-    name: 'Panic Wave',
-    category: 'market',
-    icon: '📉',
-    description: 'Force a brief synchronized reversal across every instrument, then snap back, over 8s.',
-    duration: 8,
-    targeted: false,
-  },
-  dead_calm: {
-    id: 'dead_calm',
-    name: 'Dead Calm',
-    category: 'market',
-    icon: '🧊',
-    description: 'Freeze price movement on every instrument for everyone except you, for 6s.',
-    duration: 6,
-    targeted: false,
-  },
-  lockout: {
-    id: 'lockout',
-    name: 'Lockout',
-    category: 'opponent',
-    icon: '🔐',
-    description: 'Target cannot close any position for 10s.',
-    duration: 10,
-    targeted: true,
-  },
-  margin_call: {
-    id: 'margin_call',
-    name: 'Margin Call',
-    category: 'opponent',
-    icon: '⚠️',
-    description: "Force-close every one of the target's open positions at market.",
-    duration: 0,
-    targeted: true,
-  },
-  lot_limiter: {
-    id: 'lot_limiter',
-    name: 'Lot Limiter',
-    category: 'opponent',
-    icon: '📏',
-    description: "Cap the target's max lot size at 0.05 for 15s.",
-    duration: 15,
-    targeted: true,
-  },
-  pip_theft: {
-    id: 'pip_theft',
-    name: 'Pip Theft',
-    category: 'opponent',
-    icon: '🥷',
-    description: "Steal $150 from the target's capital straight into yours.",
-    duration: 0,
-    targeted: true,
-  },
-  ghost_trade: {
-    id: 'ghost_trade',
-    name: 'Ghost Trade',
-    category: 'opponent',
-    icon: '👻',
-    description: "Force a small guaranteed-losing position onto the target's account.",
-    duration: 0,
-    targeted: true,
-  },
-  stop_snipe: {
-    id: 'stop_snipe',
-    name: 'Stop Snipe',
-    category: 'opponent',
-    icon: '🎯',
-    description: "Drag the target's best position's stop-loss to break-even, wiping their cushion.",
-    duration: 0,
-    targeted: true,
-  },
+const gameFeel = require('./config/gameFeel');
+
+const CARD_AMOUNTS = {
+  capitalDrain: 200,
+  pipTheft: 150,
+  profitTaxShare: 0.25,
+  profitTaxCap: 300,
+  profitSkimShare: 0.15,
+  profitSkimCap: 250,
+  slippageFills: 2,
+  slippageSpreads: 2, // each penalised fill is this many spreads worse
+  spreadBlowoutMultiplier: 3,
+  marginSqueezeShare: 0.5,
+  stopYankShare: 0.5, // stop moves this share of the way toward the price
+  stopYankNewSpreads: 5, // no stop yet: one is placed this many spreads away
+  cooldownJamSeconds: 8,
+  shieldSeconds: 20,
+  cleanseShieldSeconds: 5,
 };
 
-const NEWS_HEADLINES = [
-  'Fed hints emergency rate cut incoming',
-  'Oil supply disruption reported in Gulf',
-  'Risk-off sentiment sweeping markets',
-  'Central bank intervention rumored',
-  'Inflation data shock expected',
+const C = (id, name, category, kind, rarity, icon, duration, description, extra = {}) => ({
+  id,
+  name,
+  category,
+  kind,
+  rarity,
+  icon,
+  duration,
+  description,
+  targeted: kind === 'attack',
+  ...extra,
+});
+
+const CARDS = {
+  // ---- replacements for the 11 threat-only cards (same slots, real damage) ----
+  profit_tax: C('profit_tax', 'Profit Tax', 'opponent', 'attack', 'epic', 'percent', 20,
+    "The target's next winning close within 20s pays 25% of its profit to you (max 300)."),
+  spread_blowout: C('spread_blowout', 'Spread Blowout', 'opponent', 'attack', 'rare', 'spread', 20,
+    "Triples the target's spread on every instrument for 20s."),
+  slippage_storm: C('slippage_storm', 'Slippage Storm', 'opponent', 'attack', 'rare', 'slip', 30,
+    "The target's next 2 fills (open or close) within 30s fill 2 spreads worse."),
+  margin_squeeze: C('margin_squeeze', 'Margin Squeeze', 'opponent', 'attack', 'common', 'squeeze', 30,
+    'For 30s the target can open at most half the size their free margin allows.'),
+  stop_yank: C('stop_yank', 'Stop-Loss Yank', 'opponent', 'attack', 'epic', 'yank', 0,
+    "Moves the stop loss on the target's largest position halfway to the price (or places a tight one)."),
+  tp_snip: C('tp_snip', 'TP Snip', 'opponent', 'attack', 'common', 'scissors', 0,
+    "Removes the take profit from every one of the target's open positions."),
+  order_freeze: C('order_freeze', 'Order Freeze', 'opponent', 'attack', 'common', 'snow', 15,
+    'The target cannot add or move a stop loss or take profit for 15s.'),
+  trade_limit: C('trade_limit', 'Trade Limit', 'opponent', 'attack', 'common', 'one', 20,
+    'For 20s the target cannot open a new trade while they hold one.'),
+  one_way: C('one_way', 'One Way', 'opponent', 'attack', 'rare', 'arrow', 15,
+    'For 15s the target can only open trades in one direction (chosen at random).'),
+  cooldown_jam: C('cooldown_jam', 'Cooldown Jam', 'opponent', 'attack', 'common', 'hourglass', 30,
+    'For 30s the target must wait 8s between opening trades.'),
+  profit_skim: C('profit_skim', 'Profit Skim', 'opponent', 'attack', 'legendary', 'skim', 0,
+    "Takes 15% of the target's banked profit into yours (max 250)."),
+
+  // ---- the original damaging cards, unchanged ----
+  spread_spike: C('spread_spike', 'Spread Spike', 'market', 'market', 'common', 'bolt', 20,
+    'Triple the spread on one instrument for 20s.', { requiresSymbol: true }),
+  volatility_surge: C('volatility_surge', 'Volatility Surge', 'market', 'market', 'rare', 'wave', 25,
+    'Double price movement speed for 25s.'),
+  liquidity_drain: C('liquidity_drain', 'Liquidity Drain', 'market', 'market', 'common', 'drain', 30,
+    'Cap max lot size at 0.1 for all players for 30s.'),
+  reversal_flash: C('reversal_flash', 'Reversal Flash', 'market', 'market', 'rare', 'reverse', 8,
+    'Force a sharp 10 pip reversal, then snap back, over 8s.', { requiresSymbol: true }),
+  position_freeze: C('position_freeze', 'Position Freeze', 'opponent', 'attack', 'common', 'freeze', 15,
+    'Target cannot open new trades for 15s.'),
+  force_close: C('force_close', 'Force Close', 'opponent', 'attack', 'epic', 'lock', 0,
+    "Force close the target's best-performing position at market."),
+  capital_drain: C('capital_drain', 'Capital Drain', 'opponent', 'attack', 'epic', 'wallet', 0,
+    "Deduct 200 from the target's capital."),
+  mirror_trade: C('mirror_trade', 'Mirror Trade', 'opponent', 'attack', 'rare', 'mirror', 0,
+    "Copy your current position onto the target's account."),
+  double_spread: C('double_spread', 'Double Spread', 'market', 'market', 'common', 'spread2', 15,
+    'Double the spread on every instrument for everyone except you, for 15s.'),
+  time_warp: C('time_warp', 'Time Warp', 'market', 'market', 'rare', 'clock', 10,
+    'Delay the price feed by 3 seconds for everyone except you, for 10s.'),
+  fog_of_war: C('fog_of_war', 'Fog of War', 'market', 'market', 'rare', 'fog', 10,
+    'Throw price jitter into the feed for everyone except you, for 10s.'),
+  panic_wave: C('panic_wave', 'Panic Wave', 'market', 'market', 'epic', 'panic', 8,
+    'Force a brief synchronized reversal across every instrument, then snap back, over 8s.'),
+  dead_calm: C('dead_calm', 'Dead Calm', 'market', 'market', 'rare', 'pause', 6,
+    'Freeze price movement on every instrument for everyone except you, for 6s.'),
+  lockout: C('lockout', 'Lockout', 'opponent', 'attack', 'common', 'padlock', 10,
+    'Target cannot close any position for 10s.'),
+  margin_call: C('margin_call', 'Margin Call', 'opponent', 'attack', 'legendary', 'warn', 0,
+    "Force-close every one of the target's open positions at market."),
+  lot_limiter: C('lot_limiter', 'Lot Limiter', 'opponent', 'attack', 'common', 'ruler', 15,
+    "Cap the target's max lot size at 0.05 for 15s."),
+  pip_theft: C('pip_theft', 'Pip Theft', 'opponent', 'attack', 'legendary', 'thief', 0,
+    "Steal 150 from the target's capital straight into yours."),
+  ghost_trade: C('ghost_trade', 'Ghost Trade', 'opponent', 'attack', 'rare', 'ghost', 0,
+    "Force a small losing position onto the target's account."),
+  stop_snipe: C('stop_snipe', 'Stop Snipe', 'opponent', 'attack', 'rare', 'target', 0,
+    "Drag the target's best position's stop-loss to break-even, wiping their cushion."),
+
+  // ---- defensive (self) ----
+  shield: C('shield', 'Shield', 'defense', 'defense', 'common', 'shield', 20,
+    'For 20s attack cards cannot target you and market cards do not affect you.'),
+  cleanse: C('cleanse', 'Cleanse', 'defense', 'defense', 'rare', 'cleanse', 0,
+    'Removes every card effect on you and shields you for 5s.'),
+};
+
+// Old threat-only card -> its replacement (same slot in the deck).
+const REPLACED_THREAT_ONLY = {
+  news_bomb: 'profit_tax',
+  chart_ghost: 'spread_blowout',
+  false_signal: 'slippage_storm',
+  smoke_screen: 'margin_squeeze',
+  margin_scare: 'stop_yank',
+  phantom_candle: 'tp_snip',
+  blackout: 'order_freeze',
+  static_burst: 'trade_limit',
+  decoy_order: 'one_way',
+  mirage: 'cooldown_jam',
+  intel_leak: 'profit_skim',
+};
+
+// Timed effects that sit on one target. At most one is active per target
+// (gameFeel cards: damage guards) and all expire on their own timestamps.
+const TIMED_TARGET_EFFECTS = [
+  'position_freeze', 'lockout', 'lot_limiter', 'spread_blowout', 'slippage_storm', 'margin_squeeze',
+  'order_freeze', 'trade_limit', 'one_way', 'cooldown_jam', 'profit_tax',
 ];
 
-function shuffle(arr) {
+function shuffle(arr, rand = Math.random) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rand() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -300,18 +155,36 @@ function shuffle(arr) {
 
 // A saved deck comes first: if it holds more cards than the mode deals, they're
 // picked from it at random, and any slots it can't fill are random cards.
-function dealCards(count = 3, deck = []) {
-  const all = Object.keys(CARDS);
+// `allowed` (the player's unlocked cards) limits both - a locked card can
+// never be dealt.
+function dealCards(count = 3, deck = [], allowed = null) {
+  const all = Object.keys(CARDS).filter((t) => !allowed || allowed.includes(t));
   const saved = shuffle([...new Set(Array.isArray(deck) ? deck : [])].filter((type) => all.includes(type)));
   const rest = shuffle(all.filter((type) => !saved.includes(type)));
   return [...saved, ...rest].slice(0, count).map((type) => ({ type, used: false }));
 }
 
+// One random card weighted by rarity from `pool` (card ids).
+function drawWeighted(pool, rand = Math.random) {
+  const weights = gameFeel.get().cards.rarityWeights;
+  const items = pool.filter((t) => CARDS[t]).map((t) => [t, Number(weights[CARDS[t].rarity]) || 1]);
+  const total = items.reduce((s, [, w]) => s + w, 0);
+  if (!total) return null;
+  let r = rand() * total;
+  for (const [t, w] of items) {
+    r -= w;
+    if (r < 0) return t;
+  }
+  return items[items.length - 1][0];
+}
+
 function getCardCatalog() {
-  return Object.values(CARDS).map(({ id, name, category, icon, description, duration, targeted, requiresSymbol }) => ({
+  return Object.values(CARDS).map(({ id, name, category, kind, rarity, icon, description, duration, targeted, requiresSymbol }) => ({
     id,
     name,
     category,
+    kind,
+    rarity,
     icon,
     description,
     duration,
@@ -320,40 +193,63 @@ function getCardCatalog() {
   }));
 }
 
+const active = (eff, now) => Boolean(eff && now < eff.until);
+
+function isShielded(player, now) {
+  return Boolean(player && player.effects && (active(player.effects.shield, now) || active(player.effects.hitShield, now)));
+}
+
+// Card-shield only (the Shield card), which also exempts from market cards.
+function hasShieldCard(player, now) {
+  return Boolean(player && player.effects && active(player.effects.shield, now));
+}
+
+function activeTargetEffect(player, now) {
+  if (!player || !player.effects) return null;
+  return TIMED_TARGET_EFFECTS.find((k) => active(player.effects[k], now)) || null;
+}
+
 /**
- * Applies a sabotage card. Mutates `match` in place for effects sabotage.js
- * owns directly (card state, targeted-player effect flags, match-wide market
- * effects, capital drain). Effects that need live pricing (force_close,
- * mirror_trade) are returned as descriptors for gameEngine.js to execute
- * against the authoritative price feed, since sabotage.js has no notion of
- * a specific match's live prices.
+ * Applies a card. Mutates `match` in place for effects this module owns (card
+ * state, player effect flags, match-wide market effects, balance moves).
+ * Effects that need live pricing (force_close, mirror_trade, ghost_trade,
+ * stop_snipe, stop_yank, tp_snip) are returned as descriptors for
+ * gameEngine.js to execute against the authoritative price feed.
+ *
+ * ctx (from gameEngine): { targetId, symbol, targetEquity, rand } -
+ * targetEquity lets the damage floor cap money cards; rand is the match's
+ * seeded generator so a replay of the match log reproduces every amount.
  */
-function playCard(match, casterId, cardType, { targetId, symbol } = {}, now = Date.now()) {
+function playCard(match, casterId, cardType, ctx = {}, now = Date.now()) {
   const caster = match.players[casterId];
   if (!caster) return { success: false, error: 'Caster not in match' };
 
   const cardDef = CARDS[cardType];
   if (!cardDef) return { success: false, error: 'Unknown card' };
 
-  const handCard = caster.cards.find((c) => c.type === cardType);
-  if (!handCard) return { success: false, error: 'Card not in hand' };
-  if (handCard.used) return { success: false, error: 'Card already played' };
+  const handCard = caster.cards.find((c) => c.type === cardType && !c.used);
+  if (!handCard) return { success: false, error: caster.cards.some((c) => c.type === cardType) ? 'Card already played' : 'Card not in hand' };
+
+  const rand = ctx.rand || Math.random;
+  const cfg = gameFeel.get().cards;
+  const startCapital = Number(ctx.startingCapital) || 10000;
+  const floor = startCapital * (Number(cfg.floorPctOfCapital) || 0.5);
+  // Money a card may take from the target without pushing their equity under
+  // the floor in this one hit.
+  const roomAboveFloor = Math.max(0, Math.floor((Number(ctx.targetEquity ?? Infinity) - floor) * 100) / 100);
 
   let target = null;
   if (cardDef.targeted) {
-    target = match.players[targetId];
-    if (!target) return { success: false, error: 'Invalid target' };
+    target = match.players[ctx.targetId];
+    if (!target) return { success: false, error: 'Choose a target player' };
     if (target.id === caster.id) return { success: false, error: 'Cannot target yourself' };
   }
 
-  // Validate against this match's actual instrument list (was hardcoded to
-  // EURUSD/XAUUSD before instrument rotation shipped, which silently sent
-  // these cards at an instrument not even in play for any other mode).
-  const matchInstruments = match.instruments || ['EURUSD', 'XAUUSD'];
+  const matchInstruments = match.instruments || [];
   const effectSymbol = cardDef.requiresSymbol
-    ? matchInstruments.includes(symbol)
-      ? symbol
-      : matchInstruments[Math.floor(Math.random() * matchInstruments.length)]
+    ? matchInstruments.includes(ctx.symbol)
+      ? ctx.symbol
+      : matchInstruments[Math.floor(rand() * matchInstruments.length)]
     : null;
 
   const result = {
@@ -365,301 +261,224 @@ function playCard(match, casterId, cardType, { targetId, symbol } = {}, now = Da
     symbol: effectSymbol,
     notify: [],
     feedText: '',
+    amounts: {},
+  };
+  const until = now + cardDef.duration * 1000;
+  const hit = (key, extra = {}) => {
+    target.effects[key] = { until, by: caster.id, ...extra };
+    result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration, ...extra } });
+  };
+  const ensureSymbolEffects = (s) => {
+    if (!match.marketEffects[s]) match.marketEffects[s] = { spreadMultiplier: 1, spreadUntil: 0, reversal: null };
   };
 
   switch (cardType) {
-    case 'news_bomb': {
-      const headline = NEWS_HEADLINES[Math.floor(Math.random() * NEWS_HEADLINES.length)];
-      target.effects.news_bomb = { until: now + cardDef.duration * 1000, headline };
-      result.feedText = `${caster.username} played News Bomb on ${target.username}`;
-      result.notify.push({
-        to: target.id,
-        event: 'sabotage:incoming',
-        payload: { cardType, headline, duration: cardDef.duration },
-      });
+    // ---- replacements -------------------------------------------------------
+    case 'profit_tax':
+      hit('profit_tax', { share: CARD_AMOUNTS.profitTaxShare, cap: CARD_AMOUNTS.profitTaxCap });
+      result.feedText = `${caster.username} put a Profit Tax on ${target.username}`;
+      break;
+    case 'spread_blowout':
+      hit('spread_blowout', { multiplier: CARD_AMOUNTS.spreadBlowoutMultiplier });
+      result.feedText = `${caster.username} blew out ${target.username}'s spread`;
+      break;
+    case 'slippage_storm':
+      hit('slippage_storm', { fillsLeft: CARD_AMOUNTS.slippageFills, spreads: CARD_AMOUNTS.slippageSpreads });
+      result.feedText = `${caster.username} hit ${target.username} with a Slippage Storm`;
+      break;
+    case 'margin_squeeze':
+      hit('margin_squeeze', { share: CARD_AMOUNTS.marginSqueezeShare });
+      result.feedText = `${caster.username} squeezed ${target.username}'s margin`;
+      break;
+    case 'stop_yank':
+      if (target.positions.length === 0) return { success: false, error: 'Target has no open positions' };
+      result.stopYankTarget = true;
+      result.feedText = `${caster.username} yanked ${target.username}'s stop loss`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: 0 } });
+      break;
+    case 'tp_snip':
+      if (!target.positions.some((p) => p.takeProfit)) return { success: false, error: 'Target has no take profit to snip' };
+      result.tpSnipTarget = true;
+      result.feedText = `${caster.username} snipped ${target.username}'s take profits`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: 0 } });
+      break;
+    case 'order_freeze':
+      hit('order_freeze');
+      result.feedText = `${caster.username} froze ${target.username}'s orders`;
+      break;
+    case 'trade_limit':
+      hit('trade_limit');
+      result.feedText = `${caster.username} put a Trade Limit on ${target.username}`;
+      break;
+    case 'one_way': {
+      const direction = rand() < 0.5 ? 'BUY' : 'SELL';
+      hit('one_way', { direction });
+      result.feedText = `${caster.username} locked ${target.username} to ${direction} only`;
       break;
     }
-    case 'chart_ghost': {
-      target.effects.chart_ghost = { until: now + cardDef.duration * 1000 };
-      result.feedText = `${caster.username} played Chart Ghost on ${target.username}`;
-      result.notify.push({
-        to: target.id,
-        event: 'sabotage:incoming',
-        payload: { cardType, duration: cardDef.duration },
-      });
+    case 'cooldown_jam':
+      hit('cooldown_jam', { gapSeconds: CARD_AMOUNTS.cooldownJamSeconds });
+      result.feedText = `${caster.username} jammed ${target.username}'s trading`;
+      break;
+    case 'profit_skim': {
+      const banked = Math.max(0, target.balance - startCapital);
+      const amount = Math.min(Math.round(banked * CARD_AMOUNTS.profitSkimShare * 100) / 100, CARD_AMOUNTS.profitSkimCap, roomAboveFloor);
+      if (!(amount > 0)) return { success: false, error: 'Target has no banked profit to skim' };
+      target.balance = Math.round((target.balance - amount) * 100) / 100;
+      caster.balance = Math.round((caster.balance + amount) * 100) / 100;
+      result.amounts = { amount };
+      result.feedText = `${caster.username} skimmed ${amount} from ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, amount, duration: 0 } });
       break;
     }
-    case 'false_signal': {
-      const fakeRsi = Math.random() < 0.5 ? Math.floor(Math.random() * 15) + 5 : Math.floor(Math.random() * 15) + 80;
-      target.effects.false_signal = { until: now + cardDef.duration * 1000, fakeRsi };
-      result.feedText = `${caster.username} played False Signal on ${target.username}`;
-      result.notify.push({
-        to: target.id,
-        event: 'sabotage:incoming',
-        payload: { cardType, fakeRsi, duration: cardDef.duration },
-      });
-      break;
-    }
-    case 'smoke_screen': {
-      // *CasterId records who played it so gameEngine.js can exempt them from
-      // their own effect (FIX: market cards must not affect the caster) -
-      // checked alongside the *Until timestamp everywhere this is read.
-      match.marketEffects.smokeScreenUntil = now + cardDef.duration * 1000;
-      match.marketEffects.smokeScreenCasterId = caster.id;
-      result.feedText = `${caster.username} played Smoke Screen - leaderboard blurred for everyone else`;
-      result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
-      break;
-    }
-    case 'spread_spike': {
-      if (!match.marketEffects[effectSymbol]) match.marketEffects[effectSymbol] = { spreadMultiplier: 1, spreadUntil: 0, reversal: null };
+
+    // ---- original cards -------------------------------------------------------
+    case 'spread_spike':
+      ensureSymbolEffects(effectSymbol);
       match.marketEffects[effectSymbol].spreadMultiplier = 3;
-      match.marketEffects[effectSymbol].spreadUntil = now + cardDef.duration * 1000;
+      match.marketEffects[effectSymbol].spreadUntil = until;
       match.marketEffects[effectSymbol].spreadCasterId = caster.id;
       result.feedText = `${caster.username} played Spread Spike on ${effectSymbol}`;
-      result.notify.push({
-        to: 'all',
-        event: 'sabotage:incoming',
-        payload: { cardType, symbol: effectSymbol, duration: cardDef.duration },
-      });
+      result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, symbol: effectSymbol, duration: cardDef.duration } });
       break;
-    }
-    case 'volatility_surge': {
-      match.marketEffects.volatilitySurgeUntil = now + cardDef.duration * 1000;
+    case 'volatility_surge':
+      match.marketEffects.volatilitySurgeUntil = until;
       match.marketEffects.volatilitySurgeCasterId = caster.id;
       result.feedText = `${caster.username} played Volatility Surge`;
       result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
-    }
-    case 'liquidity_drain': {
-      match.marketEffects.liquidityDrainUntil = now + cardDef.duration * 1000;
+    case 'liquidity_drain':
+      match.marketEffects.liquidityDrainUntil = until;
       match.marketEffects.liquidityDrainCasterId = caster.id;
       result.feedText = `${caster.username} played Liquidity Drain - max lot size capped at 0.1 for everyone else`;
       result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
-    }
     case 'reversal_flash': {
-      if (!match.marketEffects[effectSymbol]) match.marketEffects[effectSymbol] = { spreadMultiplier: 1, spreadUntil: 0, reversal: null };
-      const direction = Math.random() < 0.5 ? 1 : -1;
-      // The reversal itself is shared/unavoidable once it starts (price is
-      // the same for everyone) - the caster's edge is a 1s private warning
-      // before it begins, not immunity from the price move. startedAt is
-      // pushed 1s into the future so getEffectivePrice's reversal gate holds
-      // off applying the offset until the warning window has elapsed.
+      ensureSymbolEffects(effectSymbol);
+      const direction = rand() < 0.5 ? 1 : -1;
+      // The caster's edge is a 1s private warning before the shared move.
       const WARNING_MS = 1000;
       const startedAt = now + WARNING_MS;
       match.marketEffects[effectSymbol].reversal = { until: startedAt + cardDef.duration * 1000, direction, startedAt };
       result.feedText = `${caster.username} played Reversal Flash on ${effectSymbol}`;
-      result.notify.push({
-        to: caster.id,
-        event: 'sabotage:reversal_warning',
-        payload: { cardType, symbol: effectSymbol },
-      });
-      // Opponents only learn about it once it actually starts moving price -
-      // gameEngine.js's playSabotageCard schedules this after WARNING_MS.
-      result.delayedNotify = {
-        delayMs: WARNING_MS,
-        exceptPlayerId: caster.id,
-        event: 'sabotage:incoming',
-        payload: { cardType, symbol: effectSymbol, duration: cardDef.duration },
-      };
+      result.notify.push({ to: caster.id, event: 'sabotage:reversal_warning', payload: { cardType, symbol: effectSymbol } });
+      result.delayedNotify = { delayMs: WARNING_MS, exceptPlayerId: caster.id, event: 'sabotage:incoming', payload: { cardType, symbol: effectSymbol, duration: cardDef.duration } };
       break;
     }
-    case 'position_freeze': {
-      target.effects.position_freeze = { until: now + cardDef.duration * 1000 };
-      result.feedText = `${caster.username} played Position Freeze on ${target.username}`;
-      result.notify.push({
-        to: target.id,
-        event: 'sabotage:incoming',
-        payload: { cardType, duration: cardDef.duration },
-      });
+    case 'position_freeze':
+      hit('position_freeze');
+      result.feedText = `${caster.username} froze ${target.username}`;
       break;
-    }
-    case 'force_close': {
+    case 'force_close':
       if (target.positions.length === 0) return { success: false, error: 'Target has no open positions' };
       result.forceCloseTarget = true;
       result.feedText = `${caster.username} force-closed a position on ${target.username}`;
       result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: 0 } });
       break;
-    }
     case 'capital_drain': {
-      target.balance = Math.max(0, target.balance - 200);
-      result.feedText = `${caster.username} drained $200 from ${target.username}`;
-      result.notify.push({
-        to: target.id,
-        event: 'sabotage:incoming',
-        payload: { cardType, amount: 200, duration: 0 },
-      });
+      const amount = Math.min(CARD_AMOUNTS.capitalDrain, roomAboveFloor);
+      if (!(amount > 0)) return { success: false, error: 'Target is at the loss floor - this card cannot take more' };
+      target.balance = Math.round((target.balance - amount) * 100) / 100;
+      result.amounts = { amount };
+      result.feedText = `${caster.username} drained ${amount} from ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, amount, duration: 0 } });
       break;
     }
     case 'mirror_trade': {
       if (caster.positions.length === 0) return { success: false, error: 'You have no open position to mirror' };
-      if (target.positions.length >= 3) return { success: false, error: "Target's position slots are full" };
+      if (target.positions.length >= (ctx.maxPositions || 10)) return { success: false, error: "Target's position slots are full" };
       const source = caster.positions[caster.positions.length - 1];
       result.mirrorSource = { symbol: source.symbol, direction: source.direction, lots: source.lots };
       result.feedText = `${caster.username} mirrored a ${source.direction} ${source.symbol} position onto ${target.username}`;
-      result.notify.push({
-        to: target.id,
-        event: 'sabotage:incoming',
-        payload: { cardType, source: result.mirrorSource, duration: 0 },
-      });
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, source: result.mirrorSource, duration: 0 } });
       break;
     }
-
-    // ---- expansion set ------------------------------------------------
-    case 'margin_scare': {
-      target.effects.margin_scare = { until: now + cardDef.duration * 1000 };
-      result.feedText = `${caster.username} played Margin Scare on ${target.username}`;
-      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
-      break;
-    }
-    case 'phantom_candle': {
-      target.effects.phantom_candle = { until: now + cardDef.duration * 1000 };
-      result.feedText = `${caster.username} played Phantom Candle on ${target.username}`;
-      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
-      break;
-    }
-    case 'blackout': {
-      target.effects.blackout = { until: now + cardDef.duration * 1000 };
-      result.feedText = `${caster.username} played Blackout on ${target.username}`;
-      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
-      break;
-    }
-    case 'static_burst': {
-      target.effects.static_burst = { until: now + cardDef.duration * 1000 };
-      result.feedText = `${caster.username} played Static Burst on ${target.username}`;
-      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
-      break;
-    }
-    case 'decoy_order': {
-      target.effects.decoy_order = { until: now + cardDef.duration * 1000 };
-      result.feedText = `${caster.username} played Decoy Order on ${target.username}`;
-      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
-      break;
-    }
-    case 'mirage': {
-      target.effects.mirage = { until: now + cardDef.duration * 1000 };
-      result.feedText = `${caster.username} played Mirage on ${target.username}`;
-      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
-      break;
-    }
-    case 'intel_leak': {
-      target.effects.intel_leak = { until: now + cardDef.duration * 1000 };
-      result.feedText = `${caster.username} played Intel Leak on ${target.username}`;
-      // Unlike every other targeted card, this one benefits the CASTER, not
-      // the target - the notify (carrying the target's real data) goes to
-      // the caster instead of the usual "you were sabotaged" push.
-      result.notify.push({
-        to: caster.id,
-        event: 'sabotage:incoming',
-        payload: {
-          cardType,
-          duration: cardDef.duration,
-          targetUsername: target.username,
-          targetBalance: target.balance,
-          targetPositions: target.positions.map((p) => ({ symbol: p.symbol, direction: p.direction, lots: p.lots })),
-        },
-      });
-      break;
-    }
-    case 'double_spread': {
-      match.marketEffects.doubleSpreadUntil = now + cardDef.duration * 1000;
+    case 'double_spread':
+      match.marketEffects.doubleSpreadUntil = until;
       match.marketEffects.doubleSpreadCasterId = caster.id;
       result.feedText = `${caster.username} played Double Spread - spread doubled on every instrument for everyone else`;
       result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
-    }
-    case 'time_warp': {
-      match.marketEffects.timeWarpUntil = now + cardDef.duration * 1000;
+    case 'time_warp':
+      match.marketEffects.timeWarpUntil = until;
       match.marketEffects.timeWarpCasterId = caster.id;
       result.feedText = `${caster.username} played Time Warp - price feed delayed for everyone else`;
       result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
-    }
-    case 'fog_of_war': {
-      match.marketEffects.fogOfWarUntil = now + cardDef.duration * 1000;
+    case 'fog_of_war':
+      match.marketEffects.fogOfWarUntil = until;
       match.marketEffects.fogOfWarCasterId = caster.id;
       result.feedText = `${caster.username} played Fog of War - price feed jittered for everyone else`;
       result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
-    }
     case 'panic_wave': {
-      // Same shared-reversal-with-private-warning mechanism as
-      // reversal_flash, just applied to every instrument in the match at
-      // once instead of a single requiresSymbol target.
       const WARNING_MS = 1000;
       const startedAt = now + WARNING_MS;
-      const until = startedAt + cardDef.duration * 1000;
+      const end = startedAt + cardDef.duration * 1000;
       for (const s of matchInstruments) {
-        if (!match.marketEffects[s]) match.marketEffects[s] = { spreadMultiplier: 1, spreadUntil: 0, reversal: null };
-        const direction = Math.random() < 0.5 ? 1 : -1;
-        match.marketEffects[s].reversal = { until, direction, startedAt };
+        ensureSymbolEffects(s);
+        match.marketEffects[s].reversal = { until: end, direction: rand() < 0.5 ? 1 : -1, startedAt };
       }
       result.feedText = `${caster.username} played Panic Wave - every instrument about to reverse`;
       result.notify.push({ to: caster.id, event: 'sabotage:reversal_warning', payload: { cardType } });
-      result.delayedNotify = {
-        delayMs: WARNING_MS,
-        exceptPlayerId: caster.id,
-        event: 'sabotage:incoming',
-        payload: { cardType, duration: cardDef.duration },
-      };
+      result.delayedNotify = { delayMs: WARNING_MS, exceptPlayerId: caster.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } };
       break;
     }
-    case 'dead_calm': {
-      // Baseline mid-price per symbol is captured by gameEngine.js right
-      // after playCard() returns (needs live prices, which sabotage.js has
-      // no access to) - exactly the same split responsibility as
-      // volatility_surge's baseline capture just above in playSabotageCard.
-      match.marketEffects.deadCalmUntil = now + cardDef.duration * 1000;
+    case 'dead_calm':
+      match.marketEffects.deadCalmUntil = until;
       match.marketEffects.deadCalmCasterId = caster.id;
       result.feedText = `${caster.username} played Dead Calm - price frozen for everyone else`;
       result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
-    }
-    case 'lockout': {
-      target.effects.lockout = { until: now + cardDef.duration * 1000 };
+    case 'lockout':
+      hit('lockout');
       result.feedText = `${caster.username} played Lockout on ${target.username}`;
-      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
-    }
-    case 'margin_call': {
+    case 'margin_call':
       if (target.positions.length === 0) return { success: false, error: 'Target has no open positions' };
       result.forceCloseAllTarget = true;
       result.feedText = `${caster.username} played Margin Call - all of ${target.username}'s positions are being force-closed`;
       result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: 0 } });
       break;
-    }
-    case 'lot_limiter': {
-      target.effects.lot_limiter = { until: now + cardDef.duration * 1000 };
+    case 'lot_limiter':
+      hit('lot_limiter');
       result.feedText = `${caster.username} played Lot Limiter on ${target.username}`;
-      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
-    }
     case 'pip_theft': {
-      const stolen = Math.min(150, target.balance);
-      target.balance = Math.max(0, target.balance - 150);
-      caster.balance = Math.round((caster.balance + stolen) * 100) / 100;
-      result.feedText = `${caster.username} stole $${stolen} from ${target.username}`;
-      result.notify.push({
-        to: target.id,
-        event: 'sabotage:incoming',
-        payload: { cardType, amount: stolen, duration: 0 },
-      });
+      const amount = Math.min(CARD_AMOUNTS.pipTheft, Math.max(0, target.balance), roomAboveFloor);
+      if (!(amount > 0)) return { success: false, error: 'Target is at the loss floor - this card cannot take more' };
+      target.balance = Math.round((target.balance - amount) * 100) / 100;
+      caster.balance = Math.round((caster.balance + amount) * 100) / 100;
+      result.amounts = { amount };
+      result.feedText = `${caster.username} stole ${amount} from ${target.username}`;
+      result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, amount, duration: 0 } });
       break;
     }
-    case 'ghost_trade': {
-      if (target.positions.length >= 3) return { success: false, error: "Target's position slots are full" };
-      result.ghostTrade = { symbol: matchInstruments[Math.floor(Math.random() * matchInstruments.length)] };
+    case 'ghost_trade':
+      if (target.positions.length >= (ctx.maxPositions || 10)) return { success: false, error: "Target's position slots are full" };
+      result.ghostTrade = { symbol: matchInstruments[Math.floor(rand() * matchInstruments.length)], direction: rand() < 0.5 ? 'BUY' : 'SELL' };
       result.feedText = `${caster.username} forced a ghost trade onto ${target.username}`;
       result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: 0 } });
       break;
-    }
-    case 'stop_snipe': {
+    case 'stop_snipe':
       if (target.positions.length === 0) return { success: false, error: 'Target has no open positions' };
       result.stopSnipeTarget = true;
       result.feedText = `${caster.username} sniped the stop-loss on ${target.username}'s best position`;
       result.notify.push({ to: target.id, event: 'sabotage:incoming', payload: { cardType, duration: 0 } });
       break;
-    }
+
+    // ---- defensive ------------------------------------------------------------
+    case 'shield':
+      caster.effects.shield = { until: now + CARD_AMOUNTS.shieldSeconds * 1000, by: caster.id };
+      result.feedText = `${caster.username} raised a Shield`;
+      result.notify.push({ to: caster.id, event: 'cards:shield', payload: { until: caster.effects.shield.until } });
+      break;
+    case 'cleanse':
+      for (const k of TIMED_TARGET_EFFECTS) caster.effects[k] = null;
+      caster.effects.shield = { until: now + CARD_AMOUNTS.cleanseShieldSeconds * 1000, by: caster.id };
+      result.feedText = `${caster.username} cleansed every effect`;
+      result.notify.push({ to: caster.id, event: 'cards:shield', payload: { until: caster.effects.shield.until } });
+      break;
     default:
       return { success: false, error: 'Unhandled card type' };
   }
@@ -671,17 +490,13 @@ function playCard(match, casterId, cardType, { targetId, symbol } = {}, now = Da
     event: 'sabotage:broadcast',
     payload: { caster: caster.username, target: target ? target.username : null, cardType, feedText: result.feedText },
   });
-
   return result;
 }
 
 function createMarketEffects() {
   return {
-    EURUSD: { spreadMultiplier: 1, spreadUntil: 0, reversal: null },
-    XAUUSD: { spreadMultiplier: 1, spreadUntil: 0, reversal: null },
     volatilitySurgeUntil: 0,
     liquidityDrainUntil: 0,
-    smokeScreenUntil: 0,
     doubleSpreadUntil: 0,
     timeWarpUntil: 0,
     fogOfWarUntil: 0,
@@ -690,29 +505,23 @@ function createMarketEffects() {
 }
 
 function createPlayerEffects() {
-  return {
-    news_bomb: null,
-    chart_ghost: null,
-    false_signal: null,
-    position_freeze: null,
-    margin_scare: null,
-    phantom_candle: null,
-    blackout: null,
-    static_burst: null,
-    decoy_order: null,
-    mirage: null,
-    intel_leak: null,
-    lockout: null,
-    lot_limiter: null,
-  };
+  const e = { shield: null, hitShield: null };
+  for (const k of TIMED_TARGET_EFFECTS) e[k] = null;
+  return e;
 }
 
 module.exports = {
   CARDS,
-  NEWS_HEADLINES,
+  CARD_AMOUNTS,
+  REPLACED_THREAT_ONLY,
+  TIMED_TARGET_EFFECTS,
   dealCards,
+  drawWeighted,
   getCardCatalog,
   playCard,
+  isShielded,
+  hasShieldCard,
+  activeTargetEffect,
   createMarketEffects,
   createPlayerEffects,
 };

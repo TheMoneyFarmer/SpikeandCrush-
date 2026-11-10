@@ -7,6 +7,10 @@ const test = require('node:test');
 const assert = require('node:assert');
 const instruments = require('../server/instruments');
 const { createGameEngine, GAME_RULES } = require('../server/gameEngine');
+// These tests are about margin arithmetic on EURUSD. Market curation drops
+// EURUSD from play (docs/fire/curation.md), so it is switched off here to keep
+// testing the same arithmetic on the same instrument.
+require('../server/config/gameFeel').applyOverrides({ market: { curatedPlaylists: false } });
 
 const io = { to: () => ({ emit() {} }), emit() {}, in: () => ({ emit() {} }), sockets: { sockets: new Map() } };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

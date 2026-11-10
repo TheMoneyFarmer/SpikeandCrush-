@@ -75,27 +75,41 @@ async function setup(count) {
   console.log(`saved to ${ACCOUNTS_FILE}`);
 }
 
+// Loops until nothing is left: Supabase returns at most 1000 rows per request.
 async function cleanup() {
-  const rows = readAccounts();
-  const { data: players } = await admin.from('players').select('id').like('username', `${NAME_PREFIX}%`).limit(5000);
-  const ids = (players || []).map((p) => p.id);
-  let matches = new Set();
-  for (let i = 0; i < ids.length; i += 100) {
-    const { data } = await admin.from('match_players').select('match_id').in('player_id', ids.slice(i, i + 100)).limit(1000);
-    (data || []).forEach((m) => matches.add(m.match_id));
+  let players = 0, matches = 0, logins = 0;
+  for (;;) {
+    const { data, error } = await admin.from('players').select('id').like('username', `${NAME_PREFIX}%`).limit(500);
+    if (error) throw error;
+    if (!data.length) break;
+    const ids = data.map((p) => p.id);
+    const seen = new Set();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: mp } = await admin.from('match_players').select('match_id').in('player_id', ids.slice(i, i + 100)).limit(1000);
+      (mp || []).forEach((m) => seen.add(m.match_id));
+    }
+    const ms = [...seen];
+    for (let i = 0; i < ms.length; i += 100) {
+      await admin.from('replays').delete().in('match_id', ms.slice(i, i + 100));
+      await admin.from('matches').delete().in('id', ms.slice(i, i + 100));
+    }
+    const { error: delErr } = await admin.from('players').delete().in('id', ids);
+    if (delErr) throw delErr;
+    players += ids.length;
+    matches += ms.length;
   }
-  matches = [...matches];
-  for (let i = 0; i < matches.length; i += 100) {
-    const chunk = matches.slice(i, i + 100);
-    await admin.from('replays').delete().in('match_id', chunk);
-    await admin.from('matches').delete().in('id', chunk);
+  // Logins are found by email, so ones missing from the local file go too.
+  for (let page = 1; ; ) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    const mine = data.users.filter((u) => String(u.email).endsWith(`@${EMAIL_DOMAIN}`));
+    await pool(mine, 8, async (u) => { await admin.auth.admin.deleteUser(u.id); });
+    logins += mine.length;
+    if (data.users.length < 1000) break;
+    if (!mine.length) page++;
   }
-  for (let i = 0; i < ids.length; i += 100) {
-    await admin.from('players').delete().in('id', ids.slice(i, i + 100));
-  }
-  await pool(rows, 8, async (row) => { await admin.auth.admin.deleteUser(row.authId).catch(() => {}); });
   writeAccounts([]);
-  console.log(`removed ${ids.length} players, ${matches.length} matches, ${rows.length} logins`);
+  console.log(`removed ${players} players, ${matches} matches, ${logins} logins`);
 }
 
 (async () => {

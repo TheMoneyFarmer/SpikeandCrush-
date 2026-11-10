@@ -400,6 +400,12 @@
     socket.on('connect', join);
     if (socket.connected) join();
 
+    // Spike alerts on long competitions (real spike bars only, time only).
+    if (TW.Fire) {
+      TW.Fire.setIdleText('Spike alerts on: you get a countdown before real big moves');
+      socket.on('comp:spike_alert', (p) => TW.Fire.spikeAlert(p));
+      socket.on('comp:spike_result', (p) => TW.Fire.spikeResult(p));
+    }
     socket.on('comp:update', (u) => {
       if (u.competitionId !== compId || !view) return;
       if (u.quotes) {

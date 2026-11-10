@@ -1,0 +1,27 @@
+[database] SUPABASE_SERVICE_KEY is not set - database persistence is disabled. Add the real service_role key to .env (Supabase Dashboard -> Project Settings -> API) to enable accounts, match history and payments.
+soak: 9 matches, 9 active, 54 bots, 10 minutes
+{"t":"0s","heapMB":16.3,"rssMB":70.4,"loopP99ms":13,"loopMaxMs":17,"handles":0,"events":522,"actions":0,"cardsPlayed":0}
+{"t":"30s","heapMB":17.4,"rssMB":65.4,"loopP99ms":13,"loopMaxMs":43,"handles":0,"events":4552,"actions":547,"cardsPlayed":126}
+{"t":"60s","heapMB":17.9,"rssMB":65.4,"loopP99ms":13,"loopMaxMs":52,"handles":0,"events":7843,"actions":1136,"cardsPlayed":180}
+{"t":"90s","heapMB":18.3,"rssMB":69.7,"loopP99ms":12,"loopMaxMs":35,"handles":0,"events":10702,"actions":1787,"cardsPlayed":198}
+{"t":"120s","heapMB":18.5,"rssMB":67.1,"loopP99ms":13,"loopMaxMs":24,"handles":0,"events":13316,"actions":2364,"cardsPlayed":208}
+{"t":"150s","heapMB":19,"rssMB":69.3,"loopP99ms":13,"loopMaxMs":14,"handles":0,"events":15888,"actions":2940,"cardsPlayed":212}
+{"t":"180s","heapMB":19.3,"rssMB":66.8,"loopP99ms":13,"loopMaxMs":19,"handles":0,"events":18615,"actions":3575,"cardsPlayed":213}
+{"t":"210s","heapMB":19.7,"rssMB":66.1,"loopP99ms":12,"loopMaxMs":24,"handles":0,"events":21269,"actions":4187,"cardsPlayed":214}
+{"t":"240s","heapMB":19.9,"rssMB":46.9,"loopP99ms":14,"loopMaxMs":16,"handles":0,"events":23908,"actions":4803,"cardsPlayed":215}
+{"t":"270s","heapMB":20.3,"rssMB":47.5,"loopP99ms":13,"loopMaxMs":16,"handles":0,"events":26595,"actions":5427,"cardsPlayed":217}
+{"t":"300s","heapMB":20.5,"rssMB":47.3,"loopP99ms":13,"loopMaxMs":19,"handles":0,"events":29164,"actions":6017,"cardsPlayed":223}
+{"t":"330s","heapMB":20.9,"rssMB":50.1,"loopP99ms":13,"loopMaxMs":25,"handles":0,"events":31796,"actions":6637,"cardsPlayed":224}
+{"t":"360s","heapMB":21.3,"rssMB":49.4,"loopP99ms":13,"loopMaxMs":15,"handles":0,"events":34277,"actions":7205,"cardsPlayed":227}
+{"t":"390s","heapMB":21.6,"rssMB":49.4,"loopP99ms":12,"loopMaxMs":14,"handles":0,"events":36782,"actions":7801,"cardsPlayed":229}
+{"t":"420s","heapMB":21.9,"rssMB":49.2,"loopP99ms":13,"loopMaxMs":41,"handles":0,"events":39435,"actions":8410,"cardsPlayed":232}
+{"t":"450s","heapMB":22.3,"rssMB":52.3,"loopP99ms":13,"loopMaxMs":31,"handles":0,"events":42126,"actions":9038,"cardsPlayed":233}
+{"t":"480s","heapMB":22.5,"rssMB":49.5,"loopP99ms":13,"loopMaxMs":30,"handles":0,"events":44675,"actions":9630,"cardsPlayed":235}
+{"t":"510s","heapMB":22.8,"rssMB":49,"loopP99ms":13,"loopMaxMs":16,"handles":0,"events":47218,"actions":10228,"cardsPlayed":235}
+{"t":"540s","heapMB":23.1,"rssMB":50.4,"loopP99ms":13,"loopMaxMs":53,"handles":0,"events":49877,"actions":10850,"cardsPlayed":238}
+{"t":"570s","heapMB":23.6,"rssMB":51.8,"loopP99ms":13,"loopMaxMs":40,"handles":0,"events":52370,"actions":11439,"cardsPlayed":238}
+{"t":"600s","heapMB":23.9,"rssMB":50.9,"loopP99ms":12,"loopMaxMs":15,"handles":0,"events":54864,"actions":12017,"cardsPlayed":238}
+events by type: [["match:feed",14884],["missions:update",14727],["trade:executed",7299],["trade:closed",7230],["price:update",6089],["leaderboard:update",1800],["match:state",1725],["sabotage:incoming",298],["cards:update",292],["sabotage:broadcast",238],["match:countdown",90],["player:joined",54],["sabotage:immune",50],["missions:complete",33]]
+cards played 238, refused by guards 401, trade actions 12017
+heap first 17.4MB, mid 20.5MB, last 23.9MB (second-half growth 3.4MB); handles 0 -> 0; worst loop p99 14ms
+PASS soak: memory, event-loop lag and handles flat

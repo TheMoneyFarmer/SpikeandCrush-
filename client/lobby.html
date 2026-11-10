@@ -236,10 +236,38 @@
       }, 500);
     }
 
+    // Empty-lobby fallback: alone in a ranked lobby for a while -> offer a
+    // lobby one tier up, or Solo. Checked at most every 10 seconds.
+    let fallbackCheckedAt = 0;
+    async function checkRankFallback(matchId) {
+      if (Date.now() - fallbackCheckedAt < 10000) return;
+      fallbackCheckedAt = Date.now();
+      try {
+        const f = await TW.api(`/api/match/${matchId}/fallback`);
+        let box = document.getElementById('rankFallback');
+        if (!f.offer) { if (box) box.remove(); setTimeout(() => currentState && currentState.status === 'waiting' && checkRankFallback(matchId), (f.waitSeconds || 10) * 1000 + 200); return; }
+        if (!box) {
+          box = document.createElement('div');
+          box.id = 'rankFallback';
+          box.style.cssText = 'margin:12px 0;padding:12px;border-radius:12px;background:#0E1320;border:1px solid rgba(245,184,61,.5);color:#E8EDF6;font-size:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;';
+          document.getElementById('matchModeValue').closest('div').parentElement.appendChild(box);
+        }
+        box.innerHTML = `<span style="flex:1 1 220px">Nobody else has joined this lobby yet.</span>${f.upTier ? `<button class="btn btn-primary" id="rfUp">Join the ${TW.escapeHtml(f.upTier.tier)} lobby (${f.upTier.players} waiting)</button>` : ''}<a class="btn" href="/play">Play Solo instead</a>`;
+        const up = document.getElementById('rfUp');
+        if (up) up.onclick = async () => {
+          try { const r = await TW.api(`/api/match/${matchId}/fallback`, { method: 'POST' }); location.href = `/lobby.html?matchId=${r.matchId}`; } catch (e) { TW.toast(e.message, 'danger'); }
+        };
+      } catch (e) { /* not offered */ }
+    }
+
     function handleState(state) {
       currentState = state;
       document.getElementById('roomCodeValue').textContent = state.roomCode;
       document.getElementById('matchModeValue').textContent = state.modeLabel || (state.mode === 'quick' ? 'Quick War' : 'Private War');
+      // Rank-split lobby tier badge (ranked public lobbies, only when the split is on).
+      const modeEl = document.getElementById('matchModeValue');
+      if (state.lobbyTier) modeEl.textContent += ` · ${state.lobbyTier.charAt(0).toUpperCase()}${state.lobbyTier.slice(1)} lobby`;
+      if (state.status === 'waiting' && state.lobbyTier) checkRankFallback(state.matchId);
       const instrumentsValueEl = document.getElementById('matchInstrumentsValue');
       // Mobile shows each instrument as its own chip (matches the reference
       // mockup); desktop keeps the plain "/"-joined text unchanged.

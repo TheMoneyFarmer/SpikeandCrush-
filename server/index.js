@@ -32,6 +32,11 @@ const sabotage = require('./sabotage');
 const instrumentsRegistry = require('./instruments');
 const shop = require('./shop');
 const battlepass = require('./battlepass');
+const progression = require('./progression');
+const discover = require('./discover');
+const rankSplit = require('./rankSplit');
+const cosmetics = require('./cosmetics');
+const gameFeel = require('./config/gameFeel');
 const tournament = require('./tournament');
 const presence = require('./presence');
 const friendsHub = require('./friendsHub');
@@ -381,6 +386,30 @@ async function loadSavedDeck(playerId) {
   }
 }
 
+// The player's standing on the level ladder and the cards they have unlocked
+// (server/progression.js): stored XP when the progress table exists, never
+// below what their real match history has earned, plus admin grants/revokes.
+// Unlocks are earned only by playing - nothing here reads coins or purchases.
+async function loadProgression(player) {
+  let stored = null;
+  let grants = { granted: [], revoked: [] };
+  try {
+    stored = await db.getProgress(player.id);
+    grants = await db.getCardGrants(player.id);
+  } catch (e) {
+    console.warn('[progression] load failed:', e.message);
+  }
+  const standing = progression.standing(player, stored);
+  return { standing, stored, grants, unlockedCards: progression.unlockedCards(standing, grants), level: standing.level };
+}
+
+// Everything a match needs about a player's cards: the saved deck, unlocked
+// cards and level. Used by every path into a match.
+async function loadCardLoadout(player) {
+  const [deck, prog] = await Promise.all([loadSavedDeck(player.id), loadProgression(player)]);
+  return { deck: deck.filter((t) => prog.unlockedCards.includes(t)), unlockedCards: prog.unlockedCards, level: prog.level };
+}
+
 function clientIp(req) {
   return String(visitorIp(req)).replace('::ffff:', '');
 }
@@ -450,6 +479,9 @@ app.get('/', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'landing.html')));
 app.get('/play', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 app.get('/wallet', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'wallet.html')));
 app.get('/cards', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'cards.html')));
+app.get('/challenge/:code', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'challenge.html')));
+app.get('/rank', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'rank.html')));
+app.get('/discover', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'discover.html')));
 app.get('/settings', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'settings.html')));
 app.get('/help', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'help.html')));
 app.get('/terms', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'terms.html')));
@@ -558,6 +590,25 @@ app.use('/api', apiLimiter);
 // localhost-gated inside the router itself, see server/internalAdmin.js.
 const { createInternalAdminRouter } = require('./internalAdmin');
 app.use('/internal/admin', createInternalAdminRouter({ gameEngine, compEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }));
+// Fire gameplay admin (market curation, Fire monitor, progression, rank split,
+// Discover) on the same secret-gated bridge.
+const fireAdmin = require('./fireAdmin');
+app.use('/internal/admin/fire', require('./bridgeAuth').requireBridgeSecret, fireAdmin.createFireAdminRouter({
+  db,
+  gameEngine,
+  getOnlineSettings: async (ids) => (await discoverRows(ids.slice(0, 5000))).map((p) => p.settings || {}),
+}));
+fireAdmin.loadConfig(db);
+// Monthly season end: exclusive cosmetics for the top finishers (server/seasons.js).
+require('./seasons').startSeasonJob(db, notifyPlayer);
+// Saved admin Match Settings (game_config 'match_settings') apply at startup
+// too, not only after an admin presses Save.
+if (db.isConfigured) {
+  db.getGameConfig('match_settings')
+    .then((rows) => gameEngine.applyConfigOverrides(require('./internalAdmin').sanitizeMatchSettings(rows)))
+    .catch((e) => console.warn('[config] match_settings not loaded:', e.message));
+}
+gameEngine.setFlatAlertHandler(fireAdmin.flatAlertHandler);
 
 // ---- auth -----------------------------------------------------------------
 
@@ -1144,6 +1195,8 @@ app.post('/api/match/create', deployDrain.blockNewMatches, opsMonitor.blockNewMa
     if (mode === 'solo' && req.body?.instruments) {
       const invalid = req.body.instruments.filter((s) => !instrumentsRegistry.getInstrument(s));
       if (invalid.length) return res.status(400).json({ error: `Unknown instrument(s): ${invalid.join(', ')}` });
+      const unavailable = req.body.instruments.filter((s) => !instrumentsRegistry.isPlayable(s, 'solo'));
+      if (unavailable.length) return res.status(400).json({ error: `Not available right now: ${unavailable.join(', ')}` });
     }
 
     const playerInfo = {
@@ -1154,7 +1207,7 @@ app.post('/api/match/create', deployDrain.blockNewMatches, opsMonitor.blockNewMa
       grand_war_rating: player.grand_war_rating,
       solo_rating: player.solo_rating,
       tier: player.tier,
-      deck: await loadSavedDeck(player.id),
+      ...(await loadCardLoadout(player)),
     };
     let entry;
     try {
@@ -1195,7 +1248,7 @@ app.post('/api/match/join', requireDb, authenticate, async (req, res) => {
     const player = await db.getPlayerById(req.tokenPlayer.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
-    const playerInfo = { id: player.id, username: player.username, war_rating: player.war_rating, tier: player.tier, deck: await loadSavedDeck(player.id) };
+    const playerInfo = { id: player.id, username: player.username, war_rating: player.war_rating, tier: player.tier, ...(await loadCardLoadout(player)) };
     const result = matchmaking.joinByRoomCode(gameEngine, roomCode, playerInfo);
     if (!result.success) return res.status(400).json(result);
     res.json(result);
@@ -1401,10 +1454,20 @@ app.patch('/api/player/settings', requireDb, authenticate, async (req, res) => {
 
     const { settings, country } = req.body || {};
     const updates = {};
-    if (settings && typeof settings === 'object') updates.settings = { ...player.settings, ...settings };
+    if (settings && typeof settings === 'object') {
+      // Privacy keys (Discover) only in their allowed values; the legacy
+      // showOnline/allowFriends/allowInvites flags are kept in step.
+      const PRIVACY_KEYS = ['appearOffline', 'statusVisibility', 'activityVisibility', 'showInDiscover', 'requestsFrom', 'invitesFrom', 'allowJoinFromDiscover'];
+      const rest = Object.fromEntries(Object.entries(settings).filter(([k]) => !PRIVACY_KEYS.includes(k)));
+      updates.settings = { ...player.settings, ...rest, ...discover.sanitizePrivacyPatch(settings) };
+    }
     if (country !== undefined) updates.country = country;
 
     const updated = await db.updatePlayer(player.id, updates);
+    if (updates.settings) {
+      discoverRowCache.delete(player.id);
+      pushDiscoverPresence(player.id, updated.settings);
+    }
     res.json({
       settings: updated.settings,
       avatarUrl: updated.avatar_url,
@@ -1635,7 +1698,7 @@ app.get('/api/player/:id', requireDb, async (req, res) => {
 // ---- friends (Block 12) ----------------------------------------------------------
 
 // Charges a lobby's entry fee and seats the player, refunding if the seat fails.
-async function joinLobbyWithEntryFee(match, playerId, socketId) {
+async function joinLobbyWithEntryFee(match, playerId, socketId, extra = {}) {
   const player = await db.getPlayerById(playerId);
   const entryCoins = match.config.entryCoins || 0;
   if (entryCoins > 0 && player.coins < entryCoins) {
@@ -1643,7 +1706,7 @@ async function joinLobbyWithEntryFee(match, playerId, socketId) {
   }
 
   const playerInfo = { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, grand_war_rating: player.grand_war_rating, solo_rating: player.solo_rating, tier: tierForRating(player.war_rating) };
-  playerInfo.deck = await loadSavedDeck(player.id);
+  Object.assign(playerInfo, await loadCardLoadout(player), extra.fallbackUp ? { fallbackUp: true } : {});
   let entry;
   try {
     entry = await chargeEntryFee(player.id, entryCoins, match.dbMatchId);
@@ -1665,6 +1728,74 @@ async function joinLobbyWithEntryFee(match, playerId, socketId) {
 const friendRequestLimiter = friendsHub.createWindowLimiter({ max: 30, windowMs: 60 * 60 * 1000 });
 const strangerInviteLimiter = friendsHub.createWindowLimiter({ max: 20, windowMs: 10 * 60 * 1000 });
 
+// The one path for game invites into a waiting lobby (the lobby screen and
+// Rematch both use it): block list, presence, privacy settings, duplicate
+// and stranger rate limits, expiry. Returns { sentTo, skipped }.
+async function sendLobbyInvites(inviter, match, targetIds) {
+  const matchId = match.id;
+  const sentTo = [];
+  const skipped = [];
+  const targets = [...new Set(Array.isArray(targetIds) ? targetIds : [])].filter((id) => id !== inviter.id).slice(0, 8);
+  const [friendIds, blocks, targetPlayers] = await Promise.all([
+    db.listFriendIds(inviter.id),
+    db.listBlockRelationIds(inviter.id),
+    db.getPlayersForFriendsPanel(targets),
+  ]);
+  const targetById = new Map(targetPlayers.map((p) => [p.id, p]));
+  for (const targetId of targets) {
+    const targetSockets = playerSockets.get(targetId);
+    const isFriend = friendIds.includes(targetId);
+    const reason = friendsHub.inviteBlockReason({
+      isFriend,
+      blocked: blocks.has(targetId),
+      connected: Boolean(targetSockets && targetSockets.size) && targetById.has(targetId),
+      presenceStatus: presence.getPresence(targetId).status,
+      settings: targetById.get(targetId)?.settings,
+      alreadyInvited: [...pendingInvites.values()].some((i) => i.fromPlayerId === inviter.id && i.targetPlayerId === targetId && i.lobbyId === matchId),
+    });
+    if (reason) {
+      skipped.push({ id: targetId, reason });
+      continue;
+    }
+    if (!isFriend && !strangerInviteLimiter(inviter.id)) {
+      skipped.push({ id: targetId, reason: 'too_many' });
+      continue;
+    }
+
+    const inviteId = crypto.randomUUID();
+    const invite = {
+      id: inviteId,
+      fromPlayerId: inviter.id,
+      fromUsername: inviter.username,
+      fromTier: inviter.tier,
+      lobbyId: matchId,
+      matchMode: match.config.label || match.mode,
+      instruments: match.instruments,
+      currentPlayers: Object.keys(match.players).length,
+      maxPlayers: match.config.maxPlayers,
+      entryCoins: match.config.entryCoins || 0,
+      fromFriend: isFriend,
+      targetPlayerId: targetId,
+      expiresAt: Date.now() + INVITE_TTL_MS,
+    };
+    invite.timer = setTimeout(async () => {
+      pendingInvites.delete(inviteId);
+      const target = await db.getPlayerById(targetId).catch(() => null);
+      notifyPlayer(inviter.id, 'invite_expired', `${target?.username || 'A friend'} did not respond to your invite`);
+      const targetNowSockets = playerSockets.get(targetId);
+      if (targetNowSockets) for (const sid of targetNowSockets) io.to(sid).emit('lobby:invite_expired', { inviteId });
+    }, INVITE_TTL_MS);
+    pendingInvites.set(inviteId, invite);
+
+    for (const sid of targetSockets) {
+      io.to(sid).emit('lobby:invite_received', { ...invite, timer: undefined });
+    }
+    sentTo.push(targetId);
+  }
+  return { sentTo, skipped };
+}
+
+
 function friendsPanelError(status, message) {
   return Object.assign(new Error(message), { status, friendly: true });
 }
@@ -1682,7 +1813,13 @@ async function createFriendRequest(requesterId, targetId) {
     if (existing.status === 'blocked') throw friendsPanelError(400, 'Unable to send request');
     throw friendsPanelError(400, existing.requester_id === targetId ? 'They already sent you a request. Accept it under Requests.' : 'Request already sent');
   }
-  if (targetPlayer.settings?.allowFriends === false) throw friendsPanelError(400, "This player isn't accepting friend requests");
+  // Who may send requests: everyone / friends of friends / nobody (Discover privacy).
+  const reqPrivacy = discover.privacy(targetPlayer.settings).requestsFrom;
+  if (reqPrivacy === 'nobody') throw friendsPanelError(400, "This player isn't accepting friend requests");
+  if (reqPrivacy === 'fof') {
+    const [mine, theirs] = await Promise.all([db.listFriendIds(requesterId), db.listFriendIds(targetId)]);
+    if (!theirs.some((id) => mine.includes(id))) throw friendsPanelError(400, 'This player only accepts requests from friends of friends');
+  }
   if (!friendRequestLimiter(requesterId)) throw friendsPanelError(429, 'You have sent a lot of requests. Try again later.');
 
   const requester = await db.getPlayerById(requesterId);
@@ -1831,14 +1968,225 @@ app.get('/api/players/online', requireDb, authenticate, async (req, res) => {
     const visible = players.filter((p) => !blocks.has(p.id) && !activeBan(p) && p.settings?.showOnline !== false);
     const ranked = friendsHub.rankOnlinePlayers(visible, me).slice(0, 30);
     res.json({
-      players: ranked.map((p) => ({
-        ...friendsPanelPlayer(p, myId, rows),
-        sameCountry: Boolean(me.country) && p.country === me.country,
-      })),
+      // The country only orders this list on the server; whether someone is in
+      // the same country is never sent (Discover privacy rule).
+      players: ranked.map((p) => friendsPanelPlayer(p, myId, rows)),
     });
   } catch (e) {
     console.error('[players online]', e);
     res.status(500).json({ error: 'Could not load players' });
+  }
+});
+
+// ---- Discover (Part 3B) ------------------------------------------------------------
+// Find people to play with right now. Extends the friends system above (same
+// friendships, blocks, invites, limits). Never returns any location data.
+const discoverRowCache = new Map(); // playerId -> { row, at }
+const discoverWatchers = new Map(); // watched playerId -> Set(socketId)
+const discoverWatching = new Map(); // socketId -> Set(watched playerIds)
+const reportLimiter = friendsHub.createWindowLimiter({ max: 10, windowMs: 60 * 60 * 1000 });
+
+const habitCache = new Map(); // playerId -> { habit, at }
+async function playHabits(ids) {
+  const now = Date.now();
+  const missing = ids.filter((id) => !habitCache.has(id) || now - habitCache.get(id).at > 10 * 60 * 1000);
+  if (missing.length) {
+    try {
+      const got = await db.listPlayHabits(missing);
+      for (const [id, h] of got) habitCache.set(id, { habit: h, at: now });
+    } catch (e) {
+      console.warn('[discover] play habits:', e.message);
+    }
+  }
+  if (habitCache.size > 20000) for (const [k, v] of habitCache) if (now - v.at > 10 * 60 * 1000) habitCache.delete(k);
+  return new Map(ids.map((id) => [id, habitCache.get(id) ? habitCache.get(id).habit : { modes: new Set(), hours: new Set() }]));
+}
+
+async function discoverRows(ids) {
+  const ttl = gameFeel.get().discover.suggestionCacheSeconds * 1000;
+  const now = Date.now();
+  const missing = ids.filter((id) => !discoverRowCache.has(id) || now - discoverRowCache.get(id).at > ttl);
+  for (let i = 0; i < missing.length; i += 300) {
+    const batch = await db.getPlayersForFriendsPanel(missing.slice(i, i + 300));
+    for (const p of batch) discoverRowCache.set(p.id, { row: p, at: now });
+  }
+  if (discoverRowCache.size > 20000) for (const [k, v] of discoverRowCache) if (now - v.at > ttl) discoverRowCache.delete(k);
+  return ids.map((id) => discoverRowCache.get(id)?.row).filter(Boolean);
+}
+
+// Push a watched player's new visible presence to everyone looking at them,
+// each seeing only what the privacy rules allow them to see.
+async function pushDiscoverPresence(playerId, settingsOverride = null) {
+  const watchers = discoverWatchers.get(playerId);
+  if (!watchers || !watchers.size) return;
+  try {
+    const [row] = settingsOverride ? [{ settings: settingsOverride }] : await discoverRows([playerId]);
+    if (!row) return;
+    const p = presence.getPresence(playerId);
+    for (const sid of watchers) {
+      const s = io.sockets.sockets.get(sid);
+      const viewerId = s && s.data && s.data.player && s.data.player.id;
+      if (!viewerId) continue;
+      const friendIds = new Set(await db.listFriendIds(viewerId).catch(() => []));
+      const rel = discover.relation(viewerId, playerId, { friendIds });
+      s.emit('discover:presence', { id: playerId, ...discover.presenceView(p, row.settings, rel) });
+    }
+  } catch (e) {
+    console.warn('[discover] push failed:', e.message);
+  }
+}
+presence.onChange((playerId) => {
+  discoverRowCache.delete(playerId);
+  pushDiscoverPresence(playerId);
+});
+
+function discoverOff(res) {
+  if (gameFeel.get().discover.enabled) return false;
+  res.status(403).json({ error: 'Discover is switched off right now' });
+  return true;
+}
+
+// GET /api/discover?section=friends|live|rooms|suggested&page=0&q=&tier=&level=&mode=&played=1
+app.get('/api/discover', requireDb, authenticate, async (req, res) => {
+  if (discoverOff(res)) return;
+  try {
+    const myId = req.tokenPlayer.id;
+    const section = String(req.query.section || 'live');
+    const [me, friendIdList, blocks] = await Promise.all([db.getPlayerById(myId), db.listFriendIds(myId), db.listBlockRelationIds(myId)]);
+    const friendIds = new Set(friendIdList);
+
+    if (section === 'rooms') {
+      // Public lobbies still open to join (closed once a short game starts).
+      const rooms = ['quick', 'blitz', 'grand']
+        .flatMap((mode) => gameEngine.listWaitingMatchesByMode(mode))
+        .filter((m) => m.status === 'waiting' && !gameEngine.isFull(m))
+        .filter((m) => !Object.keys(m.players).some((id) => blocks.has(id)))
+        .map((m) => ({ matchId: m.id, mode: m.mode, label: m.config.label, players: Object.values(m.players).length, maxPlayers: m.config.maxPlayers, entryCoins: m.config.entryCoins || 0, lobbyTier: m.lobbyTier || null }));
+      return res.json(discover.paginate(rooms, req.query.page));
+    }
+
+    let ids;
+    if (section === 'friends') ids = friendIdList.filter((id) => playerSockets.has(id));
+    else ids = [...playerSockets.keys()].filter((id) => id !== myId);
+    const rows = (await discoverRows(ids)).filter((c) => (section === 'friends' ? !blocks.has(c.id) && !activeBan(c) : discover.listable(myId, c, { blocked: blocks })));
+
+    const playedWith = new Set(req.query.played || section === 'suggested' ? await db.listRecentCoPlayers(myId).catch(() => []) : []);
+    let list = rows;
+    const q = String(req.query.q || '').trim().toLowerCase();
+    if (q) list = list.filter((c) => c.username.toLowerCase().includes(q));
+    if (req.query.tier) list = list.filter((c) => (c.tier || tierForRating(c.war_rating)) === (me.tier || tierForRating(me.war_rating)));
+    if (req.query.played) list = list.filter((c) => playedWith.has(c.id));
+    if (req.query.mode) list = list.filter((c) => (presence.getPresence(c.id).mode || '') === String(req.query.mode));
+
+    const theirFriends = await db.listFriendIdsForMany(list.slice(0, 400).map((c) => c.id)).catch(() => new Map());
+    const mutual = (id) => [...(theirFriends.get(id) || [])].filter((f) => friendIds.has(f)).length;
+    if (section === 'suggested') {
+      // Same modes and similar hours come from real match history (cached
+      // per player for a few minutes; neither is ever shown).
+      const pool = list.filter((c) => !friendIds.has(c.id)).slice(0, 400);
+      const habits = await playHabits([myId, ...pool.map((c) => c.id)]);
+      const mine = habits.get(myId) || { modes: new Set(), hours: new Set() };
+      // Hours within one hour either side count as "similar".
+      const myHours = new Set([...mine.hours].flatMap((h) => [(h + 23) % 24, h, (h + 1) % 24]));
+      const ctx = { me, fofCount: mutual, playedWith, myModes: mine.modes, theirModes: (id) => (habits.get(id) || {}).modes, myHours, theirHours: (id) => (habits.get(id) || {}).hours };
+      list = list.filter((c) => !friendIds.has(c.id)).map((c) => ({ c, s: discover.score(c, ctx) })).sort((a, b) => b.s - a.s).map((x) => x.c);
+    } else {
+      list = friendsHub.rankOnlinePlayers(list, me);
+    }
+    if (req.query.level) {
+      const myLevel = progression.standing(me).level;
+      list = list.filter((c) => Math.abs((discoverRowCache.get(c.id)?.level || myLevel) - myLevel) <= 3);
+    }
+    // Anyone this viewer may not see as online is left out entirely: being in
+    // a "live" list would itself reveal that they're online.
+    const visible = list
+      .map((c) => {
+        const rel = discover.relation(myId, c.id, { friendIds, targetFriendIds: theirFriends.get(c.id) });
+        return { c, rel, view: discover.presenceView(presence.getPresence(c.id), c.settings, rel) };
+      })
+      .filter((x) => x.view.state !== 'offline');
+    const page = discover.paginate(visible, req.query.page);
+    const equippedById = await db.getEquippedCosmeticsForPlayers(page.items.map((x) => x.c.id)).catch(() => ({}));
+    const titleOf = (id) => {
+      const t = equippedById[id] && equippedById[id].title;
+      const it = t && cosmetics.findItem(t);
+      return it ? it.name : null;
+    };
+    page.items = page.items.map(({ c, rel, view }) => discover.row(c, view, { relation: rel, title: titleOf(c.id), mutualFriends: mutual(c.id), canRequest: rel !== 'friend' && discover.canRequest(c.settings, rel), canInvite: discover.canInvite(c.settings, rel) }));
+    // An honest empty state: no padding with fake or seeded players.
+    page.emptyMessage = page.total ? null : section === 'friends' ? 'None of your friends are online right now.' : 'Not many traders are online right now. Try a ghost challenge or a Solo match.';
+    res.json(page);
+  } catch (e) {
+    console.error('[discover]', e);
+    res.status(500).json({ error: 'Could not load Discover' });
+  }
+});
+
+// Invite to match from Discover: into the inviter's waiting lobby if they're
+// in one, otherwise a new Private War room; same invite rules as the lobby.
+app.post('/api/discover/invite', requireDb, authenticate, async (req, res) => {
+  if (discoverOff(res)) return;
+  try {
+    const { targetId } = req.body || {};
+    const me = await db.getPlayerById(req.tokenPlayer.id);
+    const [friendIdList, blocks, [target]] = await Promise.all([db.listFriendIds(me.id), db.listBlockRelationIds(me.id), db.getPlayersForFriendsPanel([targetId])]);
+    if (!target || blocks.has(targetId)) return res.status(404).json({ error: 'Player not found' });
+    const theirFriends = (await db.listFriendIdsForMany([targetId])).get(targetId);
+    const rel = discover.relation(me.id, targetId, { friendIds: new Set(friendIdList), targetFriendIds: theirFriends });
+    if (!discover.canInvite(target.settings, rel)) return res.status(403).json({ error: 'This player is not accepting invites from you' });
+    const pres = presence.getPresence(me.id);
+    let room = pres.status === 'in_lobby' && pres.lobbyId ? gameEngine.getMatch(pres.lobbyId) : null;
+    if (!room || room.status !== 'waiting' || !room.players[me.id]) {
+      if (gameEngine.isInLiveMatch(me.id)) return res.status(409).json({ error: LIVE_MATCH_BUSY_ERROR });
+      const made = await matchmaking.createPrivateWar(gameEngine, { id: me.id, username: me.username, country: me.country, war_rating: me.war_rating, tier: tierForRating(me.war_rating), ...(await loadCardLoadout(me)) });
+      if (!made.success) return res.status(400).json(made);
+      room = gameEngine.getMatch(made.matchId);
+    }
+    const { sentTo, skipped } = await sendLobbyInvites(room.players[me.id], room, [targetId]);
+    res.json({ matchId: room.id, sent: sentTo.length === 1, reason: skipped[0] ? skipped[0].reason : null });
+  } catch (e) {
+    console.error('[discover invite]', e);
+    res.status(500).json({ error: 'Could not send the invite' });
+  }
+});
+
+// Join an open public lobby from Discover (closed once the game starts; the
+// lobby's own rules - capacity, entry coins, rank split - still apply).
+app.post('/api/discover/join', requireDb, authenticate, async (req, res) => {
+  if (discoverOff(res)) return;
+  try {
+    const { lobbyId } = req.body || {};
+    const match = gameEngine.getMatch(lobbyId);
+    if (!match || match.status !== 'waiting' || !['quick', 'blitz', 'grand'].includes(match.mode)) return res.status(400).json({ error: 'That room is no longer open' });
+    const blocks = await db.listBlockRelationIds(req.tokenPlayer.id);
+    if (Object.keys(match.players).some((id) => blocks.has(id))) return res.status(400).json({ error: 'That room is no longer open' });
+    const result = await joinLobbyWithEntryFee(match, req.tokenPlayer.id);
+    if (!result.success) return res.status(400).json({ error: result.error });
+    res.json({ success: true, matchId: match.id });
+  } catch (e) {
+    console.error('[discover join]', e);
+    res.status(500).json({ error: 'Could not join' });
+  }
+});
+
+app.get('/api/settings/privacy', requireDb, authenticate, async (req, res) => {
+  const player = await db.getPlayerById(req.tokenPlayer.id);
+  res.json(discover.privacy(player && player.settings));
+});
+
+// Block (the existing friends block) and Report (the existing moderation queue).
+app.post('/api/players/report', requireDb, authenticate, async (req, res) => {
+  try {
+    const { targetId, reason, matchId } = req.body || {};
+    const REASONS = ['cheating', 'abusive_name', 'spam', 'harassment', 'underage', 'other'];
+    if (!targetId || targetId === req.tokenPlayer.id) return res.status(400).json({ error: 'Invalid player' });
+    if (!REASONS.includes(reason)) return res.status(400).json({ error: `reason must be one of ${REASONS.join(', ')}` });
+    if (!reportLimiter(req.tokenPlayer.id)) return res.status(429).json({ error: 'Too many reports. Try again later.' });
+    await db.createPlayerReport({ reporterId: req.tokenPlayer.id, reportedId: targetId, reason, matchId: matchId || null });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[report]', e);
+    res.status(500).json({ error: 'Could not send the report' });
   }
 });
 
@@ -1982,13 +2330,18 @@ app.get('/api/cards', requireDb, authenticate, async (req, res) => {
       timesPlayed: stats.playedByMe[c.id] || 0,
       timesPlayedAgainstYou: stats.playedAgainstMe[c.id] || 0,
     }));
+    // Fire gameplay: which cards this player has unlocked, and how to unlock
+    // the rest (earned by playing only - coins never buy a card).
+    const prog = await loadProgression(player);
+    const byId = Object.fromEntries(progression.collection(prog.standing, prog.grants).map((c) => [c.id, c]));
+    for (const c of cards) Object.assign(c, { unlocked: byId[c.id].unlocked, basic: byId[c.id].basic, unlockText: byId[c.id].unlockText });
     const nextUnlock =
       player.wins < 50
         ? { variant: 'silver', winsNeeded: 50 - player.wins }
         : player.wins < 200
         ? { variant: 'gold', winsNeeded: 200 - player.wins }
         : null;
-    res.json({ cards, wins: player.wins, currentVariant: variant, nextUnlock });
+    res.json({ cards, wins: player.wins, currentVariant: variant, nextUnlock, level: progression.levelInfo(prog.standing.xp), tier: tierForRating(player.war_rating) });
   } catch (e) {
     console.error('[cards]', e);
     res.status(500).json({ error: 'Could not load cards' });
@@ -2091,14 +2444,22 @@ app.post('/api/shop/purchase', requireDb, authenticate, async (req, res) => {
 app.post('/api/shop/equip', requireDb, authenticate, async (req, res) => {
   try {
     const { itemId } = req.body || {};
-    const item = shop.findItem(itemId);
+    // Shop items, or earned cosmetics (rank items, season rewards - never sold).
+    const earnedItem = shop.findItem(itemId) ? null : cosmetics.findItem(itemId);
+    const item = shop.findItem(itemId) || earnedItem;
     if (!item) return res.status(404).json({ error: 'Unknown item' });
-    const slot = shop.SLOT_BY_TYPE[item.type];
+    const slot = earnedItem ? cosmetics.SLOT_BY_TYPE[item.type] : shop.SLOT_BY_TYPE[item.type];
     if (!slot) return res.status(400).json({ error: 'This item type is not equippable' });
 
-    const owned = await db.listShopPurchases(req.tokenPlayer.id);
-    const isFree = item.price === 0;
-    if (!isFree && !owned.some((o) => o.item_id === itemId)) return res.status(403).json({ error: 'You do not own this item' });
+    if (earnedItem) {
+      const me = await db.getPlayerById(req.tokenPlayer.id);
+      const stored = (await db.listEarnedCosmetics(me.id)).map((r) => r.item_id);
+      if (!cosmetics.entitled(tierForRating(me.war_rating), stored).some((i) => i.id === itemId)) return res.status(403).json({ error: 'You have not earned this item yet' });
+    } else {
+      const owned = await db.listShopPurchases(req.tokenPlayer.id);
+      const isFree = item.price === 0;
+      if (!isFree && !owned.some((o) => o.item_id === itemId)) return res.status(403).json({ error: 'You do not own this item' });
+    }
 
     await db.equipCosmetic(req.tokenPlayer.id, slot, itemId);
     res.json({ success: true });
@@ -2695,14 +3056,15 @@ app.post('/api/tournament/:id/play', deployDrain.blockNewMatches, requireDb, aut
       matchup.status = 'ready';
     }
 
-    const [playerA, playerB, deckA, deckB] = await Promise.all([db.getPlayerById(matchup.playerAId), db.getPlayerById(matchup.playerBId), loadSavedDeck(matchup.playerAId), loadSavedDeck(matchup.playerBId)]);
+    const [playerA, playerB] = await Promise.all([db.getPlayerById(matchup.playerAId), db.getPlayerById(matchup.playerBId)]);
+    const [loadA, loadB] = await Promise.all([loadCardLoadout(playerA), loadCardLoadout(playerB)]);
     const toPlayerInfo = (p) => ({ id: p.id, username: p.username, country: p.country, war_rating: p.war_rating, tier: tierForRating(p.war_rating) });
 
     const match = await gameEngine.createMatch('tournament', {
       configOverrides: { tournamentId: t.id, round: myReg.current_round, matchupIndex: matchup.matchup },
     });
-    gameEngine.joinMatch(match, { ...toPlayerInfo(playerA), deck: deckA });
-    gameEngine.joinMatch(match, { ...toPlayerInfo(playerB), deck: deckB });
+    gameEngine.joinMatch(match, { ...toPlayerInfo(playerA), ...loadA });
+    gameEngine.joinMatch(match, { ...toPlayerInfo(playerB), ...loadB });
 
     matchup.matchId = match.id;
     matchup.status = 'in_progress';
@@ -2775,11 +3137,222 @@ app.put('/api/cards/deck', requireDb, authenticate, async (req, res) => {
     }
     const validIds = new Set(sabotage.getCardCatalog().map((c) => c.id));
     if (!cardTypes.every((t) => validIds.has(t))) return res.status(400).json({ error: 'Unknown card type in deck' });
+    const owner = await db.getPlayerById(req.tokenPlayer.id);
+    const { unlockedCards } = await loadProgression(owner);
+    const locked = cardTypes.filter((t) => !unlockedCards.includes(t));
+    if (locked.length) return res.status(400).json({ error: `Locked card in deck: ${locked.join(', ')}. Unlock it by playing first.` });
     const deck = await db.saveCardDeck(req.tokenPlayer.id, cardTypes);
     res.json({ cardTypes: deck.card_types });
   } catch (e) {
     console.error('[deck save]', e);
     res.status(500).json({ error: 'Could not save deck' });
+  }
+});
+
+// ---- fire gameplay: progression, ghost challenges, rematch -------------------------
+
+// Level, XP, rank (rating tier), rank benefits, the next unlocks and the full
+// card collection for the profile / rank screen.
+// Public card list for the rules page: every card, what it does, its rarity
+// and how it unlocks (built from the live deck, never a hand-kept copy).
+app.get('/api/cards/catalog', (req, res) => {
+  res.json({ cards: progression.collection(progression.standing({})).map(({ id, name, kind, rarity, description, unlockText }) => ({ id, name, kind, rarity, description, unlockText })) });
+});
+
+app.get('/api/progression/me', requireDb, authenticate, async (req, res) => {
+  try {
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    const prog = await loadProgression(player);
+    const collection = progression.collection(prog.standing, prog.grants);
+    const next = collection.filter((c) => !c.unlocked && c.unlockRule && c.unlockRule.level).sort((a, b) => a.unlockRule.level - b.unlockRule.level).slice(0, 3);
+    res.json({
+      level: progression.levelInfo(prog.standing.xp),
+      rank: tierForRating(player.war_rating),
+      rating: player.war_rating,
+      tiers: TIERS.map((t) => ({ name: t.name, min: t.min, max: Number.isFinite(t.max) ? t.max : null })),
+      benefits: progression.rankBenefits(),
+      bestStreak: prog.stored?.best_streak || 0,
+      bestHeat: prog.stored?.best_heat || 0,
+      season: { id: progression.season(), xp: prog.stored && prog.stored.season === progression.season() ? prog.stored.season_xp : 0 },
+      xpToday: prog.stored && prog.stored.xp_day === new Date().toISOString().slice(0, 10) ? prog.stored.xp_today : 0,
+      dailyCap: gameFeel.get().progression.xp.perDayCap,
+      nextUnlocks: next.map((c) => ({ id: c.id, name: c.name, icon: c.icon, unlockText: c.unlockText })),
+      collection,
+      persisted: Boolean(prog.stored),
+    });
+  } catch (e) {
+    console.error('[progression/me]', e);
+    res.status(500).json({ error: 'Could not load progression' });
+  }
+});
+
+// Earned cosmetics and the monthly season (rank page).
+app.get('/api/cosmetics/me', requireDb, authenticate, async (req, res) => {
+  try {
+    const me = await db.getPlayerById(req.tokenPlayer.id);
+    const [storedRows, equipped, stored] = await Promise.all([db.listEarnedCosmetics(me.id), db.getEquippedCosmetics(me.id).catch(() => []), db.getProgress(me.id).catch(() => null)]);
+    const slots = Object.fromEntries((equipped || []).map((r) => [r.slot, r.item_id]));
+    const items = cosmetics.entitled(tierForRating(me.war_rating), storedRows.map((r) => r.item_id)).map((i) => ({ ...i, slot: cosmetics.SLOT_BY_TYPE[i.type], equipped: slots[cosmetics.SLOT_BY_TYPE[i.type]] === i.id }));
+    const season = progression.season();
+    const seasonXp = stored && stored.season === season ? stored.season_xp : 0;
+    const now = new Date();
+    const end = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
+    res.json({
+      items,
+      season: {
+        id: season,
+        xp: seasonXp,
+        rank: cosmetics.seasonRank(seasonXp),
+        ranks: cosmetics.SEASON_RANKS,
+        daysLeft: Math.ceil((end - now.getTime()) / 86400000),
+        rewards: [
+          { place: '1st', items: cosmetics.seasonRewardsFor(season, 1).map((i) => i.name) },
+          { place: 'Top 10', items: cosmetics.seasonRewardsFor(season, 10).map((i) => i.name) },
+          { place: 'Top 100', items: cosmetics.seasonRewardsFor(season, 100).map((i) => i.name) },
+        ],
+      },
+      rankItems: cosmetics.RANK_ITEMS.map((i) => ({ id: i.id, name: i.name, type: i.type, tier: i.tier })),
+    });
+  } catch (e) {
+    console.error('[cosmetics/me]', e);
+    res.status(500).json({ error: 'Could not load cosmetics' });
+  }
+});
+
+const challengeLinks = require('./challenge');
+
+// Creates a share link for the match the player just finished: same
+// instruments, seed and start offsets, with their result to beat.
+app.post('/api/challenge', requireDb, authenticate, async (req, res) => {
+  try {
+    if (!gameFeel.get().ghostChallenge.enabled) return res.status(403).json({ error: 'Challenges are switched off' });
+    const { matchId } = req.body || {};
+    const market = gameEngine.getMatchMarket(matchId);
+    if (!market || !market.endPayload) return res.status(400).json({ error: 'That match is not finished or no longer available' });
+    if (!market.humanIds.includes(req.tokenPlayer.id)) return res.status(403).json({ error: 'You were not in that match' });
+    if (!Object.keys(market.marketStarts).length) return res.status(400).json({ error: 'This match cannot be replayed as a challenge' });
+    const mine = market.endPayload.results.find((r) => r.playerId === req.tokenPlayer.id);
+    const code = challengeLinks.create({
+      creatorId: req.tokenPlayer.id,
+      username: mine ? mine.username : 'A trader',
+      mode: market.mode,
+      instruments: market.instruments.filter((s) => market.marketStarts[s] !== undefined),
+      marketSeed: market.marketSeed,
+      marketStarts: market.marketStarts,
+      durationSeconds: market.durationSeconds,
+      pnl: mine ? mine.pnl : 0,
+      rank: mine ? mine.rank : null,
+      sourceMatchId: matchId,
+    });
+    const base = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+    res.json({ code, url: `${base.replace(/\/$/, '')}/challenge/${code}`, result: { pnl: mine ? mine.pnl : 0, rank: mine ? mine.rank : null } });
+  } catch (e) {
+    console.error('[challenge create]', e);
+    res.status(500).json({ error: 'Could not create the challenge' });
+  }
+});
+
+app.get('/api/challenge/:code', (req, res) => {
+  const r = challengeLinks.read(req.params.code);
+  if (!r.ok) return res.status(r.expired ? 410 : 400).json({ error: r.error });
+  const c = r.challenge;
+  res.json({ username: c.username, instruments: c.instruments, durationSeconds: c.durationSeconds, pnl: c.pnl, rank: c.rank, expiresAt: c.expiresAt });
+});
+
+// Starts the friend's run: a private, unranked match on the exact same market
+// (same seed and start offsets, so byte-identical prices), no AI opponents,
+// free to play, results never touch ratings or prizes.
+app.post('/api/challenge/:code/start', requireDb, authenticate, async (req, res) => {
+  try {
+    const r = challengeLinks.read(req.params.code);
+    if (!r.ok) return res.status(r.expired ? 410 : 400).json({ error: r.error });
+    const c = r.challenge;
+    if (gameEngine.isInLiveMatch(req.tokenPlayer.id)) return res.status(409).json({ error: LIVE_MATCH_BUSY_ERROR });
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    const match = await gameEngine.createMatch('solo', {
+      instrumentList: c.instruments,
+      marketSeed: c.marketSeed,
+      marketStarts: c.marketStarts,
+      configOverrides: {
+        label: 'Ghost Challenge',
+        durationSeconds: c.durationSeconds,
+        ranked: false,
+        ratingKey: null,
+        fillMethod: 'none',
+        aiOpponents: 0,
+        entryCoins: 0,
+        challenge: { username: c.username, pnl: c.pnl, creatorId: c.creatorId },
+      },
+    });
+    const joined = gameEngine.joinMatch(match, { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, tier: tierForRating(player.war_rating), ...(await loadCardLoadout(player)) });
+    if (!joined.success) return res.status(400).json(joined);
+    res.json({ matchId: match.id, roomCode: match.roomCode });
+  } catch (e) {
+    console.error('[challenge start]', e);
+    res.status(500).json({ error: 'Could not start the challenge' });
+  }
+});
+
+// Rank-split empty-lobby fallback (only when the split is on): alone in a
+// ranked lobby for rankSplit.emptyLobbyFallbackSeconds -> offer an open lobby
+// one tier up (allowed once even when joinUpTiers is 0), or Solo / a ghost
+// challenge. No bots are added for this.
+function fallbackFor(match, playerId) {
+  const cfg = gameFeel.get().rankSplit;
+  if (!rankSplit.enabled() || !match || match.status !== 'waiting' || !match.lobbyTier || !match.players[playerId]) return null;
+  const humans = Object.values(match.players).filter((p) => !p.isAI);
+  const waited = (Date.now() - match.createdAt) / 1000;
+  if (humans.length > 1 || waited < cfg.emptyLobbyFallbackSeconds) return { offer: false, waitSeconds: Math.max(0, Math.ceil(cfg.emptyLobbyFallbackSeconds - waited)) };
+  const up = rankSplit.tierAbove(match.lobbyTier);
+  const room = up
+    ? gameEngine.listWaitingMatchesByMode(match.mode).find((m) => m.id !== match.id && m.lobbyTier === up && !gameEngine.isFull(m))
+    : null;
+  return { offer: true, upTier: room ? { matchId: room.id, tier: rankSplit.tierLabel(up), players: Object.keys(room.players).length } : null, solo: true, ghost: true };
+}
+
+app.get('/api/match/:id/fallback', requireDb, authenticate, (req, res) => {
+  res.json(fallbackFor(gameEngine.getMatch(req.params.id), req.tokenPlayer.id) || { offer: false });
+});
+
+app.post('/api/match/:id/fallback', requireDb, authenticate, async (req, res) => {
+  try {
+    const current = gameEngine.getMatch(req.params.id);
+    const f = fallbackFor(current, req.tokenPlayer.id);
+    if (!f || !f.offer || !f.upTier) return res.status(400).json({ error: 'No lobby one tier up is open right now' });
+    const target = gameEngine.getMatch(f.upTier.matchId);
+    const left = await gameEngine.leaveMatch(current.id, req.tokenPlayer.id);
+    if (!left.success) return res.status(400).json(left);
+    const result = await joinLobbyWithEntryFee(target, req.tokenPlayer.id, null, { fallbackUp: true });
+    if (!result.success) return res.status(400).json({ error: result.error });
+    res.json({ success: true, matchId: target.id });
+  } catch (e) {
+    console.error('[rank fallback]', e);
+    res.status(500).json({ error: 'Could not move you to that lobby' });
+  }
+});
+
+// Rematch: a fresh Private War room hosted by the player, with invites sent
+// to everyone from the finished match who is still online (the normal lobby
+// invite rules apply: blocks, privacy settings, rate limits, expiry).
+app.post('/api/match/rematch', requireDb, authenticate, async (req, res) => {
+  try {
+    const { matchId } = req.body || {};
+    const market = gameEngine.getMatchMarket(matchId);
+    if (!market || !market.endPayload) return res.status(400).json({ error: 'That match is no longer available for a rematch' });
+    if (!market.humanIds.includes(req.tokenPlayer.id)) return res.status(403).json({ error: 'You were not in that match' });
+    if (gameEngine.isInLiveMatch(req.tokenPlayer.id)) return res.status(409).json({ error: LIVE_MATCH_BUSY_ERROR });
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    const info = { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, tier: tierForRating(player.war_rating), ...(await loadCardLoadout(player)) };
+    const made = await matchmaking.createPrivateWar(gameEngine, info);
+    if (!made.success) return res.status(400).json(made);
+    const room = gameEngine.getMatch(made.matchId);
+    const stillHere = market.humanIds.filter((id) => id !== player.id && playerSockets.has(id));
+    const { sentTo, skipped } = stillHere.length ? await sendLobbyInvites(room.players[player.id], room, stillHere) : { sentTo: [], skipped: [] };
+    res.json({ matchId: made.matchId, roomCode: made.roomCode, invited: sentTo.length, skipped: skipped.length });
+  } catch (e) {
+    console.error('[rematch]', e);
+    res.status(500).json({ error: 'Could not start a rematch' });
   }
 });
 
@@ -3442,65 +4015,7 @@ io.on('connection', (socket) => {
       const inviter = match.players[session.playerId];
       if (!inviter) return ack?.({ success: false, error: 'Not in this lobby' });
 
-      const sentTo = [];
-      const skipped = [];
-      const targets = [...new Set(Array.isArray(targetIds) ? targetIds : [])].filter((id) => id !== inviter.id).slice(0, 8);
-      const [friendIds, blocks, targetPlayers] = await Promise.all([
-        db.listFriendIds(inviter.id),
-        db.listBlockRelationIds(inviter.id),
-        db.getPlayersForFriendsPanel(targets),
-      ]);
-      const targetById = new Map(targetPlayers.map((p) => [p.id, p]));
-      for (const targetId of targets) {
-        const targetSockets = playerSockets.get(targetId);
-        const isFriend = friendIds.includes(targetId);
-        const reason = friendsHub.inviteBlockReason({
-          isFriend,
-          blocked: blocks.has(targetId),
-          connected: Boolean(targetSockets && targetSockets.size) && targetById.has(targetId),
-          presenceStatus: presence.getPresence(targetId).status,
-          settings: targetById.get(targetId)?.settings,
-          alreadyInvited: [...pendingInvites.values()].some((i) => i.fromPlayerId === inviter.id && i.targetPlayerId === targetId && i.lobbyId === matchId),
-        });
-        if (reason) {
-          skipped.push({ id: targetId, reason });
-          continue;
-        }
-        if (!isFriend && !strangerInviteLimiter(inviter.id)) {
-          skipped.push({ id: targetId, reason: 'too_many' });
-          continue;
-        }
-
-        const inviteId = crypto.randomUUID();
-        const invite = {
-          id: inviteId,
-          fromPlayerId: inviter.id,
-          fromUsername: inviter.username,
-          fromTier: inviter.tier,
-          lobbyId: matchId,
-          matchMode: match.config.label || match.mode,
-          instruments: match.instruments,
-          currentPlayers: Object.keys(match.players).length,
-          maxPlayers: match.config.maxPlayers,
-          entryCoins: match.config.entryCoins || 0,
-          fromFriend: isFriend,
-          targetPlayerId: targetId,
-          expiresAt: Date.now() + INVITE_TTL_MS,
-        };
-        invite.timer = setTimeout(async () => {
-          pendingInvites.delete(inviteId);
-          const target = await db.getPlayerById(targetId).catch(() => null);
-          notifyPlayer(inviter.id, 'invite_expired', `${target?.username || 'A friend'} did not respond to your invite`);
-          const targetNowSockets = playerSockets.get(targetId);
-          if (targetNowSockets) for (const sid of targetNowSockets) io.to(sid).emit('lobby:invite_expired', { inviteId });
-        }, INVITE_TTL_MS);
-        pendingInvites.set(inviteId, invite);
-
-        for (const sid of targetSockets) {
-          io.to(sid).emit('lobby:invite_received', { ...invite, timer: undefined });
-        }
-        sentTo.push(targetId);
-      }
+      const { sentTo, skipped } = await sendLobbyInvites(inviter, match, targetIds);
       ack?.({ success: true, sentTo, skipped });
     } catch (e) {
       console.error('[lobby:invite]', e);
@@ -3551,8 +4066,44 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ---- Discover: live presence diffs for the rows a player is looking at ----
+  socket.on('discover:watch', ({ ids } = {}) => {
+    if (!socket.data.player) return;
+    const next = new Set((Array.isArray(ids) ? ids : []).filter((x) => typeof x === 'string').slice(0, 60));
+    for (const id of discoverWatching.get(socket.id) || []) {
+      if (next.has(id)) continue;
+      const set = discoverWatchers.get(id);
+      if (set) {
+        set.delete(socket.id);
+        if (!set.size) discoverWatchers.delete(id);
+      }
+    }
+    for (const id of next) {
+      if (!discoverWatchers.has(id)) discoverWatchers.set(id, new Set());
+      discoverWatchers.get(id).add(socket.id);
+    }
+    discoverWatching.set(socket.id, next);
+  });
+  // Away = the app is open but hidden; back to online when it's visible again.
+  socket.on('presence:heartbeat', ({ visible } = {}) => {
+    const id = socket.data.player && socket.data.player.id;
+    if (!id) return;
+    const cur = presence.getPresence(id);
+    if (cur.status === 'in_match' || cur.status === 'in_lobby' || cur.status === 'offline') return;
+    const want = visible === false ? 'away' : 'online';
+    if (cur.status !== want) updatePresence(id, { status: want });
+  });
+
   socket.on('disconnect', () => {
     gameEngine.handleDisconnect(socket.id);
+    for (const id of discoverWatching.get(socket.id) || []) {
+      const set = discoverWatchers.get(id);
+      if (set) {
+        set.delete(socket.id);
+        if (!set.size) discoverWatchers.delete(id);
+      }
+    }
+    discoverWatching.delete(socket.id);
   });
 });
 

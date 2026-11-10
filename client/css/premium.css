@@ -2336,3 +2336,18 @@ h1, h2, h3, h4, .title {
   background: #4752c4;
   transform: translateY(-1px);
 }
+
+/* ---- earned cosmetics: rank items and season rewards (server/cosmetics.js).
+   Class names follow TW.cosmeticSlug: frame-<id>, nameplate-<id>, profile-bg-<id>. */
+.tw-avatar-frame.frame-rk-frame-rookie { border: 2px solid #586179; }
+.tw-avatar-frame.frame-rk-frame-signal { border: 2px solid #2EE6A6; box-shadow: 0 0 8px rgba(46, 230, 166, 0.45); }
+.tw-avatar-frame.frame-rk-frame-veteran { border: 3px double #5aa9ff; box-shadow: 0 0 10px rgba(90, 169, 255, 0.4); }
+.tw-avatar-frame.frame-rk-frame-elite-crown { border: 3px solid #b77dff; box-shadow: 0 0 12px rgba(183, 125, 255, 0.55); }
+.tw-nameplate.nameplate-rk-name-green { color: #2EE6A6; }
+.tw-nameplate.nameplate-rk-name-warlord-gold { color: #F5B83D; text-shadow: 0 0 8px rgba(245, 184, 61, 0.5); font-weight: 700; }
+.tw-profile-header.profile-bg-rk-bg-night-desk { background: linear-gradient(160deg, #0b1220 0%, #141b2d 60%, #07090f 100%); }
+.tw-profile-header.profile-bg-rk-bg-warlord { background: linear-gradient(135deg, #2b1d06 0%, #07090f 55%, #3d2a07 100%); }
+/* Season rewards: ids carry the month (ss_YYYY_MM_<kind>), so match on the kind. */
+.tw-avatar-frame[class*="frame-ss-"][class*="-champion-frame"] { border: 3px solid #F5B83D; background: conic-gradient(#F5B83D, #FF4D5E, #2EE6A6, #F5B83D); -webkit-mask: radial-gradient(circle at center, transparent 60%, black 62%); mask: radial-gradient(circle at center, transparent 60%, black 62%); }
+.tw-avatar-frame[class*="frame-ss-"][class*="-top100-frame"] { border: 2px solid #F5B83D; box-shadow: 0 0 8px rgba(245, 184, 61, 0.35); }
+.tw-nameplate[class*="nameplate-ss-"][class*="-top10-name"] { background: linear-gradient(90deg, #F5B83D, #2EE6A6); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700; }

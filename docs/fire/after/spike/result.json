@@ -1,0 +1,83 @@
+{
+  "1440x900": {
+    "canvasSame": true,
+    "chartBoxSame": true,
+    "stripHeights": [
+      32,
+      32,
+      32,
+      32
+    ],
+    "stripOverChart": false,
+    "stripOverTicket": false,
+    "stripCoversChartPoints": 0,
+    "duringText": "Spike incoming in 8sReal move from the data. Direction unknown.",
+    "resultText": "Spike XAUUSD +0.31%",
+    "backToIdle": true,
+    "canvas": {
+      "x": 45,
+      "y": 203,
+      "w": 766,
+      "h": 412
+    },
+    "traded": {
+      "clicked": "buyBtn",
+      "positionsBefore": 1,
+      "positionsAfter": 1
+    }
+  },
+  "390x844": {
+    "canvasSame": true,
+    "chartBoxSame": true,
+    "stripHeights": [
+      32,
+      32,
+      32,
+      32
+    ],
+    "stripOverChart": false,
+    "stripOverTicket": false,
+    "stripCoversChartPoints": 0,
+    "duringText": "Spike incoming in 8sReal move from the data. Direction unknown.",
+    "resultText": "Spike XAUUSD +0.31%",
+    "backToIdle": true,
+    "canvas": {
+      "x": 2,
+      "y": 192,
+      "w": 308,
+      "h": 482
+    },
+    "traded": {
+      "clicked": "buyBtn",
+      "positionsBefore": 1,
+      "positionsAfter": 2
+    }
+  },
+  "844x390": {
+    "canvasSame": true,
+    "chartBoxSame": true,
+    "stripHeights": [
+      32,
+      32,
+      32,
+      32
+    ],
+    "stripOverChart": false,
+    "stripOverTicket": false,
+    "stripCoversChartPoints": 0,
+    "duringText": "Spike incoming in 8sReal move from the data. Direction unknown.",
+    "resultText": "Spike XAUUSD +0.31%",
+    "backToIdle": true,
+    "canvas": {
+      "x": 2,
+      "y": 74,
+      "w": 762,
+      "h": 286
+    },
+    "traded": {
+      "clicked": "buyBtn",
+      "positionsBefore": 2,
+      "positionsAfter": 3
+    }
+  }
+}
