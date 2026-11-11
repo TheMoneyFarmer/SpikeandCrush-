@@ -363,11 +363,19 @@
       });
     }
 
+    // The tab opens inside the click itself (browsers block a tab opened after
+    // a network wait), then goes to the signed preview link.
     async function previewPlacement(pid) {
+      const tab = window.open('', '_blank');
+      if (tab) tab.document.write('<p style="font:15px system-ui;padding:24px">Opening the preview…</p>');
       try {
         const r = await Admin.api(`/sponsors/placements/${pid}/preview`);
-        window.open(r.url, '_blank', 'noopener');
-      } catch (e) { Admin.toast(e.message, 'danger'); }
+        if (tab && !tab.closed) { tab.opener = null; tab.location.replace(r.url); }
+        else Admin.toast('Your browser blocked the preview tab. Allow pop-ups for this site, then try again.', 'warning');
+      } catch (e) {
+        if (tab && !tab.closed) tab.close();
+        Admin.toast(e.message, 'danger');
+      }
     }
 
     async function removePlacement(pid) {

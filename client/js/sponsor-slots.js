@@ -17,7 +17,35 @@
 
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const keyOf = (el) => `${el.dataset.slot}:${el.dataset.target || ''}`;
-  const preview = new URLSearchParams(location.search).get('sp_preview');
+  // Admin preview: the signed token from the link is kept for this browser tab,
+  // so it follows the admin from the lobby into a match and its result screen.
+  // The server checks the token's signature and 30-minute expiry on every use.
+  const preview = (() => {
+    let p = new URLSearchParams(location.search).get('sp_preview');
+    try {
+      if (p) sessionStorage.setItem('sp_preview', p);
+      else p = sessionStorage.getItem('sp_preview');
+      const exp = Number(String(p || '').split('.')[1]);
+      if (p && exp && exp < Date.now()) { sessionStorage.removeItem('sp_preview'); p = null; }
+    } catch (e) { /* storage blocked: preview lasts for this page only */ }
+    return p;
+  })();
+  if (preview) {
+    const showBadge = () => {
+      if (document.getElementById('spPreviewBadge')) return;
+      const b = document.createElement('div');
+      b.id = 'spPreviewBadge';
+      b.setAttribute('role', 'status');
+      b.style.cssText = 'position:fixed;left:calc(12px + env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:2147483000;display:flex;gap:10px;align-items:center;padding:8px 12px;border-radius:10px;background:#f5b83d;color:#14213d;font:600 13px Inter,system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.35)';
+      b.innerHTML = 'Sponsor preview <button type="button" style="font:inherit;background:#14213d;color:#fff;border:0;border-radius:6px;padding:4px 8px;cursor:pointer">End preview</button>';
+      b.querySelector('button').addEventListener('click', () => {
+        try { sessionStorage.removeItem('sp_preview'); } catch (e) { /* ignore */ }
+        const u = new URL(location.href); u.searchParams.delete('sp_preview'); location.replace(u.toString());
+      });
+      document.body.appendChild(b);
+    };
+    if (document.body) showBadge(); else addEventListener('DOMContentLoaded', showBadge);
+  }
   const dark = () => document.documentElement.getAttribute('data-theme') !== 'light';
 
   function logo(p, cls) {
