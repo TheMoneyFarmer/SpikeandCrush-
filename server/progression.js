@@ -31,6 +31,7 @@ const UNLOCKS = {
   trade_limit: { level: 5 },
   margin_squeeze: { level: 5 },
   cleanse: { matches: 10 },
+  lifeline: { level: 6 },
   spread_blowout: { level: 6 },
   volatility_surge: { level: 6 },
   slippage_storm: { level: 7 },

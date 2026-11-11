@@ -14,7 +14,29 @@ const gameFeel = require('./config/gameFeel');
 const sabotage = require('./sabotage');
 const intrabar = require('./intrabar');
 
-const cfg = () => gameFeel.get();
+// A match carries its mode's rules (server/config/modeIdentity.js rulesFor,
+// snapshotted at creation); anything without them uses the global config.
+const cfg = (match) => (match && match.rules) || gameFeel.get();
+const modeIdentity = require('./config/modeIdentity');
+const progressionRules = () => require('./progression');
+
+// Cards this player may hold in this match: their unlocked pool, limited to
+// the tiers the mode allows (Blitz has no heavy cards, Solo only defensive,
+// Lifeline only where cuts happen).
+function allowedPool(match, p) {
+  const r = cfg(match).cards || {};
+  const all = p.unlockedCards || Object.keys(sabotage.CARDS);
+  const basic = progressionRules().BASIC_DECK;
+  return all.filter((id) => {
+    const card = sabotage.CARDS[id];
+    if (!card) return false;
+    if (id === 'lifeline') return Boolean(r.lifeline && match && match.rules && match.rules.elimination);
+    if (r.defenseOnly && card.kind !== 'defense') return false;
+    if (r.sabotage === false && card.kind !== 'defense') return false;
+    const tier = modeIdentity.cardTier(id, basic, card.rarity);
+    return !r.allowedTiers || r.allowedTiers.includes(tier);
+  });
+}
 
 // ---- player state -------------------------------------------------------------
 
@@ -62,8 +84,8 @@ function disqualify(pnl, position, nowMs, startingCapital, reason) {
 
 // Grant up to n cards, respecting hand size, per-minute and per-match caps.
 // Extra rewards with a full hand become Heat. Returns { granted: [types], heat }.
-function grantCards(p, n, nowMs, rand) {
-  const c = cfg().cards;
+function grantCards(p, n, nowMs, rand, match = null) {
+  const c = cfg(match).cards;
   const out = { granted: [], heat: 0, capped: 0 };
   for (let k = 0; k < n; k++) {
     p.cardGrantTimes = p.cardGrantTimes.filter((t) => nowMs - t < 60000);
@@ -75,7 +97,7 @@ function grantCards(p, n, nowMs, rand) {
       out.heat += c.heatPerOverflowCard;
       continue;
     }
-    const type = sabotage.drawWeighted(pool(p), rand);
+    const type = sabotage.drawWeighted(match ? allowedPool(match, p) : pool(p), rand);
     if (!type) break;
     p.cards.push({ type, used: false, earned: true });
     p.cardsEarned++;
@@ -89,7 +111,7 @@ function grantCards(p, n, nowMs, rand) {
 
 // Called for every full close. Returns what happened for the engine to emit.
 function onTradeClosed(match, p, { position, pnl, reason, nowMs, startingCapital = 10000 }) {
-  const c = cfg().cards;
+  const c = cfg(match).cards;
   const res = { qualifying: false, streak: p.streak, granted: [], heat: 0, reset: false, why: null };
   if (!c.earnedCards) return res;
   if (p.grantedTrades.has(position.id)) {
@@ -114,8 +136,8 @@ function onTradeClosed(match, p, { position, pnl, reason, nowMs, startingCapital
   p.streak += 1;
   p.qualifyingWins += 1;
   p.bestStreak = Math.max(p.bestStreak, p.streak);
-  if (cfg().heat.enabled) {
-    const gained = Math.round(cfg().heat.basePerWin * heatMultiplier(p.streak));
+  if (cfg(match).heat.enabled) {
+    const gained = Math.round(cfg(match).heat.basePerWin * heatMultiplier(p.streak));
     p.heat += gained;
     p.bestHeat = Math.max(p.bestHeat, p.heat);
     res.heat += gained;
@@ -125,8 +147,8 @@ function onTradeClosed(match, p, { position, pnl, reason, nowMs, startingCapital
   else if (p.streak === c.refillAtStreak) n = Math.max(1, c.handSize - handCount(p));
   else n = c.perWinAfterRefill;
   // Rank benefit "faster streak" (top tiers): one more card at streak 3.
-  if (p.streak === 3 && (cfg().progression.fasterStreakTiers || []).includes(p.tier)) n += 1;
-  const g = grantCards(p, n, nowMs, match.rand || Math.random);
+  if (p.streak === 3 && (cfg(match).progression.fasterStreakTiers || []).includes(p.tier)) n += 1;
+  const g = grantCards(p, n, nowMs, match.rand || Math.random, match);
   res.granted = g.granted;
   res.heat += g.heat;
   res.capped = g.capped;
@@ -143,14 +165,18 @@ function isOffline(p) {
 
 // Why `caster` may not play `cardType` on `target` right now, or null.
 function checkPlay(match, caster, cardType, target, nowMs) {
-  const c = cfg().cards;
+  const c = cfg(match).cards;
   const def = sabotage.CARDS[cardType];
   if (!def) return 'Unknown card';
-  if (caster.unlockedCards && !caster.unlockedCards.includes(cardType)) return 'That card is locked for you';
+  if (caster.unlockedCards && cardType !== 'lifeline' && !caster.unlockedCards.includes(cardType)) return 'That card is locked for you';
+  if (caster.eliminated || caster.spectator) return 'You are out of this match';
+  if (match && match.rules && !allowedPool(match, { ...caster, unlockedCards: caster.unlockedCards || null }).includes(cardType)) {
+    return c.sabotage === false ? 'No sabotage in this mode' : 'That card is not allowed in this mode';
+  }
   if (!def.targeted) return null;
   if (!target) return 'Choose a target player';
   if (target.id === caster.id) return 'Cannot target yourself';
-  if (target.eliminated) return `${target.username} is out of the match`;
+  if (target.eliminated || target.spectator) return `${target.username} is out of the match`;
   if (isOffline(target)) return `${target.username} is offline`;
   if (sabotage.hasShieldCard(target, nowMs)) return `${target.username} has a Shield up`;
   if (target.effects.hitShield && nowMs < target.effects.hitShield.until) {
@@ -167,7 +193,7 @@ function checkPlay(match, caster, cardType, target, nowMs) {
 
 // After an attack card lands on a target.
 function afterHit(match, target, nowMs) {
-  const c = cfg().cards;
+  const c = cfg(match).cards;
   if (!match.cardTargetedAt) match.cardTargetedAt = {};
   match.cardTargetedAt[target.id] = nowMs;
   target.effects.hitShield = { until: nowMs + c.hitShieldSeconds * 1000, by: null };
@@ -181,7 +207,7 @@ function targetStatus(p, nowMs) {
   else if (p.effects.hitShield && nowMs < p.effects.hitShield.until) tags.push('protected');
   const on = sabotage.activeTargetEffect(p, nowMs);
   if (on) tags.push(on === 'position_freeze' ? 'frozen' : 'affected');
-  if (p.eliminated) tags.push('out');
+  if (p.eliminated || p.spectator) tags.push('out');
   return tags;
 }
 
@@ -190,7 +216,7 @@ function targetStatus(p, nowMs) {
 // rows: leaderboard rows sorted best first ({ id }). Returns the dethrone
 // grant (or null) when the lead changes hands.
 function updateCrown(match, rows, nowMs) {
-  const g = cfg().crown;
+  const g = cfg(match).crown;
   if (!g.enabled || !rows.length) return null;
   // Ties keep the current leader.
   const top = rows[0];
@@ -208,7 +234,7 @@ function updateCrown(match, rows, nowMs) {
   if (g.dethroneCard && p && nowMs - p.lastDethroneAt >= g.dethroneCooldownSeconds * 1000) {
     p.dethroneGrants.set(key, true);
     p.lastDethroneAt = nowMs;
-    grant = grantCards(p, 1, nowMs, match.rand || Math.random);
+    grant = grantCards(p, 1, nowMs, match.rand || Math.random, match);
   }
   return { leaderId: top.id, previous: prev, grant };
 }
@@ -227,16 +253,26 @@ const MISSIONS = {
 // Missions only count trades of real size: margin of at least 0.5% of capital.
 const MEANINGFUL_MARGIN_SHARE = 0.005;
 
+const ALL_MISSIONS = () => ({ ...MISSIONS, ...modeIdentity.MODE_MISSIONS });
+
 function assignMissions(match, p, { hasSpikes }) {
-  const m = cfg().missions;
+  const m = cfg(match).missions;
   if (!m.enabled || p.isAI) return [];
+  const defs = ALL_MISSIONS();
+  const poolIds = (m.pool || Object.keys(MISSIONS)).filter((id) => defs[id] && (hasSpikes || !defs[id].needsSpikes));
+  const make = (id) => ({ id, label: defs[id].label, progress: 0, target: defs[id].target, done: false });
+  // A mission chain (Solo): three linked missions, one unlocked at a time.
+  if (m.chain) {
+    p.missions = poolIds.slice(0, 3).map((id, i) => ({ ...make(id), locked: i > 0, chain: true }));
+    return p.missions;
+  }
   const rand = intrabar.rngFor(match.marketSeed || match.id, `missions:${p.id}`);
-  const ids = Object.keys(MISSIONS).filter((id) => hasSpikes || !MISSIONS[id].needsSpikes);
+  const ids = poolIds.slice();
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     [ids[i], ids[j]] = [ids[j], ids[i]];
   }
-  p.missions = ids.slice(0, m.perMatch).map((id) => ({ id, label: MISSIONS[id].label, progress: 0, target: MISSIONS[id].target, done: false }));
+  p.missions = ids.slice(0, m.perMatch).map(make);
   return p.missions;
 }
 
@@ -245,8 +281,33 @@ function assignMissions(match, p, { hasSpikes }) {
 function missionEvent(p, ev) {
   const done = [];
   for (const m of p.missions || []) {
-    if (m.done) continue;
+    if (m.done || m.locked) continue;
     switch (m.id) {
+      case 'first_trade':
+        if (ev.type === 'open') m.progress = 1;
+        break;
+      case 'fast_two_wins':
+        if (ev.type === 'close' && ev.qualifying) {
+          m.winTimes = (m.winTimes || []).filter((t) => ev.nowMs - t <= 60000).concat(ev.nowMs);
+          m.progress = Math.max(m.progress, Math.min(2, m.winTimes.length));
+        }
+        break;
+      case 'first_win_30':
+        if (ev.type === 'close' && ev.qualifying && ev.elapsedSeconds <= 30) m.progress = 1;
+        break;
+      case 'hold_180':
+        if ((ev.type === 'close' || ev.type === 'tick') && ev.meaningful && ev.heldMs >= 180000) m.progress = 1;
+        break;
+      case 'survive_events':
+        if (ev.type === 'events_done' && ev.aboveStart) m.progress = 1;
+        break;
+      case 'survive_two_cuts':
+        if (ev.type === 'cut_survived') m.progress += 1;
+        break;
+      case 'never_bottom':
+        if (ev.type === 'cut_survived' && ev.inDangerAtCut) m.failed = true;
+        if (ev.type === 'cuts_over' && !m.failed && ev.cuts > 0) m.progress = 1;
+        break;
       case 'hold_60':
         if ((ev.type === 'close' || ev.type === 'tick') && ev.meaningful && ev.heldMs >= 60000) m.progress = 1;
         break;
@@ -270,6 +331,11 @@ function missionEvent(p, ev) {
     if (m.progress >= m.target) {
       m.done = true;
       done.push(m);
+      // Chain: finishing one unlocks the next.
+      if (m.chain) {
+        const next = (p.missions || []).find((x) => x.locked);
+        if (next) next.locked = false;
+      }
     }
   }
   return done;
@@ -280,10 +346,11 @@ function missionEvent(p, ev) {
 // From the real indexed spike events of this match's instruments (data
 // seconds from match start): keep the ones that leave room for the lead time
 // and are spaced out, so alerts never pile up.
-function planSpikes(events, durationDataSeconds) {
-  const s = cfg().spikeAlerts;
+function planSpikes(events, durationDataSeconds, rules = null) {
+  const s = (rules && rules.spikeAlerts) || cfg().spikeAlerts;
   if (!s.enabled) return [];
-  const minGap = Math.max(60, s.leadDataSeconds * 4);
+  // Per-mode spacing (Blitz announces more often), never closer than 4x the lead.
+  const minGap = Math.max(s.minGapSeconds || 60, s.leadDataSeconds * 4);
   const sorted = events.filter((e) => e.dataSecond >= s.leadDataSeconds && e.dataSecond + 60 <= durationDataSeconds).sort((a, b) => a.dataSecond - b.dataSecond);
   const out = [];
   for (const e of sorted) {
@@ -296,18 +363,18 @@ function planSpikes(events, durationDataSeconds) {
 
 // Called every tick with the current data second. Returns events to emit.
 function spikeTick(match, dataSecond) {
-  const s = cfg().spikeAlerts;
+  const s = cfg(match).spikeAlerts;
   const out = [];
   if (!s.enabled) return out;
   for (const sp of match.spikePlan || []) {
     if (!sp.alerted && dataSecond >= sp.dataSecond - s.leadDataSeconds && dataSecond < sp.dataSecond) {
       sp.alerted = true;
       // Only the time: never the direction, the size or even the instrument.
-      out.push({ event: 'spike:alert', payload: { id: sp.id, inSeconds: sp.dataSecond - dataSecond } });
+      out.push({ event: 'spike:alert', payload: { id: sp.id, inSeconds: sp.dataSecond - dataSecond, ...(sp.kind === 'event' ? { kind: 'event', eventNo: sp.eventNo } : {}) } });
     }
     if (sp.alerted && !sp.resolved && dataSecond >= sp.dataSecond + 60) {
       sp.resolved = true;
-      out.push({ event: 'spike:result', payload: { id: sp.id, symbol: sp.symbol, movePct: sp.movePct, showSeconds: s.resultShowSeconds } });
+      out.push({ event: 'spike:result', payload: { id: sp.id, symbol: sp.symbol, movePct: sp.movePct, showSeconds: s.resultShowSeconds, ...(sp.kind === 'event' ? { kind: 'event', eventNo: sp.eventNo } : {}) } });
     }
   }
   return out;
@@ -315,6 +382,8 @@ function spikeTick(match, dataSecond) {
 
 module.exports = {
   MISSIONS,
+  ALL_MISSIONS,
+  allowedPool,
   MEANINGFUL_MARGIN_SHARE,
   initPlayer,
   handCount,

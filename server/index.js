@@ -1128,11 +1128,12 @@ app.get('/api/discord/callback', requireDb, async (req, res) => {
 
 const MATCHMAKING_BY_MODE = {
   quick: (playerInfo) => matchmaking.quickPlay(gameEngine, playerInfo),
+  tournament: (playerInfo) => matchmaking.eliminationPlay(gameEngine, playerInfo),
   blitz: (playerInfo) => matchmaking.blitzPlay(gameEngine, playerInfo),
   grand: (playerInfo) => matchmaking.grandPlay(gameEngine, playerInfo),
   solo: (playerInfo, body) => matchmaking.soloPlay(gameEngine, playerInfo, body?.instruments),
   async: (playerInfo) => matchmaking.asyncPlay(gameEngine, playerInfo),
-  private: (playerInfo) => matchmaking.createPrivateWar(gameEngine, playerInfo),
+  private: (playerInfo, body) => matchmaking.createPrivateWar(gameEngine, playerInfo, body?.hostOptions),
 };
 
 const MAX_OPEN_MATCHES_PER_PLAYER = 3;
@@ -3061,7 +3062,10 @@ app.post('/api/tournament/:id/play', deployDrain.blockNewMatches, requireDb, aut
     const toPlayerInfo = (p) => ({ id: p.id, username: p.username, country: p.country, war_rating: p.war_rating, tier: tierForRating(p.war_rating) });
 
     const match = await gameEngine.createMatch('tournament', {
-      configOverrides: { tournamentId: t.id, round: myReg.current_round, matchupIndex: matchup.matchup },
+      // Bracket rounds keep their original shape: exactly 2 players, no lobby
+      // fill, no entry fee. (The 'tournament' key is also the public
+      // Elimination mode; with 2 players no cut ever happens.)
+      configOverrides: { tournamentId: t.id, round: myReg.current_round, matchupIndex: matchup.matchup, label: 'Tournament round', maxPlayers: 2, idealPlayers: 2, minPlayers: 2, fillMethod: 'none', entryCoins: 0, lobbyTimeoutMs: 0 },
     });
     gameEngine.joinMatch(match, { ...toPlayerInfo(playerA), ...loadA });
     gameEngine.joinMatch(match, { ...toPlayerInfo(playerB), ...loadB });

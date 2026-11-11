@@ -151,7 +151,7 @@ test('history sends played prices but nothing past the clock', async (t) => {
   assert.ok(Math.max(...played.map((x) => x.t)) <= 31);
 });
 
-test('Blitz War deals 5 instruments and 3 cards, like Quick War, in 3 minutes', async () => {
+test('Blitz War deals 5 instruments and 2 card slots (its own identity) in 3 minutes', async () => {
   await instruments.preloadAll?.();
   const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
   const match = await engine.createMatch('blitz');
@@ -159,24 +159,28 @@ test('Blitz War deals 5 instruments and 3 cards, like Quick War, in 3 minutes', 
   assert.strictEqual(match.config.durationSeconds, 180);
   assert.strictEqual(match.instruments.length, 5);
   assert.strictEqual(new Set(match.instruments).size, 5);
-  assert.strictEqual(match.players.p1.cards.length, 3);
+  assert.strictEqual(match.players.p1.cards.length, 2);
+  assert.strictEqual(match.rules.cards.handSize, 2);
 });
 
-test('saved deck: every card comes from it when it holds enough', async () => {
+test('saved deck: every card comes from it when it holds enough (per-mode hand and card pool)', async () => {
   await instruments.preloadAll?.();
   const sabotage = require('../server/sabotage');
-  const deck = Object.keys(sabotage.CARDS).slice(0, 5);
-  // Fire gameplay: only unlocked cards can be dealt, and the hand holds at
-  // most cards.handSize (4) - so Grand War's 5-card deal is now 4.
-  const handSize = require('../server/config/gameFeel').get().cards.handSize;
+  const cardRules = require('../server/cards');
+  const all = Object.keys(sabotage.CARDS);
   for (const mode of ['quick', 'blitz', 'solo', 'private', 'tournament', 'grand']) {
     const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
     const match = await engine.createMatch(mode);
-    engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck, unlockedCards: Object.keys(sabotage.CARDS) });
+    // The deck holds 5 cards this mode may deal (Blitz: no heavy cards, Solo: defense only).
+    const deck = cardRules.allowedPool(match, { unlockedCards: all }).slice(0, 5);
+    engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck, unlockedCards: all });
+    const r = match.rules.cards;
+    const want = r.startingHand ? Math.min(r.handSize, r.startingHand.count) : Math.min(r.handSize, match.config.cardsPerPlayer);
     const cards = match.players.p1.cards.map((c) => c.type);
-    assert.strictEqual(cards.length, Math.min(handSize, match.config.cardsPerPlayer), mode);
+    assert.strictEqual(cards.length, Math.min(want, deck.length), mode);
     assert.strictEqual(new Set(cards).size, cards.length, mode + ' has duplicates');
-    assert.ok(cards.every((t) => deck.includes(t)), mode + ' dealt outside the deck');
+    if (!r.startingHand) assert.ok(cards.every((t) => deck.includes(t)), mode + ' dealt outside the deck');
+    await engine.forceEndMatch(match.id).catch(() => {});
   }
 });
 

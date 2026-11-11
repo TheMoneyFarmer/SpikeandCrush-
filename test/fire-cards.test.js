@@ -165,10 +165,10 @@ test('11: Heat and earned cards never change equity, P&L or ranking (same script
   assert.deepStrictEqual(on, off);
 });
 
-test('15c: deck = 30 attack/market cards (same total as before) + 2 defensive; no threat-only card remains', () => {
+test('15c: deck = 30 attack/market cards (same total as before) + 3 defensive (Lifeline is Elimination-only); no threat-only card remains', () => {
   const attack = ALL.filter((id) => sabotage.CARDS[id].kind !== 'defense');
   assert.strictEqual(attack.length, 30);
-  assert.deepStrictEqual(ALL.filter((id) => sabotage.CARDS[id].kind === 'defense').sort(), ['cleanse', 'shield']);
+  assert.deepStrictEqual(ALL.filter((id) => sabotage.CARDS[id].kind === 'defense').sort(), ['cleanse', 'lifeline', 'shield']);
   for (const old of Object.keys(sabotage.REPLACED_THREAT_ONLY)) assert.ok(!sabotage.CARDS[old], `${old} still in deck`);
   for (const id of ALL) assert.ok(!/\p{Extended_Pictographic}/u.test(sabotage.CARDS[id].icon), `${id} uses an emoji icon`);
 });

@@ -11,6 +11,7 @@ const tournamentLib = require('./tournament');
 const personas = require('./personas');
 const gameFeel = require('./config/gameFeel');
 const cardRules = require('./cards');
+const modeIdentity = require('./config/modeIdentity');
 const progression = require('./progression');
 const rankSplit = require('./rankSplit');
 const cosmetics = require('./cosmetics');
@@ -106,11 +107,14 @@ const MATCH_MODES = {
     instrumentCount: 2, cardsPerPlayer: 3, entryCoins: 0, ranked: true, ratingKey: 'solo_rating',
     fillMethod: 'ai_only', aiOpponents: 3,
   },
+  // Public Elimination mode (display name from server/config/modeIdentity.js).
+  // Bracket rounds of user-made tournaments reuse this key with their own
+  // overrides (2 players, no fill, no fee) - see index.js.
   tournament: {
-    label: 'Tournament War', idealPlayers: 2, minPlayers: 2, maxPlayers: 2,
-    lobbyTimeoutMs: 0, countdownSeconds: 5, durationSeconds: 900,
-    instrumentCount: 5, cardsPerPlayer: 4, entryCoins: 0, ranked: false, ratingKey: null,
-    fillMethod: 'none',
+    label: 'Elimination', idealPlayers: 8, minPlayers: 2, maxPlayers: null,
+    lobbyTimeoutMs: 60000, countdownSeconds: 5, durationSeconds: 900,
+    instrumentCount: 5, cardsPerPlayer: 3, entryCoins: 10, ranked: false, ratingKey: null,
+    fillMethod: 'ai',
   },
   async: {
     label: 'Async Daily Challenge', idealPlayers: 1, minPlayers: 1, maxPlayers: 1,
@@ -162,8 +166,10 @@ function samePnl(a, b) {
 function groupByTiedPnl(sortedEntries, enableTies) {
   const groups = [];
   let current = [sortedEntries[0]];
+  // A tie only within the same elimination round (or both survivors).
+  const sameRound = (a, b) => ((a.player && a.player.eliminatedRound) || 0) === ((b.player && b.player.eliminatedRound) || 0);
   for (let i = 1; i < sortedEntries.length; i++) {
-    if (enableTies && samePnl(sortedEntries[i].pnl, sortedEntries[i - 1].pnl)) {
+    if (enableTies && samePnl(sortedEntries[i].pnl, sortedEntries[i - 1].pnl) && sameRound(sortedEntries[i], sortedEntries[i - 1])) {
       current.push(sortedEntries[i]);
     } else {
       groups.push(current);
@@ -209,9 +215,13 @@ function tierForRating(rating) {
 // bestTrade, worstTrade, equityHistory }; `balance` is compared against
 // STARTING_CAPITAL to get each player's final P&L.
 function computeMatchResults(players, mode, config) {
+  // Elimination: survivors first (by P&L), then knocked-out players by the
+  // round they were cut in (later = better), then P&L at the cut. Every
+  // other mode: P&L only (no player has eliminatedRound).
+  const roundOf = (p) => p.eliminatedRound || Infinity;
   const ranked = players
     .map((p) => ({ player: p, pnl: Math.round((p.balance - STARTING_CAPITAL) * 100) / 100 }))
-    .sort((a, b) => b.pnl - a.pnl);
+    .sort((a, b) => (roundOf(a.player) !== roundOf(b.player) ? roundOf(b.player) - roundOf(a.player) : b.pnl - a.pnl));
 
   const avgOpponentRatingFor = (playerId) => {
     const others = ranked.filter((r) => r.player.id !== playerId).map((r) => r.player.warRating);
@@ -420,11 +430,32 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       streak: isSelf ? p.streak || 0 : undefined,
       heat: isSelf ? p.heat || 0 : undefined,
       missions: isSelf ? p.missions || [] : undefined,
+      spectator: Boolean(p.spectator),
+      outRound: p.eliminatedRound || null,
     };
   }
 
   // What the client needs to draw the card tray, Heat meter, crown, missions
   // and spike strip - feature flags and display numbers only.
+  function modeRulesForClient(match) {
+    const r = match.rules;
+    if (!r) return null;
+    const el = match.elimination || {};
+    return {
+      mode: match.mode,
+      displayName: match.config.tournamentId ? 'Tournament round' : r.identity.displayName,
+      winShort: r.identity.winShort,
+      banner: match.config.tournamentId ? 'Tournament round: 15 minutes, 1 vs 1, highest equity wins.' : r.identity.banner,
+      handSize: r.cards.enabled ? r.cards.handSize : 0,
+      sabotage: r.cards.sabotage,
+      elimination: r.elimination ? { active: Boolean(el.active), schedule: el.schedule || [], nextIdx: el.nextIdx || 0, reason: el.reason || null, rounds: (el.rounds || []).map((x) => ({ round: x.round, remaining: x.remaining })) } : null,
+      events: (match.marketEvents || []).map((e) => ({ no: e.no, minute: e.minute, found: e.found })),
+      checkpointMinute: r.checkpointMinute,
+      host: r.host || null,
+      resultHighlights: r.resultHighlights,
+    };
+  }
+
   function fireClientConfig() {
     const f = gameFeel.get();
     return {
@@ -459,6 +490,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       rules: { ...marginRules.MARGIN_RULES, maxPositions: MAX_POSITIONS, softLossPct: SOFT_LOSS_PCT, softLossWindowSeconds: SOFT_LOSS_WINDOW_SECONDS },
       cardCatalog: sabotage.getCardCatalog(),
       fire: fireClientConfig(),
+      // The mode's rules as the player should see them. Never the instrument,
+      // size or direction of a coming market event (that would be future data).
+      modeRules: modeRulesForClient(match),
       marketSpeed: match.replaySpeed || 1,
       leaderId: match.leaderId || null,
       challenge: match.config.challenge ? { username: match.config.challenge.username, pnl: match.config.challenge.pnl } : null,
@@ -652,6 +686,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // instrument set and identical price window, so both draws are seeded
     // from today's UTC calendar day instead of Math.random().
     const dailySeed = mode === 'async' ? new Date().toISOString().slice(0, 10) : null;
+    // The mode's rules for this match (server/config/modeIdentity.js),
+    // snapshotted now so admin edits only reach new matches.
+    const rules = modeIdentity.rulesFor(mode, mode === 'private' ? opts.hostOptions || modeIdentity.hostOptions({}) : null);
     // A pinned list (Solo favourites, tournament/async sets, ghost challenges)
     // only keeps instruments that are still playable; an empty result falls
     // back to a fresh draw so a disabled instrument can never be traded.
@@ -660,7 +697,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       ? pinned
       : dailySeed
         ? instruments.selectDailyInstruments(dailySeed, modeConfig.instrumentCount, mode)
-        : instruments.selectMatchInstruments(modeConfig.instrumentCount, mode);
+        : instruments.selectMatchInstruments(modeConfig.instrumentCount, mode, rules.instrumentPool === 'top' ? { topN: rules.instrumentPoolSize || 6 } : {});
 
     const liveMinutes = Math.ceil((opts.configOverrides?.durationSeconds ?? modeConfig.durationSeconds) / 60);
     // Every match gets one market seed shared by all its players (a ghost
@@ -681,6 +718,11 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       instruments: matchInstruments,
       marketSeed,
       replaySpeed,
+      rules,
+      // Elimination state (cuts), market events and the half-time checkpoint.
+      elimination: { cuts: [], nextCutIndex: 0, active: false, warned: {} },
+      marketEvents: [],
+      checkpointShown: false,
       // Seeded generator for card draws, ghost trades and other in-match
       // chance, so a replay of the match log reproduces every amount.
       rand: intrabar.rngFor(marketSeed, `${matchId}:cards`),
@@ -824,6 +866,150 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     return cardRules.initPlayer(state, { unlockedCards: unlocked });
   }
 
+  // The starting hand under this match's mode rules (modeIdentity): no cards
+  // where the mode has none, the mode's hand size, Grand's starting hand from
+  // the basic/mid tiers, and only cards the player has unlocked and the mode
+  // allows (Blitz: no heavy cards; Solo: defensive only).
+  function dealForMode(match, player, deck) {
+    const r = match.rules && match.rules.cards;
+    if (!r) return;
+    if (!r.enabled) {
+      player.cards = [];
+      return;
+    }
+    let pool = cardRules.allowedPool(match, player);
+    let count = Math.min(r.handSize, player.cards.length);
+    if (r.startingHand) {
+      const basic = progression.BASIC_DECK;
+      pool = pool.filter((id) => r.startingHand.tiers.includes(modeIdentity.cardTier(id, basic, sabotage.CARDS[id].rarity)));
+      count = Math.min(r.handSize, r.startingHand.count);
+    }
+    player.cards = sabotage.dealCards(count, deck || [], pool);
+  }
+
+  // Per-second mode work: Elimination warnings and cuts, Grand's half-time
+  // standings, and each player's deepest drawdown (Steady Hand badge).
+  function modeTick(match, elapsedSeconds, nowMs) {
+    const rules = match.rules;
+    if (!rules) return;
+    if (rules.steadyHandBadge) {
+      for (const p of Object.values(match.players)) {
+        const eq = computeEquity(match, p, elapsedSeconds, nowMs);
+        p.peakEquity = Math.max(p.peakEquity || STARTING_CAPITAL, eq);
+        p.maxDrawdown = Math.max(p.maxDrawdown || 0, p.peakEquity - eq);
+      }
+    }
+    if (rules.checkpointMinute && !match.checkpointShown && elapsedSeconds >= rules.checkpointMinute * 60) {
+      match.checkpointShown = true;
+      const rows = standingsNow(match, elapsedSeconds, nowMs).slice(0, 5);
+      emitToAll(match, 'mode:checkpoint', { minute: rules.checkpointMinute, crown: match.leaderId ? match.players[match.leaderId]?.username : null, top: rows.map((r) => ({ username: r.username, pnl: r.pnl })) });
+    }
+    const el = match.elimination;
+    if (!el || !el.active || el.nextIdx >= el.schedule.length) return;
+    const cfg = rules.elimination;
+    const at = el.schedule[el.nextIdx];
+    if (el.warnedIdx < el.nextIdx && elapsedSeconds >= at - cfg.warnSeconds) {
+      el.warnedIdx = el.nextIdx;
+      emitToAll(match, 'elim:warning', { round: el.nextIdx + 1, cutAt: at, inSeconds: Math.max(1, at - elapsedSeconds), cutCount: cutCountFor(match) });
+    }
+    if (elapsedSeconds >= at) runCut(match, elapsedSeconds, nowMs);
+  }
+
+  function aliveIn(match) {
+    return Object.values(match.players).filter((p) => !p.spectator);
+  }
+
+  // Bottom share of the players still in; at least 1 once 4+ remain; never
+  // everyone (Elimination, server/config/modeIdentity.js).
+  function cutCountFor(match) {
+    const cfg = match.rules && match.rules.elimination;
+    if (!cfg) return 0;
+    const n = aliveIn(match).length;
+    if (n < cfg.minPlayersToStart) return 0;
+    return Math.min(n - 1, Math.max(1, Math.floor(n * cfg.cutShare)));
+  }
+
+  function standingsNow(match, elapsedSeconds, nowMs) {
+    return Object.values(match.players)
+      .map((p) => ({ id: p.id, username: p.username, equity: computeEquity(match, p, elapsedSeconds, nowMs), pnl: 0, spectator: Boolean(p.spectator) }))
+      .map((r) => ({ ...r, pnl: Math.round((r.equity - STARTING_CAPITAL) * 100) / 100 }))
+      .sort((a, b) => b.equity - a.equity);
+  }
+
+  // One Elimination cut: the lowest-equity players still in are knocked out
+  // (offline players included - the match keeps running for them). A Lifeline
+  // holder in the cut zone is skipped once and the next lowest goes instead.
+  // Their open positions close at market now; they become spectators.
+  function runCut(match, elapsedSeconds, nowMs) {
+    const el = match.elimination;
+    const round = el.nextIdx + 1;
+    el.nextIdx += 1;
+    const count = cutCountFor(match);
+    const alive = aliveIn(match)
+      .map((p) => ({ p, equity: computeEquity(match, p, elapsedSeconds, nowMs) }))
+      .sort((a, b) => a.equity - b.equity);
+    const dangerIds = new Set(alive.slice(0, count).map((x) => x.p.id));
+    const out = [];
+    const saved = [];
+    for (const x of alive) {
+      if (out.length >= count) break;
+      const life = x.p.effects.lifeline;
+      if (life && life.charges > 0) {
+        life.charges -= 1;
+        x.p.effects.lifeline = null;
+        saved.push(x.p);
+        continue;
+      }
+      out.push(x.p);
+    }
+    for (const p of out) {
+      for (const pos of p.positions.slice()) closeTrade(match.id, p.id, pos.id, 'elimination');
+      p.spectator = true;
+      p.eliminatedRound = round;
+      p.equityAtCut = Math.round(p.balance * 100) / 100;
+      emitToPlayer(match, p.id, 'elim:out', { round, equity: p.equityAtCut });
+    }
+    for (const p of aliveIn(match)) missionProgress(match, p, { type: 'cut_survived', inDangerAtCut: dangerIds.has(p.id) });
+    el.rounds.push({ round, at: elapsedSeconds, cut: out.map((p) => p.id), saved: saved.map((p) => p.id), remaining: aliveIn(match).length });
+    pushFeed(match, out.length ? `Cut ${round}: ${out.map((p) => p.username).join(', ')} knocked out. ${aliveIn(match).length} left.` : `Cut ${round}: nobody knocked out.`, { type: 'elimination', timestamp: elapsedSeconds, round });
+    emitToAll(match, 'elim:cut', { round, out: out.map((p) => ({ id: p.id, username: p.username })), saved: saved.map((p) => p.username), remaining: aliveIn(match).length, nextCutAt: el.schedule[el.nextIdx] ?? null });
+    emitMatchStateToAll(match);
+  }
+
+  // Spike alerts, Grand War's scheduled market events and Elimination's cuts
+  // for this match, from its mode rules (server/config/modeIdentity.js).
+  function planModeSchedule(match, spikeEvents) {
+    const rules = match.rules || modeIdentity.rulesFor(match.mode);
+    const dataDuration = match.config.durationSeconds * (match.replaySpeed || 1);
+    // Grand: the biggest real move near each scheduled minute (never invented).
+    const events = [];
+    if (rules.events && rules.events.minutes && rules.events.minutes.length) {
+      const big = [];
+      for (const symbol of match.instruments) big.push(...instruments.getBigMoves(match.id, symbol, rules.events.topPercent || 5));
+      rules.events.minutes.forEach((minute, k) => {
+        const at = minute * 60;
+        const near = big
+          .filter((e) => Math.abs(e.dataSecond - at) <= (rules.events.searchWindowSeconds || 120) && !events.some((x) => x.dataSecond === e.dataSecond))
+          .sort((a, b) => b.rangeBps - a.rangeBps)[0];
+        match.marketEvents.push({ no: k + 1, minute, found: Boolean(near), dataSecond: near ? near.dataSecond : null, symbol: near ? near.symbol : null, movePct: near ? near.movePct : null });
+        if (near) events.push({ ...near, kind: 'event', eventNo: k + 1, id: `event-${k + 1}`, alerted: false, resolved: false });
+      });
+    }
+    // Regular spike alerts, kept a minute away from any scheduled event.
+    const regular = cardRules.planSpikes(spikeEvents, dataDuration, rules).filter((sp) => !events.some((e) => Math.abs(e.dataSecond - sp.dataSecond) < 60));
+    match.spikePlan = [...events, ...regular].sort((a, b) => a.dataSecond - b.dataSecond);
+    // Elimination: real-time cut checkpoints; needs enough players at the start.
+    const el = rules.elimination;
+    const starters = Object.values(match.players).length;
+    if (el && starters >= el.minPlayersToStart) {
+      const schedule = [];
+      for (let t = el.firstCutMinute * 60; t < match.config.durationSeconds; t += el.everyMinutes * 60) schedule.push(t);
+      match.elimination = { active: true, schedule, nextIdx: 0, warnedIdx: -1, rounds: [] };
+    } else {
+      match.elimination = { active: false, schedule: [], nextIdx: 0, warnedIdx: -1, rounds: [], reason: el ? `Fewer than ${el.minPlayersToStart} players: no cuts this match` : null };
+    }
+  }
+
   function isInLiveMatch(playerId) {
     return liveMatchesFor(playerId).length > 0;
   }
@@ -849,6 +1035,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (!match.hostId) match.hostId = playerInfo.id;
 
     const player = createPlayerState(playerInfo, socketId, false, null, match.config);
+    dealForMode(match, player, playerInfo.deck);
     match.players[playerInfo.id] = player;
     match.playerOrder.push(playerInfo.id);
 
@@ -892,6 +1079,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         match.config,
         match.instruments
       );
+      dealForMode(match, player, null);
       match.players[player.id] = player;
       match.playerOrder.push(player.id);
       if (db.isConfigured && match.dbMatchId) {
@@ -1029,7 +1217,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // two quick missions per player.
     const spikeEvents = [];
     for (const symbol of match.instruments) spikeEvents.push(...instruments.getSpikeSchedule(match.id, symbol));
-    match.spikePlan = cardRules.planSpikes(spikeEvents, match.config.durationSeconds * (match.replaySpeed || 1));
+    planModeSchedule(match, spikeEvents);
     for (const p of Object.values(match.players)) cardRules.assignMissions(match, p, { hasSpikes: match.spikePlan.length > 0 });
 
     emitMatchStateToAll(match);
@@ -1199,6 +1387,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       // Self-play: a Private War alone, or a ghost challenge (no live opponent).
       selfPlay: Boolean(match.config.challenge) || (Object.values(match.players).filter((x) => !x.isAI).length === 1 && match.mode === 'private'),
     });
+    // Per-mode XP multiplier (modeIdentity xpMultiplier, default 1), then the caps.
+    const mult = (match.rules && match.rules.xpMultiplier) || 1;
+    if (mult !== 1) xp.total = Math.min(Math.round(xp.total * mult), gameFeel.get().progression.xp.perMatchCap);
     if (!db.isConfigured) return { xpGained: xp.total, parts: xp.parts };
     const row = await db.getPlayerById(p.id);
     const stored = db.getProgress ? await db.getProgress(p.id).catch(() => null) : null;
@@ -1244,6 +1435,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     }
     if (player.softLocked) {
       return { success: false, error: 'Loss limit reached for this 2-minute window - trading resumes next window' };
+    }
+    if (player.spectator) {
+      return { success: false, error: 'You were knocked out at a cut. You are watching now.' };
     }
 
     // Damaging card effects on this player (server/sabotage.js).
@@ -1381,7 +1575,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const price = getEffectivePrice(match, position.symbol, elapsedSeconds, nowMs, playerId);
     let exitPrice = position.direction === 'BUY' ? price.bid : price.ask;
     // Slippage Storm also hits the target's own exits (not card closes).
-    if (reason !== 'sabotage') {
+    if (reason !== 'sabotage' && reason !== 'elimination') {
       const slip = takeSlippage(player, position.symbol, nowMs);
       if (slip) exitPrice = Number((exitPrice + (position.direction === 'BUY' ? -slip : slip)).toFixed(instruments.getInstrument(position.symbol).decimals));
     }
@@ -1413,8 +1607,11 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // Streak, earned cards, Heat and missions (server/cards.js).
     const earned = cardRules.onTradeClosed(match, player, { position, pnl, reason, nowMs, startingCapital: STARTING_CAPITAL });
     if (earned.qualifying || earned.reset || earned.granted.length || earned.heat) emitCardsUpdate(match, player, { earned });
+    if (earned.qualifying && player.firstWinSeconds === undefined) player.firstWinSeconds = elapsedSeconds;
     missionProgress(match, player, {
       type: 'close',
+      nowMs,
+      elapsedSeconds,
       qualifying: earned.qualifying,
       reason,
       heldMs: nowMs - position.openedAt,
@@ -1921,7 +2118,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
   function runAI(match, player, elapsedSeconds, nowMs) {
     const st = player.aiState;
-    if (!st) return;
+    if (!st || player.spectator) return;
 
     switch (player.aiPersonality) {
       case 'aggressive': {
@@ -2134,7 +2331,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     for (const ev of cardRules.spikeTick(match, dataSeconds)) {
       if (ev.event === 'spike:alert') match.lastSpikeAlertAt = nowMs;
       emitToAll(match, ev.event, ev.payload);
+      // Grand: once the last scheduled event has landed, the "survive the
+      // events" mission checks who is still above their starting equity.
+      if (ev.event === 'spike:result' && ev.payload.kind === 'event' && match.spikePlan.filter((x) => x.kind === 'event').every((x) => x.resolved)) {
+        for (const p of Object.values(match.players)) missionProgress(match, p, { type: 'events_done', aboveStart: computeEquity(match, p, elapsedSeconds, nowMs) > STARTING_CAPITAL });
+      }
     }
+    modeTick(match, elapsedSeconds, nowMs);
     // "Hold a trade for 60 seconds" completes while the trade is still open.
     if (elapsedSeconds % 5 === 0) {
       for (const p of Object.values(match.players)) {
@@ -2180,10 +2383,18 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           tier: p.tier,
           level: p.level,
           status: cardRules.targetStatus(p, nowMs),
+          out: Boolean(p.spectator),
+          outRound: p.eliminatedRound || null,
         };
       })
-      .sort((a, b) => b.pnl - a.pnl)
+      .sort((a, b) => (a.out !== b.out ? (a.out ? 1 : -1) : a.out ? (b.outRound || 0) - (a.outRound || 0) || b.pnl - a.pnl : b.pnl - a.pnl))
       .map((row, i) => ({ ...row, rank: i + 1 }));
+    // Elimination: the bottom zone of the players still in gets a Danger tag.
+    if (match.elimination && match.elimination.active && match.elimination.nextIdx < match.elimination.schedule.length) {
+      const alive = rows.filter((r) => !r.out);
+      const n = cutCountFor(match);
+      for (const r of alive.slice(alive.length - n)) r.danger = true;
+    }
 
     // Crown: the leader is marked, and overtaking them earns one card
     // ("Dethrone", once per leader change, with a cooldown).
@@ -2481,9 +2692,31 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // XP and new card unlocks (result screen), plus market telemetry for the
     // Fire monitor. None of it feeds back into P&L, rank, prizes or ratings.
     recordMarketStats(match);
+    // Mode wrap-up: Elimination's "stay out of the bottom zone" missions, and
+    // Grand's Steady Hand badge (smallest drawdown among the top 3; cosmetic,
+    // never changes the ranking).
+    const el = match.elimination;
+    if (el && el.active) for (const p of Object.values(match.players)) missionProgress(match, p, { type: 'cuts_over', cuts: el.rounds.length });
+    let steadyId = null;
+    if (match.rules && match.rules.steadyHandBadge) {
+      const top3 = results.filter((r) => r.rank <= 3).map((r) => match.players[r.playerId]).filter(Boolean);
+      steadyId = top3.sort((a, b) => (a.maxDrawdown || 0) - (b.maxDrawdown || 0))[0]?.id || null;
+    }
     for (const r of results) {
       const p = match.players[r.playerId];
       if (!p) continue;
+      r.mode = {
+        key: match.mode,
+        displayName: match.config.tournamentId ? 'Tournament round' : match.rules?.identity.displayName,
+        highlights: match.rules?.resultHighlights || [],
+        fastestWinSeconds: p.firstWinSeconds ?? null,
+        roundsSurvived: el && el.active ? (p.eliminatedRound ? p.eliminatedRound - 1 : el.rounds.length) : null,
+        survived: el && el.active ? !p.eliminatedRound : null,
+        cutRound: p.eliminatedRound || null,
+        eventsSurvived: (match.marketEvents || []).filter((e) => e.found).length ? match.marketEvents.filter((e) => e.found).length : null,
+        steadyHand: steadyId === p.id,
+        maxDrawdown: p.maxDrawdown !== undefined ? Math.round(p.maxDrawdown * 100) / 100 : null,
+      };
       r.fire = {
         heat: p.heat || 0,
         bestHeat: p.bestHeat || 0,
