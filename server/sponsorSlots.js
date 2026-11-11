@@ -67,6 +67,16 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
     return value;
   }
 
+  // How many lobby strip tiles show at once (admin: Sponsors page). 1 to 12.
+  let tilesCache = { at: 0, value: 6 };
+  async function maxTiles() {
+    if (Date.now() - tilesCache.at < 10000) return tilesCache.value;
+    let value = 6;
+    try { const v = Number(await db.getAppSetting('lobbyStrip.maxTiles')); if (Number.isFinite(v) && v >= 1) value = Math.min(12, Math.trunc(v)); } catch (e) { value = 6; }
+    tilesCache = { at: Date.now(), value };
+    return value;
+  }
+
   async function rowsFor(slot) {
     const c = placementCache.get(slot);
     if (c && Date.now() - c.at < CACHE_MS) return c.rows;
@@ -141,7 +151,7 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
     return out;
   }
 
-  async function resolve(slot, target, { now = Date.now(), previewId = null, max = 6 } = {}) {
+  async function resolve(slot, target, { now = Date.now(), previewId = null, max = null } = {}) {
     if (!SLOTS[slot]) return [];
     if (previewId) {
       const row = await db.getPlacementWithSponsor(previewId).catch(() => null);
@@ -150,7 +160,7 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
     if (!(await enabled())) return [];
     const rows = (await rowsFor(slot)).filter((r) => live(r, now) && targetMatches(r.targets, target, slot));
     if (!rows.length) return [];
-    if (SLOTS[slot].multi) return weightedOrder(rows).slice(0, max).map(publicPayload);
+    if (SLOTS[slot].multi) return weightedOrder(rows).slice(0, max || (await maxTiles())).map(publicPayload);
     // One presenting sponsor per competition / target: a specific target beats "all".
     const specific = rows.filter((r) => String(r.targets || '') !== 'all');
     return [publicPayload(weightedPick(specific.length ? specific : rows))];
@@ -302,7 +312,7 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
     return r;
   }
 
-  return { SLOTS, SLOT_NAMES, resolve, sponsorNameFor, previewToken, verifyPreview, countImpressions, flush, recordEntry, outboundUrl, isBot, router, _bump: bump, _pending: pending, _clearCache: () => { placementCache = new Map(); enabledCache = { at: 0, value: true }; } };
+  return { SLOTS, SLOT_NAMES, resolve, sponsorNameFor, previewToken, verifyPreview, countImpressions, flush, recordEntry, outboundUrl, isBot, router, _bump: bump, _pending: pending, _clearCache: () => { placementCache = new Map(); enabledCache = { at: 0, value: true }; tilesCache = { at: 0, value: 6 }; } };
 }
 
 module.exports = { createSponsorSlots, signPreview, SLOTS, SLOT_NAMES, BOT_UA };

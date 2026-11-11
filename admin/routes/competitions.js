@@ -83,7 +83,8 @@ module.exports = function competitionsRoutes() {
         const { data: last } = await supabase.from('competition_waitlist_sends').select('created_at, recipients').eq('template_key', t.key).order('created_at', { ascending: false }).limit(1).maybeSingle();
         out.push({ ...t, waitlist: await waitlistCount(t.key), lastNotify: last || null, preview: compStates.prizeWording({ ...t, prize_pool: t.prize_pool_amount }) });
       }
-      res.json({ templates: out, liveFeedReady: await liveReady(), liveFeedHealthy: liveFeed.healthy(), canEdit: canEdit(req), isSuper: isSuper(req) });
+      const { data: th } = await supabase.from('app_settings').select('value').eq('key', 'waitlist.showCountFrom').maybeSingle();
+      res.json({ templates: out, liveFeedReady: await liveReady(), liveFeedHealthy: liveFeed.healthy(), waitlistShowCountFrom: th && Number.isFinite(Number(th.value)) ? Number(th.value) : 50, canEdit: canEdit(req), isSuper: isSuper(req) });
     } catch (e) {
       fail(res, e);
     }
@@ -216,6 +217,21 @@ module.exports = function competitionsRoutes() {
       await supabase.from('competition_waitlist_sends').update({ recipients: sent }).eq('template_key', t.key).eq('sent_by', adminName(req)).eq('recipients', 0);
       await logAdminAction({ adminUsername: adminName(req), actionType: 'waitlist_notify', targetType: 'competition_template', targetId: t.key, details: { recipients: sent, failed, skipped }, ip: clientIp(req) });
       res.json({ sent, failed, skipped });
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+
+  // How many players must be waiting before a card shows the number.
+  r.put('/settings/waitlist-threshold', async (req, res) => {
+    if (!canEdit(req)) return res.status(403).json({ error: 'Your role cannot change this' });
+    const n = Math.trunc(Number(req.body?.value));
+    if (!(n >= 1 && n <= 100000)) return res.status(400).json({ error: 'Choose a number from 1 to 100000' });
+    try {
+      const { error } = await supabase.from('app_settings').upsert({ key: 'waitlist.showCountFrom', value: n, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      await logAdminAction({ adminUsername: adminName(req), actionType: 'waitlist_threshold', targetType: 'setting', targetId: 'waitlist.showCountFrom', details: { value: n }, ip: clientIp(req) });
+      res.json({ value: n });
     } catch (e) {
       fail(res, e);
     }

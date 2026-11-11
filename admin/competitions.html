@@ -127,7 +127,12 @@
       const d = tplData;
       document.getElementById('liveFeedStrip').innerHTML = `
         <div class="adm-stat"><span>liveFeed.ready</span><b class="mono">${d.liveFeedReady ? 'true' : 'false'}</b>${d.isSuper ? `<button class="btn btn-sm" id="liveToggle" style="margin-top:6px">${d.liveFeedReady ? 'Set false' : 'Set true'}</button>` : ''}<span>Set by the live feed deployment; do not flip by hand.</span></div>
-        <div class="adm-stat"><span>liveFeed.healthy()</span><b class="mono">${d.liveFeedHealthy ? 'true' : 'false'}</b><span>The live feed's own health check. Live competitions open only when both are true.</span></div>`;
+        <div class="adm-stat"><span>liveFeed.healthy()</span><b class="mono">${d.liveFeedHealthy ? 'true' : 'false'}</b><span>The live feed's own health check. Live competitions open only when both are true.</span></div>
+        <div class="adm-stat"><span>Show "players waiting" on cards from</span><div style="display:flex;gap:6px;align-items:center;margin-top:4px"><input type="number" id="thValue" min="1" value="${d.waitlistShowCountFrom}" style="width:90px" ${d.canEdit ? '' : 'disabled'}>${d.canEdit ? '<button class="btn btn-sm" id="thSave">Save</button>' : ''}</div><span>Below this, cards show no number, so a quiet list never looks empty.</span></div>`;
+      document.getElementById('thSave')?.addEventListener('click', async () => {
+        const n = Number(document.getElementById('thValue').value);
+        try { await Admin.api('/competitions/settings/waitlist-threshold', { method: 'PUT', body: { value: n } }); Admin.toast(`Cards show the count from ${n} players waiting`, 'success'); loadTemplates(); } catch (e) { Admin.toast(e.message, 'danger'); }
+      });
       document.getElementById('liveToggle')?.addEventListener('click', async () => {
         if (!confirm('This switch is set by the live feed deployment. Change it by hand anyway?')) return;
         try { await Admin.api('/competitions/settings/live-feed', { method: 'PUT', body: { ready: !d.liveFeedReady } }); loadTemplates(); } catch (e) { Admin.toast(e.message, 'danger'); }
