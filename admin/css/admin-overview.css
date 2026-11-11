@@ -1,0 +1,75 @@
+/* Overview dashboard, Mission Control (2026-11-11). Chart colours are the
+   dataviz-validated slots on the navy surface; green/red only for change
+   arrows, always with the arrow icon. */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ov-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9999px; background: var(--card); }
+.ov-seg button { min-height: 32px; padding: 0 14px; border: 0; border-radius: 9999px; background: transparent; color: var(--text-secondary); font: 600 13px var(--font); cursor: pointer; }
+.ov-seg button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+.ov-select select { min-height: 36px; padding: 0 12px; border-radius: 9999px; font: 500 13px var(--font); }
+.ov.loading .ov-kpis, .ov.loading .ov-grid { opacity: 0.55; transition: opacity 150ms; }
+
+.ov-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(146px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.ov-kpi { display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 1px rgba(160, 182, 222, 0.1); text-decoration: none; color: var(--text); min-width: 0; }
+.ov-kpi:hover { box-shadow: inset 0 0 0 1px var(--border-2); }
+.ov-kpi b { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+.ov-delta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font: 600 12px var(--font); }
+.ov-delta span { font-weight: 500; font-size: 11px; color: var(--text-secondary); }
+.ov-delta.good { color: var(--success); }
+.ov-delta.bad { color: var(--danger); }
+.ov-delta.flat { color: var(--text-secondary); font-weight: 500; }
+.ov-spark { display: flex; align-items: flex-end; gap: 2px; height: 28px; margin-top: auto; }
+.ov-spark i { flex: 1; border-radius: 2px 2px 0 0; background: rgba(57, 135, 229, 0.45); }
+
+.ov-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
+.ov-card { padding: 16px; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 1px rgba(160, 182, 222, 0.1); min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.ov-span-3 { grid-column: span 3; } .ov-span-6 { grid-column: span 6; } .ov-span-4 { grid-column: span 4; } .ov-span-5 { grid-column: span 5; } .ov-span-8 { grid-column: span 8; } .ov-span-12 { grid-column: span 12; }
+.ov-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ov-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+.ov-sub { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.ov-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-left: auto; }
+.ov-card > .ov-legend { margin-left: 0; }
+.ov-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(232, 238, 248, 0.85); }
+.ov-legend i { width: 10px; height: 10px; border-radius: 3px; }
+.ov-tbl { min-height: 28px; padding: 0 10px; border-radius: 9999px; border: 1px solid var(--border-2); background: transparent; color: var(--text-secondary); font: 600 12px var(--font); cursor: pointer; }
+.ov-tbl:hover { color: var(--text); }
+.ov-chart { position: relative; height: 240px; }
+.ov-chart[hidden] { display: none; }
+.ov-table { max-height: 240px; overflow: auto; }
+.ov-big { font-size: 26px; font-weight: 600; }
+
+.ov-live { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+.ov-live-nums { display: flex; gap: 20px; flex-wrap: wrap; }
+.ov-live-nums b { display: block; font-size: 30px; font-weight: 600; line-height: 1.1; }
+.ov-row { display: flex; justify-content: space-between; gap: 8px; }
+.ov-seats { display: flex; gap: 2px; height: 14px; margin-top: 6px; }
+.ov-seats i:first-child { border-radius: 4px 0 0 4px; }
+.ov-seats i:last-child { border-radius: 0 4px 4px 0; }
+.ov-seats i:only-child { border-radius: 4px; }
+.ov-meters { display: flex; flex-direction: column; gap: 10px; }
+.ov-track { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.07); margin-top: 5px; overflow: hidden; }
+.ov-track i { display: block; height: 100%; border-radius: 3px; }
+.ov-down { color: var(--danger); font-weight: 600; }
+
+.ov-ret-grid { display: grid; gap: 3px; align-items: center; }
+.ov-c { text-align: center; }
+.ov-cell { height: 30px; border-radius: 4px; display: grid; place-items: center; font-size: 11px; color: #f2f5fa; }
+.ov-cell.empty { background: rgba(255, 255, 255, 0.03); }
+
+.ov-flow { margin-bottom: 8px; font-size: 12px; }
+.ov-flow > div:first-child { display: flex; justify-content: space-between; }
+.ov-track i { min-width: 2px; }
+
+.activity-feed { display: flex; flex-direction: column; }
+.activity-item { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(160, 182, 222, 0.08); font-size: 13px; }
+
+@media (max-width: 1280px) {
+  .ov-span-8, .ov-span-4 { grid-column: span 12; }
+  .ov-span-5, .ov-span-3 { grid-column: span 6; }
+  .ov-span-6 { grid-column: span 12; }
+}
+@media (max-width: 760px) {
+  .ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ov-span-6 { grid-column: span 12; }
+  .ov-span-5, .ov-span-3 { grid-column: span 12; }
+  .ov-seg button { padding: 0 10px; }
+}

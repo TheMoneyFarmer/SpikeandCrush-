@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="css/admin-base.css" />
 <link rel="stylesheet" href="css/admin-tables.css" />
 <link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
 </head>
 <body>
   <div class="admin-shell">
@@ -27,22 +28,22 @@
         </div>
 
         <div class="admin-tab-panel" id="tab-match">
-          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">🟢 Live: changes here are pushed straight into the running game server and apply to the next match created in that mode - no restart needed.</div>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;"><span class="status-dot"></span> Live: changes here are pushed straight into the running game server and apply to the next match created in that mode - no restart needed.</div>
           <div id="matchSettingsForms"></div>
         </div>
 
         <div class="admin-tab-panel" id="tab-instruments">
-          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">💾 Saved for real, but not yet read by the running instrument-selection logic (see banner after saving).</div>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">Saved for real, but not yet read by the running instrument-selection logic (see banner after saving).</div>
           <div id="instrumentsTableWrap"><div class="empty-state">Loading…</div></div>
         </div>
 
         <div class="admin-tab-panel" id="tab-cards">
-          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">💾 Saved for real, not yet read by sabotage.js.</div>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">Saved for real, not yet read by sabotage.js.</div>
           <div id="cardsTableWrap"><div class="empty-state">Loading…</div></div>
         </div>
 
         <div class="admin-tab-panel" id="tab-rating">
-          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">💾 Saved for real, not yet read by tierForRating/computeMatchResults.</div>
+          <div class="text-secondary" style="font-size:12px;margin-bottom:14px;">Saved for real, not yet read by tierForRating/computeMatchResults.</div>
           <div class="panel" style="max-width:500px;">
             <h3>Tier Thresholds (reference — current live values)</h3>
             <div id="tiersTable"></div>
@@ -67,7 +68,7 @@
         <div class="admin-tab-panel" id="tab-async">
           <div class="panel" style="max-width:500px;">
             <h3>Async Daily Setup</h3>
-            <div class="text-secondary" style="font-size:12px;margin-bottom:12px;">💾 Saved for real - not yet read by selectDailyInstruments() in server/instruments.js, which still auto-selects deterministically from the UTC calendar date.</div>
+            <div class="text-secondary" style="font-size:12px;margin-bottom:12px;">Saved for real - not yet read by selectDailyInstruments() in server/instruments.js, which still auto-selects deterministically from the UTC calendar date.</div>
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;"><input type="checkbox" id="asyncAuto" checked /> Auto-select instruments</label>
             <div class="field"><label>Reveal Time (Dubai time)</label><input id="asyncReveal" type="time" value="21:00" /></div>
             <button class="btn btn-primary" id="saveAsyncBtn">Save</button>

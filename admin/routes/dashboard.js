@@ -23,6 +23,215 @@ function pctChange(today, yesterday) {
 function router() {
   const r = express.Router();
 
+  // ---- Overview dashboard (Mission Control, 2026-11-11) ----------------------
+  // One call for the whole page: KPI tiles with the previous period for the
+  // change arrows, daily series, mode mix, seats, retention by signup week,
+  // coin flows, and the live game-server state. Real players only: persona
+  // (computer) accounts are excluded everywhere except the seat split.
+  const MODE_GROUP = { quick: 'quick', blitz: 'blitz', grand: 'grand', solo: 'solo', private: 'private' }; // the rest fold into "other"
+  const COIN_IN = { welcome_bonus: 'Sign-up bonus', prize_won: 'Prizes', competition_prize: 'Prizes', referral_reward: 'Invite rewards', mission_reward: 'Missions', battlepass_challenge: 'Missions', admin_grant: 'Granted by admins', dev_grant: 'Granted by admins', match_refund: 'Refunds' };
+  const COIN_OUT = { match_entry: 'Entry fees', tournament_entry: 'Entry fees', competition_entry: 'Entry fees', shop_purchase: 'Shop' };
+
+  // Supabase returns at most 1000 rows a call; page through the rest.
+  async function fetchAll(build, cap = 100000) {
+    const out = [];
+    for (let from = 0; from < cap; from += 1000) {
+      const { data, error } = await build().range(from, from + 999);
+      if (error) throw error;
+      out.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    return out;
+  }
+
+  // Just the live game-server numbers, for the panel that refreshes every few seconds.
+  r.get('/live-now', async (req, res) => {
+    const live = await internal.getLiveState().catch(() => null);
+    if (!live) return res.json({ reachable: false });
+    const lm = live.activeMatches || [];
+    const running = lm.filter((m) => m.status === 'active' || m.status === 'countdown');
+    const seats = running.flatMap((m) => m.players || []);
+    res.json({
+      reachable: true,
+      online: live.websocketConnections,
+      matchesRunning: running.length,
+      lobbiesWaiting: lm.filter((m) => m.status === 'waiting').length,
+      seatsReal: seats.filter((p) => !p.isAI).length,
+      seatsComputer: seats.filter((p) => p.isAI).length,
+      memoryMb: Math.round((live.memory?.rss || 0) / 1e6),
+      heapPct: live.memory && live.memory.heapTotal ? Math.round((live.memory.heapUsed / live.memory.heapTotal) * 100) : null,
+      uptimeSeconds: live.uptimeSeconds,
+    });
+  });
+
+  r.get('/insights', async (req, res) => {
+    if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
+    try {
+      const days = [1, 7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 7;
+      const modeFilter = Object.keys(MODE_GROUP).concat('other').includes(req.query.mode) ? req.query.mode : 'all';
+      const hourly = days === 1;
+      const now = Date.now();
+      const spanMs = days * 86400000;
+      const start = new Date(now - spanMs);
+      const prevStart = new Date(now - 2 * spanMs);
+      const cohortStart = new Date(now - 42 * 86400000); // six signup weeks for retention
+
+      const modeOf = (m) => MODE_GROUP[m] || 'other';
+      const wantMode = (m) => modeFilter === 'all' || modeOf(m) === modeFilter;
+
+      const [personas, matches, logins, signups, cohortPlayers, coinTx, invitesPaid, supportOpen, reportsOpen, circulation, live, purchases, passes] = await Promise.all([
+        fetchAll(() => supabase.from('players').select('id').eq('is_persona', true)),
+        fetchAll(() => supabase.from('matches').select('id, mode, status, created_at, players:match_players(player_id)').gte('created_at', prevStart.toISOString()).order('created_at')),
+        fetchAll(() => supabase.from('login_events').select('player_id, created_at').gte('created_at', cohortStart < prevStart ? cohortStart.toISOString() : prevStart.toISOString())),
+        fetchAll(() => supabase.from('players').select('id, created_at').eq('is_persona', false).gte('created_at', prevStart.toISOString())),
+        fetchAll(() => supabase.from('players').select('id, created_at').eq('is_persona', false).gte('created_at', cohortStart.toISOString())),
+        fetchAll(() => supabase.from('coin_transactions').select('type, amount, created_at, player_id').gte('created_at', start.toISOString())),
+        fetchAll(() => supabase.from('player_referrals').select('id, paid_at').eq('status', 'paid').gte('paid_at', prevStart.toISOString())),
+        supabase.from('support_conversations').select('id', { count: 'exact', head: true }).eq('status', 'waiting_human'),
+        supabase.from('player_reports').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+        fetchAll(() => supabase.from('players').select('coins').eq('is_persona', false)),
+        internal.getLiveState().catch(() => null),
+        fetchAll(() => supabase.from('coin_purchases').select('amount_usd, created_at').eq('status', 'completed').gte('created_at', prevStart.toISOString())),
+        fetchAll(() => supabase.from('battle_pass_subscriptions').select('is_premium, started_at').eq('is_premium', true).gte('started_at', prevStart.toISOString())),
+      ]);
+      const isPersona = new Set(personas.map((p) => p.id));
+
+      // buckets: hours for "today", days otherwise
+      const bucketMs = hourly ? 3600000 : 86400000;
+      const nBuckets = hourly ? 24 : days;
+      const bucketOf = (ts) => {
+        const i = Math.floor((new Date(ts).getTime() - start.getTime()) / bucketMs);
+        return i >= 0 && i < nBuckets ? i : -1;
+      };
+      const labels = Array.from({ length: nBuckets }, (_, i) => new Date(start.getTime() + i * bucketMs).toISOString());
+      const inCur = (ts) => new Date(ts) >= start;
+      const inPrev = (ts) => { const d = new Date(ts); return d >= prevStart && d < start; };
+
+      // matches, seats, players who played
+      const mm = matches.filter((m) => wantMode(m.mode) && m.status !== 'cancelled' && m.status !== 'void');
+      const modes = ['quick', 'blitz', 'grand', 'solo', 'private', 'other'];
+      const byMode = Object.fromEntries(modes.map((k) => [k, Array(nBuckets).fill(0)]));
+      const matchSeries = Array(nBuckets).fill(0);
+      const activeSets = Array.from({ length: nBuckets }, () => new Set());
+      const activeCur = new Set();
+      const activePrev = new Set();
+      let seatsReal = 0, seatsComp = 0, seatsRealPrev = 0, seatsCompPrev = 0, matchesCur = 0, matchesPrev = 0;
+      for (const m of mm) {
+        const real = (m.players || []).filter((p) => !isPersona.has(p.player_id));
+        const comp = (m.players || []).length - real.length;
+        if (inCur(m.created_at)) {
+          matchesCur += 1;
+          seatsReal += real.length; seatsComp += comp;
+          const b = bucketOf(m.created_at);
+          if (b >= 0) { matchSeries[b] += 1; byMode[modeOf(m.mode)][b] += 1; real.forEach((p) => activeSets[b].add(p.player_id)); }
+          real.forEach((p) => activeCur.add(p.player_id));
+        } else if (inPrev(m.created_at)) {
+          matchesPrev += 1;
+          seatsRealPrev += real.length; seatsCompPrev += comp;
+          real.forEach((p) => activePrev.add(p.player_id));
+        }
+      }
+      // logins count as active too (the mode filter only applies to play)
+      if (modeFilter === 'all') {
+        for (const l of logins) {
+          if (isPersona.has(l.player_id)) continue;
+          if (inCur(l.created_at)) { activeCur.add(l.player_id); const b = bucketOf(l.created_at); if (b >= 0) activeSets[b].add(l.player_id); }
+          else if (inPrev(l.created_at)) activePrev.add(l.player_id);
+        }
+      }
+      const signupSeries = Array(nBuckets).fill(0);
+      let signupsCur = 0, signupsPrev = 0;
+      for (const p of signups) {
+        if (inCur(p.created_at)) { signupsCur += 1; const b = bucketOf(p.created_at); if (b >= 0) signupSeries[b] += 1; } else if (inPrev(p.created_at)) signupsPrev += 1;
+      }
+      const invitesCur = invitesPaid.filter((x) => inCur(x.paid_at)).length;
+      const invitesPrev = invitesPaid.filter((x) => inPrev(x.paid_at)).length;
+      const pct = (a, b) => (a + b ? Math.round((a / (a + b)) * 1000) / 10 : null);
+
+      // retention: of each signup week, the share seen again N or more days after signing up
+      const lastSeen = new Map(); // player -> list of activity times
+      const touch = (id, ts) => { if (!lastSeen.has(id)) lastSeen.set(id, []); lastSeen.get(id).push(new Date(ts).getTime()); };
+      for (const l of logins) touch(l.player_id, l.created_at);
+      for (const m of matches) (m.players || []).forEach((p) => touch(p.player_id, m.created_at));
+      const DAYS = [1, 3, 7, 14, 30];
+      const weekStart = (d) => { const x = new Date(d); x.setUTCHours(0, 0, 0, 0); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x; };
+      const cohorts = new Map();
+      for (const p of cohortPlayers) {
+        const key = weekStart(p.created_at).toISOString().slice(0, 10);
+        if (!cohorts.has(key)) cohorts.set(key, []);
+        cohorts.get(key).push(p);
+      }
+      const retention = [...cohorts.entries()].sort().slice(-6).map(([week, ps]) => ({
+        week,
+        size: ps.length,
+        cells: DAYS.map((n) => {
+          const eligible = ps.filter((p) => new Date(p.created_at).getTime() + n * 86400000 <= now);
+          if (!eligible.length) return null;
+          const back = eligible.filter((p) => (lastSeen.get(p.id) || []).some((t) => t >= new Date(p.created_at).getTime() + n * 86400000)).length;
+          return Math.round((back / eligible.length) * 100);
+        }),
+      }));
+
+      // coin flows in the period (real players only)
+      const flows = {};
+      for (const t of coinTx) {
+        if (isPersona.has(t.player_id)) continue;
+        const name = COIN_IN[t.type] || COIN_OUT[t.type];
+        if (!name) continue;
+        flows[name] = flows[name] || { name, dir: COIN_IN[t.type] ? 'in' : 'out', coins: 0 };
+        flows[name].coins += Math.abs(t.amount);
+      }
+
+      // revenue: completed coin purchases plus premium passes (at the price they sold for)
+      const revCoins = Array(nBuckets).fill(0);
+      const revPass = Array(nBuckets).fill(0);
+      let revCur = 0, revPrev = 0;
+      for (const p of purchases) {
+        const v = Number(p.amount_usd) || 0;
+        if (inCur(p.created_at)) { revCur += v; const b = bucketOf(p.created_at); if (b >= 0) revCoins[b] += v; } else if (inPrev(p.created_at)) revPrev += v;
+      }
+      for (const p of passes) {
+        if (inCur(p.started_at)) { revCur += BATTLE_PASS_PRICE_USD; const b = bucketOf(p.started_at); if (b >= 0) revPass[b] += BATTLE_PASS_PRICE_USD; } else if (inPrev(p.started_at)) revPrev += BATTLE_PASS_PRICE_USD;
+      }
+      const cents = (n) => Math.round(n * 100) / 100;
+
+      // live game server
+      const lm = (live && live.activeMatches) || [];
+      const running = lm.filter((m) => m.status === 'active' || m.status === 'countdown');
+      const liveSeats = running.flatMap((m) => m.players || []);
+      res.json({
+        range: { days, mode: modeFilter, hourly, labels },
+        kpis: {
+          activePlayers: { value: activeCur.size, prev: activePrev.size, series: activeSets.map((s) => s.size) },
+          signups: { value: signupsCur, prev: signupsPrev, series: signupSeries },
+          matches: { value: matchesCur, prev: matchesPrev, series: matchSeries },
+          realSeatsPct: { value: pct(seatsReal, seatsComp), prev: pct(seatsRealPrev, seatsCompPrev) },
+          invitesPaid: { value: invitesCur, prev: invitesPrev },
+          revenue: { value: cents(revCur), prev: cents(revPrev), series: revCoins.map((v, i) => cents(v + revPass[i])) },
+          supportWaiting: { value: supportOpen.count || 0 },
+          reportsOpen: { value: reportsOpen.count || 0 },
+        },
+        series: { activePlayers: activeSets.map((s) => s.size), signups: signupSeries, matchesByMode: byMode, revenueCoins: revCoins.map(cents), revenuePass: revPass.map(cents) },
+        seats: { real: seatsReal, computer: seatsComp },
+        retention: { days: DAYS, cohorts: retention },
+        coins: { circulation: circulation.reduce((a, p) => a + (p.coins || 0), 0), flows: Object.values(flows).sort((a, b) => b.coins - a.coins) },
+        live: live ? {
+          online: live.websocketConnections,
+          matchesRunning: running.length,
+          lobbiesWaiting: lm.filter((m) => m.status === 'waiting').length,
+          seatsReal: liveSeats.filter((p) => !p.isAI).length,
+          seatsComputer: liveSeats.filter((p) => p.isAI).length,
+          memoryMb: Math.round((live.memory?.rss || 0) / 1e6),
+          heapPct: live.memory && live.memory.heapTotal ? Math.round((live.memory.heapUsed / live.memory.heapTotal) * 100) : null,
+          uptimeSeconds: live.uptimeSeconds,
+        } : null,
+      });
+    } catch (e) {
+      console.error('[admin dashboard insights]', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   r.get('/overview', async (req, res) => {
     if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
     try {

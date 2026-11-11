@@ -10,7 +10,8 @@
 <link rel="stylesheet" href="css/admin-tables.css" />
 <link rel="stylesheet" href="css/admin-charts.css" />
 <link rel="stylesheet" href="css/admin-components.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<link rel="stylesheet" href="css/admin-console.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
   <div class="admin-shell">
@@ -135,13 +136,14 @@
       health: async () => {
         try {
           const d = await Admin.api('/system/health');
-          document.getElementById('servicesStatus').innerHTML = `
-            <div>Game Server: ${d.gameServer.reachable ? '✅ Running' : '❌ Down'}</div>
-            <div>Admin Server: ✅ Running</div>
-            <div>Database: ${d.database.reachable ? '✅ Connected' : '❌ Error'}</div>
-            <div>Socket.io: ${d.gameServer.reachable ? `✅ ${d.gameServer.websocketConnections} clients` : '❌'}</div>
-            <div>Supabase: ${d.database.configured ? '✅ Connected' : '❌ Not configured'}</div>
-          `;
+          const svc = (name, ok, okText, badText) => `<div class="adm-svc ${ok ? 'ok' : 'bad'}"><span class="status-dot ${ok ? '' : 'error'}"></span><div><b>${name}</b><span>${ok ? okText : badText}</span></div></div>`;
+          document.getElementById('servicesStatus').innerHTML = `<div class="adm-svc-grid">
+            ${svc('Game server', d.gameServer.reachable, 'Running', 'Not reachable')}
+            ${svc('Admin server', true, 'Running', '')}
+            ${svc('Database', d.database.reachable, 'Connected', 'Error')}
+            ${svc('Live sockets', d.gameServer.reachable, `${d.gameServer.websocketConnections ?? 0} connected`, 'Down')}
+            ${svc('Supabase', d.database.configured, 'Configured', 'Not configured')}
+          </div>`;
           if (d.gameServer.reachable) {
             const memMb = Math.round(d.gameServer.memory.rss / 1e6);
             document.getElementById('gaugeMemVal').textContent = `${memMb} MB`;
@@ -200,12 +202,12 @@
               <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last Login</th><th>Invited By</th><th>Status</th><th></th></tr></thead>
               <tbody>${rows.map((a) => `
                 <tr>
-                  <td>${a.is_master ? '👑 ' : ''}${Admin.escapeHtml(a.name)}</td>
+                  <td>${a.is_master ? '<span class="adm-tag">Master</span> ' : ''}${Admin.escapeHtml(a.name)}</td>
                   <td>${Admin.escapeHtml(a.email)}</td>
                   <td>${Admin.escapeHtml(a.role)}</td>
                   <td>${a.last_login ? Admin.formatDate(a.last_login) : 'Never'}</td>
                   <td>${a.invited_by_email ? Admin.escapeHtml(a.invited_by_email) : '—'}</td>
-                  <td>${a.is_active ? '✅ Active' : '❌ Deactivated'}</td>
+                  <td>${a.is_active ? '<span class="adm-yes">Active</span>' : '<span class="adm-no">Deactivated</span>'}</td>
                   <td>${a.is_master ? '' : `
                     <button class="btn btn-outline" data-reset-admin="${a.id}" style="font-size:11px;padding:4px 10px;">Reset Password</button>
                     <button class="btn btn-outline" data-deactivate-admin="${a.id}" style="font-size:11px;padding:4px 10px;">Deactivate</button>

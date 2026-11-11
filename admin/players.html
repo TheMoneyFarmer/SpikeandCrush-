@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="css/admin-base.css" />
 <link rel="stylesheet" href="css/admin-tables.css" />
 <link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
 </head>
 <body>
   <div class="admin-shell">
@@ -23,6 +24,7 @@
         </div>
 
         <div class="admin-tab-panel active" id="tab-all">
+          <div class="adm-strip" id="playerStrip"></div>
           <div class="admin-table-toolbar">
             <input type="search" id="searchInput" placeholder="Search username or email…" />
             <select id="tierFilter"><option value="">All tiers</option></select>
@@ -90,13 +92,26 @@
 
     function statusBadge(status) {
       const map = { online: 'badge-online', in_lobby: 'badge-in-match', in_match: 'badge-in-match', offline: 'badge-offline', banned: 'badge-banned', flagged: 'badge-flagged' };
-      const label = { online: '🟢 Online', in_lobby: '🟡 In Lobby', in_match: '🟡 In Match', offline: '⚫ Offline', banned: '🔴 Banned', flagged: '⚠️ Flagged' };
+      const label = { online: 'Online', in_lobby: 'In lobby', in_match: 'In match', offline: 'Offline', banned: 'Banned', flagged: 'Flagged' };
       return `<span class="badge ${map[status] || 'badge-offline'}">${label[status] || status}</span>`;
     }
 
     async function loadPlayers() {
       try {
         allPlayers = await Admin.api('/players');
+        (function strip() {
+          const real = allPlayers.filter((p) => !p.is_persona);
+          const weekAgo = Date.now() - 7 * 86400000;
+          const stats = [
+            ['Real players', real.length],
+            ['Joined this week', real.filter((p) => new Date(p.created_at).getTime() >= weekAgo).length],
+            ['Online now', real.filter((p) => ['online', 'in_lobby', 'in_match'].includes(p.status)).length],
+            ['Banned', real.filter((p) => p.status === 'banned' || p.is_banned).length],
+            ['Flagged', real.filter((p) => p.status === 'flagged' || p.flagged).length],
+            ['Computer accounts', allPlayers.length - real.length],
+          ];
+          document.getElementById('playerStrip').innerHTML = stats.map(([k, v]) => `<div class="adm-stat"><span>${k}</span><b class="mono">${Number(v).toLocaleString()}</b></div>`).join('');
+        })();
         const tiers = [...new Set(allPlayers.map((p) => p.tier))].sort();
         document.getElementById('tierFilter').innerHTML = '<option value="">All tiers</option>' + tiers.map((t) => `<option value="${t}">${t}</option>`).join('');
 
@@ -106,7 +121,7 @@
           searchFields: ['username', 'email'],
           onRowClick: (row) => { window.location.href = `player-detail.html?id=${row.id}`; },
           columns: [
-            { key: 'username', label: 'Player', render: (r) => `<span class="avatar-circle">${Admin.escapeHtml((r.username || '?')[0].toUpperCase())}</span> ${Admin.escapeHtml(r.username)}${r.is_persona ? ' <span class="badge badge-flagged" title="AI-controlled account that fills empty match slots - not a real signup">🤖 BOT</span>' : ''}` },
+            { key: 'username', label: 'Player', render: (r) => `<span class="avatar-circle">${Admin.escapeHtml((r.username || '?')[0].toUpperCase())}</span> ${Admin.escapeHtml(r.username)}${r.is_persona ? ' <span class="badge badge-flagged" title="AI-controlled account that fills empty match slots - not a real signup">Computer</span>' : ''}` },
             { key: 'email', label: 'Email' },
             { key: 'tier', label: 'Tier', render: (r) => `<span class="badge badge-tier">${Admin.escapeHtml(r.tier)}</span>` },
             { key: 'war_rating', label: 'Rating' },

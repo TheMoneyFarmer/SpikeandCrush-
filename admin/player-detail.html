@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="css/admin-base.css" />
 <link rel="stylesheet" href="css/admin-tables.css" />
 <link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
 </head>
 <body>
   <div class="admin-shell">
@@ -28,7 +29,7 @@
   <script>
     Admin.renderNav();
     const playerId = new URLSearchParams(location.search).get('id');
-    if (!playerId) document.getElementById('content').innerHTML = '<div class="empty-state">No player id given.</div>';
+    if (!playerId) location.replace('/players.html'); // opened without picking a player: go pick one
 
     function fmtSecs(s) {
       if (!s) return '0m';

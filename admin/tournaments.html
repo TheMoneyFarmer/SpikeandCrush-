@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="css/admin-base.css" />
 <link rel="stylesheet" href="css/admin-tables.css" />
 <link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
 </head>
 <body>
   <div class="admin-shell">
@@ -209,7 +210,7 @@
         wrap.innerHTML = `
           <div class="admin-table-wrap"><table class="admin-table">
             <thead><tr><th>Broker</th><th>Tier</th><th>Monthly Fee (AED)</th><th>Active</th><th>Joined</th></tr></thead>
-            <tbody>${brokers.map((b) => `<tr><td>${Admin.escapeHtml(b.broker_name)}</td><td>${b.tier}</td><td>${b.monthly_fee_aed}</td><td>${b.active ? '✅' : '❌'}</td><td>${Admin.formatDate(b.joined_date)}</td></tr>`).join('') || '<tr><td colspan="5">No brokers yet</td></tr>'}</tbody>
+            <tbody>${brokers.map((b) => `<tr><td>${Admin.escapeHtml(b.broker_name)}</td><td>${b.tier}</td><td>${b.monthly_fee_aed}</td><td>${b.active ? '<span class="adm-yes">Yes</span>' : '<span class="adm-no">No</span>'}</td><td>${Admin.formatDate(b.joined_date)}</td></tr>`).join('') || '<tr><td colspan="5">No brokers yet</td></tr>'}</tbody>
           </table></div>
         `;
       } catch (e) { Admin.toast(e.message, 'danger'); }

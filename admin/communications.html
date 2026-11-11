@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="css/admin-base.css" />
 <link rel="stylesheet" href="css/admin-tables.css" />
 <link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
 </head>
 <body>
   <div class="admin-shell">
@@ -152,7 +153,7 @@
         document.getElementById('announcementsTableWrap').innerHTML = rows.length ? `
           <div class="admin-table-wrap"><table class="admin-table">
             <thead><tr><th>Title</th><th>Type</th><th>Active</th><th>Views</th><th>From</th><th>Until</th></tr></thead>
-            <tbody>${rows.map((a) => `<tr><td>${Admin.escapeHtml(a.title)}</td><td>${a.type}</td><td>${a.active ? '✅' : '❌'}</td><td>${a.views}</td><td>${Admin.formatDate(a.show_from)}</td><td>${a.show_until ? Admin.formatDate(a.show_until) : 'No end'}</td></tr>`).join('')}</tbody>
+            <tbody>${rows.map((a) => `<tr><td>${Admin.escapeHtml(a.title)}</td><td>${a.type}</td><td>${a.active ? '<span class="adm-yes">Yes</span>' : '<span class="adm-no">No</span>'}</td><td>${a.views}</td><td>${Admin.formatDate(a.show_from)}</td><td>${a.show_until ? Admin.formatDate(a.show_until) : 'No end'}</td></tr>`).join('')}</tbody>
           </table></div>
         ` : '<div class="empty-state">No announcements yet.</div>';
       },
@@ -161,7 +162,7 @@
         document.getElementById('promoTableWrap').innerHTML = rows.length ? `
           <div class="admin-table-wrap"><table class="admin-table">
             <thead><tr><th>Headline</th><th>Button</th><th>Active</th><th>Views</th><th>From</th><th>Until</th><th></th></tr></thead>
-            <tbody>${rows.map((p) => `<tr><td>${Admin.escapeHtml(p.headline)}</td><td>${Admin.escapeHtml(p.button_text)}</td><td>${p.active ? '✅' : '❌'}</td><td>${p.views}</td><td>${Admin.formatDate(p.active_from)}</td><td>${p.active_until ? Admin.formatDate(p.active_until) : 'No end'}</td><td>${p.active ? `<button class="btn btn-outline" data-deactivate="${p.id}" style="font-size:11px;padding:4px 10px;">Deactivate</button>` : ''}</td></tr>`).join('')}</tbody>
+            <tbody>${rows.map((p) => `<tr><td>${Admin.escapeHtml(p.headline)}</td><td>${Admin.escapeHtml(p.button_text)}</td><td>${p.active ? '<span class="adm-yes">Yes</span>' : '<span class="adm-no">No</span>'}</td><td>${p.views}</td><td>${Admin.formatDate(p.active_from)}</td><td>${p.active_until ? Admin.formatDate(p.active_until) : 'No end'}</td><td>${p.active ? `<button class="btn btn-outline" data-deactivate="${p.id}" style="font-size:11px;padding:4px 10px;">Deactivate</button>` : ''}</td></tr>`).join('')}</tbody>
           </table></div>
         ` : '<div class="empty-state">No promotional popups yet.</div>';
         document.querySelectorAll('[data-deactivate]').forEach((btn) => {

@@ -5,12 +5,22 @@ window.Admin = window.Admin || {};
 (function () {
   function applyDefaults() {
     if (!window.Chart) return;
-    Chart.defaults.color = '#64748b';
-    Chart.defaults.borderColor = 'rgba(15,15,30,0.08)';
+    // Mission Control navy (2026-11-11): muted ink, recessive grid.
+    Chart.defaults.color = 'rgba(200,212,232,0.72)';
+    Chart.defaults.borderColor = 'rgba(160,182,222,0.12)';
+    Chart.defaults.plugins.tooltip.backgroundColor = '#25375f';
+    Chart.defaults.plugins.tooltip.borderColor = 'rgba(160,182,222,0.26)';
+    Chart.defaults.plugins.tooltip.borderWidth = 1;
+    Chart.defaults.plugins.tooltip.padding = 10;
+    // Dates read flat and thin out instead of rotating into a pile.
+    Chart.defaults.scale.ticks.maxRotation = 0;
+    Chart.defaults.scale.ticks.autoSkipPadding = 12;
+    Chart.defaults.elements.bar.borderRadius = 4;
     Chart.defaults.font.family = "'Inter', sans-serif";
   }
 
-  const PALETTE = { teal: '#00a87c', red: '#dc2626', gold: '#d97706', info: '#0284c7', warning: '#d97706', purple: '#7c3aed' };
+  // Dataviz-validated slots on the navy surface (blue, orange, aqua, yellow, magenta, violet).
+  const PALETTE = { teal: '#3987e5', red: '#ff4d6a', gold: '#c98500', info: '#199e70', warning: '#d95926', purple: '#9085e9' };
 
   function lineChart(ctx, { labels, datasets, yLabel }) {
     return new Chart(ctx, {
@@ -24,7 +34,7 @@ window.Admin = window.Admin || {};
         plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 10 } } },
         scales: {
           x: { grid: { display: false } },
-          y: { title: { display: !!yLabel, text: yLabel }, grid: { color: 'rgba(15,15,30,0.06)' } },
+          y: { title: { display: !!yLabel, text: yLabel }, grid: { color: 'rgba(160,182,222,0.08)' } },
         },
       },
     });
@@ -40,7 +50,7 @@ window.Admin = window.Admin || {};
         plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 10 } } },
         scales: {
           x: { stacked, grid: { display: false } },
-          y: { stacked, grid: { color: 'rgba(15,15,30,0.06)' } },
+          y: { stacked, grid: { color: 'rgba(160,182,222,0.08)' } },
         },
       },
     });
@@ -55,7 +65,7 @@ window.Admin = window.Admin || {};
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { x: { grid: { color: 'rgba(15,15,30,0.06)' } }, y: { grid: { display: false } } },
+        scales: { x: { grid: { color: 'rgba(160,182,222,0.08)' } }, y: { grid: { display: false } } },
       },
     });
   }
@@ -91,7 +101,7 @@ window.Admin = window.Admin || {};
       data: {
         datasets: [{
           data: [value, Math.max(0, max - value)],
-          backgroundColor: [value / max > 0.85 ? PALETTE.red : color, 'rgba(20,33,61,0.08)'],
+          backgroundColor: [value / max > 0.85 ? PALETTE.red : color, 'rgba(255,255,255,0.08)'],
           borderWidth: 0,
         }],
       },
