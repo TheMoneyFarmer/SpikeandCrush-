@@ -70,6 +70,14 @@ TW.Chart = (function () {
   const positionData = new Map(); // positionId -> { symbol, direction, stopLoss, takeProfit, lots, entryPrice, colorIndex }
   let onSlTpModify = null; // (positionId, field, price) => void, set via enablePositionLineDragging
   let dragging = null; // { positionId, field, startPrice, colorIndex } while a drag is in progress
+  // Drag mode before a trade: TP and SL lines for the NEXT trade, dragged on
+  // the chart like a position's own lines (same drag code, id DRAFT). Kept
+  // here and redrawn with every setPositionLines() call, so it survives
+  // timeframe and instrument switches.
+  const DRAFT = '__draft';
+  let draft = null; // { symbol, stopLoss, takeProfit, lots }
+  let onDraftChange = null;
+  let lastPositions = [];
 
   // EURUSD/XAUUSD values are unchanged from before instrument rotation shipped
   // (kept exact, including XAUUSD's display-only 0.1 pip vs. the server's 0.01)
@@ -224,6 +232,15 @@ TW.Chart = (function () {
       autoSize: true,
     });
     series = chart.addCandlestickSeries({
+      // The price scale always includes the Drag-mode lines, so they never
+      // sit off-screen where they can't be seen or grabbed.
+      autoscaleInfoProvider: (original) => {
+        const res = original();
+        if (!res || !draft || draft.symbol !== activeSymbol) return res;
+        const lo = Math.min(res.priceRange.minValue, draft.stopLoss, draft.takeProfit);
+        const hi = Math.max(res.priceRange.maxValue, draft.stopLoss, draft.takeProfit);
+        return { ...res, priceRange: { minValue: lo, maxValue: hi } };
+      },
       upColor: settings.bullColor,
       downColor: settings.bearColor,
       borderVisible: false,
@@ -390,8 +407,10 @@ TW.Chart = (function () {
     activeSymbol = symbol;
     positionLines.forEach((lines) => removePositionLineSet(lines));
     positionLines.clear();
+    positionData.delete(DRAFT);
     refreshActiveSeries();
     symbolChangeSubscribers.forEach((fn) => fn(symbol, prevSymbol));
+    setPositionLines(lastPositions);
   }
 
   function onSymbolChanged(fn) {
@@ -513,6 +532,7 @@ TW.Chart = (function () {
   const MAX_VISIBLE_POSITION_LINES = 3; // chart-clutter cap, independent of the trading position limit
 
   function setPositionLines(positions) {
+    lastPositions = positions || [];
     if (!series) return;
     // `positions` is always the human viewer's own myAccount.positions mirror (see
     // game.js match:state/trade:executed handlers) - AI players' positions never reach
@@ -591,6 +611,29 @@ TW.Chart = (function () {
         }
       });
 
+    // The draft (Drag mode) lines for the next trade on this instrument.
+    if (draft && draft.symbol === activeSymbol) {
+      seen.add(DRAFT);
+      const cur = currentPriceFor(activeSymbol);
+      const prev = positionData.get(DRAFT);
+      const data = { symbol: draft.symbol, direction: draft.takeProfit >= (cur ?? draft.takeProfit) ? 'BUY' : 'SELL', stopLoss: draft.stopLoss, takeProfit: draft.takeProfit, lots: draft.lots || 1, entryPrice: cur ?? (prev && prev.entryPrice) ?? (draft.stopLoss + draft.takeProfit) / 2, draft: true };
+      if (!(dragging && dragging.positionId === DRAFT)) {
+        positionData.set(DRAFT, data);
+        let lines = positionLines.get(DRAFT);
+        if (!lines) {
+          lines = {};
+          positionLines.set(DRAFT, lines);
+        }
+        // Labelled in money at the chosen lot size, like an open position's lines
+        // (the chart's display pip size differs from the server's for some symbols).
+        const money = (price, sign) => (cur === null ? '' : ` ${sign}$${dollarAmount(draft.symbol, draft.lots || 1, price, cur).toFixed(0)}`);
+        if (lines.sl) series.removePriceLine(lines.sl);
+        if (lines.tp) series.removePriceLine(lines.tp);
+        lines.sl = series.createPriceLine({ price: draft.stopLoss, color: '#ff4d5e', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: `SL drag${money(draft.stopLoss, '-')}` });
+        lines.tp = series.createPriceLine({ price: draft.takeProfit, color: '#2ee6a6', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: `TP drag${money(draft.takeProfit, '+')}` });
+      }
+    }
+
     for (const [id, lines] of positionLines) {
       if (!seen.has(id)) {
         removePositionLineSet(lines);
@@ -663,6 +706,15 @@ TW.Chart = (function () {
     // Entry stays fixed - only SL/TP can ever be dragged (never offered by findLineNear).
     function validate(data, field, price) {
       const pip = PIP_SIZE[data.symbol] || 0.0001;
+      if (data.draft) {
+        // Next trade: SL and TP on opposite sides of the price, 2+ pips away.
+        const cur = currentPriceFor(data.symbol);
+        if (cur === null) return { valid: true };
+        if (Math.abs(price - cur) < 2 * pip) return { valid: false, reason: 'Too close to the current price (min 2 pips)' };
+        const other = field === 'stopLoss' ? data.takeProfit : data.stopLoss;
+        if ((price - cur) * (other - cur) > 0) return { valid: false, reason: 'Keep SL and TP on opposite sides of the price' };
+        return { valid: true };
+      }
       if (field === 'stopLoss') {
         if (data.direction === 'BUY' && price >= data.entryPrice) return { valid: false, reason: 'Stop loss must stay below entry for a BUY' };
         if (data.direction === 'SELL' && price <= data.entryPrice) return { valid: false, reason: 'Stop loss must stay above entry for a SELL' };
@@ -805,6 +857,12 @@ TW.Chart = (function () {
       }
 
       dragging = null;
+      if (positionId === DRAFT) {
+        if (draft) draft[field] = finalPrice;
+        setPositionLines(lastPositions);
+        if (onDraftChange) onDraftChange(draft ? { ...draft } : null);
+        return;
+      }
       if (onSlTpModify) onSlTpModify(positionId, field, finalPrice);
     }
 
@@ -907,6 +965,46 @@ TW.Chart = (function () {
     getSettings,
     setPositionLines,
     enablePositionLineDragging,
+    // Drag mode: TP/SL lines for the next trade. levels = { symbol, stopLoss,
+    // takeProfit, lots } or null to clear. Defaults from defaultDraft().
+    setDraftLevels: (levels) => {
+      draft = levels ? { ...levels } : null;
+      if (!draft && positionLines.has(DRAFT)) {
+        removePositionLineSet(positionLines.get(DRAFT));
+        positionLines.delete(DRAFT);
+        positionData.delete(DRAFT);
+      }
+      setPositionLines(lastPositions);
+    },
+    getDraftLevels: () => (draft ? { ...draft } : null),
+    onDraftChange: (fn) => {
+      onDraftChange = fn;
+    },
+    // Default draft for a symbol, always inside what the chart shows right
+    // now: TP in the upper part of the visible range, SL a little below the
+    // price (a fixed pip distance can land off-screen and can't be grabbed).
+    defaultDraft: (symbol, lots, spread = 0) => {
+      const cur = currentPriceFor(symbol);
+      if (cur === null) return null;
+      const pip = PIP_SIZE[symbol] || 0.0001;
+      let up = 40 * pip;
+      let down = 20 * pip;
+      const h = series && document.getElementById('chartCanvas') ? document.getElementById('chartCanvas').clientHeight : 0;
+      const top = h && symbol === activeSymbol ? series.coordinateToPrice(h * 0.08) : null;
+      const bottom = h && symbol === activeSymbol ? series.coordinateToPrice(h * 0.92) : null;
+      if (top !== null && bottom !== null && top > cur && bottom < cur) {
+        up = Math.max(2 * pip, (top - cur) * 0.7);
+        down = Math.max(2 * pip, Math.min((cur - bottom) * 0.5, up / 2));
+      }
+      // Never inside the spread: the stop would sit on the wrong side of the
+      // price it closes at and the trade would be refused.
+      const minDist = Math.max(2 * pip, 3 * (Number(spread) || 0));
+      up = Math.max(up, minDist * 2);
+      down = Math.max(down, minDist);
+      return { symbol, takeProfit: cur + up, stopLoss: cur - down, lots };
+    },
+    pipSize: (symbol) => PIP_SIZE[symbol] || 0.0001,
+    currentPrice: (symbol) => currentPriceFor(symbol),
     getChartInstance: () => chart,
     getSeriesInstance: () => series,
     getCandles: () => lastCandles,

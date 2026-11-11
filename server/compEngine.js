@@ -483,7 +483,7 @@ function createCompEngine({ io, notifyPlayer }) {
     return { sl, tp };
   }
 
-  async function openTrade(compId, playerId, { symbol, side, lots, stopLoss, takeProfit }) {
+  async function openTrade(compId, playerId, { symbol, side, lots, stopLoss, takeProfit, stopLossPips, takeProfitPips }) {
     const { comp, account } = await requireTradeable(compId, playerId);
     const dir = String(side || '').toUpperCase();
     if (dir !== 'BUY' && dir !== 'SELL')
@@ -517,7 +517,20 @@ function createCompEngine({ io, notifyPlayer }) {
     }
 
     const entryPrice = dir === 'BUY' ? quote.ask : quote.bid;
-    const { sl, tp } = validateStops(dir, dir === 'BUY' ? quote.bid : quote.ask, stopLoss, takeProfit);
+    // SL/TP may come as pips: measured here from the price the position would
+    // close at, at this exact moment (a client-side conversion uses a quote a
+    // few seconds old, and a fast market can put it on the wrong side).
+    const closeRef = dir === 'BUY' ? quote.bid : quote.ask;
+    const cfgSym = instruments.getInstrument(symbol);
+    const fromPips = (pips, kind) => {
+      const n = Number(pips);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      const below = (kind === 'sl') === (dir === 'BUY');
+      return Number((below ? closeRef - n * cfgSym.pipSize : closeRef + n * cfgSym.pipSize).toFixed(cfgSym.decimals));
+    };
+    if ((stopLoss === undefined || stopLoss === null || stopLoss === '') && stopLossPips) stopLoss = fromPips(stopLossPips, 'sl');
+    if ((takeProfit === undefined || takeProfit === null || takeProfit === '') && takeProfitPips) takeProfit = fromPips(takeProfitPips, 'tp');
+    const { sl, tp } = validateStops(dir, closeRef, stopLoss, takeProfit);
     const position = await db.insertCompPosition({
       account_id: account.id,
       competition_id: comp.id,
