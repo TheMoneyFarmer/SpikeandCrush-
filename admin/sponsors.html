@@ -25,6 +25,20 @@
   .muted { color: var(--text-secondary, #9AA4B8); font-size: 12px; }
   .readonly-note { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
   .hidden { display: none !important; }
+  .sp-switch { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 14px; }
+  .sp-switch b { font-size: 14px; }
+  .sp-pl { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
+  .sp-pl-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .sp-pl-head b { font-size: 13px; }
+  .sp-warn { color: #f5b83d; font-size: 12px; margin-top: 6px; }
+  .sp-block { color: #ff6b6b; font-size: 12px; margin-top: 6px; }
+  .sp-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+  .sp-form .wide { grid-column: 1 / -1; }
+  .sp-form .field { margin: 0; }
+  .sp-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 10px 0; }
+  .sp-tile { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .sp-tile span { display: block; font-size: 11px; color: var(--text-secondary, #9AA4B8); }
+  .sp-tile b { font-size: 18px; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -42,6 +56,7 @@
         </div>
 
         <div class="admin-tab-panel" id="tab-sponsors">
+          <div class="sp-switch" id="spSwitch">Loading…</div>
           <div class="panel">
             <div class="sp-toolbar">
               <div class="field"><label for="fStatus">Status</label><select id="fStatus"><option value="">All</option><option>draft</option><option>active</option><option>paused</option><option>ended</option></select></div>
@@ -147,7 +162,7 @@
               <td>${esc(s.tier)}</td>
               <td><span class="status-pill">${esc(s.status)}</span></td>
               <td class="muted">${s.starts_at ? Admin.formatDate(s.starts_at) : 'any'} → ${s.ends_at ? Admin.formatDate(s.ends_at) : 'open'}</td>
-              <td class="muted">${s.placements.filter((p) => p.active).map(placementLabel).map(esc).join(', ') || 'none'}</td>
+              <td class="muted">${s.placements.filter((p) => (p.status || (p.active ? 'active' : '')) === 'active').map((p) => slotName(p.slot)).map(esc).join(', ') || 'none'}</td>
               <td>${Admin.formatNumber(s.impressions)}</td>
               <td>${Admin.formatNumber(s.clicks)}</td>
               <td>${s.ctr}%</td>
@@ -171,6 +186,19 @@
         <div class="field"><label for="eName">Name</label><input class="edit-field" id="eName" value="${esc(s.name)}" maxlength="120" /></div>
         <div class="field"><label for="eLink">Link (http/https only)</label><input class="edit-field" id="eLink" value="${esc(s.link_url || '')}" placeholder="https://" /></div>
         <div class="field-row">
+          <div class="field"><label for="eTagline">Tagline (60 max)</label><input class="edit-field" id="eTagline" maxlength="60" value="${esc(s.tagline || '')}" /></div>
+          <div class="field"><label for="eSlug">Slug</label><input class="edit-field" id="eSlug" maxlength="40" value="${esc(s.slug || '')}" placeholder="acme-markets" /></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label for="eUtmS">utm_source</label><input class="edit-field" id="eUtmS" value="${esc(s.utm_source || 'spikeandcrush')}" /></div>
+          <div class="field"><label for="eUtmM">utm_medium</label><input class="edit-field" id="eUtmM" value="${esc(s.utm_medium || 'sponsorship')}" /></div>
+          <div class="field"><label for="eUtmC">utm_campaign</label><input class="edit-field" id="eUtmC" value="${esc(s.utm_campaign || '')}" /></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label for="eCName">Contact name</label><input class="edit-field" id="eCName" value="${esc(s.contact_name || '')}" /></div>
+          <div class="field"><label for="eCEmail">Contact email</label><input class="edit-field" id="eCEmail" value="${esc(s.contact_email || '')}" /></div>
+        </div>
+        <div class="field-row">
           <div class="field"><label for="eTier">Tier</label><select class="edit-field" id="eTier">${['platinum', 'gold', 'silver', 'partner'].map((t) => `<option ${t === s.tier ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
           <div class="field"><label for="eStatus">Status</label><select class="edit-field" id="eStatus">${['draft', 'active', 'paused', 'ended'].map((t) => `<option ${t === s.status ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
         </div>
@@ -181,20 +209,19 @@
         <div class="field"><label for="eNotes">Notes</label><textarea class="edit-field" id="eNotes">${esc(s.notes || '')}</textarea></div>
         <div class="editor-only"><button class="btn btn-primary" id="saveSponsor">${isNew ? 'Create sponsor' : 'Save changes'}</button></div>
         ${isNew ? '' : `
-          <h4 style="margin-top:20px;">Logo</h4>
-          <p class="muted">PNG, SVG or WebP, 1 MB max. SVGs are cleaned of scripts and event handlers.</p>
-          ${s.logo_url ? `<img class="sp-logo" style="width:160px;height:56px;" src="${esc(s.logo_url)}" alt="${esc(s.name)}">` : ''}
-          <div class="editor-only" style="margin-top:8px;"><input type="file" id="logoFile" accept="image/png,image/svg+xml,image/webp" /> <button class="btn" id="uploadLogo">Upload</button></div>
-          <h4 style="margin-top:20px;">Placements</h4>
-          <div class="sp-chips">${s.placements.map((p) => `
-            <span class="sp-chip">${esc(placementLabel(p))} · order ${p.sort_order}${p.active ? '' : ' · off'}
-              <button class="btn btn-sm editor-only" data-del-placement="${p.id}" aria-label="Remove placement">Remove</button></span>`).join('') || '<span class="muted">Not placed anywhere yet</span>'}</div>
-          <div class="field-row editor-only">
-            <div class="field"><label for="pType">Where</label><select id="pType"><option value="global_strip">Global strip</option><option value="hero">Hero</option><option value="competition">A competition</option><option value="mode">A mode</option></select></div>
-            <div class="field"><label for="pTarget">Target</label><select id="pTarget" disabled><option value="">—</option></select></div>
-            <div class="field" style="max-width:90px;"><label for="pOrder">Order</label><input type="number" id="pOrder" value="0" /></div>
+          <h4 style="margin-top:20px;">Logos</h4>
+          <p class="muted">PNG, SVG or WebP, 1 MB max, stored in our own storage only. SVGs are cleaned of scripts and event handlers. The dark-background logo is used on the navy site and share images.</p>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+            <div>${s.logo_url ? `<img class="sp-logo" style="width:160px;height:56px;background:#fff" src="${esc(s.logo_url)}" alt="${esc(s.name)} logo">` : '<span class="muted">No light logo</span>'}<div class="muted">For light backgrounds</div></div>
+            <div>${s.logo_dark_url ? `<img class="sp-logo" style="width:160px;height:56px;" src="${esc(s.logo_dark_url)}" alt="${esc(s.name)} logo on dark">` : '<span class="muted">No dark logo</span>'}<div class="muted">For dark backgrounds</div></div>
           </div>
-          <div class="editor-only"><button class="btn" id="addPlacement">Add placement</button></div>`}
+          <div class="editor-only" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="file" id="logoFile" accept="image/png,image/svg+xml,image/webp" />
+            <select id="logoVariant" aria-label="Which logo"><option value="light">Light background logo</option><option value="dark">Dark background logo</option></select>
+            <button class="btn" id="uploadLogo">Upload</button></div>
+          <h4 style="margin-top:20px;">Placements</h4>
+          <div id="plList">${s.placements.map((p) => placementCard(p)).join('') || '<p class="muted">Not placed anywhere yet</p>'}</div>
+          <div class="editor-only"><button class="btn" id="newPlacement">New placement</button></div>
+          <div id="plEditor"></div>`}
       `;
       applyRole();
       document.getElementById('saveSponsor')?.addEventListener('click', () => saveSponsor(isNew ? null : id));
@@ -203,17 +230,10 @@
         return;
       }
       document.getElementById('uploadLogo')?.addEventListener('click', () => uploadLogo(id));
-      document.getElementById('addPlacement')?.addEventListener('click', () => addPlacement(id));
+      document.getElementById('newPlacement')?.addEventListener('click', () => openPlacement(id, null));
       panel.querySelectorAll('[data-del-placement]').forEach((b) => b.addEventListener('click', () => removePlacement(b.dataset.delPlacement)));
-      const pType = document.getElementById('pType');
-      pType?.addEventListener('change', () => {
-        const target = document.getElementById('pTarget');
-        const opts = pType.value === 'competition'
-          ? competitions.map((c) => `<option value="${c.id}">${esc(c.title)}</option>`)
-          : pType.value === 'mode' ? modes.map((m) => `<option value="${m}">${m}</option>`) : ['<option value="">—</option>'];
-        target.innerHTML = opts.join('');
-        target.disabled = !['competition', 'mode'].includes(pType.value);
-      });
+      panel.querySelectorAll('[data-edit-placement]').forEach((b) => b.addEventListener('click', () => openPlacement(id, s.placements.find((p) => p.id === b.dataset.editPlacement))));
+      panel.querySelectorAll('[data-preview-placement]').forEach((b) => b.addEventListener('click', () => previewPlacement(b.dataset.previewPlacement)));
       loadAnalytics(id, s.name);
     }
 
@@ -228,6 +248,13 @@
         startsAt: startVal ? new Date(startVal).toISOString() : null,
         endsAt: endVal ? new Date(endVal).toISOString() : null,
         notes: document.getElementById('eNotes').value,
+        tagline: document.getElementById('eTagline').value,
+        slug: document.getElementById('eSlug').value,
+        utmSource: document.getElementById('eUtmS').value,
+        utmMedium: document.getElementById('eUtmM').value,
+        utmCampaign: document.getElementById('eUtmC').value,
+        contactName: document.getElementById('eCName').value,
+        contactEmail: document.getElementById('eCEmail').value,
       };
       try {
         const r = await Admin.api(id ? `/sponsors/${id}` : '/sponsors', { method: id ? 'PUT' : 'POST', body });
@@ -243,7 +270,8 @@
       const form = new FormData();
       form.append('logo', file);
       try {
-        const res = await fetch(`/api/sponsors/${id}/logo`, { method: 'POST', body: form, credentials: 'include' });
+        const variant = document.getElementById('logoVariant').value;
+        const res = await fetch(`/api/sponsors/${id}/logo?variant=${variant}`, { method: 'POST', body: form, credentials: 'include' });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || `Upload failed (${res.status})`);
         Admin.toast(json.sanitized ? 'Logo uploaded (unsafe SVG content was removed)' : 'Logo uploaded', 'success');
@@ -252,15 +280,93 @@
       } catch (e) { Admin.toast(e.message, 'danger'); }
     }
 
-    async function addPlacement(id) {
+    // ---- placements: slot, targets, weight, dates, creative ----
+    const slotName = (k) => (slotDefs.find((x) => x.key === k) || {}).name || k || 'Old placement';
+    function placementCard(p) {
+      const live = p.status === 'active' && (!p.starts_at || new Date(p.starts_at) <= new Date()) && (!p.ends_at || new Date(p.ends_at) > new Date());
+      return `<div class="sp-pl">
+        <div class="sp-pl-head"><b>${esc(slotName(p.slot))}</b><span class="status-pill">${esc(p.status || (p.active ? 'active' : 'paused'))}${live ? ' · live now' : ''}</span>
+          <span class="muted">${esc(p.targets || 'all')} · weight ${p.weight || 1}</span>
+          <span style="flex:1"></span>
+          <button class="btn btn-sm" data-preview-placement="${p.id}">Preview</button>
+          <button class="btn btn-sm editor-only" data-edit-placement="${p.id}">Edit</button>
+          <button class="btn btn-sm editor-only" data-del-placement="${p.id}">Remove</button></div>
+        <div class="muted">${p.starts_at ? Admin.formatDate(p.starts_at) : 'any time'} to ${p.ends_at ? Admin.formatDate(p.ends_at) : 'open'} · ${esc(p.creative || 'logo_tagline')}${p.tagline ? ` · "${esc(p.tagline)}"` : ''}${p.cta_text ? ` · button "${esc(p.cta_text)}"` : ''}</div>
+      </div>`;
+    }
+
+    function targetHelp() {
+      const comps = ['daily', 'weekly', 'weekend', 'monthly'].map((k) => `competition:${k}`).join(', ');
+      return `all, ${modes.map((m) => `mode:${m}`).join(', ')}, ${comps}, partner:&lt;competition id&gt;, leaderboard, lobby, discover, cosmetic:&lt;item id&gt;`;
+    }
+
+    function openPlacement(sponsorId, p) {
+      const ed = document.getElementById('plEditor');
+      const v = p || { slot: 'lobby_strip', targets: 'all', weight: 1, status: 'draft', creative: 'logo_tagline' };
+      ed.innerHTML = `<div class="sp-pl" style="margin-top:10px">
+        <b>${p ? 'Edit placement' : 'New placement'}</b>
+        <div class="sp-form" style="margin-top:8px">
+          <div class="field"><label for="plSlot">Slot</label><select id="plSlot">${slotDefs.map((x) => `<option value="${x.key}" ${x.key === v.slot ? 'selected' : ''}>${esc(x.name)} (${esc(x.label)})</option>`).join('')}</select></div>
+          <div class="field"><label for="plStatus">Status</label><select id="plStatus">${['draft', 'active', 'paused', 'ended'].map((x) => `<option ${x === v.status ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+          <div class="field wide"><label for="plTargets">Targets (comma separated)</label><input id="plTargets" value="${esc(v.targets || 'all')}" /><div class="muted">${targetHelp()}</div></div>
+          <div class="field"><label for="plStart">Starts</label><input type="datetime-local" id="plStart" value="${toLocalInput(v.starts_at)}" /></div>
+          <div class="field"><label for="plEnd">Ends</label><input type="datetime-local" id="plEnd" value="${toLocalInput(v.ends_at)}" /></div>
+          <div class="field"><label for="plWeight">Weight (1-100, for rotation)</label><input type="number" min="1" max="100" id="plWeight" value="${v.weight || 1}" /></div>
+          <div class="field"><label for="plCreative">Creative</label><select id="plCreative">${[['logo', 'Logo'], ['logo_tagline', 'Logo and tagline'], ['logo_tagline_cta', 'Logo, tagline and button']].map(([k, l]) => `<option value="${k}" ${k === v.creative ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+          <div class="field wide"><label for="plTagline">Tagline for this placement (60 max, blank uses the sponsor's)</label><input id="plTagline" maxlength="60" value="${esc(v.tagline || '')}" /></div>
+          <div class="field"><label for="plCtaText">Button text (24 max)</label><input id="plCtaText" maxlength="24" value="${esc(v.cta_text || '')}" /></div>
+          <div class="field"><label for="plCtaUrl">Button link (opens through /go/ with UTM tags)</label><input id="plCtaUrl" value="${esc(v.cta_url || '')}" placeholder="https://" /></div>
+        </div>
+        <div id="plCheck"></div>
+        <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-primary" id="plSave">${p ? 'Save placement' : 'Add placement'}</button><button class="btn" id="plCancel">Cancel</button></div>
+      </div>`;
+      const read = () => {
+        const st = document.getElementById('plStart').value;
+        const en = document.getElementById('plEnd').value;
+        return {
+          slot: document.getElementById('plSlot').value,
+          status: document.getElementById('plStatus').value,
+          targets: document.getElementById('plTargets').value,
+          startsAt: st ? new Date(st).toISOString() : null,
+          endsAt: en ? new Date(en).toISOString() : null,
+          weight: Number(document.getElementById('plWeight').value) || 1,
+          creative: document.getElementById('plCreative').value,
+          tagline: document.getElementById('plTagline').value,
+          ctaText: document.getElementById('plCtaText').value,
+          ctaUrl: document.getElementById('plCtaUrl').value,
+        };
+      };
+      let t = null;
+      const check = () => {
+        clearTimeout(t);
+        t = setTimeout(async () => {
+          const box = document.getElementById('plCheck');
+          if (!box) return;
+          try {
+            const r = await Admin.api('/sponsors/placements/check', { method: 'POST', body: { ...read(), sponsorId, excludeId: p ? p.id : null } });
+            box.innerHTML = (r.blocking ? `<div class="sp-block">${esc(r.blocking)}</div>` : '')
+              + (r.warnings || []).map((w) => `<div class="sp-warn">${esc(w)}</div>`).join('')
+              + (r.overlaps || []).map((o) => `<div class="muted">${esc(o.sponsor)}: ${esc(o.targets)}, ${o.startsAt ? Admin.formatDate(o.startsAt) : 'any time'} to ${o.endsAt ? Admin.formatDate(o.endsAt) : 'open'}, weight ${o.weight}</div>`).join('');
+          } catch (e) { box.innerHTML = `<div class="sp-block">${esc(e.message)}</div>`; }
+        }, 300);
+      };
+      ed.querySelectorAll('input,select').forEach((el) => el.addEventListener('input', check));
+      check();
+      document.getElementById('plCancel').addEventListener('click', () => { ed.innerHTML = ''; });
+      document.getElementById('plSave').addEventListener('click', async () => {
+        try {
+          const r = await Admin.api(p ? `/sponsors/placements/${p.id}` : `/sponsors/${sponsorId}/placements`, { method: p ? 'PUT' : 'POST', body: read() });
+          Admin.toast((r.warnings || [])[0] || (p ? 'Placement saved' : 'Placement added'), (r.warnings || []).length ? 'warning' : 'success');
+          await loadSponsors();
+          openSponsor(sponsorId);
+        } catch (e) { Admin.toast(e.message, 'danger'); }
+      });
+    }
+
+    async function previewPlacement(pid) {
       try {
-        await Admin.api(`/sponsors/${id}/placements`, {
-          method: 'POST',
-          body: { placement: document.getElementById('pType').value, targetId: document.getElementById('pTarget').value || null, sortOrder: Number(document.getElementById('pOrder').value) },
-        });
-        Admin.toast('Placement added', 'success');
-        await loadSponsors();
-        openSponsor(id);
+        const r = await Admin.api(`/sponsors/placements/${pid}/preview`);
+        window.open(r.url, '_blank', 'noopener');
       } catch (e) { Admin.toast(e.message, 'danger'); }
     }
 
@@ -272,27 +378,110 @@
       } catch (e) { Admin.toast(e.message, 'danger'); }
     }
 
-    // ---- analytics ----
+    // ---- stats, report and report links (aggregate counts only) ----
     async function loadAnalytics(id, name) {
       const panel = document.getElementById('analyticsPanel');
       panel.classList.remove('hidden');
+      const today = new Date().toISOString().slice(0, 10);
+      const monthAgo = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
+      const from = document.getElementById('stFrom')?.value || monthAgo;
+      const to = document.getElementById('stTo')?.value || today;
       panel.innerHTML = 'Loading…';
       try {
-        const { days } = await Admin.api(`/sponsors/${id}/analytics?days=30`);
-        const maxImpr = Math.max(1, ...days.map((d) => d.impressions));
-        const totals = days.reduce((t, d) => ({ i: t.i + d.impressions, c: t.c + d.clicks }), { i: 0, c: 0 });
+        const st = await Admin.api(`/sponsors/${id}/stats?from=${from}&to=${to}`);
+        const sum = st.summary || {};
+        const tt = sum.total || {};
+        const t = { impressions: tt.impressions, unique_viewers: tt.unique, clicks: tt.clicks, entries: tt.entries, outbound_clicks: tt.outbound };
+        const byP = {};
+        (st.days || []).forEach((d) => {
+          const x = byP[d.placement_id] || (byP[d.placement_id] = { impressions: 0, unique_viewers: 0, clicks: 0, entries: 0, outbound_clicks: 0 });
+          ['impressions', 'unique_viewers', 'clicks', 'entries', 'outbound_clicks'].forEach((k) => { x[k] += d[k] || 0; });
+        });
+        const perDay = {};
+        (st.days || []).forEach((d) => { perDay[d.day] = (perDay[d.day] || 0) + (d.impressions || 0); });
+        const dayKeys = Object.keys(perDay).sort();
+        const max = Math.max(1, ...Object.values(perDay));
+        const pct = (a, b) => (b ? `${((a / b) * 100).toFixed(2)}%` : '0.00%');
         panel.innerHTML = `
-          <h3>${esc(name)} — last 30 days</h3>
-          <div class="muted">${Admin.formatNumber(totals.i)} impressions · ${Admin.formatNumber(totals.c)} clicks · CTR ${totals.i ? ((totals.c / totals.i) * 100).toFixed(2) : '0.00'}%</div>
-          <div class="sp-bars" aria-label="Impressions per day">${days.map((d) => `<div class="sp-bar" title="${d.day}: ${d.impressions} impressions, ${d.clicks} clicks" style="height:${Math.round((d.impressions / maxImpr) * 100)}%"></div>`).join('')}</div>
-          <div class="muted">${days[0].day} → ${days[days.length - 1].day}</div>
-          <div class="admin-table-wrap" style="max-height:260px;overflow:auto;margin-top:10px;"><table class="admin-table">
-            <thead><tr><th>Day</th><th>Impressions</th><th>Clicks</th><th>CTR</th></tr></thead>
-            <tbody>${[...days].reverse().map((d) => `<tr><td>${d.day}</td><td>${d.impressions}</td><td>${d.clicks}</td><td>${d.ctr}%</td></tr>`).join('')}</tbody>
+          <h3>${esc(name)}: results</h3>
+          <div class="sp-toolbar">
+            <div class="field"><label for="stFrom">From</label><input type="date" id="stFrom" value="${st.fromDay}" /></div>
+            <div class="field"><label for="stTo">To</label><input type="date" id="stTo" value="${st.toDay}" /></div>
+            <button class="btn" id="stApply">Show</button>
+          </div>
+          <div class="sp-tiles">
+            <div class="sp-tile"><span>Impressions</span><b>${Admin.formatNumber(t.impressions || 0)}</b></div>
+            <div class="sp-tile"><span>Unique viewers</span><b>${Admin.formatNumber(t.unique_viewers || 0)}</b></div>
+            <div class="sp-tile"><span>Clicks</span><b>${Admin.formatNumber(t.clicks || 0)}</b></div>
+            <div class="sp-tile"><span>Click rate</span><b>${pct(t.clicks || 0, t.impressions || 0)}</b></div>
+            <div class="sp-tile"><span>Entries</span><b>${Admin.formatNumber(t.entries || 0)}</b></div>
+            <div class="sp-tile"><span>Visits to sponsor</span><b>${Admin.formatNumber(t.outbound_clicks || 0)}</b></div>
+          </div>
+          ${dayKeys.length ? `<div class="sp-bars" style="grid-template-columns:repeat(${dayKeys.length},1fr)" aria-label="Impressions per day">${dayKeys.map((d) => `<div class="sp-bar" title="${d}: ${perDay[d]} impressions" style="height:${Math.round((perDay[d] / max) * 100)}%"></div>`).join('')}</div>` : '<p class="muted">No counts in this range yet.</p>'}
+          <div class="admin-table-wrap" style="margin-top:10px;"><table class="admin-table">
+            <thead><tr><th>Placement</th><th>Targets</th><th>Impr.</th><th>Unique</th><th>Clicks</th><th>Rate</th><th>Entries</th></tr></thead>
+            <tbody>${(st.placements || []).map((p) => { const x = byP[p.id] || {}; return `<tr><td>${esc(slotName(p.slot))}</td><td class="muted">${esc(p.targets || 'all')}</td><td>${x.impressions || 0}</td><td>${x.unique_viewers || 0}</td><td>${x.clicks || 0}</td><td>${pct(x.clicks || 0, x.impressions || 0)}</td><td>${x.entries || 0}</td></tr>`; }).join('') || '<tr><td colspan="7">No placements</td></tr>'}</tbody>
           </table></div>
-          <a class="btn" style="margin-top:10px;display:inline-block;" href="/api/sponsors/${id}/analytics.csv">Export CSV</a>`;
+          <p class="muted">Counts only. A sponsor report never names a player.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn" href="/api/sponsors/${id}/report?from=${st.fromDay}&to=${st.toDay}" target="_blank" rel="noopener">Open report</a>
+            <a class="btn" href="/api/sponsors/${id}/report?from=${st.fromDay}&to=${st.toDay}&download=1">Download report</a>
+          </div>
+          <h4 style="margin-top:18px">Read-only report links</h4>
+          <p class="muted">A link shows the last 30 days to anyone who has it. Turn it off at any time.</p>
+          <div id="tokList" class="muted">Loading…</div>
+          <div class="editor-only" style="display:flex;gap:8px;align-items:flex-end;margin-top:8px">
+            <div class="field" style="margin:0"><label for="tokDays">Valid for (days)</label><input type="number" id="tokDays" min="1" max="365" value="90" style="width:90px" /></div>
+            <button class="btn" id="tokNew">Create link</button>
+          </div>
+          <div id="tokOut"></div>`;
+        applyRole();
+        document.getElementById('stApply').addEventListener('click', () => loadAnalytics(id, name));
+        document.getElementById('tokNew')?.addEventListener('click', async () => {
+          try {
+            const r = await Admin.api(`/sponsors/${id}/report-tokens`, { method: 'POST', body: { days: Number(document.getElementById('tokDays').value) || 90 } });
+            document.getElementById('tokOut').innerHTML = `<div class="sp-pl"><div class="muted">Copy this now. It is shown once.</div><input readonly value="${esc(r.url)}" style="width:100%" onclick="this.select()" /></div>`;
+            loadTokens(id);
+          } catch (e) { Admin.toast(e.message, 'danger'); }
+        });
+        loadTokens(id);
       } catch (e) {
         panel.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
+      }
+    }
+
+    async function loadTokens(id) {
+      const box = document.getElementById('tokList');
+      try {
+        const { tokens } = await Admin.api(`/sponsors/${id}/report-tokens`);
+        box.innerHTML = tokens.length ? tokens.map((k) => `<div class="sp-pl-head" style="margin:4px 0">
+          <span>Made ${Admin.formatDate(k.created_at)} by ${esc(k.created_by || '')}</span>
+          <span>${k.revoked_at ? 'off' : new Date(k.expires_at) < new Date() ? 'expired' : `works until ${Admin.formatDate(k.expires_at)}`}</span>
+          ${!k.revoked_at && canEdit ? `<button class="btn btn-sm" data-revoke="${k.id}">Turn off</button>` : ''}</div>`).join('') : 'No links yet.';
+        box.querySelectorAll('[data-revoke]').forEach((b) => b.addEventListener('click', async () => {
+          if (!confirm('Turn this report link off? Anyone using it will see that it has been turned off.')) return;
+          try { await Admin.api(`/sponsors/report-tokens/${b.dataset.revoke}`, { method: 'DELETE' }); loadTokens(id); } catch (e) { Admin.toast(e.message, 'danger'); }
+        }));
+      } catch (e) { box.textContent = e.message; }
+    }
+
+    // ---- global switch ----
+    let slotDefs = [];
+    async function loadSwitch() {
+      const box = document.getElementById('spSwitch');
+      try {
+        const st = await Admin.api('/sponsors/settings');
+        slotDefs = st.slots;
+        box.innerHTML = `<b>Sponsors on the site: ${st.enabled ? 'on' : 'off'}</b>
+          <span class="muted">${st.enabled ? 'Scheduled placements show where they are live.' : 'Every sponsor slot is empty across the site, whatever is scheduled.'}</span>
+          <span style="flex:1"></span>
+          ${st.canEdit ? `<button class="btn ${st.enabled ? '' : 'btn-primary'}" id="spToggle">${st.enabled ? 'Turn all sponsors off' : 'Turn sponsors on'}</button>` : ''}`;
+        document.getElementById('spToggle')?.addEventListener('click', async () => {
+          if (st.enabled && !confirm('Hide every sponsor across the site now? It takes up to 30 seconds to apply.')) return;
+          try { await Admin.api('/sponsors/settings', { method: 'PUT', body: { enabled: !st.enabled } }); loadSwitch(); } catch (e) { Admin.toast(e.message, 'danger'); }
+        });
+      } catch (e) {
+        box.innerHTML = `<span class="muted">${esc(e.message)}</span>`;
       }
     }
 
@@ -369,7 +558,7 @@
 
     const initialTab = new URLSearchParams(location.search).get('tab') || 'sponsors';
     // Competitions feed the placement target picker.
-    Admin.api('/sponsors/lobby-settings').then((s) => { competitions = s.competitions; }).catch(() => {}).finally(loadSponsors);
+    Admin.api('/sponsors/lobby-settings').then((s) => { competitions = s.competitions; }).catch(() => {}).finally(() => loadSwitch().finally(loadSponsors));
     showTab(['sponsors', 'leads', 'lobby'].includes(initialTab) ? initialTab : 'sponsors');
   </script>
 </body>

@@ -10,6 +10,10 @@ const multer = require('multer');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const { logAdminAction, logAdminActivity, clientIp } = require('../lib/auth');
 const { MAX_LOGO_BYTES, validateLogo, isHttpUrl } = require('../lib/logoValidation');
+const crypto = require('crypto');
+const { SLOTS, SLOT_NAMES, signPreview } = require('../../server/sponsorSlots');
+const { renderReport, summarise, hashToken, waitingFor } = require('../../server/sponsorReport');
+const compStates = require('../../server/competitionStates');
 
 const TIERS = ['platinum', 'gold', 'silver', 'partner'];
 const STATUSES = ['draft', 'active', 'paused', 'ended'];
@@ -18,6 +22,12 @@ const LEAD_STATUSES = ['new', 'contacted', 'closed'];
 const MODES = ['quick', 'blitz', 'grand', 'solo', 'async', 'private', 'tournament'];
 const LOGO_BUCKET = 'sponsor-logos';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PLACEMENT_STATUSES = ['draft', 'active', 'paused', 'ended'];
+const CREATIVES = ['logo', 'logo_tagline', 'logo_tagline_cta'];
+// A target is 'all' or one exact thing a slot can be about.
+const TARGET_RE = /^(all|leaderboard|lobby|discover|mode:[a-z_]{2,20}|competition:[A-Za-z0-9_-]{2,40}|partner:[0-9a-f-]{36}|cosmetic:[A-Za-z0-9_-]{1,60})$/;
+const SITE = () => String(process.env.SITE_URL || 'https://www.spikeandcrush.com').replace(/\/$/, '');
+const dayStr = (d) => d.toISOString().slice(0, 10);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_LOGO_BYTES, files: 1 } });
 
@@ -66,6 +76,117 @@ function sponsorFields(body, { partial }) {
   }
   if (fields.starts_at && fields.ends_at && fields.ends_at <= fields.starts_at) return { error: 'End date must be after the start date' };
   if (b.notes !== undefined) fields.notes = String(b.notes || '').slice(0, 2000) || null;
+  if (b.tagline !== undefined) {
+    const t = String(b.tagline || '').trim();
+    if (t.length > 60) return { error: 'Tagline must be 60 characters or fewer' };
+    const bad = compStates.cardTextViolations(t);
+    if (bad.length) return { error: `Tagline uses wording that is not allowed (${bad.join(', ')})` };
+    fields.tagline = t || null;
+  }
+  if (b.slug !== undefined) {
+    const slug = String(b.slug || '').trim().toLowerCase();
+    if (slug && !/^[a-z0-9-]{2,40}$/.test(slug)) return { error: 'Slug: 2-40 lowercase letters, numbers and dashes' };
+    fields.slug = slug || null;
+  }
+  for (const [key, col] of [['utmSource', 'utm_source'], ['utmMedium', 'utm_medium'], ['utmCampaign', 'utm_campaign']]) {
+    if (b[key] === undefined) continue;
+    const v = String(b[key] || '').trim();
+    if (v && !/^[A-Za-z0-9_.-]{1,60}$/.test(v)) return { error: `${key}: letters, numbers, dot, dash and underscore only` };
+    fields[col] = v || null;
+  }
+  if (b.contactName !== undefined) fields.contact_name = String(b.contactName || '').trim().slice(0, 120) || null;
+  if (b.contactEmail !== undefined) {
+    const e = String(b.contactEmail || '').trim();
+    if (e && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return { error: 'Contact email is not valid' };
+    fields.contact_email = e || null;
+  }
+  return { fields };
+}
+
+const SLOT_TITLES = {
+  lobby_strip: 'Lobby strip', competition_card: 'Competition card', prematch: 'Match countdown',
+  match_header_chip: 'Match header chip', spike_strip_tag: 'Spike strip tag', result_screen: 'Result screen',
+  leaderboard_header: 'Leaderboard header', event_banner: 'Event banner', email_footer: 'Email footer', cosmetic: 'Cosmetic item',
+};
+const LEGACY_FOR = { lobby_strip: 'global_strip', competition_card: 'competition', match_header_chip: 'mode' };
+
+function range(q) {
+  const to = q.to && !Number.isNaN(Date.parse(q.to)) ? new Date(q.to) : new Date();
+  const from = q.from && !Number.isNaN(Date.parse(q.from)) ? new Date(q.from) : new Date(to.getTime() - 29 * 86400000);
+  if (from > to) return { fromDay: dayStr(to), toDay: dayStr(from) };
+  return { fromDay: dayStr(from), toDay: dayStr(to) };
+}
+
+// Where the preview link opens for each slot.
+function previewPath(p) {
+  const t = String(p.targets || 'all').split(',')[0].trim();
+  const comp = t.startsWith('competition:') ? t.slice(12) : null;
+  switch (p.slot) {
+    case 'competition_card': return /^(daily|weekly|weekend|monthly)$/.test(comp || '') ? `/competitions/${comp}` : '/competitions';
+    case 'leaderboard_header': return '/leaderboard';
+    case 'event_banner': return t === 'discover' ? '/discover' : '/play';
+    case 'cosmetic': return '/shop';
+    default: return '/play';
+  }
+}
+
+// Shared parsing for placement create + update. Returns { fields } or { error }.
+function placementFields(b = {}, { partial }) {
+  const fields = {};
+  if (!partial || b.slot !== undefined) {
+    if (!SLOT_NAMES.includes(b.slot)) return { error: `slot must be one of ${SLOT_NAMES.join(', ')}` };
+    fields.slot = b.slot;
+  }
+  if (!partial || b.targets !== undefined) {
+    const list = String(b.targets || 'all').split(',').map((t) => t.trim()).filter(Boolean);
+    if (!list.length) list.push('all');
+    const bad = list.find((t) => !TARGET_RE.test(t));
+    if (bad) return { error: `Target "${bad}" is not valid. Use all, mode:quick, competition:daily, partner:<id>, leaderboard, cosmetic:<id>` };
+    fields.targets = [...new Set(list)].join(',');
+  }
+  if (b.weight !== undefined) {
+    const w = Math.trunc(Number(b.weight));
+    if (!(w >= 1 && w <= 100)) return { error: 'Weight must be 1 to 100' };
+    fields.weight = w;
+  }
+  if (b.status !== undefined) {
+    if (!PLACEMENT_STATUSES.includes(b.status)) return { error: `status must be one of ${PLACEMENT_STATUSES.join(', ')}` };
+    fields.status = b.status;
+    fields.active = b.status === 'active';
+  } else if (!partial) { fields.status = 'draft'; fields.active = false; }
+  for (const [key, col] of [['startsAt', 'starts_at'], ['endsAt', 'ends_at']]) {
+    if (b[key] === undefined) continue;
+    if (!b[key]) fields[col] = null;
+    else if (Number.isNaN(Date.parse(b[key]))) return { error: `${key} is not a valid date` };
+    else fields[col] = new Date(b[key]).toISOString();
+  }
+  if (fields.starts_at && fields.ends_at && fields.ends_at <= fields.starts_at) return { error: 'End date must be after the start date' };
+  if (b.creative !== undefined) {
+    if (!CREATIVES.includes(b.creative)) return { error: `creative must be one of ${CREATIVES.join(', ')}` };
+    fields.creative = b.creative;
+  }
+  const slot = fields.slot || b.slot;
+  if (slot && SLOTS[slot] && SLOTS[slot].creative === 'text' && fields.creative) fields.creative = 'logo_tagline'; // text-only slots show the name and tagline, never a logo
+  if (b.tagline !== undefined) {
+    const t = String(b.tagline || '').trim();
+    if (t.length > 60) return { error: 'Tagline must be 60 characters or fewer' };
+    const bad = compStates.cardTextViolations(t);
+    if (bad.length) return { error: `Tagline uses wording that is not allowed (${bad.join(', ')})` };
+    fields.tagline = t || null;
+  }
+  if (b.ctaText !== undefined) {
+    const t = String(b.ctaText || '').trim();
+    if (t.length > 24) return { error: 'Button text must be 24 characters or fewer' };
+    const bad = compStates.cardTextViolations(t);
+    if (bad.length) return { error: `Button text uses wording that is not allowed (${bad.join(', ')})` };
+    fields.cta_text = t || null;
+  }
+  if (b.ctaUrl !== undefined) {
+    const u = String(b.ctaUrl || '').trim();
+    if (u && !isHttpUrl(u)) return { error: 'Button link must be an http:// or https:// URL' };
+    fields.cta_url = u || null;
+  }
+  if ((fields.creative === 'logo_tagline_cta') && !partial && (!fields.cta_text || !fields.cta_url)) return { error: 'A button needs both its text and its link' };
   return { fields };
 }
 
@@ -73,6 +194,58 @@ function router() {
   const r = express.Router();
 
   r.use((req, res, next) => (isConfigured ? next() : res.status(503).json({ error: 'Supabase not configured' })));
+
+  // The report helpers expect the game server's db; this is the slice they use.
+  const reportDb = {
+    async waitlistCounts() {
+      const { data } = await supabase.from('competition_waitlist').select('template_key').limit(100000);
+      const out = {};
+      (data || []).forEach((w) => { out[w.template_key] = (out[w.template_key] || 0) + 1; });
+      return out;
+    },
+    async listCompTemplates() {
+      const { data } = await supabase.from('competition_templates').select('key, title');
+      return data || [];
+    },
+  };
+
+  async function statsFor(sponsorId, fromDay, toDay) {
+    const { data: placements, error } = await supabase.from('sponsor_placements').select('id, slot, targets, status, starts_at, ends_at').eq('sponsor_id', sponsorId);
+    if (error) throw error;
+    const ids = (placements || []).map((p) => p.id);
+    if (!ids.length) return { placements: [], days: [] };
+    const { data: days, error: e2 } = await supabase.from('sponsor_stats_daily').select('placement_id, day, impressions, unique_viewers, clicks, entries, outbound_clicks').in('placement_id', ids).gte('day', fromDay).lte('day', toDay).order('day');
+    if (e2) throw e2;
+    return { placements, days: days || [] };
+  }
+
+  // Overlap rules: one presenting sponsor per competition at a time (blocking);
+  // anything else sharing a slot and target in the same window is a warning.
+  async function overlapCheck(p, excludeId) {
+    let q = supabase.from('sponsor_placements').select('id, sponsor_id, slot, targets, starts_at, ends_at, status, weight, sponsors(name)').eq('slot', p.slot).in('status', ['active', 'draft']);
+    if (excludeId) q = q.neq('id', excludeId);
+    const { data, error } = await q;
+    if (error) throw error;
+    const mine = String(p.targets || 'all').split(',').map((t) => t.trim());
+    const s1 = p.starts_at ? Date.parse(p.starts_at) : -Infinity;
+    const e1 = p.ends_at ? Date.parse(p.ends_at) : Infinity;
+    const overlaps = (data || []).filter((o) => {
+      const s2 = o.starts_at ? Date.parse(o.starts_at) : -Infinity;
+      const e2 = o.ends_at ? Date.parse(o.ends_at) : Infinity;
+      if (!(s1 < e2 && s2 < e1)) return false;
+      const theirs = String(o.targets || 'all').split(',').map((t) => t.trim());
+      return mine.some((t) => theirs.includes(t)) || mine.includes('all') || theirs.includes('all');
+    }).map((o) => ({ id: o.id, sponsor: o.sponsors?.name || '', sponsorId: o.sponsor_id, targets: o.targets, startsAt: o.starts_at, endsAt: o.ends_at, status: o.status, weight: o.weight }));
+    const warnings = overlaps.length ? [`${overlaps.length} other placement${overlaps.length === 1 ? '' : 's'} share this slot and dates. They rotate by weight.`] : [];
+    let blocking = null;
+    if (['competition_card', 'prematch'].includes(p.slot)) {
+      const comp = mine.filter((t) => t.startsWith('competition:') || t.startsWith('partner:'));
+      const clash = overlaps.find((o) => o.sponsorId !== p.sponsor_id && String(o.targets).split(',').map((t) => t.trim()).some((t) => comp.includes(t)));
+      if (clash) blocking = `${clash.sponsor || 'Another sponsor'} already presents this competition in those dates. A competition has one presenting sponsor at a time.`;
+    }
+    return { overlaps, warnings, blocking };
+  }
+
 
   // ---- lobby settings (featured competition, empty-state copy, season) ----------
 
@@ -160,15 +333,93 @@ function router() {
 
   r.put('/placements/:pid', requireEditor, async (req, res) => {
     if (!UUID_RE.test(req.params.pid)) return res.status(404).json({ error: 'Placement not found' });
-    const fields = {};
-    if (req.body?.sortOrder !== undefined) fields.sort_order = Math.trunc(Number(req.body.sortOrder) || 0);
-    if (req.body?.active !== undefined) fields.active = req.body.active === true;
     try {
-      const { data, error } = await supabase.from('sponsor_placements').update(fields).eq('id', req.params.pid).select().maybeSingle();
+      const { data: cur, error: e0 } = await supabase.from('sponsor_placements').select('*').eq('id', req.params.pid).maybeSingle();
+      if (e0) throw e0;
+      if (!cur) return res.status(404).json({ error: 'Placement not found' });
+      const { fields, error: invalid } = placementFields(req.body, { partial: true });
+      if (invalid) return res.status(400).json({ error: invalid });
+      if (req.body?.sortOrder !== undefined) fields.sort_order = Math.trunc(Number(req.body.sortOrder) || 0);
+      if (req.body?.active !== undefined) { fields.active = req.body.active === true; fields.status = fields.active ? 'active' : 'paused'; }
+      if (!Object.keys(fields).length) return res.status(400).json({ error: 'Nothing to update' });
+      const next = { ...cur, ...fields };
+      const check = await overlapCheck(next, cur.id);
+      if (check.blocking) return res.status(409).json({ error: check.blocking, overlaps: check.overlaps });
+      fields.updated_at = new Date().toISOString();
+      const { data, error } = await supabase.from('sponsor_placements').update(fields).eq('id', cur.id).select().single();
       if (error) throw error;
-      if (!data) return res.status(404).json({ error: 'Placement not found' });
       await audit(req, 'sponsor_placement_update', 'sponsor_placements', data.id, fields);
-      res.json({ placement: data });
+      res.json({ placement: data, warnings: check.warnings, overlaps: check.overlaps });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Overlap check before saving (the editor calls this as the admin types).
+  r.post('/placements/check', async (req, res) => {
+    const { fields, error: invalid } = placementFields(req.body, { partial: false });
+    if (invalid) return res.status(400).json({ error: invalid });
+    try {
+      const check = await overlapCheck({ ...fields, sponsor_id: req.body?.sponsorId }, UUID_RE.test(String(req.body?.excludeId || '')) ? req.body.excludeId : null);
+      res.json(check);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // A link that shows one placement on the real page, even before it goes live.
+  r.get('/placements/:pid/preview', requireEditor, async (req, res) => {
+    if (!UUID_RE.test(req.params.pid)) return res.status(404).json({ error: 'Placement not found' });
+    try {
+      const { data: p, error } = await supabase.from('sponsor_placements').select('id, slot, targets').eq('id', req.params.pid).maybeSingle();
+      if (error) throw error;
+      if (!p) return res.status(404).json({ error: 'Placement not found' });
+      const secret = process.env.INTERNAL_ADMIN_SECRET || process.env.ADMIN_SECRET;
+      if (!secret) return res.status(503).json({ error: 'Preview links need INTERNAL_ADMIN_SECRET set on both servers' });
+      const token = signPreview(secret, p.id);
+      res.json({ url: `${SITE()}${previewPath(p)}${previewPath(p).includes('?') ? '&' : '?'}sp_preview=${encodeURIComponent(token)}`, expiresInMinutes: 30 });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ---- global switch ----------------------------------------------------------------
+  r.get('/settings', async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('app_settings').select('key, value').in('key', ['sponsors.enabled', 'lobbyStrip.maxTiles']);
+      if (error) throw error;
+      const m = Object.fromEntries((data || []).map((x) => [x.key, x.value]));
+      res.json({ enabled: m['sponsors.enabled'] !== false, maxTiles: Number(m['lobbyStrip.maxTiles']) || 6, slots: SLOT_NAMES.map((k) => ({ key: k, label: SLOTS[k].label, name: SLOT_TITLES[k] || k, textOnly: SLOTS[k].creative === 'text', defaultCreative: SLOTS[k].creative })), canEdit: ['super_admin', 'admin'].includes(req.admin.role) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.put('/settings', requireEditor, async (req, res) => {
+    const rows = [];
+    if (req.body?.enabled !== undefined) rows.push({ key: 'sponsors.enabled', value: req.body.enabled === true });
+    if (req.body?.maxTiles !== undefined) rows.push({ key: 'lobbyStrip.maxTiles', value: Math.min(12, Math.max(1, Math.trunc(Number(req.body.maxTiles) || 6))) });
+    if (!rows.length) return res.status(400).json({ error: 'Nothing to update' });
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase.from('app_settings').upsert(rows.map((x) => ({ ...x, updated_at: now })), { onConflict: 'key' });
+      if (error) throw error;
+      await audit(req, 'sponsors_settings', 'app_settings', null, Object.fromEntries(rows.map((x) => [x.key, x.value])));
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ---- report tokens -------------------------------------------------------------------
+  r.delete('/report-tokens/:tid', requireEditor, async (req, res) => {
+    if (!UUID_RE.test(req.params.tid)) return res.status(404).json({ error: 'Link not found' });
+    try {
+      const { data, error } = await supabase.from('sponsor_report_tokens').update({ revoked_at: new Date().toISOString() }).eq('id', req.params.tid).is('revoked_at', null).select('id, sponsor_id').maybeSingle();
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: 'Link not found or already off' });
+      await audit(req, 'sponsor_report_link_revoke', 'sponsor_report_tokens', data.id, { sponsor_id: data.sponsor_id });
+      res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -192,7 +443,7 @@ function router() {
   // Clicks/impressions/CTR over the optional ?from&to range (all time otherwise).
   r.get('/', async (req, res) => {
     try {
-      let q = supabase.from('sponsors').select('*, sponsor_placements(id, placement, target_id, sort_order, active)').order('created_at', { ascending: false });
+      let q = supabase.from('sponsors').select('*, sponsor_placements(*)').order('created_at', { ascending: false });
       if (STATUSES.includes(req.query.status)) q = q.eq('status', req.query.status);
       if (TIERS.includes(req.query.tier)) q = q.eq('tier', req.query.tier);
       const { data: sponsors, error } = await q;
@@ -250,7 +501,7 @@ function router() {
     if (invalid) return res.status(400).json({ error: invalid });
     if (!Object.keys(fields).length) return res.status(400).json({ error: 'Nothing to update' });
     try {
-      const { data, error } = await supabase.from('sponsors').update(fields).eq('id', req.params.id).select().maybeSingle();
+      const { data, error } = await supabase.from('sponsors').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ error: 'Sponsor not found' });
       await audit(req, 'sponsor_update', 'sponsors', data.id, { name: data.name, ...fields });
@@ -273,9 +524,10 @@ function router() {
         const { error: upErr } = await supabase.storage.from(LOGO_BUCKET).upload(objectPath, result.buffer, { contentType: result.contentType, upsert: true });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(objectPath);
-        const { data, error } = await supabase.from('sponsors').update({ logo_url: pub.publicUrl }).eq('id', sponsor.id).select().single();
+        const col = req.query.variant === 'dark' ? 'logo_dark_url' : 'logo_url';
+        const { data, error } = await supabase.from('sponsors').update({ [col]: pub.publicUrl, updated_at: new Date().toISOString() }).eq('id', sponsor.id).select().single();
         if (error) throw error;
-        await audit(req, 'sponsor_logo_upload', 'sponsors', sponsor.id, { name: sponsor.name, type: result.ext, bytes: result.buffer.length, sanitized: !!result.sanitized });
+        await audit(req, 'sponsor_logo_upload', 'sponsors', sponsor.id, { name: sponsor.name, variant: req.query.variant === 'dark' ? 'dark' : 'light', type: result.ext, bytes: result.buffer.length, sanitized: !!result.sanitized });
         res.json({ sponsor: data, sanitized: !!result.sanitized });
       } catch (e) {
         res.status(500).json({ error: e.message });
@@ -285,25 +537,81 @@ function router() {
 
   r.post('/:id/placements', requireEditor, async (req, res) => {
     if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Sponsor not found' });
-    const { placement, targetId, sortOrder } = req.body || {};
-    if (!PLACEMENTS.includes(placement)) return res.status(400).json({ error: `placement must be one of ${PLACEMENTS.join(', ')}` });
-    if (placement === 'competition' && !UUID_RE.test(String(targetId || ''))) return res.status(400).json({ error: 'Pick a competition for a competition placement' });
-    if (placement === 'mode' && !MODES.includes(targetId)) return res.status(400).json({ error: `Pick a mode: ${MODES.join(', ')}` });
+    const body = { ...(req.body || {}) };
+    // the old form (placement + targetId) maps onto slots
+    if (!body.slot && body.placement) {
+      const legacy = { global_strip: 'lobby_strip', hero: 'lobby_strip', competition: 'competition_card', mode: 'match_header_chip' }[body.placement];
+      if (!legacy) return res.status(400).json({ error: `placement must be one of ${PLACEMENTS.join(', ')}` });
+      body.slot = legacy;
+      if (body.placement === 'mode' && !MODES.includes(body.targetId)) return res.status(400).json({ error: `Pick a mode: ${MODES.join(', ')}` });
+      body.targets = body.placement === 'mode' ? `mode:${body.targetId}` : body.placement === 'competition' ? `competition:${body.targetId}` : 'all';
+    }
+    const { fields, error: invalid } = placementFields(body, { partial: false });
+    if (invalid) return res.status(400).json({ error: invalid });
     try {
-      const row = {
-        sponsor_id: req.params.id,
-        placement,
-        target_id: placement === 'competition' || placement === 'mode' ? String(targetId) : null,
-        sort_order: Math.trunc(Number(sortOrder) || 0),
-        active: true,
-      };
+      const row = { ...fields, sponsor_id: req.params.id, placement: LEGACY_FOR[fields.slot] || 'global_strip', target_id: null, sort_order: Math.trunc(Number(body.sortOrder) || 0), active: fields.status === 'active', created_by: req.admin.email || req.admin.username };
+      const check = await overlapCheck(row, null);
+      if (check.blocking) return res.status(409).json({ error: check.blocking, overlaps: check.overlaps });
       const { data, error } = await supabase.from('sponsor_placements').insert(row).select().single();
       if (error) throw error;
-      // A competition placement also marks the competition as sponsored, so
-      // its hero shows "Presented by".
-      if (placement === 'competition') await supabase.from('competitions').update({ sponsor_id: req.params.id }).eq('id', row.target_id);
-      await audit(req, 'sponsor_placement_add', 'sponsor_placements', data.id, row);
-      res.json({ placement: data });
+      await audit(req, 'sponsor_placement_add', 'sponsor_placements', data.id, { slot: row.slot, targets: row.targets, starts_at: row.starts_at, ends_at: row.ends_at, status: row.status });
+      res.json({ placement: data, warnings: check.warnings, overlaps: check.overlaps });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Stats per placement for a date range (aggregate counts only).
+  r.get('/:id/stats', async (req, res) => {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Sponsor not found' });
+    try {
+      const { fromDay, toDay } = range(req.query);
+      const stats = await statsFor(req.params.id, fromDay, toDay);
+      res.json({ fromDay, toDay, ...stats, summary: summarise(stats) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // The sponsor report as a page (download from admin; same page the token link shows).
+  r.get('/:id/report', async (req, res) => {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Sponsor not found' });
+    try {
+      const { data: sponsor, error } = await supabase.from('sponsors').select('*').eq('id', req.params.id).maybeSingle();
+      if (error) throw error;
+      if (!sponsor) return res.status(404).json({ error: 'Sponsor not found' });
+      const { fromDay, toDay } = range(req.query);
+      const stats = await statsFor(sponsor.id, fromDay, toDay);
+      const waiting = await waitingFor(reportDb, stats.placements);
+      if (req.query.download === '1') res.set('Content-Disposition', `attachment; filename="sponsor-report-${(sponsor.slug || sponsor.id)}-${fromDay}-to-${toDay}.html"`);
+      res.type('html').send(renderReport({ sponsor, fromDay, toDay, stats, waiting }));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.get('/:id/report-tokens', async (req, res) => {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Sponsor not found' });
+    try {
+      const { data, error } = await supabase.from('sponsor_report_tokens').select('id, expires_at, revoked_at, created_by, created_at').eq('sponsor_id', req.params.id).order('created_at', { ascending: false }).limit(50);
+      if (error) throw error;
+      res.json({ tokens: data });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // A new read-only link. The token is shown once; only its hash is stored.
+  r.post('/:id/report-tokens', requireEditor, async (req, res) => {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Sponsor not found' });
+    const days = Math.min(365, Math.max(1, Math.trunc(Number(req.body?.days) || 90)));
+    try {
+      const token = crypto.randomBytes(32).toString('base64url');
+      const row = { sponsor_id: req.params.id, token_hash: hashToken(token), expires_at: new Date(Date.now() + days * 86400000).toISOString(), created_by: req.admin.email || req.admin.username };
+      const { data, error } = await supabase.from('sponsor_report_tokens').insert(row).select('id, expires_at').single();
+      if (error) throw error;
+      await audit(req, 'sponsor_report_link_create', 'sponsor_report_tokens', data.id, { sponsor_id: req.params.id, days });
+      res.json({ id: data.id, url: `${SITE()}/sponsor-report/${token}`, expiresAt: data.expires_at });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -358,3 +666,5 @@ function router() {
 }
 
 module.exports = router;
+module.exports.placementFields = placementFields;
+module.exports.previewPath = previewPath;

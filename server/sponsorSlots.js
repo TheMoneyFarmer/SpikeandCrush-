@@ -40,8 +40,21 @@ function isHttpsUrl(u) {
   try { return new URL(u).protocol === 'https:'; } catch (e) { return false; }
 }
 
+// The signing key comes from the env secret. With no secret (local runs) each
+// process makes a random one, so preview links only work on that process.
+const RANDOM_KEY = crypto.randomBytes(32);
+function keyFor(secret) {
+  return secret ? crypto.createHash('sha256').update(`sponsor-slots|${secret}`).digest() : RANDOM_KEY;
+}
+// Admin preview link token: the admin process signs with the same env secret.
+function signPreview(secret, placementId, ttlMs = 30 * 60 * 1000) {
+  const exp = Date.now() + ttlMs;
+  const sig = crypto.createHmac('sha256', keyFor(secret)).update(`preview|${placementId}|${exp}`).digest('hex').slice(0, 32);
+  return `${placementId}.${exp}.${sig}`;
+}
+
 function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, siteOrigin }) {
-  const hmacKey = crypto.createHash('sha256').update(`sponsor-slots|${secret || 'local-dev'}`).digest();
+  const hmacKey = keyFor(secret);
   let placementCache = new Map(); // slot -> { at, rows }
   let enabledCache = { at: 0, value: true };
 
@@ -147,10 +160,8 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
   }
 
   // ---- admin preview tokens -------------------------------------------------------------
-  function previewToken(placementId, ttlMs = 30 * 60 * 1000) {
-    const exp = Date.now() + ttlMs;
-    const sig = crypto.createHmac('sha256', hmacKey).update(`preview|${placementId}|${exp}`).digest('hex').slice(0, 32);
-    return `${placementId}.${exp}.${sig}`;
+  function previewToken(placementId, ttlMs) {
+    return signPreview(secret, placementId, ttlMs);
   }
   function verifyPreview(token) {
     const [id, exp, sig] = String(token || '').split('.');
@@ -292,4 +303,4 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
   return { SLOTS, SLOT_NAMES, resolve, sponsorNameFor, previewToken, verifyPreview, countImpressions, flush, recordEntry, outboundUrl, isBot, router, _bump: bump, _pending: pending, _clearCache: () => { placementCache = new Map(); enabledCache = { at: 0, value: true }; } };
 }
 
-module.exports = { createSponsorSlots, SLOTS, SLOT_NAMES, BOT_UA };
+module.exports = { createSponsorSlots, signPreview, SLOTS, SLOT_NAMES, BOT_UA };

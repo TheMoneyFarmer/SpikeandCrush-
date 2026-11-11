@@ -284,7 +284,8 @@ app.get(/^\/[a-z0-9-]+\.html$/, (req, res, next) => {
 app.use('/api', requireAdmin);
 // Support agents (role 'support') may use the support inbox and nothing else.
 const supportAgentGuard = (req, res, next) => {
-  if (req.admin && req.admin.role === 'support' && !(req.baseUrl === '/api' && (req.path.startsWith('/support') || req.path.startsWith('/admins/change-password')))) {
+  const supportReadsSponsors = req.method === 'GET' && req.path.startsWith('/sponsors') && !req.path.startsWith('/sponsors/leads');
+  if (req.admin && req.admin.role === 'support' && !supportReadsSponsors && !(req.baseUrl === '/api' && (req.path.startsWith('/support') || req.path.startsWith('/admins/change-password')))) {
     return res.status(403).json({ error: 'Support agents can only use the Support section' });
   }
   next();
