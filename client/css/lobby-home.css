@@ -274,8 +274,11 @@ body.lb-page {
   /* sponsor strip: one compact row that scrolls sideways, never wraps */
   .lb-sponsors { padding: 6px 10px; gap: 8px; overflow-x: auto; scrollbar-width: none; }
   .lb-sponsors::-webkit-scrollbar { display: none; }
-  .lb-sponsors .spx-tile { height: 44px; padding: 0 12px; }
-  .lb-sponsors .spx-logo { height: 22px; }
+  .lb-sponsors .lb-sponsor-cta { display: none; } /* the footer keeps "Sponsor a game" */
+  .lb-sponsors .lb-sponsor-logos { flex: 1 1 auto; min-width: 0; }
+  .lb-sponsors .spx-tile { height: 44px; padding: 0 12px; max-width: none; }
+  .lb-sponsors .spx-tile .spx-tagline { display: none; } /* logos only on phones, so two or three fit */
+  .lb-sponsors .spx-logo { height: 22px; max-width: 150px; }
   #lbMain { gap: 12px; }
   .lb-ticker { height: 28px; margin-top: 8px; }
   .lb-ticker-track, .lb-ticker-track.is-scrolling { animation: none; padding-left: 4px; width: 100%; }
