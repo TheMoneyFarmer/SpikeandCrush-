@@ -7,7 +7,9 @@
 // isn't set, so the rest of the claim-processing flow keeps working in an
 // environment that hasn't configured email yet - the in-app notification
 // still goes out either way.
-async function sendEmail({ to, subject, html, text }) {
+// idempotencyKey: Resend drops a repeat with the same key (24h), so a double
+// click or a retry can never send the same email twice.
+async function sendEmail({ to, subject, html, text, idempotencyKey }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL || 'Spike & Crush <hello@spikeandcrush.com>';
   if (!apiKey) {
@@ -21,6 +23,7 @@ async function sendEmail({ to, subject, html, text }) {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        ...(idempotencyKey ? { 'Idempotency-Key': String(idempotencyKey).slice(0, 256) } : {}),
       },
       body: JSON.stringify(text ? { from, to, subject, html, text } : { from, to, subject, html }),
     });

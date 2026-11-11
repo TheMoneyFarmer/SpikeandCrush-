@@ -38,6 +38,7 @@
 <link rel="stylesheet" href="css/premium.css" />
 <link rel="stylesheet" href="/css/mobile.css">
   <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/sponsor-slots.css" />
   <link rel="stylesheet" href="/css/game-console.css" />
   <link rel="stylesheet" href="/css/fire.css" />
   <link rel="stylesheet" href="/css/modes.css" />
@@ -56,6 +57,7 @@
       <div class="tb-zone tb-left">
         <span class="tb-brand" aria-hidden="true"><span class="tb-s">Spike</span>&amp;<span class="tb-c">Crush</span></span>
         <span class="tb-mode" id="topbarMode"></span>
+        <span data-slot="match_header_chip" id="matchSponsorChip" hidden></span>
         <span class="market-speed-badge" id="marketSpeedBadge" hidden title="The market replays faster than real time in this mode. The clock shows real match time.">MARKET x1</span>
       </div>
       <div class="tb-zone tb-center">
@@ -324,6 +326,27 @@
       <p class="legal-text">© 2026 Spike &amp; Crush</p>
     </div>
   </footer>
+  <script src="/js/sponsor-slots.js"></script>
+  <script>
+    // Spike strip tag: the strip re-renders itself (js/fire.js), so the tag is
+    // put back at its right end whenever that happens. Text only; it sits
+    // inside the strip's fixed 32px height and never changes it.
+    (function () {
+      const strip = document.getElementById('spikeStrip');
+      if (!strip || !window.TW || !TW.SponsorSlots) return;
+      const put = () => {
+        if (strip.querySelector('[data-slot="spike_strip_tag"]')) return;
+        const tag = document.createElement('span');
+        tag.dataset.slot = 'spike_strip_tag';
+        tag.dataset.target = strip.dataset.sponsorTarget || '';
+        tag.hidden = true;
+        strip.appendChild(tag);
+        TW.SponsorSlots.renderInto(tag);
+      };
+      new MutationObserver(put).observe(strip, { childList: true });
+      put();
+    })();
+  </script>
   <script src="js/support-widget.js"></script>
   <script src="/js/orientation.js"></script></body>
 </html>

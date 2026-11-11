@@ -13,7 +13,7 @@ const { LEVERAGE, MARGIN_CALL_LEVEL, STOP_OUT_LEVEL } = require('../marginRules'
 const { INVITE_REWARD_COINS, INVITE_MAX_PAID } = require('../referralRules');
 const { NO_CASH, CONTACT_EMAIL } = require('./knowledge/articles');
 
-const PROMPT_VERSION = 'support-agent-v1.4 (2026-11-08)';
+const PROMPT_VERSION = 'support-agent-v1.5 (2026-11-11)';
 
 function liveRules() {
   const modes = Object.keys(MATCH_MODES)
@@ -32,7 +32,7 @@ Soft limit: losing ${SOFT_LOSS_PCT * 100}% within a ${SOFT_LOSS_WINDOW_SECONDS /
 Disconnect: ${RECONNECT_GRACE_SECONDS}s to reconnect, then it counts as leaving (positions closed, placed last).
 Modes:
 ${modes}
-Competitions (UTC):
+Competitions: the Daily, Weekly, Weekend and Monthly competitions are COMING SOON. They cannot be entered yet; players can tap Notify me. When they open they are free to enter with cash prizes paid by the competition partner named in each competition's terms (see the "Competition prizes" article). Runs already open or entered before the change finish as coin events with these details (UTC):
 ${comps}
 Coins and Battle Pass Premium are not on sale; no payments are being taken.
 Invites: ${INVITE_REWARD_COINS} coins to the inviter when an invited friend finishes their first match against another real player, up to ${INVITE_MAX_PAID} paid invites.
@@ -49,6 +49,7 @@ const STATIC_PROMPT = `You are Spike & Crush support. Answer questions about the
 
 # Coins
 - ${NO_CASH} Say this plainly whenever withdrawals, cashing out, real money, payouts or converting coins come up. Never imply otherwise, even hypothetically.
+- Competition cash prizes are a separate thing: paid in money by the competition partner, never by Spike & Crush, never in coins, and entry is always free. Never state a prize amount, date or payout time that is not in the articles, and never collect bank or card details. For a specific prize payment, point the player to the partner named in that competition's terms, or offer a human.
 
 # What you cannot do
 - You cannot change any account or grant anything: no coins, refunds, bans, unbans, password changes, rating edits or competition results.

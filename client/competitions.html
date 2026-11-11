@@ -32,6 +32,8 @@
 <link rel="stylesheet" href="/css/competitions.css">
 <link rel="stylesheet" href="/css/mobile.css">
 <link rel="stylesheet" href="/css/candle-bg.css">
+<link rel="stylesheet" href="/css/sponsor-slots.css">
+<link rel="stylesheet" href="/css/comp-templates.css">
 <script src="/js/device.js"></script>
 <script>(function(){try{var t=localStorage.getItem("sc_theme")==="light"?"light":"default";document.documentElement.setAttribute("data-theme",t);
 // Logged-in players get the shared app header (same as Shop, Wallet, ...);
@@ -89,7 +91,7 @@ html:not(.tw-logged-in) #twNav { display: none; }
       </div>
       <div class="chs">
         <div class="chs-v gold" id="hs-prize">—</div>
-        <div class="chs-l">Total Prize Pool</div>
+        <div class="chs-l">Coin prizes in play</div>
       </div>
       <div class="chs">
         <div class="chs-v" id="hs-entrants">—</div>
@@ -100,6 +102,17 @@ html:not(.tw-logged-in) #twNav { display: none; }
         <div class="chs-l">Firms Listed</div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- RECURRING + PARTNER COMPETITIONS (server/compTemplates.js) -->
+<section class="tc-section" aria-labelledby="tcHeading">
+  <p class="tc-pageline" id="tcPageLine">Competition prizes are paid in money by the competition partner. Coins won in game modes have no cash value.</p>
+  <div class="tc-head"><h2 id="tcHeading">Recurring competitions</h2><span class="tc-sub">Free to enter. You can enter the Daily and the Weekly together.</span></div>
+  <div class="tc-grid" id="tcGrid"></div>
+  <div id="pcWrap" hidden>
+    <div class="tc-head"><h2>Partner competitions</h2><span class="tc-sub">Hosted on the partner's own site</span></div>
+    <div class="tc-grid" id="pcGrid"></div>
   </div>
 </section>
 
@@ -209,6 +222,8 @@ html:not(.tw-logged-in) #twNav { display: none; }
 <script src="/js/lottie.js"></script>
 <script src="/js/candle-bg.js"></script>
 <script src="/js/comp-entry.js"></script>
+<script src="/js/comp-templates.js"></script>
+<script src="/js/sponsor-slots.js"></script>
 <script>
 // ── STATE ────────────────────────────────────
 let allComps      = [];
@@ -320,7 +335,35 @@ function orgAvatar(c, cls, fallbackCls) {
 // ── LOAD ─────────────────────────────────────
 async function init() {
   bindUi();
-  await loadComps();
+  TW.CompTemplates.wire(document.getElementById('tcGrid'), loadTemplates);
+  await Promise.all([loadComps(), loadTemplates()]);
+  loadPartnerCards();
+}
+
+// Daily / Weekly / Weekend / Monthly as cards (locked while Coming soon).
+async function loadTemplates() {
+  const d = await TW.CompTemplates.fetchTemplates().catch(() => ({ templates: [] }));
+  if (d.pageLine) document.getElementById('tcPageLine').textContent = d.pageLine;
+  const grid = document.getElementById('tcGrid');
+  grid.innerHTML = (d.templates || []).map((t) => TW.CompTemplates.templateCard(t)).join('') || '<p class="tc-sub">Recurring competitions are being set up.</p>';
+  if (TW.SponsorSlots) TW.SponsorSlots.scan(grid);
+}
+
+// Partner competitions: listings with a partner placement (counted through /go/).
+const partnerHref = new Map();
+async function loadPartnerCards() {
+  const partners = allComps.filter((c) => c.prize_kind === 'partner' || c.type === 'external');
+  if (!partners.length) return;
+  const want = partners.map((c) => `competition_card:partner:${c.id}`).join(',');
+  const d = await fetch(`/api/slots?want=${encodeURIComponent(want)}`).then((r) => (r.ok ? r.json() : { slots: {} })).catch(() => ({ slots: {} }));
+  const cards = partners.map((c) => {
+    const [p] = (d.slots || {})[`competition_card:partner:${c.id}`] || [];
+    if (p) partnerHref.set(c.id, p.href);
+    return p ? TW.CompTemplates.partnerCard(c, p.sponsor.name, p) : '';
+  }).filter(Boolean);
+  if (!cards.length) return;
+  document.getElementById('pcGrid').innerHTML = cards.join('');
+  document.getElementById('pcWrap').hidden = false;
 }
 
 async function loadComps() {
@@ -723,7 +766,8 @@ async function handleCTA(compId, btn) {
   TW.api('/api/competitions/' + encodeURIComponent(compId) + '/click', { method: 'POST' }).catch(() => {});
 
   if (comp.type === 'external') {
-    const url = safeUrl(comp.external_url);
+    // through /go/ when the partner has a placement (counted, UTM-tagged)
+    const url = partnerHref.get(comp.id) || safeUrl(comp.external_url);
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
     else TW.toast('This competition has no entry link yet', 'warning');
     return;

@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="css/premium.css" />
 <link rel="stylesheet" href="/css/mobile.css">
 <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/sponsor-slots.css" />
 <style>
   body { background: #07090F; }
   .dc-wrap { max-width: 960px; margin: 0 auto; padding: 16px; color: #E8EDF6; }
@@ -57,6 +58,7 @@
   <div id="twNav" data-active="discover"></div>
   <main class="dc-wrap">
     <div class="dc-head"><h1>Discover</h1><a href="/settings#privacy">Privacy settings</a></div>
+    <section data-slot="event_banner" data-target="discover" aria-label="Event" hidden style="margin-bottom:16px"></section>
     <div class="dc-tabs" role="tablist">
       <button type="button" data-section="friends" class="active">Friends online</button>
       <button type="button" data-section="live">Players live</button>
@@ -176,5 +178,6 @@
     }
     load(true);
   </script>
-</body>
+<script src="/js/sponsor-slots.js"></script>
+  </body>
 </html>

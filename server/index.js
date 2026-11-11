@@ -500,6 +500,27 @@ app.get('/clip', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'clip.html')))
 app.get('/tournaments', (req, res) => res.redirect(302, '/competitions'));
 app.get('/tournament/:id', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'tournament.html')));
 app.get('/competitions', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'competitions.html')));
+// Sponsor slots (/api/slots, /api/slots/seen, /go/:id), the sponsor report
+// link (/sponsor-report/:token) and competition templates (Coming soon cards,
+// waitlist, /competitions/:key). See server/sponsorSlots.js.
+const sponsorSlots = require('./sponsorSlots').createSponsorSlots({
+  db,
+  logoHosts: [(() => { try { return new URL(process.env.SUPABASE_URL).hostname; } catch (e) { return ''; } })()].filter(Boolean),
+  secret: process.env.INTERNAL_ADMIN_SECRET || process.env.ADMIN_SECRET,
+  optionalViewerId: (req) => optionalViewerId(req),
+  siteOrigin: process.env.SITE_URL,
+});
+app.use(sponsorSlots.router());
+app.use(require('./sponsorReport').createSponsorReportRouter({ db }));
+app.use(require('./compTemplates').createCompTemplatesRouter({
+  db,
+  authenticate: [requireDb, (req, res, next) => authenticate(req, res, next)],
+  optionalViewerId: (req) => optionalViewerId(req),
+  sendEmail,
+  clientDir: CLIENT_DIR,
+  siteUrl: (req) => String(process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, ''),
+  sponsorNameFor: (slot, target) => sponsorSlots.sponsorNameFor(slot, target),
+}));
 app.get('/competition/:id', seo.createCompetitionPage(db));
 app.get('/contact', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'contact.html')));
 app.get('/cookies', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'cookies.html')));
@@ -2829,6 +2850,10 @@ app.post('/api/competitions/:id/click', clickLimiter, requireDb, requireCompetit
 app.post('/api/competitions/:id/enter', requireDb, requireCompetitionId, authenticate, async (req, res) => {
   try {
     const result = await compEngine.enter(req.params.id, req.tokenPlayer.id);
+    if (!result.alreadyEntered) {
+      // count the entry for whichever sponsor presents this competition (a count, no player id)
+      db.getCompetitionById?.(req.params.id).then((c) => c && sponsorSlots.recordEntry(`competition:${c.template_key || c.frequency || c.id}`)).catch(() => {});
+    }
     res.json({ success: true, ...result, playUrl: `/competition/${req.params.id}` });
   } catch (e) {
     sendCompError(res, e, 'competition enter');

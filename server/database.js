@@ -2084,7 +2084,8 @@ async function recordSponsorClick({ sponsorId, placement, targetId, userId, ipHa
   assertConfigured();
   const { error } = await supabase
     .from('sponsor_clicks')
-    .insert({ sponsor_id: sponsorId, placement, target_id: targetId, user_id: userId, ip_hash: ipHash });
+    // Sponsor data never names a player (userId is accepted for old callers and ignored).
+    .insert({ sponsor_id: sponsorId, placement, target_id: targetId, user_id: null, ip_hash: ipHash });
   if (error) throw error;
 }
 
@@ -2443,7 +2444,180 @@ async function listMarketStats(sinceIso) {
   return data || [];
 }
 
+
+// ---- competition templates, states and the waitlist (sponsors migration) ------
+
+async function listCompTemplates() {
+  assertConfigured();
+  const { data, error } = await supabase.from('competition_templates').select('*').order('key');
+  if (error) throw error;
+  return data || [];
+}
+
+async function getCompTemplate(key) {
+  assertConfigured();
+  const { data, error } = await supabase.from('competition_templates').select('*').eq('key', key).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function updateCompTemplate(key, patch) {
+  assertConfigured();
+  const { data, error } = await supabase.from('competition_templates').update({ ...patch, updated_at: new Date().toISOString() }).eq('key', key).select('*').single();
+  if (error) throw error;
+  return data;
+}
+
+async function updateCompetitionFields(id, patch) {
+  assertConfigured();
+  const { data, error } = await supabase.from('competitions').update(patch).eq('id', id).select('*').single();
+  if (error) throw error;
+  return data;
+}
+
+// Idempotent: one row per player per template. Returns created=true only the first time.
+async function waitlistJoin(userId, templateKey, source = 'card') {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('competition_waitlist')
+    .upsert({ user_id: userId, template_key: templateKey, source }, { onConflict: 'user_id,template_key', ignoreDuplicates: true })
+    .select('id');
+  if (error) throw error;
+  return { created: Array.isArray(data) && data.length > 0 };
+}
+
+async function waitlistLeave(userId, templateKey) {
+  assertConfigured();
+  const { error } = await supabase.from('competition_waitlist').delete().eq('user_id', userId).eq('template_key', templateKey);
+  if (error) throw error;
+}
+
+async function waitlistCounts() {
+  assertConfigured();
+  const out = {};
+  for (const t of await listCompTemplates()) {
+    const { count, error } = await supabase.from('competition_waitlist').select('id', { count: 'exact', head: true }).eq('template_key', t.key);
+    if (error) throw error;
+    out[t.key] = count || 0;
+  }
+  return out;
+}
+
+async function waitlistMine(userId) {
+  assertConfigured();
+  const { data, error } = await supabase.from('competition_waitlist').select('template_key').eq('user_id', userId);
+  if (error) throw error;
+  return (data || []).map((r) => r.template_key);
+}
+
+// Players still to be told this template opened (email used only by the send step).
+async function waitlistPending(templateKey, limit = 5000) {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('competition_waitlist')
+    .select('id, user_id, player:players!competition_waitlist_user_id_fkey(email, username)')
+    .eq('template_key', templateKey)
+    .is('notified_at', null)
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+async function markWaitlistNotified(ids) {
+  assertConfigured();
+  if (!ids.length) return;
+  const { error } = await supabase.from('competition_waitlist').update({ notified_at: new Date().toISOString() }).in('id', ids).is('notified_at', null);
+  if (error) throw error;
+}
+
+async function logWaitlistSend(templateKey, sentBy, recipients) {
+  assertConfigured();
+  const { error } = await supabase.from('competition_waitlist_sends').insert({ template_key: templateKey, sent_by: sentBy, recipients });
+  if (error) throw error;
+}
+
+async function lastWaitlistSend(templateKey) {
+  assertConfigured();
+  const { data, error } = await supabase.from('competition_waitlist_sends').select('created_at').eq('template_key', templateKey).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (error) throw error;
+  return data ? data.created_at : null;
+}
+
+// ---- sponsor slots: placements, stats, report tokens -------------------------
+
+const PLACEMENT_SELECT = 'id, sponsor_id, slot, targets, weight, starts_at, ends_at, status, creative, tagline, cta_text, cta_url, sponsor:sponsors!inner(id, name, slug, tagline, logo_url, logo_dark_url, link_url, status, starts_at, ends_at, utm_source, utm_medium, utm_campaign)';
+
+async function listLivePlacements(slot) {
+  assertConfigured();
+  const { data, error } = await supabase.from('sponsor_placements').select(PLACEMENT_SELECT).eq('slot', slot).eq('status', 'active');
+  if (error) throw error;
+  return data || [];
+}
+
+async function getPlacementWithSponsor(id) {
+  assertConfigured();
+  const { data, error } = await supabase.from('sponsor_placements').select(PLACEMENT_SELECT).eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function bumpSponsorStats({ placementId, day, impressions = 0, unique = 0, clicks = 0, entries = 0, outbound = 0 }) {
+  assertConfigured();
+  const { error } = await supabase.rpc('sponsor_stats_bump', { p_placement: placementId, p_day: day, p_impressions: impressions, p_unique: unique, p_clicks: clicks, p_entries: entries, p_outbound: outbound });
+  if (error) throw error;
+}
+
+async function getSponsorById(id) {
+  assertConfigured();
+  const { data, error } = await supabase.from('sponsors').select('id, name, slug, status').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function getSponsorReportToken(tokenHash) {
+  assertConfigured();
+  const { data, error } = await supabase.from('sponsor_report_tokens').select('id, sponsor_id, expires_at, revoked_at').eq('token_hash', tokenHash).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Aggregate counts only, per placement per day, for a sponsor's report.
+async function sponsorStats(sponsorId, fromDay, toDay) {
+  assertConfigured();
+  const { data: placements, error } = await supabase.from('sponsor_placements').select('id, slot, targets').eq('sponsor_id', sponsorId);
+  if (error) throw error;
+  const ids = (placements || []).map((p) => p.id);
+  if (!ids.length) return { placements: [], days: [] };
+  const { data: days, error: e2 } = await supabase
+    .from('sponsor_stats_daily')
+    .select('placement_id, day, impressions, unique_viewers, clicks, entries, outbound_clicks')
+    .in('placement_id', ids)
+    .gte('day', fromDay)
+    .lte('day', toDay)
+    .order('day');
+  if (e2) throw e2;
+  return { placements, days: days || [] };
+}
+
 module.exports = {
+  listCompTemplates,
+  getCompTemplate,
+  updateCompTemplate,
+  updateCompetitionFields,
+  waitlistJoin,
+  waitlistLeave,
+  waitlistCounts,
+  waitlistMine,
+  waitlistPending,
+  markWaitlistNotified,
+  logWaitlistSend,
+  lastWaitlistSend,
+  listLivePlacements,
+  getPlacementWithSponsor,
+  bumpSponsorStats,
+  getSponsorReportToken,
+  getSponsorById,
+  sponsorStats,
   isConfigured,
   getBestRun,
   fetchWithTimeout,

@@ -1,0 +1,53 @@
+/* Recurring competition cards (Coming soon / open) and partner competition
+   cards. A locked card keeps its full colour and identity; only its Enter
+   button is muted. Tokens from css/palette.css. */
+.tc-section { max-width: 1200px; margin: 0 auto; padding: 24px 24px 8px; box-sizing: border-box; }
+.tc-pageline { margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; background: var(--c-deep, #182746); color: var(--c-body, rgba(232, 238, 248, 0.76)); font-size: 13px; }
+.tc-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 6px 0 12px; }
+.tc-head h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.tc-sub { font-size: 13px; color: var(--c-mute, rgba(200, 212, 232, 0.7)); }
+.tc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-bottom: 18px; }
+
+.tc-card {
+  position: relative; display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 16px; overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c-blue, #2d7ff9) 16%, var(--c-elev, #1d2d50)), var(--c-deep, #182746) 70%);
+  box-shadow: inset 0 0 0 1px var(--c-hair-2, rgba(160, 182, 222, 0.26));
+  color: var(--c-on, #f2f5fa);
+}
+.tc-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, var(--c-gold, #f5b83d), var(--c-spike, #1fd38a)); }
+.tc-card.tc-partner::before { background: linear-gradient(90deg, #6cb2ff, var(--c-blue, #2d7ff9)); }
+.tc-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tc-state { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 9px; border-radius: 9999px; background: color-mix(in srgb, var(--c-gold, #f5b83d) 18%, transparent); color: var(--c-gold, #f5b83d); }
+.tc-state-open, .tc-state-running { background: color-mix(in srgb, var(--c-spike, #1fd38a) 18%, transparent); color: var(--c-spike, #1fd38a); }
+.tc-state-paused, .tc-state-closed { background: var(--c-ghost, rgba(255, 255, 255, 0.07)); color: var(--c-mute, rgba(200, 212, 232, 0.72)); }
+.tc-free, .tc-hosted { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 9999px; background: rgba(255, 255, 255, 0.08); color: var(--c-on, #f2f5fa); }
+.tc-hosted { background: rgba(108, 178, 255, 0.16); color: #9cc4ff; }
+.tc-card h3 { margin: 4px 0 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.tc-card h3 a { color: inherit; text-decoration: none; }
+.tc-card h3 a:hover { text-decoration: underline; }
+.tc-sched { font-size: 13px; color: var(--c-mute, rgba(200, 212, 232, 0.72)); }
+.tc-prize { margin-top: 6px; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+.tc-prize-coins { font-size: 22px; }
+.tc-top-line { font-size: 12px; color: var(--c-mute, rgba(200, 212, 232, 0.72)); }
+.tc-hook { margin: 2px 0 0; font-size: 14px; line-height: 1.45; color: var(--c-body, rgba(232, 238, 248, 0.85)); }
+.tc-rules-line { font-size: 13px; color: var(--c-mute, rgba(200, 212, 232, 0.72)); }
+.tc-rules { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.tc-rules li { display: flex; align-items: center; gap: 6px; }
+.tc-rules svg { color: var(--c-spike, #1fd38a); flex: 0 0 auto; }
+.tc-sponsor { margin-top: 2px; }
+.tc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; padding-top: 8px; }
+.tc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 18px; border-radius: 9999px; border: 1px solid var(--c-hair-2, rgba(160, 182, 222, 0.26)); background: transparent; color: var(--c-on, #f2f5fa); font: 600 14px var(--c-font, Inter, sans-serif); text-decoration: none; cursor: pointer; }
+.tc-btn:focus-visible { outline: 2px solid var(--c-focus, #fff); outline-offset: 2px; }
+.tc-primary { background: var(--c-blue, #2d7ff9); border-color: var(--c-blue, #2d7ff9); color: #fff; }
+.tc-soon { flex: 1 1 auto; background: rgba(255, 255, 255, 0.06); border-color: transparent; color: var(--c-mute, rgba(200, 212, 232, 0.72)); cursor: default; }
+.tc-notify { background: var(--c-on, #f2f5fa); border-color: var(--c-on, #f2f5fa); color: var(--c-canvas, #14213d); }
+.tc-on { border-color: color-mix(in srgb, var(--c-spike, #1fd38a) 60%, transparent); color: var(--c-spike, #1fd38a); }
+.tc-btn:disabled:not(.tc-soon) { opacity: 0.6; cursor: default; }
+.tc-rhythm { font-size: 12px; color: var(--c-mute, rgba(200, 212, 232, 0.72)); }
+.tc-waiting { font-size: 12px; font-weight: 600; color: var(--c-gold, #f5b83d); }
+.tc-more { font-size: 13px; color: var(--c-link, #6cb2ff); text-decoration: none; align-self: flex-start; }
+.tc-more:hover { text-decoration: underline; }
+@media (max-width: 760px) {
+  .tc-section { padding: 16px 16px 4px; }
+  .tc-grid { grid-template-columns: minmax(0, 1fr); }
+}

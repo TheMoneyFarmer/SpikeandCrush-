@@ -64,6 +64,7 @@
   .low-balance-prompt { border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 </style>
   <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/sponsor-slots.css" />
 <script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="shop">
@@ -138,6 +139,7 @@
           ${owned ? '<div class="owned-badge">OWNED</div>' : ''}
           ${cosmeticPreview(item)}
           <div class="name">${TW.escapeHtml(item.name)}</div>
+          <div data-slot="cosmetic" data-target="cosmetic:${TW.escapeHtml(item.id)}" data-variant="line" hidden></div>
           ${item.requiresTier ? `<div class="text-secondary" style="font-size:11px;">Requires ${TW.escapeHtml(item.requiresTier)} tier</div>` : ''}
           <div class="price">${item.price > 0 ? `🪙 ${item.price}` : 'Free'}</div>
           ${btnHtml}
@@ -281,6 +283,7 @@
       <p class="legal-text">© 2026 Spike &amp; Crush</p>
     </div>
   </footer>
+  <script src="/js/sponsor-slots.js"></script>
   <script src="js/support-widget.js"></script>
   <script src="/js/orientation.js"></script>
   <script src="/js/bottom-nav.js"></script>

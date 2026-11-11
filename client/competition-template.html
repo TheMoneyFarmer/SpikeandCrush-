@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Competition | Spike &amp; Crush</title>
+<meta name="description" content="A free-to-enter Spike &amp; Crush trading competition." />
+<!-- seo:dynamic (server/compTemplates.js fills title, description and canonical per competition) -->
+<link rel="icon" href="/icons/compete.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/compete-32.png" type="image/png" sizes="32x32" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/themes.css">
+<link rel="stylesheet" href="/css/mobile.css">
+<link rel="stylesheet" href="/css/candle-bg.css">
+<link rel="stylesheet" href="/css/console.css" />
+<link rel="stylesheet" href="/css/sponsor-slots.css">
+<link rel="stylesheet" href="/css/comp-templates.css">
+<script>(function(){try{var t=localStorage.getItem("sc_theme")==="light"?"light":"default";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<style>
+.ct-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 24px 48px; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+.ct-hero { grid-column: 1 / -1; padding: 28px 24px; border-radius: 18px; position: relative; overflow: hidden; background: var(--c-deep); }
+.ct-hero h1 { margin: 8px 0 6px; font-weight: 300; font-size: clamp(30px, 4vw, 46px); letter-spacing: -0.015em; }
+.ct-hero p { margin: 0; max-width: 640px; color: var(--c-body); font-size: 16px; }
+.ct-sec { padding: 18px 20px; border-radius: 14px; background: var(--c-deep); margin-bottom: 14px; }
+.ct-sec h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+.ct-sec p, .ct-sec li { color: var(--c-body); font-size: 14px; line-height: 1.55; }
+.ct-sec ul { margin: 0; padding-left: 18px; }
+.ct-times { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 14px; }
+.ct-times span:nth-child(odd) { color: var(--c-mute); }
+.ct-side { position: sticky; top: 80px; }
+.ct-side .tc-card h3 { font-size: 18px; }
+@media (max-width: 900px) { .ct-wrap { grid-template-columns: minmax(0, 1fr); padding: 16px; } .ct-side { position: static; order: -1; } }
+</style>
+<script src="/js/analytics.js" defer></script>
+</head>
+<body data-page="competition-template">
+<div id="twNav" data-active="tournaments"></div>
+<main class="ct-wrap" id="ctWrap">
+  <section class="ct-hero" data-candle-bg>
+    <a href="/competitions" style="color:var(--c-link);text-decoration:none;font-size:13px">All competitions</a>
+    <h1 id="ctTitle">Competition</h1>
+    <p id="ctHook"></p>
+  </section>
+  <div>
+    <div data-slot="competition_card" data-variant="header" id="ctSponsor" hidden></div>
+    <section class="ct-sec" aria-labelledby="ctHow"><h2 id="ctHow">How it works</h2><p id="ctWhat"></p><div class="ct-times" id="ctTimes"></div></section>
+    <section class="ct-sec" aria-labelledby="ctPrizeH"><h2 id="ctPrizeH">Prize</h2><p id="ctPrize"></p><p id="ctPrizeTop"></p></section>
+    <section class="ct-sec" aria-labelledby="ctRulesH"><h2 id="ctRulesH">Rules</h2>
+      <ul id="ctRules"></ul>
+      <p><strong>No AI, bots or EAs.</strong> Every trade must be placed by you. We review trading patterns, and accounts that trade automatically are removed and lose any prize.</p>
+      <p>You can enter more than one competition at the same time. For example, you can enter the Daily and the Weekly together.</p>
+    </section>
+    <section class="ct-sec" aria-labelledby="ctPayH"><h2 id="ctPayH">Who pays the prize, and how</h2>
+      <p>Entry is free. It never costs coins or money, and nothing you can buy affects it.</p>
+      <p>Prizes in this competition are cash prizes paid by the competition partner named in the competition terms, not by Spike &amp; Crush. When a run opens, its terms name the partner, the prize amounts, and when and how the partner pays.</p>
+      <p>To receive a prize, a winner verifies their identity with the partner and completes the partner's payout form. Spike &amp; Crush never asks for bank or card details.</p>
+      <p>Coins won in game modes are separate: they have no cash value and cannot be withdrawn. See the <a href="/terms#competition-prizes" style="color:var(--c-link)">Terms</a>.</p>
+    </section>
+  </div>
+  <aside class="ct-side" id="ctCard" aria-label="Enter or get notified"></aside>
+</main>
+
+<script src="/js/icons.js"></script>
+<script src="/js/time-ago.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/socket.js"></script>
+<script src="/js/candle-bg.js"></script>
+<script src="/js/comp-templates.js"></script>
+<script src="/js/sponsor-slots.js"></script>
+<script>
+(function () {
+  const key = location.pathname.split('/').filter(Boolean).pop();
+  // Planned windows (UTC) for each format, shown in the player's own timezone.
+  const WINDOWS = {
+    daily: { days: 'Monday to Friday', start: [0, 0], end: [22, 0], note: 'One full trading day each weekday.' },
+    weekly: { days: 'Monday to Friday, one account all week', start: [0, 0], end: [21, 0], note: 'Starts Monday, ends Friday.' },
+    weekend: { days: 'Saturday and Sunday', start: [0, 0], end: [23, 0], note: 'Starts Saturday, ends Sunday. Crypto markets only.' },
+    monthly: { days: 'The whole calendar month', start: [0, 0], end: [23, 0], note: 'Starts on the 1st, ends on the last day of the month.' },
+  };
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'your time';
+  const at = (h, m) => { const d = new Date(); d.setUTCHours(h, m, 0, 0); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
+
+  async function render() {
+    const d = await TW.CompTemplates.fetchTemplate(key);
+    if (!d || !d.template) { document.getElementById('ctTitle').textContent = 'Competition not found'; return; }
+    const t = d.template;
+    document.title = `${t.title} | Spike & Crush`;
+    document.getElementById('ctTitle').textContent = t.title;
+    document.getElementById('ctHook').textContent = t.formatHook;
+    document.getElementById('ctWhat').textContent = `${t.scheduleText}. ${t.lengthText}. ${t.rulesLine}`;
+    const w = WINDOWS[key];
+    document.getElementById('ctTimes').innerHTML = w ? `<span>When</span><span>${w.days}</span><span>Market session</span><span>${at(...w.start)} to ${at(...w.end)} (${tz})</span><span>Note</span><span>${w.note} Exact times are confirmed when each run opens.</span>` : '';
+    document.getElementById('ctPrize').textContent = t.prize.label === 'Cash prizes' ? 'Cash prizes. The prize pool for each run is announced, with the paying partner, before the run opens.' : t.prize.label;
+    document.getElementById('ctPrizeTop').textContent = t.prize.top || '';
+    document.getElementById('ctRules').innerHTML = [t.rulesLine, ...(t.moneyRules || [])].map((r) => `<li>${TW.escapeHtml(r)}</li>`).join('');
+    const sp = document.getElementById('ctSponsor');
+    sp.dataset.target = t.sponsorTarget;
+    document.getElementById('ctCard').innerHTML = TW.CompTemplates.templateCard(t, 'detail');
+    if (TW.SponsorSlots) TW.SponsorSlots.scan(document.getElementById('ctWrap'));
+    return t;
+  }
+
+  TW.CompTemplates.wire(document.getElementById('ctCard'), render);
+  render().then(async (t) => {
+    // Back from sign-up with ?join=1: join the list automatically, then tidy the URL.
+    if (t && new URLSearchParams(location.search).get('join') === '1' && TW.isLoggedIn && TW.isLoggedIn()) {
+      if (!t.waitlist.joined) { await TW.CompTemplates.join(t.key, 'signup'); await render(); }
+      history.replaceState(null, '', location.pathname);
+    }
+  });
+})();
+</script>
+<script src="/js/bottom-nav.js"></script>
+<script src="/js/support-widget.js"></script>
+</body>
+</html>

@@ -1131,10 +1131,11 @@ window.TW = window.TW || {};
       <aside class="ea-side" aria-label="Your results">
         ${me ? `<div class="ea-stats">
           <div class="ea-stat"><span class="ea-lbl">War Rating</span><b class="${me.ratingChange >= 0 ? 'text-buy' : 'text-sell'}">${me.ratingChange >= 0 ? '+' : ''}${me.ratingChange} <span class="mono ea-dim">${me.newRating}</span></b></div>
-          <div class="ea-stat"><span class="ea-lbl">Coins won</span><b class="ea-gold">${me.coinsAwarded ? `+${me.coinsAwarded} coins` : '0 coins'}</b></div>
+          <div class="ea-stat"><span class="ea-lbl">Coins won</span><b class="ea-gold">${me.coinsAwarded ? `+${me.coinsAwarded} coins` : '0 coins'}</b><div data-slot="result_screen" data-target="mode:${esc(lastState?.mode || '')}" data-variant="line" hidden></div></div>
           <div class="ea-stat"><span class="ea-lbl">Best trade</span><b class="mono ${me.bestTrade >= 0 ? 'text-buy' : 'text-sell'}">${money(me.bestTrade || 0)}</b></div>
           <div class="ea-stat"><span class="ea-lbl">Trades · Cards played</span><b>${me.tradesMade} · ${me.cardsPlayed}</b></div>
         </div>
+        <div data-slot="result_screen" data-target="mode:${esc(lastState?.mode || '')}" hidden></div>
         ${tierChanged ? `<div class="ea-rankup">${ic('trophy', 16)} Rank up: you are now ${esc(me.newTier)}</div>` : ''}
         <div class="ea-fire" data-fire-slot data-tour="result-rewards"></div>
         <div class="ea-stat ea-equity"><span class="ea-lbl">Your equity</span><div class="end-equity-curve">${buildEquitySvg(me.equityHistory, payload.feed, TW.getPlayer()?.username)}</div></div>` : ''}
@@ -1151,6 +1152,7 @@ window.TW = window.TW || {};
     // Walkthrough: what the results screen shows, after the first match.
     if (me && TW.Tours) setTimeout(() => TW.Tours.forResults(), 3200);
     if (me && me.rank === 1 && window.TW && TW.Lottie) TW.Lottie.play('win');
+    if (TW.SponsorSlots) TW.SponsorSlots.scan(overlay);
 
     // reveal: 3rd, then 2nd, then 1st
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1205,110 +1207,159 @@ window.TW = window.TW || {};
       }, reduce ? 0 : 1500);
     }
 
-    function drawResultCardPng() {
+    // Share image in two sizes: 1080x1080 (stories, feeds) and 1200x630 (links).
+    // P&L is a percent of the starting balance and coins are "coins": no
+    // currency symbol and no emoji. A sponsor logo sits in the footer when the
+    // result screen has a sponsor for this mode, labelled "Sponsored".
+    function loadImg(src) {
+      return new Promise((resolve) => {
+        if (!src) return resolve(null);
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
+    }
+    async function drawResultCardPng(W, H) {
       const cached = TW.getPlayer();
       const canvas = document.createElement('canvas');
-      canvas.width = 1000;
-      canvas.height = 560;
+      canvas.width = W;
+      canvas.height = H;
       const ctx = canvas.getContext('2d');
-
-      const grad = ctx.createLinearGradient(0, 0, 1000, 560);
-      grad.addColorStop(0, '#06110d');
-      grad.addColorStop(1, '#0d1f18');
+      const sq = H >= W;
+      const pad = sq ? 80 : 64;
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, '#14213d');
+      grad.addColorStop(1, '#182746');
       ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 1000, 560);
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#3987e5';
+      ctx.fillRect(0, 0, W, 6);
 
-      // SPIKE & CRUSH wordmark - same per-letter staircase colors as the
-      // .sc-s1..sc-h CSS classes used everywhere else in the app (main.css).
       const wordmark = [
-        { ch: 'S', col: '#008F6A' }, { ch: 'P', col: '#00A87C' }, { ch: 'I', col: '#00C896' },
-        { ch: 'K', col: '#00E0AA' }, { ch: 'E', col: '#00FF88' }, { ch: ' & ', col: '#FFFFFF' },
-        { ch: 'C', col: '#FF4444' }, { ch: 'R', col: '#EE3333' }, { ch: 'U', col: '#DD2222' },
-        { ch: 'S', col: '#CC1111' }, { ch: 'H', col: '#BB0000' },
+        { ch: 'SPIKE', col: '#19c38a' }, { ch: ' & ', col: '#ffffff' }, { ch: 'CRUSH', col: '#e5484d' },
       ];
-      ctx.font = '800 40px sans-serif';
-      let wordmarkX = 60;
-      for (const { ch, col } of wordmark) {
-        ctx.fillStyle = col;
-        ctx.fillText(ch, wordmarkX, 90);
-        wordmarkX += ctx.measureText(ch).width;
-      }
+      ctx.font = `800 ${sq ? 44 : 38}px Inter, sans-serif`;
+      let x = pad;
+      for (const { ch, col } of wordmark) { ctx.fillStyle = col; ctx.fillText(ch, x, pad + 30); x += ctx.measureText(ch).width; }
 
+      let y = sq ? 330 : 220;
       if (me) {
         const won = me.rank === 1;
-        ctx.fillStyle = won ? '#ffd700' : '#ffffff';
-        ctx.font = '700 64px sans-serif';
-        ctx.fillText(won ? '🏆 VICTORY' : `#${me.rank} FINISH`, 60, 220);
-
-        ctx.fillStyle = me.pnl >= 0 ? '#00c896' : '#ff4444';
-        ctx.font = '700 88px sans-serif';
-        ctx.fillText(`${me.pnl >= 0 ? '+' : ''}${TW.formatMoney(me.pnl)}`, 60, 330);
-
-        ctx.fillStyle = '#8a9a94';
-        ctx.font = '400 26px sans-serif';
-        ctx.fillText(`${cached?.username || 'Trader'} · ${me.newTier} tier · ${playerCount} traders`, 60, 380);
-        ctx.fillText(`${durationLabel} · ${instrumentsLabel}`, 60, 415);
+        ctx.fillStyle = won ? '#f5b83d' : '#ffffff';
+        ctx.font = `700 ${sq ? 76 : 60}px Inter, sans-serif`;
+        ctx.fillText(won ? 'VICTORY' : `#${me.rank} FINISH`, pad, y);
+        const pct = (me.pnl / 10000) * 100;
+        y += sq ? 140 : 100;
+        ctx.fillStyle = pct >= 0 ? '#19c38a' : '#e5484d';
+        ctx.font = `700 ${sq ? 120 : 88}px Inter, sans-serif`;
+        ctx.fillText(`${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`, pad, y);
+        y += sq ? 70 : 52;
+        ctx.fillStyle = '#c7d0e0';
+        ctx.font = `500 ${sq ? 32 : 26}px Inter, sans-serif`;
+        ctx.fillText(me.coinsAwarded ? `+${me.coinsAwarded} coins won` : 'Played to the bell', pad, y);
+        y += sq ? 54 : 40;
+        ctx.fillStyle = '#8b98b0';
+        ctx.font = `400 ${sq ? 28 : 22}px Inter, sans-serif`;
+        ctx.fillText(`${cached?.username || 'Trader'} · ${me.newTier} tier · ${playerCount} traders`, pad, y);
+        y += sq ? 44 : 34;
+        ctx.fillText(`${durationLabel}${instrumentsLabel ? ` · ${instrumentsLabel}` : ''}`, pad, y);
       } else {
         ctx.fillStyle = '#ffffff';
-        ctx.font = '700 48px sans-serif';
-        ctx.fillText('Battle Complete', 60, 220);
+        ctx.font = '700 52px Inter, sans-serif';
+        ctx.fillText('Battle complete', pad, y);
       }
 
-      ctx.fillStyle = '#556b63';
-      ctx.font = '400 20px sans-serif';
-      ctx.fillText(window.location.host, 60, 500);
+      ctx.fillStyle = '#6b7a96';
+      ctx.font = `400 ${sq ? 24 : 20}px Inter, sans-serif`;
+      ctx.fillText(window.location.host, pad, H - pad + 8);
 
-      return canvas.toDataURL('image/png');
+      const sp = window.TW && TW.SponsorSlots ? TW.SponsorSlots.current('result_screen', `mode:${lastState?.mode || ''}`) : null;
+      if (sp) {
+        const img = await loadImg(sp.logoDarkUrl || sp.logoUrl);
+        const right = W - pad;
+        const base = H - pad + 8;
+        ctx.textAlign = 'right';
+        let lx = right;
+        if (img) {
+          const h = sq ? 48 : 40;
+          const w = Math.min(220, (img.width / img.height) * h);
+          ctx.drawImage(img, right - w, base - h + 6, w, h);
+          lx = right - w - 14;
+        } else {
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `600 ${sq ? 26 : 22}px Inter, sans-serif`;
+          ctx.fillText(sp.name, right, base);
+          lx = right - ctx.measureText(sp.name).width - 12;
+        }
+        ctx.fillStyle = '#8b98b0';
+        ctx.font = `500 ${sq ? 20 : 16}px Inter, sans-serif`;
+        ctx.fillText('Sponsored', lx, base);
+        ctx.textAlign = 'left';
+      }
+      try { return canvas.toDataURL('image/png'); } catch (e) { return null; }
     }
 
-    function openShareModal() {
-      const pnlPct = me ? ((me.pnl / 10000) * 100).toFixed(0) : '0';
+    async function openShareModal() {
+      const pnlPct = me ? ((me.pnl / 10000) * 100).toFixed(1) : '0';
+      // Per-mode line (js/modes.js), e.g. "I survived 3 cuts in Elimination".
       const modeLine = me && TW.Modes ? TW.Modes.shareLine(me) : '';
       const shareText = modeLine
-        ? `${modeLine} ${me.pnl >= 0 ? '+' : ''}${TW.formatMoney(me.pnl)} (${pnlPct}%). Think you can beat that? Join at ${window.location.host}`
+        ? `${modeLine} ${me.pnl >= 0 ? '+' : ''}${pnlPct}%. Think you can beat that? Join at ${window.location.host}`
         : me
-        ? `I just finished #${me.rank} in Spike & Crush making ${me.pnl >= 0 ? '+' : ''}${TW.formatMoney(me.pnl)} (${pnlPct}%) in ${durationLabel}! Think you can beat that? Join at ${window.location.host}`
-        : `I just finished a Spike & Crush match! Join at ${window.location.host}`;
-      const pngDataUrl = drawResultCardPng();
+        ? `I just finished #${me.rank} in Spike & Crush at ${me.pnl >= 0 ? '+' : ''}${pnlPct}% in ${durationLabel}. Think you can beat that? Join at ${window.location.host}`
+        : `I just finished a Spike & Crush match. Join at ${window.location.host}`;
+      const [sqUrl, wideUrl] = await Promise.all([drawResultCardPng(1080, 1080), drawResultCardPng(1200, 630)]);
       const replayUrl = `${window.location.origin}/replay?match=${matchId}`;
 
       const backdrop = document.createElement('div');
       backdrop.className = 'modal-backdrop';
       backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(20,33,61,0.7);display:flex;align-items:center;justify-content:center;z-index:400;';
       backdrop.innerHTML = `
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;width:420px;max-width:92vw;">
-          <img src="${pngDataUrl}" alt="Your match result card" style="width:100%;border-radius:8px;margin-bottom:14px;" />
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;width:440px;max-width:92vw;max-height:92vh;overflow:auto;">
+          <div style="display:flex;gap:6px;margin-bottom:10px" role="tablist" aria-label="Image size">
+            <button class="btn btn-sm" data-size="sq" aria-pressed="true">Square</button>
+            <button class="btn btn-sm btn-outline" data-size="wide" aria-pressed="false">Wide</button>
+          </div>
+          <img id="sharePreview" src="${sqUrl || wideUrl || ''}" alt="Your match result card" style="width:100%;border-radius:8px;margin-bottom:14px;" />
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-outline hidden" id="nativeShareBtn">📤 Share</button>
+            <button class="btn btn-outline hidden" id="nativeShareBtn">Share</button>
+            <a class="btn btn-outline" id="downloadShareBtn" href="${sqUrl || ''}" download="spike-and-crush-result.png" style="text-decoration:none;">Download</a>
             <a class="btn btn-outline" href="https://wa.me/?text=${encodeURIComponent(shareText)}" target="_blank" rel="noopener" style="text-decoration:none;">WhatsApp</a>
             <a class="btn btn-outline" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}" target="_blank" rel="noopener" style="text-decoration:none;">X</a>
-            <button class="btn btn-outline" id="copyResultBtn">🔗 Copy Text</button>
+            <button class="btn btn-outline" id="copyResultBtn">Copy text</button>
           </div>
-          <a href="${replayUrl}" style="display:block;margin-top:12px;font-size:12px;color:var(--text-secondary);">🎬 Watch full replay →</a>
+          <a href="${replayUrl}" style="display:block;margin-top:12px;font-size:12px;color:var(--text-secondary);">Watch the full replay</a>
           <button class="btn" id="closeShareModalBtn" style="width:100%;margin-top:14px;">Close</button>
         </div>
       `;
       document.body.appendChild(backdrop);
+      let pngDataUrl = sqUrl || wideUrl;
+      backdrop.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => {
+        pngDataUrl = (b.dataset.size === 'sq' ? sqUrl : wideUrl) || pngDataUrl;
+        backdrop.querySelector('#sharePreview').src = pngDataUrl;
+        backdrop.querySelector('#downloadShareBtn').href = pngDataUrl;
+        backdrop.querySelectorAll('[data-size]').forEach((o) => { const on = o === b; o.setAttribute('aria-pressed', String(on)); o.classList.toggle('btn-outline', !on); });
+      }));
 
-      // Native share sheet (mobile) - only shown when the platform actually
-      // supports sharing a file, so desktop just keeps the WhatsApp/Twitter/
-      // copy fallbacks above instead of a button that would silently fail.
+      // Native share sheet (mobile), shown only when the platform can share a file.
       (async () => {
         try {
-          const res = await fetch(pngDataUrl);
-          const blob = await res.blob();
-          const file = new File([blob], 'spike-and-crush-result.png', { type: 'image/png' });
-          if (navigator.canShare?.({ files: [file] })) {
-            const nativeBtn = backdrop.querySelector('#nativeShareBtn');
-            nativeBtn.classList.remove('hidden');
-            nativeBtn.addEventListener('click', async () => {
-              try {
-                await navigator.share({ title: 'Spike & Crush Result', text: shareText, files: [file] });
-              } catch (e) {
-                if (e.name !== 'AbortError') TW.toast('Could not open share sheet', 'danger');
-              }
-            });
-          }
+          if (!pngDataUrl) return;
+          const nativeBtn = backdrop.querySelector('#nativeShareBtn');
+          const probe = new File([new Blob()], 'x.png', { type: 'image/png' });
+          if (!navigator.canShare?.({ files: [probe] })) return;
+          nativeBtn.classList.remove('hidden');
+          nativeBtn.addEventListener('click', async () => {
+            try {
+              const blob = await (await fetch(pngDataUrl)).blob();
+              const file = new File([blob], 'spike-and-crush-result.png', { type: 'image/png' });
+              await navigator.share({ title: 'Spike & Crush result', text: shareText, files: [file] });
+            } catch (e) {
+              if (e.name !== 'AbortError') TW.toast('Could not open share sheet', 'danger');
+            }
+          });
         } catch (e) {}
       })();
 
@@ -1429,6 +1480,23 @@ window.TW = window.TW || {};
     lastState = state;
     const modeEl = document.getElementById('topbarMode');
     if (modeEl) modeEl.textContent = state.modeLabel || '';
+    // the one sponsor element allowed during play: a 24px chip by the mode name
+    const chip = document.getElementById('matchSponsorChip');
+    if (chip && !chip.dataset.target && state.mode && window.TW && TW.SponsorSlots) {
+      chip.dataset.target = `mode:${state.mode}`;
+      TW.SponsorSlots.renderInto(chip);
+      const strip = document.getElementById('spikeStrip');
+      if (strip && !strip.dataset.sponsorTarget) {
+        strip.dataset.sponsorTarget = `mode:${state.mode}`;
+        strip.querySelector('[data-slot="spike_strip_tag"]')?.remove();
+        const tag = document.createElement('span');
+        tag.dataset.slot = 'spike_strip_tag';
+        tag.dataset.target = strip.dataset.sponsorTarget;
+        tag.hidden = true;
+        strip.appendChild(tag);
+        TW.SponsorSlots.renderInto(tag);
+      }
+    }
     setupInstrumentTabs(state.instruments);
     TW.Sabotage.render(state);
     if (TW.Modes) TW.Modes.setState(state);

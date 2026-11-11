@@ -94,6 +94,7 @@
         <div class="group-label">Progression</div>
         <a href="#battle-pass">Battle Pass</a>
         <a href="#coins-payments">Coins</a>
+        <a href="#competitions">Competitions and sponsors</a>
         <div class="group-label">Your Account</div>
         <a href="#account">Account</a>
         <a href="#faq">FAQ</a>
@@ -259,9 +260,25 @@
           <h3>Match Entry Fees</h3>
           <p>Entry fees vary by mode (see the Game Modes table above) and are deducted the moment you join a match, going straight into that match's prize pool.</p>
           <h3>Prizes</h3>
-          <p>Prize coins are credited to your balance automatically the instant a match ends - no manual claim step. Tournament War and competition prizes work the same way (credited the moment the bracket or competition concludes).</p>
+          <p>Prize coins are credited to your balance automatically the instant a match ends - no manual claim step. Tournament War and coin event prizes work the same way (credited the moment the bracket or event concludes).</p>
           <h3>Withdrawals</h3>
           <p>Coins are a closed-loop in-game balance. Coins have no cash value and cannot be withdrawn or exchanged for money - including coins won in matches, tournaments and competitions.</p>
+        </section>
+
+        <section class="help-section" id="competitions">
+          <h2>Competitions and sponsors</h2>
+          <h3>Two kinds of prize</h3>
+          <p>Game modes pay coins. Coins have no cash value and cannot be withdrawn. Some competitions say they have a cash prize or a prize pool: those prizes are paid in money by the competition partner, and entry to them is always free.</p>
+          <h3>Coming soon competitions</h3>
+          <p>The Daily, Weekly, Weekend and Monthly competitions are coming soon. Tap Notify me on a card and we will email you once when it opens. You can leave the list from the competition's page at any time.</p>
+          <h3>Who pays a cash prize</h3>
+          <p>The competition partner named in that competition's terms pays it, not Spike &amp; Crush. A winner verifies their identity with the partner and fills in the partner's payout form. We never ask for bank or card details. See <a href="/terms#competition-prizes">Competition Prizes</a> in the Terms.</p>
+          <h3>Rules for cash prize competitions</h3>
+          <p>A verified profile, one account per player, and every trade placed by you: no AI, bots or EAs. We review trading patterns. You can enter more than one competition at a time.</p>
+          <h3>Sponsored and Presented by</h3>
+          <p>Sponsors are always labelled "Sponsored" or "Presented by". They never touch prices, charts, results or rules, and never appear on the chart or trading controls during a match. Some competitions are "Hosted by" a partner on their own site: the button opens their site in a new tab, and their rules apply there.</p>
+          <h3>What sponsors learn about you</h3>
+          <p>Nothing personal. Sponsors see totals only, like how many times their placement was shown or clicked. See <a href="/privacy#sponsors">Privacy</a>.</p>
         </section>
 
         <section class="help-section" id="account">
@@ -329,6 +346,12 @@
       ['Can I practice without spending coins?', "Yes - Solo Ranked is completely free."],
       ['How do I report another player?', 'Open the support chat, choose Talk to a human and tell us the player\'s username and what happened. A human agent will review it.'],
       ['Where can I see my match history?', 'Your Profile page lists recent matches with mode, result, and P&L for each.'],
+      ['Can I win real money?', 'Not in game modes: they pay coins, and coins have no cash value. Some competitions have a cash prize paid by the competition partner, and entry to those is always free. They are marked Coming soon until they open.'],
+      ['When do the Daily, Weekly, Weekend and Monthly competitions open?', 'They are coming soon. Tap Notify me on a card and we will email you once when it opens.'],
+      ['Who pays a competition cash prize?', 'The competition partner named in that competition\'s terms, not Spike & Crush. The winner verifies their identity with the partner to be paid. We never ask for bank or card details.'],
+      ['Can I use a bot or an EA in a competition?', 'No. Every trade must be placed by you. We review trading patterns, and accounts that trade automatically are removed and lose any prize.'],
+      ['Why does a competition say Hosted by another company?', 'It runs on that partner\'s own site. The partner sets the prize and the rules, and the button opens their site in a new tab.'],
+      ['Do sponsors see my name or email?', 'No. Sponsors only get totals, like how many times their logo was shown or clicked.'],
     ];
     document.getElementById('faqList').innerHTML = FAQS.map(([q, a], i) => `
       <div class="faq-item" data-i="${i}">

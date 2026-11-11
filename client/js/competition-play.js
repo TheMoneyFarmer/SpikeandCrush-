@@ -46,6 +46,11 @@
   function renderHeader() {
     const c = view.competition;
     $('compTitle').textContent = c.title + (c.isTest ? ' (TEST)' : '');
+    const boardSponsor = $('compBoardSponsor');
+    if (boardSponsor && !boardSponsor.dataset.target && window.TW && TW.SponsorSlots) {
+      boardSponsor.dataset.target = `competition:${c.frequency || c.id}`;
+      TW.SponsorSlots.renderInto(boardSponsor);
+    }
     document.title = `${c.title} — Spike & Crush`;
     $('compEquity').textContent = money(view.account.equity);
     const pnl = view.account.equity - view.account.startingCapital;

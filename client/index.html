@@ -42,6 +42,7 @@
 <link rel="stylesheet" href="/css/candle-bg.css">
 <link rel="stylesheet" href="/css/lobby-home.css">
   <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/sponsor-slots.css" />
   <link rel="stylesheet" href="/css/lobby-console.css" />
   <link rel="stylesheet" href="/css/mode-lobby.css" />
 <script src="/js/analytics.js" defer></script>
@@ -84,6 +85,9 @@
         </div>
       </section>
 
+      <!-- Event banner (sponsor slot event_banner): collapses when nothing is scheduled -->
+      <section class="lb-event" data-slot="event_banner" data-target="lobby" aria-label="Event" hidden></section>
+
       <!-- 4. Featured -->
       <section class="lb-card lb-hero" id="lbHero" data-hero-chart aria-label="Featured competition" data-tour="featured">
         <div class="lb-hero-inner" id="lbHeroInner"><div class="lb-skel" style="height:260px"></div></div>
@@ -102,9 +106,8 @@
       </section>
 
       <!-- 6. Sponsor strip (hidden for players when there are no active sponsors) -->
-      <section class="lb-sponsors hidden" id="lbSponsors" aria-label="Official partners">
-        <span class="lb-label">Official partners</span>
-        <div class="lb-sponsor-logos" id="lbSponsorLogos"></div>
+      <section class="lb-sponsors hidden" id="lbSponsors" aria-label="Sponsors">
+        <div class="lb-sponsor-logos" id="lbSponsorLogos" data-slot="lobby_strip" hidden></div>
         <a class="lb-btn lb-btn-outline-gold lb-sponsor-cta" href="/sponsor">Sponsor a game</a>
       </section>
 
@@ -174,6 +177,7 @@
   <script src="js/candle-bg.js"></script>
   <script src="js/comp-entry.js"></script>
   <script src="js/lobby-home.js"></script>
+  <script src="/js/sponsor-slots.js"></script>
   <script src="js/support-widget.js"></script>
   <script src="/js/orientation.js"></script>
   <script src="/js/bottom-nav.js"></script>
