@@ -217,20 +217,68 @@ ${EXPERIENCE_LEVELS.map((l) => `- ${l.label}: ${l.max === Infinity ? `${l.min}+`
       slug: 'competitions',
       title: 'Competitions: daily, weekly, weekend and monthly',
       category: 'competitions',
-      tags: ['competition', 'daily war', 'weekly war', 'weekend blitz', 'monthly grand', 'entry', 'prize', 'settlement', 'leaderboard'],
-      body: `Competitions are long trading sessions (hours to a month) on one account. Times are UTC.
+      tags: ['competition', 'daily war', 'weekly war', 'weekend blitz', 'monthly grand', 'coming soon', 'notify me', 'waitlist', 'entry', 'settlement', 'leaderboard', 'bot', 'EA', 'expert advisor', 'automated trading', 'AI'],
+      body: `The Daily, Weekly, Weekend and Monthly competitions are **coming soon**. They are being rebuilt as free-to-enter competitions with cash prizes paid by a competition partner (see "Competition prizes: who pays and how").
+
+**Coming soon**
+- A coming soon card cannot be entered yet. Tap **Notify me** and we email you once when it opens, plus a short confirmation now. You can leave the list from the competition's page.
+- Each competition has its own page (for example /competitions/daily) with how it works, times in your own timezone, the prize and the rules.
+- Nobody can say exactly when they open until the partner and prize are confirmed. The card shows the planned rhythm, like "Every weekday" or "One weekend a month".
+- There is no other daily, weekly, weekend or monthly event to enter in the meantime. The game modes (Quick, Blitz, Grand, Solo, Async, Private and Tournament War) are open any time and pay coins.
+
+**Runs that were already going**
+Only a run that a player had already entered before the change keeps going, and it finishes as a coin event under its old rules. No new coin runs are being scheduled. ${NO_CASH} The old details, for players asking about a run they are already in:
 
 ${['daily', 'weekly', 'weekend', 'monthly'].map(compTemplateBlock).join('\n\n')}
 
-**How they work**
-- You pay the entry fee once and get one account with ${money(rules.STARTING_CAPITAL)}, with the same leverage, margin rules and position limit as matches.
-- Your account lives between sessions, so closing the page changes nothing.
+**How a run works (both kinds)**
+- One account with ${money(rules.STARTING_CAPITAL)} of virtual capital, with the same leverage, margin rules and position limit as matches. Your account lives between sessions.
 - Ranking is by equity at the end. Ties are broken by fewer trades, then by who entered first.
 - Reaching the ${STOP_OUT_LEVEL}% margin level closes your biggest losers first. Your account stays open.
-- When a competition ends it is settled: final ranks are set, prize coins are credited automatically, and your War Rating is adjusted by your finishing position. Disqualified accounts get no rank or prize.
-- An admin can set different prizes for a specific event; the competition page shows the real prizes for that event.
+- You can enter more than one competition at a time, for example the Daily and the Weekly.
 
-${NO_CASH} Competition prizes are coins only.`,
+**Bots, EAs and AI are not allowed.** Every trade in a competition must be placed by the player by hand: no AI, bots, EAs (expert advisors), scripts or automated trading. We review trading patterns, and accounts that trade automatically are removed and lose any prize.`,
+    },
+    {
+      slug: 'competition-prizes',
+      title: 'Competition prizes: who pays and how',
+      category: 'competitions',
+      tags: ['cash prize', 'prize pool', 'real money', 'win money', 'payout', 'partner', 'free entry', 'verified', 'bots', 'EA', 'AI'],
+      body: `There are two kinds of prize on Spike & Crush, and they never mix.
+
+**Game modes pay coins.** Quick, Blitz, Grand, Solo, Async, Private and Tournament War pay coins. ${NO_CASH}
+
+**"Hosted by" competitions** are different again: a partner runs them on the partner's own site, and the partner sets the prize and the rules. Spike & Crush only lists them; the "Compete on" button opens the partner's site in a new tab, and you sign up and trade there.
+
+**Some competitions have a cash prize.** The Daily, Weekly, Weekend and Monthly competitions will be cash prize competitions played here on Spike & Crush, on our own trading screen. When a competition card says "Cash prizes" or shows a prize pool:
+- Entry is always free. It never costs coins or money.
+- The prize is paid in money by the competition partner named in that competition's terms, not by Spike & Crush.
+- To be paid, a winner verifies their identity with the partner and completes the partner's payout form. Spike & Crush never asks for bank or card details, and support cannot pay out or speed up a prize.
+- Rules: a verified profile, one account per player, and every trade placed by you: no AI, bots or EAs. We review trading patterns. Accounts that trade automatically are removed and lose any prize.
+- Coins and cash prizes are separate: coins never become a cash prize, and a cash prize is never paid in coins.
+
+These competitions are coming soon. The full rules are in the Terms, under Competition Prizes (/terms#competition-prizes).
+
+If a player asks about a specific prize payment, the partner named in the competition's terms handles it. If they cannot reach the partner, offer a human agent.`,
+    },
+    {
+      slug: 'sponsors',
+      title: 'Sponsors: "Sponsored", "Presented by" and "Hosted by" partner competitions',
+      category: 'competitions',
+      tags: ['sponsor', 'sponsored', 'presented by', 'hosted by', 'hosted by another company', 'my email', 'my username', 'personal data', 'share my data', 'partner competition', 'compete on', 'other site', 'partner', 'advert', 'ad', 'logo', 'privacy', 'advertise', 'partnership', 'business'],
+      body: `Spike & Crush is supported by sponsors.
+
+**Do sponsors get my details? No.** Sponsors never receive a player's username, email, account, IP address or any personal data. They only get totals, such as how many times a placement was shown or clicked.
+
+- Anything a sponsor pays for is labelled **Sponsored** or **Presented by**.
+- Sponsors never change prices, charts, results, rankings or rules. During a match a sponsor can only appear as a small "Presented by" chip next to the mode name on wide screens and a short text tag at the end of the spike strip. Never on the chart, the price scale, the order ticket, the Modify panel or the card tray, and never as a pop-up.
+- **Hosted by** means another company (a partner) runs that competition on its own site, not on Spike & Crush. The partner sets the prize and the rules. The "Compete on" button opens the partner's site in a new tab; players sign up and trade there, under the partner's terms.
+- Links to sponsors carry a tag saying the visit came from Spike & Crush, with nothing about the player.
+- A sponsor showing a broker or prop firm is not advice to trade with real money.
+
+Players can't turn sponsors off individually. If a placement looks wrong or covers something, ask them for a screenshot and offer a human agent.
+
+**Businesses** interested in sponsoring can use the Sponsor page on the site or ask for a human agent, who will pass the enquiry to the team. You can also email ${CONTACT_EMAIL}.`,
     },
     {
       slug: 'replays',
@@ -471,15 +519,6 @@ If the page looks wrong, refresh it and make sure your browser is up to date.`,
 - If you sign in with Google, confirm by typing your username.
 
 For any other data request (a copy of your data, corrections), ask for a human agent. Support will create a ticket and the team will handle it.`,
-    },
-    {
-      slug: 'sponsors',
-      title: 'Sponsors and "presented by"',
-      category: 'business',
-      tags: ['sponsor', 'presented by', 'advertise', 'partnership', 'business'],
-      body: `Some competitions and lobby placements are "presented by" a sponsor. Sponsors can fund competition prize pools, which are still paid in coins.
-
-Businesses interested in sponsoring can use the Sponsor page on the site or ask for a human agent, who will pass the enquiry to the team. You can also email ${CONTACT_EMAIL}.`,
     },
     {
       slug: 'fair-play',

@@ -2,14 +2,23 @@
 slug: competitions
 title: "Competitions: daily, weekly, weekend and monthly"
 category: competitions
-tags: ["competition", "daily war", "weekly war", "weekend blitz", "monthly grand", "entry", "prize", "settlement", "leaderboard"]
+tags: ["competition", "daily war", "weekly war", "weekend blitz", "monthly grand", "coming soon", "notify me", "waitlist", "entry", "settlement", "leaderboard", "bot", "EA", "expert advisor", "automated trading", "AI"]
 source: code
 needs_review: false
 ---
 
 # Competitions: daily, weekly, weekend and monthly
 
-Competitions are long trading sessions (hours to a month) on one account. Times are UTC.
+The Daily, Weekly, Weekend and Monthly competitions are **coming soon**. They are being rebuilt as free-to-enter competitions with cash prizes paid by a competition partner (see "Competition prizes: who pays and how").
+
+**Coming soon**
+- A coming soon card cannot be entered yet. Tap **Notify me** and we email you once when it opens, plus a short confirmation now. You can leave the list from the competition's page.
+- Each competition has its own page (for example /competitions/daily) with how it works, times in your own timezone, the prize and the rules.
+- Nobody can say exactly when they open until the partner and prize are confirmed. The card shows the planned rhythm, like "Every weekday" or "One weekend a month".
+- There is no other daily, weekly, weekend or monthly event to enter in the meantime. The game modes (Quick, Blitz, Grand, Solo, Async, Private and Tournament War) are open any time and pay coins.
+
+**Runs that were already going**
+Only a run that a player had already entered before the change keeps going, and it finishes as a coin event under its old rules. No new coin runs are being scheduled. Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money. The old details, for players asking about a run they are already in:
 
 ### Daily War — 22h Full Session
 One full trading day: Asian open to New York close. Best equity at the bell wins.
@@ -39,12 +48,10 @@ A full month of markets. The long game — patience and risk control win this on
 - Instruments: USDJPY, XAUUSD, XAGUSD, NAS100, US30, GER40, USOIL, BTCUSD, ETHUSD, USDCHF, UK100
 - Default prizes (coins): 1st: 2500 coins, 2nd: 1250 coins, 3rd: 600 coins, 4th: 100 coins, 5th: 100 coins, 6th: 100 coins, 7th: 100 coins, 8th: 100 coins, 9th: 100 coins, 10th: 100 coins
 
-**How they work**
-- You pay the entry fee once and get one account with $10,000, with the same leverage, margin rules and position limit as matches.
-- Your account lives between sessions, so closing the page changes nothing.
+**How a run works (both kinds)**
+- One account with $10,000 of virtual capital, with the same leverage, margin rules and position limit as matches. Your account lives between sessions.
 - Ranking is by equity at the end. Ties are broken by fewer trades, then by who entered first.
 - Reaching the 50% margin level closes your biggest losers first. Your account stays open.
-- When a competition ends it is settled: final ranks are set, prize coins are credited automatically, and your War Rating is adjusted by your finishing position. Disqualified accounts get no rank or prize.
-- An admin can set different prizes for a specific event; the competition page shows the real prizes for that event.
+- You can enter more than one competition at a time, for example the Daily and the Weekly.
 
-Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money. Competition prizes are coins only.
+**Bots, EAs and AI are not allowed.** Every trade in a competition must be placed by the player by hand: no AI, bots, EAs (expert advisors), scripts or automated trading. We review trading patterns, and accounts that trade automatically are removed and lose any prize.
