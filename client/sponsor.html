@@ -42,6 +42,8 @@
   .sp-field { display: flex; flex-direction: column; gap: 6px; }
   .sp-field input, .sp-field select, .sp-field textarea { min-height: var(--touch); border-radius: var(--r-btn); border: 1px solid var(--line-2); background: var(--panel-3); color: var(--text); padding: 10px 12px; font: 400 15px var(--font-body); }
   .sp-field textarea { min-height: 120px; resize: vertical; }
+  /* main.css rounds text inputs into pills; keep every field in this form one shape */
+  .sp-field input, .sp-field input[type], .sp-field select, .sp-field textarea { border-radius: 12px !important; width: 100%; box-sizing: border-box; }
   .sp-status { margin-top: 4px; font-size: 14px; }
   .sp-status.ok { color: var(--spike); }
   .sp-status.err { color: var(--crush); }

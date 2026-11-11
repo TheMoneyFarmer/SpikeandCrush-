@@ -497,7 +497,8 @@ window.TW = window.TW || {};
     // above (preserving this exact URL as the post-login redirect), so
     // reaching here means we're logged in and can join right away.
     const joinCode = new URLSearchParams(window.location.search).get('join');
-    if (joinCode) joinByRoomCode(joinCode);
+    // Only six-digit room codes: ?join=tpl:/lst:/save: belong to competition Notify me (comp-templates.js).
+    if (joinCode && /^\d{6}$/.test(joinCode)) joinByRoomCode(joinCode);
 
     const loginTab = document.getElementById('loginTab');
     const registerTab = document.getElementById('registerTab');
