@@ -11,7 +11,7 @@ needs_review: false
 
 There are two kinds of prize on Spike & Crush, and they never mix.
 
-**Game modes pay coins.** Quick, Blitz, Grand, Solo, Async, Private and Tournament War pay coins. Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money.
+**Game modes pay coins.** Quick War, Blitz, Grand War, Elimination, Solo Ranked, the Daily Challenge and Private War pay coins. Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money.
 
 **"Hosted by" competitions** are different again: a partner runs them on the partner's own site, and the partner sets the prize and the rules. Spike & Crush only lists them; the "Compete on" button opens the partner's site in a new tab, and you sign up and trade there.
 

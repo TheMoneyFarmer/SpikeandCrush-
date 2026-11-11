@@ -202,13 +202,14 @@
   async function loadLeaderboard() {
     try {
       const lb = await TW.api(`/api/competitions/${compId}/leaderboard`);
+      if (TW.CompCards) TW.CompCards.onLeaderboard(lb);
       const rows = lb.leaderboard.slice(0, 10);
       if (lb.me && !rows.some((r) => r.isMe)) rows.push(lb.me);
       $('leaderboardBody').innerHTML = rows
         .map(
           (r) => `<tr class="${r.isMe ? 'me' : ''}">
         <td>${r.rank ?? '—'}</td>
-        <td>${TW.escapeHtml(r.username)}${r.status === 'loss_limit' ? ' 🔒' : ''}</td>
+        <td>${r.crown && TW.CardIcons ? `<span class="text-warning" title="Leader">${TW.CardIcons.svg('crown', 12)}</span> ` : ''}${TW.escapeHtml(r.username)}${r.status === 'loss_limit' ? ' <span class="text-secondary">(locked)</span>' : ''}</td>
         <td>${money(r.equity)}</td>
         <td class="${r.pnlPct >= 0 ? 'text-buy' : 'text-sell'}">${r.pnlPct >= 0 ? '+' : ''}${r.pnlPct.toFixed(2)}%</td>
         <td>${r.trades}</td></tr>`
@@ -235,6 +236,7 @@
     view = next;
     pushQuotesToChart(view.quotes, view.compTime);
     renderAll();
+    if (TW.CompCards) TW.CompCards.onView(view);
   }
 
   function pushQuotesToChart(quotes, compTime) {
@@ -417,12 +419,17 @@
     const socket = TW.connectSocket();
     if (!socket) return;
     const join = () => socket.emit('comp:join', { competitionId: compId }, () => {});
+    if (TW.CompCards) {
+      TW.CompCards.init(compId, { reload: () => { loadView().catch(() => {}); loadLeaderboard(); } });
+      TW.CompCards.bindSocket(socket);
+    }
     socket.on('connect', join);
     if (socket.connected) join();
 
     // Spike alerts on long competitions (real spike bars only, time only).
     if (TW.Fire) {
-      TW.Fire.setIdleText('Spike alerts on: you get a countdown before real big moves');
+      // With cards on, the strip shows missions and the crown instead (js/comp-cards.js).
+      if (!view || !view.fire) TW.Fire.setIdleText('Spike alerts on: you get a countdown before real big moves');
       socket.on('comp:spike_alert', (p) => TW.Fire.spikeAlert(p));
       socket.on('comp:spike_result', (p) => TW.Fire.spikeResult(p));
     }

@@ -15,7 +15,7 @@ The Daily, Weekly, Weekend and Monthly competitions are **coming soon**. They ar
 - A coming soon card cannot be entered yet. Tap **Notify me** and we email you once when it opens, plus a short confirmation now. You can leave the list from the competition's page.
 - Each competition has its own page (for example /competitions/daily) with how it works, times in your own timezone, the prize and the rules.
 - Nobody can say exactly when they open until the partner and prize are confirmed. The card shows the planned rhythm, like "Every weekday" or "One weekend a month".
-- There is no other daily, weekly, weekend or monthly event to enter in the meantime. The game modes (Quick, Blitz, Grand, Solo, Async, Private and Tournament War) are open any time and pay coins.
+- There is no other daily, weekly, weekend or monthly event to enter in the meantime. The game modes (Quick War, Blitz, Grand War, Elimination, Solo Ranked, Daily Challenge and Private War) are open any time and pay coins.
 
 **Runs that were already going**
 Only a run that a player had already entered before the change keeps going, and it finishes as a coin event under its old rules. No new coin runs are being scheduled. Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money. The old details, for players asking about a run they are already in:
@@ -53,5 +53,7 @@ A full month of markets. The long game — patience and risk control win this on
 - Ranking is by equity at the end. Ties are broken by fewer trades, then by who entered first.
 - Reaching the 50% margin level closes your biggest losers first. Your account stays open.
 - You can enter more than one competition at a time, for example the Daily and the Weekly.
+- **Cards, streaks, Heat and missions** work in competitions too, like in matches: you get 5 cards when you start (fewer only if you have unlocked fewer), win trades in a row to earn more, and can play attack cards on any other entrant, online or offline. A player who was just hit is protected for 10 seconds, only one timed card can be on a player at a time, and no card can take anyone below 50% of the starting capital in one hit. Cards that bend the price feed (Volatility Surge, Reversal Flash, Time Warp, Fog of War, Panic Wave, Dead Calm) are not used in competitions, because everyone shares one market clock. Missions refresh every day.
+- The **Exit** button (top right of the trading screen) takes you back to the competitions list. Your account and open trades stay as they are.
 
 **Bots, EAs and AI are not allowed.** Every trade in a competition must be placed by the player by hand: no AI, bots, EAs (expert advisors), scripts or automated trading. We review trading patterns, and accounts that trade automatically are removed and lose any prize.

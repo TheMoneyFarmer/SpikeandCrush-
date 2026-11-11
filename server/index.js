@@ -230,7 +230,9 @@ const { createOpsMonitor } = require('./opsMonitor');
 const { createMatchRecovery } = require('./matchRecovery');
 const { startRetention } = require('./retention');
 const { createMemo } = require('./concurrency');
-const compEngine = createCompEngine({ io, notifyPlayer });
+// getLoadout: the player's unlocked cards and saved deck, for the 5 cards
+// dealt in a competition (server/compFire.js).
+const compEngine = createCompEngine({ io, notifyPlayer, getLoadout: async (playerId) => loadCardLoadout(await db.getPlayerById(playerId)) });
 
 // inviteId -> { id, fromPlayerId, fromUsername, fromTier, lobbyId, matchMode,
 // instruments, currentPlayers, maxPlayers, targetPlayerId, expiresAt, timer }
@@ -2917,6 +2919,18 @@ app.post('/api/competitions/:id/trade/modify', requireDb, requireCompetitionId, 
   }
 });
 
+// Play a card in a competition: { cardType, targetAccountId?, symbol? }.
+app.post('/api/competitions/:id/card', requireDb, requireCompetitionId, authenticate, async (req, res) => {
+  try {
+    const { cardType, targetAccountId, symbol } = req.body || {};
+    if (typeof cardType !== 'string' || cardType.length > 40) return res.status(400).json({ error: 'cardType is required' });
+    if (targetAccountId !== undefined && targetAccountId !== null && !/^[0-9a-f-]{36}$/i.test(String(targetAccountId))) return res.status(400).json({ error: 'Invalid target' });
+    res.json({ success: true, ...(await compEngine.playCard(req.params.id, req.tokenPlayer.id, cardType, { targetAccountId, symbol })) });
+  } catch (e) {
+    sendCompError(res, e, 'competition card');
+  }
+});
+
 app.get('/api/competitions/:id/leaderboard', requireDb, requireCompetitionId, authenticate, async (req, res) => {
   try {
     res.json(await compEngine.getLeaderboard(req.params.id, req.tokenPlayer.id));
@@ -4230,6 +4244,8 @@ for (const r of instrumentReport) {
 server.listen(PORT, () => {
   console.log(`Spike & Crush server listening on http://localhost:${PORT}`);
   compEngine.start();
+  // Competition card state saves a moment after each change; save it now on a deploy.
+  process.on('SIGTERM', () => compEngine.flushCards().catch(() => {}));
   startRetention(db);
   setInterval(() => gameEngine.sweepIdleLobbies().catch((e) => console.warn('[lobbies] sweep failed:', e.message)), LOBBY_SWEEP_MS).unref();
   setInterval(() => matchRecovery.sweep(), MATCH_RECOVERY_SWEEP_MS).unref();

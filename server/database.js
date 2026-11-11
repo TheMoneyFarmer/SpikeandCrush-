@@ -1848,6 +1848,49 @@ async function getCompAccount(competitionId, playerId) {
   return data;
 }
 
+// ---- competition cards (server/compFire.js) --------------------------------
+// The card state lives in comp_accounts.fire (migration 20261111180000_comp_cards).
+// Until that migration is applied these report "not ready" instead of failing.
+let compFireProbe = { at: 0, ready: false };
+// Dev only: COMP_CARDS_MEMORY=1 turns competition cards on without the
+// migration (state kept in memory, money moved non-atomically). Never in production.
+const compFireMemory = process.env.COMP_CARDS_MEMORY === '1' && process.env.NODE_ENV !== 'production';
+async function compFireReady() {
+  if (!isConfigured) return false;
+  if (compFireMemory) return true;
+  if (compFireProbe.ready || Date.now() - compFireProbe.at < 60000) return compFireProbe.ready;
+  compFireProbe.at = Date.now();
+  const col = await supabase.from('comp_accounts').select('fire').limit(1);
+  const fn = col.error ? { error: col.error } : await supabase.rpc('comp_card_transfer', { p_from: null, p_to: null, p_amount: 0 });
+  compFireProbe.ready = !col.error && !fn.error;
+  if (!compFireProbe.ready) console.warn('[compFire] competition cards are off until supabase/migrations/20261111180000_comp_cards.sql is applied:', (col.error || fn.error).message);
+  return compFireProbe.ready;
+}
+
+async function updateCompAccountFire(id, fire) {
+  assertConfigured();
+  if (compFireMemory && !compFireProbe.ready) return;
+  const { error } = await supabase.from('comp_accounts').update({ fire }).eq('id', id);
+  if (error) throw error;
+}
+
+// Card money between two competition accounts in one transaction (to may be null).
+async function compCardTransfer(fromAccountId, toAccountId, amount) {
+  assertConfigured();
+  if (compFireMemory && !compFireProbe.ready) {
+    const move = async (id, delta) => {
+      const { data: row } = await supabase.from('comp_accounts').select('balance, realised_pnl').eq('id', id).single();
+      await supabase.from('comp_accounts').update({ balance: Number(row.balance) + delta, realised_pnl: Number(row.realised_pnl) + delta }).eq('id', id);
+    };
+    await move(fromAccountId, -amount);
+    if (toAccountId) await move(toAccountId, amount);
+    return true;
+  }
+  const { data, error } = await supabase.rpc('comp_card_transfer', { p_from: fromAccountId, p_to: toAccountId, p_amount: amount });
+  if (error) throw error;
+  return data === true;
+}
+
 async function getCompAccountById(id) {
   assertConfigured();
   const { data, error } = await supabase.from('comp_accounts').select('*').eq('id', id).maybeSingle();
@@ -2600,6 +2643,9 @@ async function sponsorStats(sponsorId, fromDay, toDay) {
 }
 
 module.exports = {
+  compFireReady,
+  updateCompAccountFire,
+  compCardTransfer,
   listCompTemplates,
   getCompTemplate,
   updateCompTemplate,

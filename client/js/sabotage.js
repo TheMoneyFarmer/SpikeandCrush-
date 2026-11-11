@@ -306,9 +306,16 @@ TW.Sabotage = (function () {
     openSheet(d);
   }
 
+  // Where a card play goes: the match socket by default; competitions set an
+  // HTTP sender (js/comp-cards.js).
+  let sender = null;
+  function setSender(fn) {
+    sender = fn;
+  }
+
   async function send(type, opts) {
     const d = def(type);
-    const result = await TW.emitAck('sabotage:play', { cardType: type, ...opts });
+    const result = sender ? await sender(type, opts) : await TW.emitAck('sabotage:play', { cardType: type, ...opts });
     if (!result || !result.success) {
       TW.toast((result && result.error) || 'Card could not be played', 'danger');
       return false;
@@ -507,5 +514,5 @@ TW.Sabotage = (function () {
     TW.showMatchNotification('Reversal incoming');
   }
 
-  return { render, update, setLeaderboard, showIncoming, showImmune, showReversalWarning, closeSheet, cardHtml, makeSpinnable };
+  return { setSender, render, update, setLeaderboard, showIncoming, showImmune, showReversalWarning, closeSheet, cardHtml, makeSpinnable };
 })();

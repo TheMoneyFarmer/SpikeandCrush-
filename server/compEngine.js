@@ -18,6 +18,7 @@ const replayClock = require('./replayClock');
 const { GAME_RULES, baseRatingForPosition, tierForRating } = require('./gameEngine');
 const { runPool, createMemo } = require('./concurrency');
 const gameFeel = require('./config/gameFeel');
+const { createCompFire } = require('./compFire');
 
 const NO_CASH_VALUE_LINE = 'Coins have no cash value and cannot be withdrawn or exchanged for money.';
 
@@ -250,7 +251,7 @@ function makeSpikeTracker() {
   };
 }
 
-function createCompEngine({ io, notifyPlayer }) {
+function createCompEngine({ io, notifyPlayer, getLoadout = async () => null }) {
   const holder = `${process.pid}-${crypto.randomUUID().slice(0, 8)}`;
   let tickTimer = null;
   let ticking = false;
@@ -282,6 +283,10 @@ function createCompEngine({ io, notifyPlayer }) {
     return rooms ? rooms.has(room(compId, playerId)) : true;
   };
   const emit = (compId, playerId, event, payload) => io.to(room(compId, playerId)).emit(event, { competitionId: compId, ...payload });
+  // Cards, streaks, Heat and missions (server/compFire.js). Off until the
+  // comp_cards migration is applied; every hook below checks fire.ready().
+  const fire = createCompFire({ emit, getLoadout, standings: (id) => standings(id) });
+  const fireOn = () => fire.ready().catch(() => false);
 
   function quotesFor(comp, dataTime) {
     const quotes = {};
@@ -376,8 +381,14 @@ function createCompEngine({ io, notifyPlayer }) {
         ? rankAccounts(accounts.map((a) => (a.id === account.id ? { ...a, equity } : a))).findIndex((a) => a.id === account.id) + 1
         : rankById.get(account.id) || accounts.length;
     const shift = replayClock.timeShiftFor(comp);
+    let fireView = null;
+    if (comp.status !== 'ended' && comp.status !== 'void' && (await fireOn())) {
+      const p = await fire.stateFor(comp, account);
+      fireView = { ...fire.view(p), config: fire.fireConfig(), cardCatalog: fire.catalog(), accountId: account.id };
+    }
 
     return {
+      fire: fireView,
       competition: competitionSummary(comp),
       account: {
         id: account.id,
@@ -435,6 +446,12 @@ function createCompEngine({ io, notifyPlayer }) {
     const ended = comp.status === 'ended';
     const ranked = ended ? accounts.slice().sort((a, b) => (a.final_rank ?? 1e9) - (b.final_rank ?? 1e9)) : live;
     const toRow = (a, i) => ({
+      // Account id and card tags: the card target picker needs them. Still no
+      // positions - nobody can mirror a leader's trades.
+      id: a.id,
+      crown: !ended && i === 0,
+      pnl: round2(Number(a.equity) - Number(a.starting_capital)),
+      tags: ended ? [] : fire.statusOf(a.id),
       rank: ended ? a.final_rank : i + 1,
       username: a.player?.username || 'Trader',
       equity: round2(Number(a.equity)),
@@ -516,7 +533,10 @@ function createCompEngine({ io, notifyPlayer }) {
       throw Object.assign(new Error(most > 0 ? `Not enough free margin. You can open up to ${most} lots of ${symbol} right now` : 'No free margin left. Close a position to open a new one'), { status: 400 });
     }
 
-    const entryPrice = dir === 'BUY' ? quote.ask : quote.bid;
+    let entryPrice = dir === 'BUY' ? quote.ask : quote.bid;
+    // Card effects on this player: blocks, lot caps and worse fills.
+    const fp = (await fireOn()) ? await fire.stateFor(comp, account) : null;
+    if (fp) entryPrice = fire.beforeOpen(comp, fp, { symbol, side: dir, lots: size, openCount: open.length, freeMargin, quote, entry: entryPrice });
     const { sl, tp } = validateStops(dir, dir === 'BUY' ? quote.bid : quote.ask, stopLoss, takeProfit);
     const position = await db.insertCompPosition({
       account_id: account.id,
@@ -530,33 +550,45 @@ function createCompEngine({ io, notifyPlayer }) {
       take_profit: tp,
     });
     await db.incrementCompTradeCount(account.id);
+    if (fp) fire.afterOpen(comp, fp, { meaningful: marginRules.positionMargin(symbol, size, marginRules.mid(quote)) >= GAME_RULES.STARTING_CAPITAL * require('./cards').MEANINGFUL_MARGIN_SHARE });
     return { position: publicPosition(position, quote) };
   }
 
   async function closeTrade(compId, playerId, positionId) {
     // Closing is allowed even with the market closed, but not once the
     // account is locked.
-    const { comp } = await requireTradeable(compId, playerId);
+    const { comp, account } = await requireTradeable(compId, playerId);
     const pos = await db.getCompPosition(positionId);
     if (!pos || pos.player_id !== playerId || pos.competition_id !== comp.id || pos.status !== 'open') {
       throw Object.assign(new Error('Position not found'), { status: 404 });
     }
+    const fp = (await fireOn()) ? await fire.stateFor(comp, account) : null;
+    if (fp) fire.beforeClose(fp);
     const quote = replayClock.getPriceAt(pos.symbol, replayClock.dataTimeFor(comp));
-    const { exit, pnl } = positionPnl(pos, quote);
+    let { exit, pnl } = positionPnl(pos, quote);
+    if (fp) {
+      const adjusted = fire.exitPrice(comp, fp, pos, quote, exit);
+      if (adjusted !== exit) {
+        exit = adjusted;
+        pnl = round2(instruments.calculatePnL(pos.side, Number(pos.lots), Number(pos.entry_price), exit, pos.symbol));
+      }
+    }
     const closed = await db.compClosePosition(pos.id, exit, 'manual', pnl);
     if (!closed)
       throw Object.assign(new Error('Position already closed'), {
         status: 409,
       });
+    if (fp) await fire.afterClose(comp, account, pos, pnl, 'manual').catch((e) => console.warn('[compFire] afterClose:', e.message));
     return { positionId: pos.id, exitPrice: exit, pnl };
   }
 
   async function modifyTrade(compId, playerId, positionId, { stopLoss, takeProfit }) {
-    const { comp } = await requireTradeable(compId, playerId);
+    const { comp, account } = await requireTradeable(compId, playerId);
     const pos = await db.getCompPosition(positionId);
     if (!pos || pos.player_id !== playerId || pos.competition_id !== comp.id || pos.status !== 'open') {
       throw Object.assign(new Error('Position not found'), { status: 404 });
     }
+    if (await fireOn()) fire.beforeModify(await fire.stateFor(comp, account));
     const quote = replayClock.getPriceAt(pos.symbol, replayClock.dataTimeFor(comp));
     const { sl, tp } = validateStops(pos.side, pos.side === 'BUY' ? quote.bid : quote.ask, stopLoss, takeProfit);
     const updated = await db.updateCompPosition(pos.id, {
@@ -656,6 +688,7 @@ function createCompEngine({ io, notifyPlayer }) {
         if (await db.compClosePosition(pos.id, exit, hit.reason, pnl)) {
           balance += pnl;
           emit(comp.id, pos.player_id, hit.reason === 'sl' ? 'comp:sl_hit' : 'comp:tp_hit', { positionId: pos.id, symbol: pos.symbol, exitPrice: exit, pnl });
+          fire.afterClose(comp, { ...acc, balance: balance - pnl }, pos, pnl, hit.reason).catch((e) => console.warn('[compFire] afterClose:', e.message));
         }
       }
       if (!live.length) continue;
@@ -674,12 +707,15 @@ function createCompEngine({ io, notifyPlayer }) {
         if (await db.compClosePosition(worst.id, exit, 'loss_limit', pnl)) {
           balance += pnl;
           closed += 1;
+          fire.afterClose(comp, { ...acc, balance: balance - pnl }, worst, pnl, 'loss_limit').catch((e) => console.warn('[compFire] afterClose:', e.message));
         }
         equity = equityAt(t);
         level = marginRules.marginLevel(equity, usedAt());
       }
       if (closed) emit(comp.id, acc.player_id, 'comp:stop_out', { closed, equity: round2(equity) });
     }
+    // Held-position missions for players whose card state is loaded.
+    if (live.length) fire.onTick(comp, acc.id, live, quotesFor(comp, dataTime));
     return { balance, live };
   }
 
@@ -1092,6 +1128,37 @@ function createCompEngine({ io, notifyPlayer }) {
 
   // Lets a socket subscribe to its own competition room once it proves it
   // has an account there.
+  // ---- cards ---------------------------------------------------------------------
+  // Play one card from this player's competition hand, optionally on another
+  // entrant (online or offline). Hit protection, damage floor and the
+  // one-effect-at-a-time rule are the match rules (server/cards.js).
+  async function playCard(compId, playerId, cardType, { targetAccountId, symbol } = {}) {
+    const { comp, account } = await requireTradeable(compId, playerId);
+    const { accounts, ranked } = await standings(compId);
+    const known = new Map(accounts.map((a) => [a.id, a]));
+    let target = null;
+    if (targetAccountId) {
+      target = await db.getCompAccountById(targetAccountId);
+      if (!target || target.competition_id !== comp.id) throw Object.assign(new Error('That player is not in this competition'), { status: 404 });
+      target = { ...target, player: known.get(target.id)?.player };
+    }
+    const quotes = quotesFor(comp, replayClock.dataTimeFor(comp));
+    const out = await fire.play({
+      comp,
+      caster: { ...account, player: known.get(account.id)?.player },
+      target,
+      cardType,
+      symbol,
+      openOf: (id) => db.listCompPositions({ account_id: id, status: 'open' }),
+      quoteOf: (s) => quotes[s] || null,
+      equityOf: (acc, open) => equityOf(acc, open, quotes),
+      leaderAccountId: ranked[0] ? ranked[0].id : null,
+      maxPositions: GAME_RULES.MAX_POSITIONS,
+    });
+    standingsMemo.clear?.(compId);
+    return out;
+  }
+
   async function joinRoom(socket, compId) {
     const playerId = socket.data.player?.id;
     if (!playerId || !compId) return false;
@@ -1120,6 +1187,9 @@ function createCompEngine({ io, notifyPlayer }) {
     start,
     stop,
     joinRoom,
+    playCard,
+    flushCards: () => fire.flush(),
+    __fire: fire, // tests
   };
 }
 

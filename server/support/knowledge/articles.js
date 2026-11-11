@@ -301,7 +301,7 @@ ${EXPERIENCE_LEVELS.map((l) => `- ${l.label}: ${l.max === Infinity ? `${l.min}+`
 - A coming soon card cannot be entered yet. Tap **Notify me** and we email you once when it opens, plus a short confirmation now. You can leave the list from the competition's page.
 - Each competition has its own page (for example /competitions/daily) with how it works, times in your own timezone, the prize and the rules.
 - Nobody can say exactly when they open until the partner and prize are confirmed. The card shows the planned rhythm, like "Every weekday" or "One weekend a month".
-- There is no other daily, weekly, weekend or monthly event to enter in the meantime. The game modes (Quick, Blitz, Grand, Solo, Async, Private and Tournament War) are open any time and pay coins.
+- There is no other daily, weekly, weekend or monthly event to enter in the meantime. The game modes (Quick War, Blitz, Grand War, Elimination, Solo Ranked, Daily Challenge and Private War) are open any time and pay coins.
 
 **Runs that were already going**
 Only a run that a player had already entered before the change keeps going, and it finishes as a coin event under its old rules. No new coin runs are being scheduled. ${NO_CASH} The old details, for players asking about a run they are already in:
@@ -313,6 +313,8 @@ ${['daily', 'weekly', 'weekend', 'monthly'].map(compTemplateBlock).join('\n\n')}
 - Ranking is by equity at the end. Ties are broken by fewer trades, then by who entered first.
 - Reaching the ${STOP_OUT_LEVEL}% margin level closes your biggest losers first. Your account stays open.
 - You can enter more than one competition at a time, for example the Daily and the Weekly.
+- **Cards, streaks, Heat and missions** work in competitions too, like in matches: you get ${MI('quick').cards.startCount} cards when you start (fewer only if you have unlocked fewer), win trades in a row to earn more, and can play attack cards on any other entrant, online or offline. A player who was just hit is protected for ${F.cards.hitShieldSeconds} seconds, only one timed card can be on a player at a time, and no card can take anyone below ${Math.round(F.cards.floorPctOfCapital * 100)}% of the starting capital in one hit. Cards that bend the price feed (Volatility Surge, Reversal Flash, Time Warp, Fog of War, Panic Wave, Dead Calm) are not used in competitions, because everyone shares one market clock. Missions refresh every day.
+- The **Exit** button (top right of the trading screen) takes you back to the competitions list. Your account and open trades stay as they are.
 
 **Bots, EAs and AI are not allowed.** Every trade in a competition must be placed by the player by hand: no AI, bots, EAs (expert advisors), scripts or automated trading. We review trading patterns, and accounts that trade automatically are removed and lose any prize.`,
     },
@@ -323,7 +325,7 @@ ${['daily', 'weekly', 'weekend', 'monthly'].map(compTemplateBlock).join('\n\n')}
       tags: ['cash prize', 'prize pool', 'real money', 'win money', 'payout', 'partner', 'free entry', 'verified', 'bots', 'EA', 'AI'],
       body: `There are two kinds of prize on Spike & Crush, and they never mix.
 
-**Game modes pay coins.** Quick, Blitz, Grand, Solo, Async, Private and Tournament War pay coins. ${NO_CASH}
+**Game modes pay coins.** Quick War, Blitz, Grand War, Elimination, Solo Ranked, the Daily Challenge and Private War pay coins. ${NO_CASH}
 
 **"Hosted by" competitions** are different again: a partner runs them on the partner's own site, and the partner sets the prize and the rules. Spike & Crush only lists them; the "Compete on" button opens the partner's site in a new tab, and you sign up and trade there.
 
