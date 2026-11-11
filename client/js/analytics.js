@@ -97,10 +97,22 @@
     document.head.appendChild(style);
   }
 
+  // Google's cookies (_ga, _ga_<id>) on this host and the parent domain.
+  function clearAnalyticsCookies() {
+    const host = location.hostname;
+    const domains = ['', host, '.' + host, '.' + host.split('.').slice(-2).join('.')];
+    document.cookie.split(';').map((c) => c.split('=')[0].trim()).filter((n) => /^_ga(_|$)/.test(n)).forEach((name) => {
+      domains.forEach((d) => { document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${d ? '; domain=' + d : ''}`; });
+    });
+  }
+
   function saveChoice(choice) {
+    const wasLoaded = ready;
     store.set(CONSENT_KEY, JSON.stringify({ choice, at: Date.now() }));
     closeBanner();
-    if (choice === 'accepted') loadProvider();
+    if (choice === 'accepted') return loadProvider();
+    clearAnalyticsCookies();
+    if (wasLoaded && provider === 'ga4' && analyticsId) window[`ga-disable-${analyticsId}`] = true;
   }
 
   function closeBanner() {

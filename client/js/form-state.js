@@ -51,7 +51,9 @@
     note.className = 'field-error';
     note.textContent = message;
     input.setAttribute('aria-describedby', id);
-    input.insertAdjacentElement('afterend', note);
+    // A checkbox inside its label: put the note under the whole line, not between box and text.
+    const anchor = input.type === 'checkbox' && input.closest('label') ? input.closest('label') : input;
+    anchor.insertAdjacentElement('afterend', note);
   }
 
   function showSummary(form, message) {
