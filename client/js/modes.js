@@ -119,5 +119,17 @@ TW.Modes = (function () {
     return `<div class="mode-highlights"><div class="mh-title">${esc(m.displayName || 'This mode')}</div><div class="mh-grid">${out.map(([k, v]) => `<div><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')}</div>${m.steadyHand ? '<div class="mh-badge">Steady Hand: the smallest dip from your peak among the top three</div>' : ''}</div>`;
   }
 
-  return { setState, rulesRows, onWarning, onCut, onOut, onCheckpoint, resultHighlights };
+  // One line for the share text, in the mode's own terms (null = generic).
+  function shareLine(me) {
+    const m = me && me.mode;
+    if (!m) return null;
+    if (m.key === 'tournament' && m.survived !== null) return m.survived ? `I survived every cut in Spike & Crush Elimination and finished #${me.rank}:` : `I survived ${m.roundsSurvived} cut${m.roundsSurvived === 1 ? '' : 's'} in Spike & Crush Elimination:`;
+    if (m.key === 'blitz' && m.fastestWinSeconds != null) return `Spike & Crush Blitz: #${me.rank}, first win in ${m.fastestWinSeconds}s,`;
+    if (m.key === 'grand' && m.steadyHand) return `Steady Hand badge in Spike & Crush Grand War, #${me.rank}:`;
+    if (m.key === 'solo' && m.newBest) return 'New personal best in Spike & Crush Solo Ranked:';
+    if (m.ghost) return `${m.ghost.delta >= 0 ? 'I beat' : 'I chased'} ${m.ghost.label.toLowerCase()} in Spike & Crush:`;
+    return null;
+  }
+
+  return { shareLine, setState, rulesRows, onWarning, onCut, onOut, onCheckpoint, resultHighlights };
 })();

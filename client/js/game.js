@@ -1259,7 +1259,10 @@ window.TW = window.TW || {};
 
     function openShareModal() {
       const pnlPct = me ? ((me.pnl / 10000) * 100).toFixed(0) : '0';
-      const shareText = me
+      const modeLine = me && TW.Modes ? TW.Modes.shareLine(me) : '';
+      const shareText = modeLine
+        ? `${modeLine} ${me.pnl >= 0 ? '+' : ''}${TW.formatMoney(me.pnl)} (${pnlPct}%). Think you can beat that? Join at ${window.location.host}`
+        : me
         ? `I just finished #${me.rank} in Spike & Crush making ${me.pnl >= 0 ? '+' : ''}${TW.formatMoney(me.pnl)} (${pnlPct}%) in ${durationLabel}! Think you can beat that? Join at ${window.location.host}`
         : `I just finished a Spike & Crush match! Join at ${window.location.host}`;
       const pngDataUrl = drawResultCardPng();
@@ -1273,8 +1276,8 @@ window.TW = window.TW || {};
           <img src="${pngDataUrl}" alt="Your match result card" style="width:100%;border-radius:8px;margin-bottom:14px;" />
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn btn-outline hidden" id="nativeShareBtn">📤 Share</button>
-            <a class="btn btn-outline" href="https://wa.me/?text=${encodeURIComponent(shareText)}" target="_blank" rel="noopener" style="text-decoration:none;">📱 WhatsApp</a>
-            <a class="btn btn-outline" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}" target="_blank" rel="noopener" style="text-decoration:none;">🐦 Twitter/X</a>
+            <a class="btn btn-outline" href="https://wa.me/?text=${encodeURIComponent(shareText)}" target="_blank" rel="noopener" style="text-decoration:none;">WhatsApp</a>
+            <a class="btn btn-outline" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}" target="_blank" rel="noopener" style="text-decoration:none;">X</a>
             <button class="btn btn-outline" id="copyResultBtn">🔗 Copy Text</button>
           </div>
           <a href="${replayUrl}" style="display:block;margin-top:12px;font-size:12px;color:var(--text-secondary);">🎬 Watch full replay →</a>
