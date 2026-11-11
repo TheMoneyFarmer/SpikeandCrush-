@@ -10,7 +10,11 @@ const { MATCH_MODES } = require('../server/gameEngine');
 const money = { prize_kind: 'money', prize_currency: 'USD', entry_fee_coins: 0, prize_pool_coins: 0 };
 
 test('no prize number until a super admin confirms the pool', () => {
-  assert.strictEqual(cs.prizeWording({ ...money, prize_pool_amount: 5000, prize_pool_confirmed: false }).label, 'Cash prizes');
+  // owner decision 2026-11-12: the figure shows before confirmation; admin flags it
+  const unconf = cs.prizeWording({ ...money, prize_pool_amount: 5000, prize_pool_confirmed: false });
+  assert.strictEqual(unconf.amount, '$5,000');
+  assert.strictEqual(unconf.confirmed, false);
+  assert.strictEqual(cs.prizeWording({ ...money, prize_pool_amount: 0 }).label, 'Cash prizes');
   const w = cs.prizeWording({ ...money, prize_pool_amount: 5000, prize_top_amount: 25000, prize_pool_confirmed: true });
   assert.strictEqual(w.label, '$5,000 prize pool');
   assert.strictEqual(w.top, 'Up to $25,000 on featured days');

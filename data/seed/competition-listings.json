@@ -1,0 +1,661 @@
+{
+  "seed": 20261112,
+  "note": "Invented brands for Preview listings. Replace one by one in admin as real partners sign.",
+  "listings": [
+    {
+      "seedKey": "seed-prop-1",
+      "type": "prop",
+      "preview": true,
+      "organizer": {
+        "name": "Corvane Funding",
+        "country": "AE",
+        "years": 7,
+        "rating": 4.5,
+        "logo": "/img/listings/corvane-funding.svg",
+        "logoDark": "/img/listings/corvane-funding.svg"
+      },
+      "title": "Corvane Challenge Race",
+      "kind": "Monthly challenge race",
+      "prize": {
+        "kind": "money",
+        "amount": 6000,
+        "currency": "USD"
+      },
+      "rules": [
+        "Max daily loss 4%",
+        "Target 10%",
+        "30 days",
+        "Web"
+      ],
+      "assets": [
+        "Indices",
+        "Energy",
+        "Crypto"
+      ],
+      "platforms": [
+        "Web"
+      ],
+      "startsInDays": 15,
+      "lengthDays": 30,
+      "tier": "featured",
+      "listedDaysAgo": 4,
+      "summary": "A monthly challenge race run on Corvane Funding's own platform. Their rules apply.",
+      "slug": "corvane-funding-corvane-challenge-race"
+    },
+    {
+      "seedKey": "seed-prop-2",
+      "type": "prop",
+      "preview": true,
+      "organizer": {
+        "name": "Tidewell Trader Fund",
+        "country": "AE",
+        "years": 3,
+        "rating": 4.3,
+        "logo": "/img/listings/tidewell-trader-fund.svg",
+        "logoDark": "/img/listings/tidewell-trader-fund.svg"
+      },
+      "title": "Tidewell Payout Sprint",
+      "kind": "Payout sprint",
+      "prize": {
+        "kind": "money",
+        "amount": 25000,
+        "currency": "USD"
+      },
+      "rules": [
+        "Max daily loss 4%",
+        "Target 8%",
+        "14 days",
+        "cTrader"
+      ],
+      "assets": [
+        "FX",
+        "Indices",
+        "Metals"
+      ],
+      "platforms": [
+        "cTrader"
+      ],
+      "startsInDays": 14,
+      "lengthDays": 14,
+      "tier": "plus",
+      "listedDaysAgo": 1,
+      "summary": "A payout sprint run on Tidewell Trader Fund's own platform. Their rules apply.",
+      "slug": "tidewell-trader-fund-tidewell-payout-sprint"
+    },
+    {
+      "seedKey": "seed-prop-3",
+      "type": "prop",
+      "preview": true,
+      "organizer": {
+        "name": "Pellmont Capital Desk",
+        "country": "CZ",
+        "years": 3,
+        "rating": 3.6,
+        "logo": "/img/listings/pellmont-capital-desk.svg",
+        "logoDark": "/img/listings/pellmont-capital-desk.svg"
+      },
+      "title": "Pellmont Demo Cup",
+      "kind": "Demo cup",
+      "prize": {
+        "kind": "money",
+        "amount": 10000,
+        "currency": "USD"
+      },
+      "rules": [
+        "Max daily loss 6%",
+        "Target 6%",
+        "14 days",
+        "cTrader"
+      ],
+      "assets": [
+        "FX",
+        "Indices",
+        "Metals"
+      ],
+      "platforms": [
+        "cTrader"
+      ],
+      "startsInDays": 18,
+      "lengthDays": 14,
+      "tier": "standard",
+      "listedDaysAgo": 26,
+      "summary": "A demo cup run on Pellmont Capital Desk's own platform. Their rules apply.",
+      "slug": "pellmont-capital-desk-pellmont-demo-cup"
+    },
+    {
+      "seedKey": "seed-prop-4",
+      "type": "prop",
+      "preview": true,
+      "organizer": {
+        "name": "Brightfold Funded",
+        "country": "CY",
+        "years": 1,
+        "rating": 4.6,
+        "logo": "/img/listings/brightfold-funded.svg",
+        "logoDark": "/img/listings/brightfold-funded.svg"
+      },
+      "title": "Brightfold Challenge Race",
+      "kind": "Monthly challenge race",
+      "prize": {
+        "kind": "money",
+        "amount": 26000,
+        "currency": "USD"
+      },
+      "rules": [
+        "Max daily loss 6%",
+        "Target 6%",
+        "30 days",
+        "Web"
+      ],
+      "assets": [
+        "Indices",
+        "Crypto"
+      ],
+      "platforms": [
+        "MT5"
+      ],
+      "startsInDays": 13,
+      "lengthDays": 30,
+      "tier": "plus",
+      "listedDaysAgo": 0,
+      "summary": "A monthly challenge race run on Brightfold Funded's own platform. Their rules apply.",
+      "slug": "brightfold-funded-brightfold-challenge-race"
+    },
+    {
+      "seedKey": "seed-prop-5",
+      "type": "prop",
+      "preview": true,
+      "organizer": {
+        "name": "Ostrava Peak Traders",
+        "country": "AE",
+        "years": 5,
+        "rating": 4.2,
+        "logo": "/img/listings/ostrava-peak-traders.svg",
+        "logoDark": "/img/listings/ostrava-peak-traders.svg"
+      },
+      "title": "Ostrava Payout Sprint",
+      "kind": "Payout sprint",
+      "prize": {
+        "kind": "money",
+        "amount": 22000,
+        "currency": "USD"
+      },
+      "rules": [
+        "Max daily loss 4%",
+        "Target 8%",
+        "30 days",
+        "MT4"
+      ],
+      "assets": [
+        "Crypto",
+        "Energy"
+      ],
+      "platforms": [
+        "MT4"
+      ],
+      "startsInDays": 24,
+      "lengthDays": 30,
+      "tier": "standard",
+      "listedDaysAgo": 27,
+      "summary": "A payout sprint run on Ostrava Peak Traders's own platform. Their rules apply.",
+      "slug": "ostrava-peak-traders-ostrava-payout-sprint"
+    },
+    {
+      "seedKey": "seed-prop-6",
+      "type": "prop",
+      "preview": true,
+      "organizer": {
+        "name": "Kestrine Funding Lab",
+        "country": "SG",
+        "years": 8,
+        "rating": 4.7,
+        "logo": "/img/listings/kestrine-funding-lab.svg",
+        "logoDark": "/img/listings/kestrine-funding-lab.svg"
+      },
+      "title": "Kestrine Demo Cup",
+      "kind": "Demo cup",
+      "prize": {
+        "kind": "money",
+        "amount": 14000,
+        "currency": "USD"
+      },
+      "rules": [
+        "Max daily loss 6%",
+        "Target 6%",
+        "21 days",
+        "cTrader"
+      ],
+      "assets": [
+        "Crypto",
+        "Energy"
+      ],
+      "platforms": [
+        "cTrader"
+      ],
+      "startsInDays": 20,
+      "lengthDays": 21,
+      "tier": "standard",
+      "listedDaysAgo": 17,
+      "summary": "A demo cup run on Kestrine Funding Lab's own platform. Their rules apply.",
+      "slug": "kestrine-funding-lab-kestrine-demo-cup"
+    },
+    {
+      "seedKey": "seed-broker-1",
+      "type": "broker",
+      "preview": true,
+      "organizer": {
+        "name": "Larkspur Markets",
+        "country": "AE",
+        "years": 9,
+        "rating": 3.9,
+        "logo": "/img/listings/larkspur-markets.svg",
+        "logoDark": "/img/listings/larkspur-markets.svg"
+      },
+      "title": "Larkspur Trading Cup",
+      "kind": "Live account contest",
+      "prize": {
+        "kind": "money",
+        "amount": 25000,
+        "currency": "USD"
+      },
+      "accountType": "Raw spread account",
+      "leverage": "Up to 1:500",
+      "instruments": [
+        "Crypto",
+        "Metals",
+        "Indices"
+      ],
+      "platforms": [
+        "MT4"
+      ],
+      "rules": [
+        "Raw spread account",
+        "Leverage up to 1:500",
+        "30 days"
+      ],
+      "assets": [
+        "FX",
+        "Energy",
+        "Crypto"
+      ],
+      "startsInDays": 11,
+      "lengthDays": 30,
+      "tier": "featured",
+      "listedDaysAgo": 6,
+      "summary": "A contest for Larkspur Markets account holders. The broker's terms apply.",
+      "slug": "larkspur-markets-larkspur-trading-cup"
+    },
+    {
+      "seedKey": "seed-broker-2",
+      "type": "broker",
+      "preview": true,
+      "organizer": {
+        "name": "Venmoor FX",
+        "country": "SG",
+        "years": 9,
+        "rating": 4.4,
+        "logo": "/img/listings/venmoor-fx.svg",
+        "logoDark": "/img/listings/venmoor-fx.svg"
+      },
+      "title": "Venmoor Trading Cup",
+      "kind": "Live account contest",
+      "prize": {
+        "kind": "money",
+        "amount": 5000,
+        "currency": "USD"
+      },
+      "accountType": "Standard account",
+      "leverage": "Up to 1:30",
+      "instruments": [
+        "Crypto",
+        "Indices",
+        "FX"
+      ],
+      "platforms": [
+        "Web",
+        "cTrader"
+      ],
+      "rules": [
+        "Standard account",
+        "Leverage up to 1:30",
+        "14 days"
+      ],
+      "assets": [
+        "Energy",
+        "FX",
+        "Crypto"
+      ],
+      "startsInDays": 17,
+      "lengthDays": 30,
+      "tier": "standard",
+      "listedDaysAgo": 28,
+      "summary": "A contest for Venmoor FX account holders. The broker's terms apply.",
+      "slug": "venmoor-fx-venmoor-trading-cup"
+    },
+    {
+      "seedKey": "seed-broker-3",
+      "type": "broker",
+      "preview": true,
+      "organizer": {
+        "name": "Quillstone Brokers",
+        "country": "AE",
+        "years": 6,
+        "rating": 4.8,
+        "logo": "/img/listings/quillstone-brokers.svg",
+        "logoDark": "/img/listings/quillstone-brokers.svg"
+      },
+      "title": "Quillstone Trading Cup",
+      "kind": "Live account contest",
+      "prize": {
+        "kind": "money",
+        "amount": 8000,
+        "currency": "USD"
+      },
+      "accountType": "Zero commission account",
+      "leverage": "Up to 1:500",
+      "instruments": [
+        "FX",
+        "Metals",
+        "Energy"
+      ],
+      "platforms": [
+        "MT5",
+        "cTrader"
+      ],
+      "rules": [
+        "Zero commission account",
+        "Leverage up to 1:500",
+        "30 days"
+      ],
+      "assets": [
+        "Energy",
+        "Metals",
+        "Indices"
+      ],
+      "startsInDays": 26,
+      "lengthDays": 30,
+      "tier": "plus",
+      "listedDaysAgo": 19,
+      "summary": "A contest for Quillstone Brokers account holders. The broker's terms apply.",
+      "slug": "quillstone-brokers-quillstone-trading-cup"
+    },
+    {
+      "seedKey": "seed-broker-4",
+      "type": "broker",
+      "preview": true,
+      "organizer": {
+        "name": "Harrowgate Capital",
+        "country": "IE",
+        "years": 8,
+        "rating": 4,
+        "logo": "/img/listings/harrowgate-capital.svg",
+        "logoDark": "/img/listings/harrowgate-capital.svg"
+      },
+      "title": "Harrowgate Trading Cup",
+      "kind": "Live account contest",
+      "prize": {
+        "kind": "money",
+        "amount": 28000,
+        "currency": "USD"
+      },
+      "accountType": "Pro account",
+      "leverage": "Up to 1:200",
+      "instruments": [
+        "Metals",
+        "FX",
+        "Crypto"
+      ],
+      "platforms": [
+        "cTrader"
+      ],
+      "rules": [
+        "Pro account",
+        "Leverage up to 1:200",
+        "30 days"
+      ],
+      "assets": [
+        "Energy",
+        "FX",
+        "Metals"
+      ],
+      "startsInDays": 12,
+      "lengthDays": 14,
+      "tier": "standard",
+      "listedDaysAgo": 11,
+      "summary": "A contest for Harrowgate Capital account holders. The broker's terms apply.",
+      "slug": "harrowgate-capital-harrowgate-trading-cup"
+    },
+    {
+      "seedKey": "seed-broker-5",
+      "type": "broker",
+      "preview": true,
+      "organizer": {
+        "name": "Selwyn Bay Markets",
+        "country": "NL",
+        "years": 14,
+        "rating": 4.3,
+        "logo": "/img/listings/selwyn-bay-markets.svg",
+        "logoDark": "/img/listings/selwyn-bay-markets.svg"
+      },
+      "title": "Selwyn Trading Cup",
+      "kind": "Live account contest",
+      "prize": {
+        "kind": "money",
+        "amount": 18000,
+        "currency": "USD"
+      },
+      "accountType": "Standard account",
+      "leverage": "Up to 1:200",
+      "instruments": [
+        "Energy",
+        "Crypto",
+        "Indices"
+      ],
+      "platforms": [
+        "MT5"
+      ],
+      "rules": [
+        "Standard account",
+        "Leverage up to 1:200",
+        "14 days"
+      ],
+      "assets": [
+        "Crypto",
+        "Energy",
+        "FX"
+      ],
+      "startsInDays": 25,
+      "lengthDays": 14,
+      "tier": "standard",
+      "listedDaysAgo": 3,
+      "summary": "A contest for Selwyn Bay Markets account holders. The broker's terms apply.",
+      "slug": "selwyn-bay-markets-selwyn-trading-cup"
+    },
+    {
+      "seedKey": "seed-sponsored-1",
+      "type": "sponsored",
+      "preview": true,
+      "organizer": {
+        "name": "Glintdesk",
+        "country": null,
+        "years": null,
+        "rating": null,
+        "logo": "/img/listings/glintdesk.svg",
+        "logoDark": "/img/listings/glintdesk.svg"
+      },
+      "title": "Win a trading laptop",
+      "kind": "Sponsored prize",
+      "prize": {
+        "kind": "goods",
+        "text": "A trading laptop"
+      },
+      "howToWin": "Top 3 of the Daily Open this week",
+      "rules": [
+        "Top 3 of the Daily Open this week"
+      ],
+      "assets": [],
+      "platforms": [],
+      "startsInDays": 15,
+      "lengthDays": 7,
+      "tier": "plus",
+      "listedDaysAgo": 17,
+      "summary": "Glintdesk gives a trading laptop to the winner. The offer is applied automatically through our link.",
+      "slug": "glintdesk-win-a-trading-laptop"
+    },
+    {
+      "seedKey": "seed-sponsored-2",
+      "type": "sponsored",
+      "preview": true,
+      "organizer": {
+        "name": "Northbeam Gear",
+        "country": null,
+        "years": null,
+        "rating": null,
+        "logo": "/img/listings/northbeam-gear.svg",
+        "logoDark": "/img/listings/northbeam-gear.svg"
+      },
+      "title": "Win a trading desktop",
+      "kind": "Sponsored prize",
+      "prize": {
+        "kind": "goods",
+        "text": "A trading desktop"
+      },
+      "howToWin": "Best weekend trader",
+      "rules": [
+        "Best weekend trader"
+      ],
+      "assets": [],
+      "platforms": [],
+      "startsInDays": 17,
+      "lengthDays": 7,
+      "tier": "standard",
+      "listedDaysAgo": 20,
+      "summary": "Northbeam Gear gives a trading desktop to the winner. The offer is applied automatically through our link.",
+      "slug": "northbeam-gear-win-a-trading-desktop"
+    },
+    {
+      "seedKey": "seed-sponsored-3",
+      "type": "sponsored",
+      "preview": true,
+      "organizer": {
+        "name": "Copperline Studios",
+        "country": null,
+        "years": null,
+        "rating": null,
+        "logo": "/img/listings/copperline-studios.svg",
+        "logoDark": "/img/listings/copperline-studios.svg"
+      },
+      "title": "Win a new phone",
+      "kind": "Sponsored prize",
+      "prize": {
+        "kind": "goods",
+        "text": "A new phone"
+      },
+      "howToWin": "Highest return in the Weekend Open",
+      "rules": [
+        "Highest return in the Weekend Open"
+      ],
+      "assets": [],
+      "platforms": [],
+      "startsInDays": 12,
+      "lengthDays": 2,
+      "tier": "standard",
+      "listedDaysAgo": 7,
+      "summary": "Copperline Studios gives a new phone to the winner. The offer is applied automatically through our link.",
+      "slug": "copperline-studios-win-a-new-phone"
+    },
+    {
+      "seedKey": "seed-sponsored-4",
+      "type": "sponsored",
+      "preview": true,
+      "organizer": {
+        "name": "Arcwell Setups",
+        "country": null,
+        "years": null,
+        "rating": null,
+        "logo": "/img/listings/arcwell-setups.svg",
+        "logoDark": "/img/listings/arcwell-setups.svg"
+      },
+      "title": "Win a games console",
+      "kind": "Sponsored prize",
+      "prize": {
+        "kind": "goods",
+        "text": "A games console"
+      },
+      "howToWin": "Top 5 of the Daily Open on Friday",
+      "rules": [
+        "Top 5 of the Daily Open on Friday"
+      ],
+      "assets": [],
+      "platforms": [],
+      "startsInDays": 20,
+      "lengthDays": 5,
+      "tier": "standard",
+      "listedDaysAgo": 28,
+      "summary": "Arcwell Setups gives a games console to the winner. The offer is applied automatically through our link.",
+      "slug": "arcwell-setups-win-a-games-console"
+    },
+    {
+      "seedKey": "seed-sponsored-5",
+      "type": "sponsored",
+      "preview": true,
+      "organizer": {
+        "name": "Embervale Rigs",
+        "country": null,
+        "years": null,
+        "rating": null,
+        "logo": "/img/listings/embervale-rigs.svg",
+        "logoDark": "/img/listings/embervale-rigs.svg"
+      },
+      "title": "Win a dual-monitor setup",
+      "kind": "Sponsored prize",
+      "prize": {
+        "kind": "goods",
+        "text": "A dual-monitor setup"
+      },
+      "howToWin": "Most consistent trader this month",
+      "rules": [
+        "Most consistent trader this month"
+      ],
+      "assets": [],
+      "platforms": [],
+      "startsInDays": 15,
+      "lengthDays": 7,
+      "tier": "standard",
+      "listedDaysAgo": 2,
+      "summary": "Embervale Rigs gives a dual-monitor setup to the winner. The offer is applied automatically through our link.",
+      "slug": "embervale-rigs-win-a-dual-monitor-setup"
+    },
+    {
+      "seedKey": "seed-sponsored-6",
+      "type": "sponsored",
+      "preview": true,
+      "organizer": {
+        "name": "Tallowfield Academy",
+        "country": null,
+        "years": null,
+        "rating": null,
+        "logo": "/img/listings/tallowfield-academy.svg",
+        "logoDark": "/img/listings/tallowfield-academy.svg"
+      },
+      "title": "Win a trading course bundle",
+      "kind": "Sponsored prize",
+      "prize": {
+        "kind": "goods",
+        "text": "A trading course bundle"
+      },
+      "howToWin": "Top 10 of the Weekend Open",
+      "rules": [
+        "Top 10 of the Weekend Open"
+      ],
+      "assets": [],
+      "platforms": [],
+      "startsInDays": 20,
+      "lengthDays": 7,
+      "tier": "standard",
+      "listedDaysAgo": 25,
+      "summary": "Tallowfield Academy gives a trading course bundle to the winner. The offer is applied automatically through our link.",
+      "slug": "tallowfield-academy-win-a-trading-course-bundle"
+    }
+  ]
+}

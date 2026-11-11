@@ -38,4 +38,15 @@ function waitlistOpenEmail({ username, title, hook, link, sponsorName }) {
   };
 }
 
-module.exports = { waitlistConfirmEmail, waitlistOpenEmail };
+// A discontinued format (Weekly, Monthly) was closed and the entry refunded.
+function closedEmail({ username, name, coins }) {
+  return {
+    subject: `The ${name} has been closed`,
+    text: `Hi ${username},\n\nThe ${name} has been closed and your ${coins} coins are back in your balance.\n\nThe Daily Open and the Weekend Open are coming soon. Both are free to enter.`,
+    html: `<p>Hi ${esc(username)},</p>
+<p>The <strong>${esc(name)}</strong> has been closed and your ${esc(coins)} coins are back in your balance.</p>
+<p>The Daily Open and the Weekend Open are coming soon. Both are free to enter.</p>`,
+  };
+}
+
+module.exports = { waitlistConfirmEmail, waitlistOpenEmail, closedEmail };

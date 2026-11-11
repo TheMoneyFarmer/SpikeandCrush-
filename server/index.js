@@ -521,6 +521,16 @@ app.use(require('./compTemplates').createCompTemplatesRouter({
   siteUrl: (req) => String(process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, ''),
   sponsorNameFor: (slot, target) => sponsorSlots.sponsorNameFor(slot, target),
 }));
+const listingsRouter = require('./listings').createListingsRouter({
+  db,
+  authenticate: [requireDb, (req, res, next) => authenticate(req, res, next)],
+  optionalViewerId: (req) => optionalViewerId(req),
+  sendEmail,
+  clientDir: CLIENT_DIR,
+  siteUrl: (req) => String(process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, ''),
+});
+app.use(listingsRouter);
+app.get('/partner', (req, res) => res.redirect(301, '/sponsor'));
 app.get('/competition/:id', seo.createCompetitionPage(db));
 app.get('/contact', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'contact.html')));
 app.get('/cookies', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'cookies.html')));
@@ -2739,7 +2749,8 @@ function competitionStatus(c, now = Date.now()) {
 // `status` is the hub's date-based upcoming/active/ended; a voided native
 // competition shows as ended. `lifecycle` is the engine's own status.
 function competitionSummary(c) {
-  const { is_published, click_count, last_tick_at, last_tick_data_time, notices_sent, data_window_start, ...rest } = c;
+  // external_url and public_token never leave the server: outbound goes through /go/.
+  const { is_published, click_count, last_tick_at, last_tick_data_time, notices_sent, data_window_start, external_url, public_token, outbound_clicks, seed_key, pin_tab, pin_starts_at, pin_ends_at, ...rest } = c;
   return { ...rest, status: c.status === 'void' ? 'ended' : competitionStatus(c), lifecycle: c.status };
 }
 

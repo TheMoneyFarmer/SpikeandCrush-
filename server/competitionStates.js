@@ -16,7 +16,7 @@
 const STATES = ['coming_soon', 'open', 'running', 'paused', 'closed'];
 const ENTERABLE_STATES = ['open', 'running'];
 const DATA_SOURCES = ['replay', 'live'];
-const PRIZE_KINDS = ['coins', 'money', 'partner'];
+const PRIZE_KINDS = ['coins', 'money', 'partner', 'goods'];
 
 // Shown on every money competition card, one line each.
 const MONEY_RULE_LINES = ['Verified profile required', 'One account per player', 'No AI, bots or EAs'];
@@ -49,15 +49,23 @@ function prizeWording(row) {
     const pool = Number(row.prize_pool_amount ?? row.prize_pool) || 0;
     const top = Number(row.prize_top_amount) || 0;
     const currency = row.prize_currency || 'USD';
-    if (row.prize_pool_confirmed && pool > 0) {
+    // Owner decision (2026-11-12): the card shows the figure even before the
+    // pool is confirmed; admin shows a red "unconfirmed" note until it is.
+    if (pool > 0) {
       return {
         kind,
         label: `${formatMoney(pool, currency)} prize pool`,
+        amount: formatMoney(pool, currency),
+        currency,
+        confirmed: Boolean(row.prize_pool_confirmed),
         top: top > pool ? `Up to ${formatMoney(top, currency)} on featured days` : null,
         badge: 'Free entry',
       };
     }
-    return { kind, label: 'Cash prizes', top: null, badge: 'Free entry' };
+    return { kind, label: 'Cash prizes', amount: null, currency, confirmed: false, top: null, badge: 'Free entry' };
+  }
+  if (kind === 'goods') {
+    return { kind, label: row.prize_text ? String(row.prize_text) : 'Prizes from the sponsor', amount: null, top: null, badge: 'Free entry' };
   }
   const coins = Number(row.prize_pool_coins) || 0;
   return { kind: 'coins', label: coins > 0 ? `${formatCoins(coins)} to win` : 'Coin prizes', top: null, badge: Number(row.entry_fee_coins) > 0 ? null : 'Free entry' };

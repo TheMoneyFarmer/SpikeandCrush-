@@ -30,10 +30,18 @@
         <div class="panel" id="tplPanel">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <h3 style="margin:0">Recurring competitions</h3>
-            <span class="muted">Daily, Weekly, Weekend and Monthly. Money prizes, always free to enter.</span>
+            <span class="muted">Daily Open and Weekend Open. Money prizes, always free to enter.</span>
             <a class="btn btn-sm" href="/api/competitions/templates/waitlist.csv" style="margin-left:auto">Export waitlist counts</a>
           </div>
           <div class="adm-strip" id="liveFeedStrip" style="margin-top:12px"></div>
+          <div id="closurePanel" class="panel" style="margin-top:12px;border:1px solid var(--border)">
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+              <b>Weekly and Monthly are discontinued</b>
+              <span class="muted">Closing them refunds every entrant's coins once, closes the runs, and tells each player once by message and email. Running it again refunds nothing twice.</span>
+              <button class="btn btn-sm" id="closurePreview" style="margin-left:auto">Check what would happen</button>
+            </div>
+            <div id="closureOut" class="muted" style="margin-top:8px"></div>
+          </div>
           <div class="admin-table-wrap" style="margin-top:12px"><table class="admin-table">
             <thead><tr><th>Competition</th><th>State</th><th>Data</th><th>Card shows</th><th>Waiting</th><th>Last notify</th><th></th></tr></thead>
             <tbody id="tplBody"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
@@ -92,13 +100,23 @@
         <label class="field">Reason for a state change<input id="tReason" maxlength="200" placeholder="Required when the state changes"></label>
       </div>
       <h4 style="margin:16px 0 6px">Prize (super admin only)</h4>
-      <p class="muted" style="margin:0 0 8px">Only confirm a pool when a named partner has agreed to pay it. A number on a card with no partner behind it is a promise we cannot keep. Until a pool is confirmed, the card says "Cash prizes" with no figure.</p>
+      <p class="muted" style="margin:0 0 8px">The card shows the prize figure. Tick "confirmed" only when a named partner has agreed to pay it. Until then this page shows a red warning.</p>
+      <p id="tUnconfirmed" style="margin:0 0 8px;color:#ff6b6b;font-weight:600" hidden>Unconfirmed: change before going live.</p>
       <div class="config-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
         <label class="field">Prize pool<input id="tPool" type="number" min="0" step="1"></label>
         <label class="field">Top figure on featured days<input id="tTop" type="number" min="0" step="1"></label>
         <label class="field">Currency<input id="tCur" maxlength="3" placeholder="USD"></label>
         <label class="field" style="grid-column:1/-1">Paying partner (admin note, never shown on cards)<input id="tPartner" maxlength="300"></label>
         <label style="display:flex;gap:8px;align-items:center;grid-column:1/-1"><input type="checkbox" id="tConfirmed"> Prize pool confirmed by the named partner</label>
+        <label class="field" style="grid-column:1/-1">Prize split, place and percent, one per line (must add up to 100)<textarea id="tSplit" rows="4" placeholder="1st: 50"></textarea></label>
+      </div>
+      <h4 style="margin:16px 0 6px">Schedule and markets</h4>
+      <div class="config-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+        <label class="field">Timezone<input id="tTz" placeholder="UTC"></label>
+        <label class="field" id="tOpenWrap">Session opens<input id="tOpen" placeholder="00:00"></label>
+        <label class="field" id="tCloseWrap">Session closes<input id="tClose" placeholder="22:00"></label>
+        <label class="field" id="tSessionWrap">Session name<input id="tSession" maxlength="40"></label>
+        <label class="field" id="tInstrWrap" style="grid-column:1/-1">Instrument pool (weekend markets only)<input id="tInstr" placeholder="BTCUSD, ETHUSD"></label>
       </div>
       <div class="admin-modal-actions" style="margin-top:16px">
         <button class="btn" id="tCancel">Cancel</button>
@@ -141,7 +159,7 @@
         <td><b>${Admin.escapeHtml(t.title)}</b><div class="muted">${Admin.escapeHtml(t.schedule_text)}</div></td>
         <td><span class="badge ${t.state === 'coming_soon' ? 'badge-info' : t.state === 'open' || t.state === 'running' ? 'badge-online' : 'badge-offline'}">${STATE_NAMES[t.state]}</span>${t.state_reason ? `<div class="muted">${Admin.escapeHtml(t.state_reason)}</div>` : ''}</td>
         <td>${t.data_source}</td>
-        <td>${Admin.escapeHtml(t.preview.label)}${t.preview.top ? `<div class="muted">${Admin.escapeHtml(t.preview.top)}</div>` : ''}${t.prize_pool_confirmed ? '' : '<div class="muted">No confirmed pool</div>'}</td>
+        <td>${Admin.escapeHtml(t.preview.amount || t.preview.label)}${t.prize_pool_confirmed ? '<div class="muted">Confirmed</div>' : '<div style="color:#ff6b6b;font-weight:600">Unconfirmed: change before going live</div>'}</td>
         <td class="mono">${t.waitlist}</td>
         <td class="muted">${t.lastNotify ? `${Admin.formatDate(t.lastNotify.created_at)} (${t.lastNotify.recipients})` : 'never'}</td>
         <td style="white-space:nowrap">${d.canEdit ? `<button class="btn btn-sm" data-edit="${t.key}">Edit</button> <button class="btn btn-sm" data-notify="${t.key}" ${t.waitlist ? '' : 'disabled'}>Notify waitlist</button>` : ''}</td>
@@ -165,17 +183,48 @@
       $('tTitle').value = t.title; $('tSchedule').value = t.schedule_text; $('tRhythm').value = t.rhythm_text; $('tLength').value = t.length_text;
       $('tHook').value = t.format_hook; $('tRules').value = t.rules_line; $('tState').value = t.state; $('tReason').value = '';
       $('tPool').value = t.prize_pool_amount; $('tTop').value = t.prize_top_amount; $('tCur').value = t.prize_currency; $('tPartner').value = t.prize_partner_note || ''; $('tConfirmed').checked = t.prize_pool_confirmed;
-      ['tPool', 'tTop', 'tCur', 'tPartner', 'tConfirmed'].forEach((id) => { $(id).disabled = !tplData.isSuper; });
+      ['tPool', 'tTop', 'tCur', 'tPartner', 'tConfirmed', 'tSplit'].forEach((id) => { $(id).disabled = !tplData.isSuper; });
+      $('tUnconfirmed').hidden = Boolean(t.prize_pool_confirmed);
+      $('tSplit').value = (t.prize_breakdown || []).map((x) => `${x.places}: ${x.share}`).join('\n');
+      const sch = t.schedule || {};
+      $('tTz').value = sch.timezone || 'UTC';
+      $('tOpen').value = sch.open || sch.start || ''; $('tClose').value = sch.close || sch.end || ''; $('tSession').value = sch.sessionName || sch.marketsLabel || '';
+      $('tInstr').value = (t.instruments || []).join(', ');
+      const weekend = t.key === 'weekend';
+      $('tInstrWrap').hidden = !weekend;
+      $('tOpenWrap').firstChild.textContent = weekend ? 'Saturday starts at' : 'Session opens';
+      $('tCloseWrap').firstChild.textContent = weekend ? 'Sunday ends at' : 'Session closes';
+      $('tSessionWrap').firstChild.textContent = weekend ? 'Markets label' : 'Session name';
       $('tplModal').classList.remove('hidden');
     }
     $('tCancel').addEventListener('click', () => $('tplModal').classList.add('hidden'));
     $('tSave').addEventListener('click', async () => {
       const body = { title: $('tTitle').value, schedule_text: $('tSchedule').value, rhythm_text: $('tRhythm').value, length_text: $('tLength').value, format_hook: $('tHook').value, rules_line: $('tRules').value };
       if ($('tState').value !== editing.state) { body.state = $('tState').value; body.reason = $('tReason').value; }
-      if (tplData.isSuper) Object.assign(body, { prize_pool_amount: Number($('tPool').value), prize_top_amount: Number($('tTop').value), prize_currency: $('tCur').value.toUpperCase() || 'USD', prize_partner_note: $('tPartner').value, prize_pool_confirmed: $('tConfirmed').checked });
+      if (tplData.isSuper) {
+        Object.assign(body, { prize_pool_amount: Number($('tPool').value), prize_top_amount: Number($('tTop').value), prize_currency: $('tCur').value.toUpperCase() || 'USD', prize_partner_note: $('tPartner').value, prize_pool_confirmed: $('tConfirmed').checked });
+        body.prize_breakdown = $('tSplit').value.split('\n').map((l) => l.split(':')).filter((p) => p.length === 2 && p[0].trim()).map(([places, share]) => ({ places: places.trim(), share: Number(share) }));
+      }
+      const weekend = editing.key === 'weekend';
+      body.schedule = weekend
+        ? { timezone: $('tTz').value.trim() || 'UTC', start: $('tOpen').value.trim() || '00:00', end: $('tClose').value.trim() || '23:59', marketsLabel: $('tSession').value }
+        : { timezone: $('tTz').value.trim() || 'UTC', open: $('tOpen').value.trim() || '00:00', close: $('tClose').value.trim() || '22:00', sessionName: $('tSession').value };
+      if (weekend) body.instruments = $('tInstr').value;
       try { await Admin.api(`/competitions/templates/${editing.key}`, { method: 'PUT', body }); $('tplModal').classList.add('hidden'); Admin.toast('Saved', 'success'); loadTemplates(); } catch (e) { Admin.toast(e.message, 'danger'); }
     });
     loadTemplates();
+
+    // ---- close Weekly and Monthly ----
+    const closureLine = (r) => `${r.dryRun ? 'Would close' : 'Closed'} ${r.dryRun ? r.instances.length : r.instancesClosed} runs with ${r.entrants} entrants. ${r.dryRun ? `Coins to refund: ${r.instances.reduce((a, i) => a + i.entrants * i.fee, 0)}.` : `Refunded ${r.refunded} entrants (${r.coinsRefunded} coins), ${r.alreadyRefunded} already refunded before, ${r.notified} messages, ${r.emailed} emails.`}${r.errors && r.errors.length ? ` Problems: ${r.errors.length}.` : ''}`;
+    $('closurePreview').addEventListener('click', async () => {
+      try {
+        const r = await Admin.api('/competitions/closure');
+        $('closureOut').innerHTML = `${Admin.escapeHtml(closureLine(r))}<div style="margin-top:6px">${r.instances.map((i) => `${Admin.escapeHtml(i.title)}: ${i.entrants} entrants, ${i.fee} coins each`).join('<br>')}</div>${tplData && tplData.isSuper ? '<div style="margin-top:8px;display:flex;gap:8px;align-items:center"><input id="closureConfirm" placeholder="Type CLOSE" style="width:120px"><button class="btn btn-sm btn-primary" id="closureRun">Close and refund</button></div>' : '<div style="margin-top:6px">Only a super admin can run this.</div>'}`;
+        $('closureRun')?.addEventListener('click', async () => {
+          try { const out = await Admin.api('/competitions/closure', { method: 'POST', body: { confirm: $('closureConfirm').value } }); $('closureOut').textContent = closureLine(out); Admin.toast('Done', 'success'); } catch (e) { Admin.toast(e.message, 'danger'); }
+        });
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
 
     // ---- partner competitions ----
     let pcData = null;

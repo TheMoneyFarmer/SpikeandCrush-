@@ -2599,7 +2599,14 @@ async function sponsorStats(sponsorId, fromDay, toDay) {
   return { placements, days: days || [] };
 }
 
+// The service client, for modules that own their own tables (server/listings.js).
+function client() {
+  assertConfigured();
+  return supabase;
+}
+
 module.exports = {
+  client,
   listCompTemplates,
   getCompTemplate,
   updateCompTemplate,

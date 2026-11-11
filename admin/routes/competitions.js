@@ -12,10 +12,11 @@ const compStates = require('../../server/competitionStates');
 const liveFeed = require('../../server/liveFeed');
 const { waitlistOpenEmail } = require('../../server/compEmails');
 const { sendEmail } = require('../lib/email');
+const { closeDiscontinued } = require('../../server/compClosure');
 
 const EDIT_ROLES = ['super_admin', 'admin'];
 const COPY_FIELDS = ['title', 'schedule_text', 'rhythm_text', 'length_text', 'format_hook', 'rules_line'];
-const PRIZE_FIELDS = ['prize_pool_amount', 'prize_top_amount', 'prize_pool_confirmed', 'prize_currency', 'prize_partner_note'];
+const PRIZE_FIELDS = ['prize_pool_amount', 'prize_top_amount', 'prize_pool_confirmed', 'prize_currency', 'prize_partner_note', 'prize_breakdown'];
 const NOTIFY_THROTTLE_MS = 24 * 3600 * 1000;
 
 module.exports = function competitionsRoutes() {
@@ -76,8 +77,10 @@ module.exports = function competitionsRoutes() {
 
   r.get('/templates', async (req, res) => {
     try {
-      const { data, error } = await supabase.from('competition_templates').select('*').order('key');
+      const { data: rows, error } = await supabase.from('competition_templates').select('*').order('key');
       if (error) throw error;
+      // discontinued formats (Weekly, Monthly) stay in the database, not in the editor
+      const data = rows.filter((t) => !t.discontinued_at);
       const out = [];
       for (const t of data) {
         const { data: last } = await supabase.from('competition_waitlist_sends').select('created_at, recipients').eq('template_key', t.key).order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -103,12 +106,40 @@ module.exports = function competitionsRoutes() {
         const bad = compStates.cardTextViolations(v);
         if (bad.length) return res.status(400).json({ error: `"${k}" uses wording that is not allowed on cards (${bad.join(', ')})` });
       }
+      if ('instruments' in b) {
+        const list = (Array.isArray(b.instruments) ? b.instruments : String(b.instruments || '').split(',')).map((x) => String(x).trim().toUpperCase()).filter(Boolean);
+        if (!list.length || list.some((x) => !/^[A-Z0-9]{3,12}$/.test(x))) return res.status(400).json({ error: 'List instruments like BTCUSD, ETHUSD' });
+        patch.instruments = [...new Set(list)].slice(0, 20);
+      }
+      if ('schedule' in b) {
+        const sch = { ...(t.schedule || {}) };
+        const v = b.schedule || {};
+        if (v.timezone !== undefined) {
+          try { new Intl.DateTimeFormat('en-US', { timeZone: String(v.timezone) }); } catch (e) { return res.status(400).json({ error: 'Timezone must be like Europe/London or UTC' }); }
+          sch.timezone = String(v.timezone);
+        }
+        for (const f of ['open', 'close', 'start', 'end']) {
+          if (v[f] === undefined) continue;
+          if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v[f]))) return res.status(400).json({ error: `${f} must be a time like 09:30` });
+          sch[f] = String(v[f]);
+        }
+        if (v.sessionName !== undefined) sch.sessionName = String(v.sessionName).trim().slice(0, 40) || sch.sessionName;
+        if (v.marketsLabel !== undefined) sch.marketsLabel = String(v.marketsLabel).trim().slice(0, 40) || sch.marketsLabel;
+        patch.schedule = sch;
+      }
       const touchesPrize = PRIZE_FIELDS.some((k) => k in b);
       if (touchesPrize && !isSuper(req)) return res.status(403).json({ error: 'Only a super admin can set or confirm a prize pool' });
       if ('prize_pool_amount' in b) patch.prize_pool_amount = Math.max(0, Number(b.prize_pool_amount) || 0);
       if ('prize_top_amount' in b) patch.prize_top_amount = Math.max(0, Number(b.prize_top_amount) || 0);
       if ('prize_currency' in b) patch.prize_currency = /^[A-Z]{3}$/.test(b.prize_currency) ? b.prize_currency : 'USD';
       if ('prize_partner_note' in b) patch.prize_partner_note = String(b.prize_partner_note || '').slice(0, 500);
+      if ('prize_breakdown' in b) {
+        if (!Array.isArray(b.prize_breakdown) || b.prize_breakdown.length > 12) return res.status(400).json({ error: 'The prize split needs 1 to 12 rows' });
+        const rows = b.prize_breakdown.map((x) => ({ places: String(x.places || '').trim().slice(0, 30), share: Number(x.share) })).filter((x) => x.places);
+        const total = rows.reduce((a, x) => a + (Number.isFinite(x.share) ? x.share : 0), 0);
+        if (!rows.length || rows.some((x) => !(x.share > 0)) || Math.round(total) !== 100) return res.status(400).json({ error: `The prize split must add up to 100% (it adds up to ${Math.round(total)}%)` });
+        patch.prize_breakdown = rows;
+      }
       if ('prize_pool_confirmed' in b) {
         patch.prize_pool_confirmed = b.prize_pool_confirmed === true;
         const note = 'prize_partner_note' in patch ? patch.prize_partner_note : t.prize_partner_note;
@@ -204,7 +235,7 @@ module.exports = function competitionsRoutes() {
         if (!row.player || !row.player.email) continue;
         const { error: e3 } = await supabase.from('competition_waitlist').update({ notified_at: new Date().toISOString() }).eq('id', row.id).is('notified_at', null);
         if (e3) continue;
-        const out = await sendEmail({ to: row.player.email, idempotencyKey: `waitlist-open:${t.key}:${row.user_id}:${sendDay}`, ...waitlistOpenEmail({ username: row.player.username, title: t.title, hook: t.format_hook, link: `${site}/competitions/${t.key}`, sponsorName }) });
+        const out = await sendEmail({ to: row.player.email, idempotencyKey: `waitlist-open:${t.key}:${row.user_id}:${sendDay}`, ...waitlistOpenEmail({ username: row.player.username, title: t.title, hook: t.format_hook, link: `${site}/competitions/${t.slug || t.key}`, sponsorName }) });
         if (out && out.error) {
           // not delivered: clear the mark so the next notify tries this player again
           failed += 1;
@@ -232,6 +263,28 @@ module.exports = function competitionsRoutes() {
       if (error) throw error;
       await logAdminAction({ adminUsername: adminName(req), actionType: 'waitlist_threshold', targetType: 'setting', targetId: 'waitlist.showCountFrom', details: { value: n }, ip: clientIp(req) });
       res.json({ value: n });
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+
+  // ---- close the discontinued formats (Weekly, Monthly) -------------------------------
+  // GET counts what would happen (changes nothing); POST does it (super admin).
+  // Safe to repeat: refunds are keyed per player and run.
+  r.get('/closure', async (req, res) => {
+    try {
+      res.json(await closeDiscontinued({ supabase, dryRun: true }));
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+  r.post('/closure', async (req, res) => {
+    if (!isSuper(req)) return res.status(403).json({ error: 'Only a super admin can close competitions and refund entries' });
+    if (req.body?.confirm !== 'CLOSE') return res.status(400).json({ error: 'Type CLOSE to confirm' });
+    try {
+      const report = await closeDiscontinued({ supabase, sendEmail, dryRun: false });
+      await logAdminAction({ adminUsername: adminName(req), actionType: 'competitions_discontinued_closed', targetType: 'competition_template', targetId: 'weekly,monthly', details: { instancesClosed: report.instancesClosed, refunded: report.refunded, alreadyRefunded: report.alreadyRefunded, coinsRefunded: report.coinsRefunded, emailed: report.emailed, errors: report.errors.slice(0, 20) }, ip: clientIp(req) });
+      res.json(report);
     } catch (e) {
       fail(res, e);
     }

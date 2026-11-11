@@ -11,8 +11,12 @@ const rateLimit = require('express-rate-limit');
 const compStates = require('./competitionStates');
 const liveFeed = require('./liveFeed');
 const { waitlistConfirmEmail } = require('./compEmails');
+const schedule = require('./compSchedule');
 
-const KEY_RE = /^(daily|weekly|weekend|monthly)$/;
+const KEY_RE = /^(daily|weekend)$/; // Weekly and Monthly were discontinued (2026-11-12)
+const ORDER = ['daily', 'weekend'];
+const OLD_SLUGS = { daily: 'daily-open', weekend: 'weekend-open', weekly: null, monthly: null };
+const live = (t) => t && ORDER.includes(t.key) && !t.discontinued_at && t.state !== 'closed';
 const COUNT_CACHE_MS = 30000;
 
 function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEmail, clientDir, siteUrl, sponsorNameFor }) {
@@ -35,8 +39,10 @@ function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEma
     const count = countByKey[t.key] || 0;
     let sponsor = null;
     try { sponsor = sponsorNameFor ? await sponsorNameFor('competition_card', `competition:${t.key}`) : null; } catch (e) { sponsor = null; }
+    const win = schedule.nextWindow(t);
     return {
       key: t.key,
+      slug: t.slug || t.key,
       title: t.title,
       scheduleText: t.schedule_text,
       rhythmText: t.rhythm_text,
@@ -49,7 +55,11 @@ function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEma
       moneyRules: t.prize_kind === 'money' ? compStates.MONEY_RULE_LINES : [],
       canEnter: gate.ok,
       waitlist: { count: count >= threshold ? count : null, joined },
-      detailUrl: `/competitions/${t.key}`,
+      detailUrl: `/competitions/${t.slug || t.key}`,
+      prizeBreakdown: Array.isArray(t.prize_breakdown) ? t.prize_breakdown : [],
+      instruments: Array.isArray(t.instruments) ? t.instruments : [],
+      marketsLabel: (t.schedule && t.schedule.marketsLabel) || null,
+      nextWindow: win ? { startsAt: win.startsAt.toISOString(), endsAt: win.endsAt.toISOString(), timezone: win.timezone, days: win.days || 1, sessionName: win.sessionName || null } : null,
       sponsorTarget: `competition:${t.key}`,
       hasSponsor: Boolean(sponsor),
     };
@@ -63,8 +73,7 @@ function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEma
       ]);
       const mine = viewerId ? await db.waitlistMine(viewerId).catch(() => []) : [];
       const out = [];
-      const ORDER = ['daily', 'weekly', 'weekend', 'monthly'];
-      const sorted = [...templates].sort((x, y) => ORDER.indexOf(x.key) - ORDER.indexOf(y.key));
+      const sorted = templates.filter(live).sort((x, y) => ORDER.indexOf(x.key) - ORDER.indexOf(y.key));
       for (const t of sorted) out.push(await cardFor(t, { joined: mine.includes(t.key), liveOk, threshold, countByKey }));
       res.json({ templates: out, pageLine: compStates.COMPETITIONS_PAGE_LINE, loggedIn: Boolean(viewerId) });
     } catch (e) {
@@ -73,10 +82,15 @@ function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEma
     }
   });
 
+  async function templateFor(v) {
+    const all = await db.listCompTemplates();
+    return all.find((t) => live(t) && (t.key === v || t.slug === v)) || null;
+  }
+
   r.get('/api/competition-templates/:key', limiter, async (req, res) => {
-    if (!KEY_RE.test(req.params.key) || !db.isConfigured) return res.status(404).json({ error: 'Competition not found' });
+    if (!/^[a-z-]{3,30}$/.test(req.params.key) || !db.isConfigured) return res.status(404).json({ error: 'Competition not found' });
     try {
-      const t = await db.getCompTemplate(req.params.key);
+      const t = await templateFor(req.params.key);
       if (!t) return res.status(404).json({ error: 'Competition not found' });
       const viewerId = await optionalViewerId(req);
       const mine = viewerId ? await db.waitlistMine(viewerId).catch(() => []) : [];
@@ -102,7 +116,7 @@ function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEma
           sendEmail({
             to: player.email,
             idempotencyKey: `waitlist-confirm:${t.key}:${player.id}`,
-            ...waitlistConfirmEmail({ username: player.username, title: t.title, hook: t.format_hook, rhythm: t.rhythm_text, link: `${siteUrl(req)}/competitions/${t.key}`, sponsorName }),
+            ...waitlistConfirmEmail({ username: player.username, title: t.title, hook: t.format_hook, rhythm: t.rhythm_text, link: `${siteUrl(req)}/competitions/${t.slug || t.key}`, sponsorName }),
           }).catch(() => {});
         }
       }
@@ -128,14 +142,19 @@ function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEma
   const fs = require('fs');
   const escAttr = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   r.get('/competitions/:key', async (req, res, next) => {
-    if (!KEY_RE.test(req.params.key)) return next();
+    const k = req.params.key;
+    // old addresses: renamed formats move permanently, discontinued ones go to the page
+    if (k in OLD_SLUGS) return res.redirect(301, OLD_SLUGS[k] ? `/competitions/${OLD_SLUGS[k]}` : '/competitions');
+    if (!/^[a-z-]{3,30}$/.test(k)) return next();
     let html;
     try { html = fs.readFileSync(path.join(clientDir, 'competition-template.html'), 'utf8'); } catch (e) { return next(); }
     let t = null;
-    try { t = db.isConfigured ? await db.getCompTemplate(req.params.key) : null; } catch (e) { t = null; }
-    const title = `${t ? t.title : req.params.key[0].toUpperCase() + req.params.key.slice(1)} | Spike & Crush`;
-    const desc = t ? `${t.format_hook} Free to enter. ${t.schedule_text}.` : 'A free-to-enter Spike & Crush trading competition.';
-    const canonical = `${siteUrl(req)}/competitions/${req.params.key}`;
+    try { t = db.isConfigured ? await templateFor(k) : null; } catch (e) { t = null; }
+    if (!t) return next();
+    const title = `${t.title}: free trading competition | Spike & Crush`;
+    const prize = compStates.prizeWording({ ...t, prize_pool: t.prize_pool_amount });
+    const desc = `${t.format_hook} Free to enter. ${prize.amount ? `${prize.amount} prize pool. ` : ''}${t.schedule_text}. Coming soon.`;
+    const canonical = `${siteUrl(req)}/competitions/${t.slug || t.key}`;
     html = html
       .replace(/<title>[^<]*<\/title>/, `<title>${escAttr(title)}</title>`)
       .replace(/<meta name="description" content="[^"]*" \/>/, `<meta name="description" content="${escAttr(desc)}" />\n<link rel="canonical" href="${escAttr(canonical)}" />\n<meta property="og:title" content="${escAttr(title)}" />\n<meta property="og:description" content="${escAttr(desc)}" />\n<meta property="og:url" content="${escAttr(canonical)}" />`);
