@@ -77,3 +77,16 @@ test('competition emails: one sponsor line, never funding or money wording', () 
   }
   assert.doesNotMatch(none.html, /Presented by/);
 });
+
+test('sponsor slug fixes itself instead of refusing', () => {
+  const { slugify, sponsorFields } = sponsorsRoute;
+  assert.strictEqual(slugify('Acme Markets!'), 'acme-markets');
+  assert.strictEqual(slugify('  Café_Trading  Ltd. '), 'cafe-trading-ltd');
+  assert.strictEqual(slugify('ÀÉÎ'), 'aei');
+  const created = sponsorFields({ name: 'Acme Markets', slug: '' }, { partial: false }).fields;
+  assert.strictEqual(created.slug, 'acme-markets', 'empty slug is made from the name');
+  const typed = sponsorFields({ name: 'X', slug: 'My Brand 2026' }, { partial: false }).fields;
+  assert.strictEqual(typed.slug, 'my-brand-2026');
+  const utm = sponsorFields({ name: 'X', utmCampaign: 'Black Friday 2026' }, { partial: false });
+  assert.strictEqual(utm.fields.utm_campaign, 'Black-Friday-2026');
+});

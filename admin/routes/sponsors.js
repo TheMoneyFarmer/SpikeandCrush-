@@ -46,6 +46,12 @@ async function audit(req, actionType, targetType, targetId, details = {}) {
   ]);
 }
 
+// "Acme Markets!" -> "acme-markets": the slug fixes itself instead of refusing.
+function slugify(v) {
+  return String(v || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/g, '');
+}
+
 // Shared body parsing for create + update. Returns { fields } or { error }.
 function sponsorFields(body, { partial }) {
   const b = body || {};
@@ -84,14 +90,17 @@ function sponsorFields(body, { partial }) {
     fields.tagline = t || null;
   }
   if (b.slug !== undefined) {
-    const slug = String(b.slug || '').trim().toLowerCase();
-    if (slug && !/^[a-z0-9-]{2,40}$/.test(slug)) return { error: 'Slug: 2-40 lowercase letters, numbers and dashes' };
-    fields.slug = slug || null;
+    const slug = slugify(b.slug);
+    fields.slug = slug.length >= 2 ? slug : null;
+  }
+  // a new sponsor with no slug gets one from its name
+  if (!partial && !fields.slug && fields.name) {
+    const auto = slugify(fields.name);
+    if (auto.length >= 2) { fields.slug = auto; fields._autoSlug = true; }
   }
   for (const [key, col] of [['utmSource', 'utm_source'], ['utmMedium', 'utm_medium'], ['utmCampaign', 'utm_campaign']]) {
     if (b[key] === undefined) continue;
-    const v = String(b[key] || '').trim();
-    if (v && !/^[A-Za-z0-9_.-]{1,60}$/.test(v)) return { error: `${key}: letters, numbers, dot, dash and underscore only` };
+    const v = String(b[key] || '').trim().replace(/\s+/g, '-').replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 60);
     fields[col] = v || null;
   }
   if (b.contactName !== undefined) fields.contact_name = String(b.contactName || '').trim().slice(0, 120) || null;
@@ -188,6 +197,25 @@ function placementFields(b = {}, { partial }) {
   }
   if ((fields.creative === 'logo_tagline_cta') && !partial && (!fields.cta_text || !fields.cta_url)) return { error: 'A button needs both its text and its link' };
   return { fields };
+}
+
+// Slugs are unique. A slug made from the name gets -2, -3... if taken; one the
+// admin typed is refused with a plain message instead of a database error.
+async function settleSlug(fields, excludeId) {
+  if (!fields.slug) { delete fields._autoSlug; return null; }
+  const auto = fields._autoSlug;
+  delete fields._autoSlug;
+  const base = fields.slug;
+  for (let i = 1; i < 50; i++) {
+    const candidate = i === 1 ? base : `${base.slice(0, 37)}-${i}`;
+    let q = supabase.from('sponsors').select('id').eq('slug', candidate).limit(1);
+    if (excludeId) q = q.neq('id', excludeId);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data.length) { fields.slug = candidate; return null; }
+    if (!auto) return `The slug "${base}" is already used by another sponsor. Pick a different one.`;
+  }
+  return 'Could not find a free slug. Type one in the Slug box.';
 }
 
 function router() {
@@ -486,6 +514,8 @@ function router() {
     const { fields, error: invalid } = sponsorFields(req.body, { partial: false });
     if (invalid) return res.status(400).json({ error: invalid });
     try {
+      const taken = await settleSlug(fields, null);
+      if (taken) return res.status(400).json({ error: taken });
       const { data, error } = await supabase.from('sponsors').insert({ ...fields, created_by: req.admin.email || req.admin.username }).select().single();
       if (error) throw error;
       await audit(req, 'sponsor_create', 'sponsors', data.id, { name: data.name, status: data.status, tier: data.tier });
@@ -501,6 +531,8 @@ function router() {
     if (invalid) return res.status(400).json({ error: invalid });
     if (!Object.keys(fields).length) return res.status(400).json({ error: 'Nothing to update' });
     try {
+      const taken = await settleSlug(fields, req.params.id);
+      if (taken) return res.status(400).json({ error: taken });
       const { data, error } = await supabase.from('sponsors').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ error: 'Sponsor not found' });
@@ -668,3 +700,5 @@ function router() {
 module.exports = router;
 module.exports.placementFields = placementFields;
 module.exports.previewPath = previewPath;
+module.exports.slugify = slugify;
+module.exports.sponsorFields = sponsorFields;

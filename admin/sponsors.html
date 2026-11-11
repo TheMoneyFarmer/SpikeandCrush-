@@ -187,7 +187,7 @@
         <div class="field"><label for="eLink">Link (http/https only)</label><input class="edit-field" id="eLink" value="${esc(s.link_url || '')}" placeholder="https://" /></div>
         <div class="field-row">
           <div class="field"><label for="eTagline">Tagline (60 max)</label><input class="edit-field" id="eTagline" maxlength="60" value="${esc(s.tagline || '')}" /></div>
-          <div class="field"><label for="eSlug">Slug</label><input class="edit-field" id="eSlug" maxlength="40" value="${esc(s.slug || '')}" placeholder="acme-markets" /></div>
+          <div class="field"><label for="eSlug">Slug (optional, made from the name if empty)</label><input class="edit-field" id="eSlug" maxlength="40" value="${esc(s.slug || '')}" placeholder="acme-markets" /></div>
         </div>
         <div class="field-row">
           <div class="field"><label for="eUtmS">utm_source</label><input class="edit-field" id="eUtmS" value="${esc(s.utm_source || 'spikeandcrush')}" /></div>
