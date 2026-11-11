@@ -17,7 +17,7 @@ Every mode uses the same trading rules and the same money maths (starting capita
 | Blitz War | 3 minutes | 5 coins | 2+ (no limit) | 2 to start, up to 2 | Highest equity wins | no |
 | Grand War | 20 minutes | 25 coins | 4+ (no limit) | 2 to start, up to 4 | Highest equity wins | yes (separate Grand War rating) |
 | Elimination | 15 minutes | 10 coins | no limit, cuts need 4+ | 3 to start, up to 4 | Survive the cuts | no |
-| Solo Ranked | 10 minutes | free | you and 3 AI traders | defense cards only (Shield, Cleanse) | Beat your best | yes (separate Solo rating) |
+| Solo Ranked | 10 minutes | free | you and 3 AI traders | defense cards only (Shield, Cleanse) | Highest equity wins | yes (separate Solo rating) |
 | Daily Challenge | 10 minutes | 5 coins | just you | none | Best of the day | no |
 | Private War | 10 minutes | 1 coin for the host, free for invited players | 2+ (no limit) | 3 to start, up to 4 | Host decides | no |
 

@@ -109,7 +109,7 @@ const DEFAULTS = {
     identity: 'Free, always open: race the ghost of your own best run and finish a mission chain.',
     bestFor: 'Learning, practice and beating your personal best',
     winCondition: 'Highest equity at the table; your own best run is the ghost to beat',
-    winShort: 'Beat your best',
+    winShort: 'Highest equity wins',
     special: 'No sabotage, ghost of your best run, 3-mission chain',
     // Only Shield and Cleanse can be held here (Lifeline needs cuts): 2 slots.
     cards: { handSize: 2, sabotage: false, allowedTiers: ['basic', 'mid'], defenseOnly: true },
