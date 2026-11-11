@@ -2893,8 +2893,8 @@ app.get('/api/competitions/:id/account', requireDb, requireCompetitionId, authen
 
 app.post('/api/competitions/:id/trade/open', requireDb, requireCompetitionId, authenticate, async (req, res) => {
   try {
-    const { symbol, side, lots, stopLoss, takeProfit } = req.body || {};
-    res.json({ success: true, ...(await compEngine.openTrade(req.params.id, req.tokenPlayer.id, { symbol, side, lots, stopLoss, takeProfit })) });
+    const { symbol, side, lots, stopLoss, takeProfit, stopLossPips, takeProfitPips } = req.body || {};
+    res.json({ success: true, ...(await compEngine.openTrade(req.params.id, req.tokenPlayer.id, { symbol, side, lots, stopLoss, takeProfit, stopLossPips, takeProfitPips })) });
   } catch (e) {
     sendCompError(res, e, 'competition trade open');
   }

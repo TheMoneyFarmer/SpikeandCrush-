@@ -570,6 +570,7 @@ window.TW = window.TW || {};
         wrap.querySelectorAll('.instrument-tab').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         TW.Chart.setActiveSymbol(sym);
+        if (dragLevels) dragLevels.reset();
         renderQuotes();
         updateRiskCalc();
       });
@@ -669,8 +670,17 @@ window.TW = window.TW || {};
     row.innerHTML = parts.join('');
   }
 
+  let dragLevels = null; // TW.SltpDrag (js/sltp-drag.js)
   function setupSltpControls() {
     const modeToggle = document.getElementById('sltpModeToggle');
+    dragLevels = TW.SltpDrag({
+      slInput: document.getElementById('preSlInput'),
+      tpInput: document.getElementById('preTpInput'),
+      getSymbol: () => activeInstrument,
+      getLots: () => selectedLot,
+      getSpread: (sym) => (lastPrices[sym] ? lastPrices[sym].ask - lastPrices[sym].bid : 0),
+      onLevels: () => updateRiskCalc(),
+    });
     modeToggle.querySelectorAll('.lot-chip').forEach((btn) => {
       btn.addEventListener('click', () => {
         sltpMode = btn.dataset.mode;
@@ -683,6 +693,11 @@ window.TW = window.TW || {};
         document.getElementById('tpQuickPips').style.display = isPips ? 'flex' : 'none';
         document.getElementById('preSlInput').placeholder = isPips ? 'pips off' : 'price off';
         document.getElementById('preTpInput').placeholder = isPips ? 'pips off' : 'price off';
+        if (sltpMode === 'drag') {
+          dragLevels.enable();
+          // Phones: the lines are on the Chart tab.
+          document.querySelector('.game-mobile-tab[data-view="chart"]')?.click();
+        } else dragLevels.disable();
         updateRiskCalc();
       });
     });
@@ -706,16 +721,31 @@ window.TW = window.TW || {};
     const slInput = document.getElementById('preSlInput');
     const tpInput = document.getElementById('preTpInput');
     const body = { symbol: activeInstrument, direction, lots: selectedLot };
-    if (slInput.value) body[sltpMode === 'pips' ? 'stopLossPips' : 'stopLoss'] = Number(slInput.value);
-    if (tpInput.value) body[sltpMode === 'pips' ? 'takeProfitPips' : 'takeProfit'] = Number(tpInput.value);
+    let mirrored = false;
+    if (sltpMode === 'drag') {
+      const lv = dragLevels.levelsFor(direction);
+      if (lv) {
+        body.stopLoss = lv.stopLoss;
+        body.takeProfit = lv.takeProfit;
+        mirrored = lv.mirrored;
+      }
+    } else {
+      if (slInput.value) body[sltpMode === 'pips' ? 'stopLossPips' : 'stopLoss'] = Number(slInput.value);
+      if (tpInput.value) body[sltpMode === 'pips' ? 'takeProfitPips' : 'takeProfit'] = Number(tpInput.value);
+    }
 
     const result = await TW.emitAck('trade:open', body);
     if (!result.success) {
       TW.toast(result.error, 'danger');
     } else {
       TW.Sound.play(direction === 'BUY' ? 'buyPlaced' : 'sellPlaced');
-      slInput.value = '';
-      tpInput.value = '';
+      if (sltpMode === 'drag') {
+        if (mirrored) TW.toast(`Levels flipped for a ${direction}: TP ${body.takeProfit}, SL ${body.stopLoss}`, 'info');
+        dragLevels.reset(); // fresh lines for the next trade
+      } else {
+        slInput.value = '';
+        tpInput.value = '';
+      }
       updateRiskCalc();
     }
   }
@@ -1541,6 +1571,7 @@ window.TW = window.TW || {};
 
   let lastCountdownSecond = null;
   socket.on('price:update', (data) => {
+    if (dragLevels) setTimeout(() => dragLevels.tick(), 0);
     if (matchStartedAtMs === null) matchStartedAtMs = Date.now() - data.elapsedSeconds * 1000;
     if (TW.Fire && TW.Fire.setElapsed) TW.Fire.setElapsed(data.elapsedSeconds);
     lastPrices = data.prices;

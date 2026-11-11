@@ -59,8 +59,9 @@
           <p class="ch-sub" style="margin-top:12px">Free to play. It does not change your rating or ranking. Link valid until ${new Date(c.expiresAt).toLocaleDateString()}.</p>`;
         document.getElementById('chPlay').addEventListener('click', async () => {
           if (!TW.getToken || !TW.getToken()) {
-            sessionStorage.setItem('sc_after_login', location.pathname);
-            location.href = `/login?next=${encodeURIComponent(location.pathname)}`;
+            // The app's one sign-in path: landing panel, then back to this challenge.
+            if (TW.requireAuth) TW.requireAuth();
+            else location.href = '/?login=required';
             return;
           }
           try {

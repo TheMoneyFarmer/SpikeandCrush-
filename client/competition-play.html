@@ -53,6 +53,12 @@
   .trade-history-row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
   .leaderboard-table tr.me td { color: #F5C542; font-weight: 700; }
   .game-bottom.comp-bottom { grid-template-columns: 1fr; }
+  /* SL/TP boxes wide enough for a full price (Price and Drag modes). */
+  .pretrade-sltp-row input { flex: 1; min-width: 0; max-width: 180px; }
+  .position-sltp-row input[data-sl], .position-sltp-row input[data-tp] { width: 96px; }
+  /* Exit: always visible, same weight as the match screen's Home button. */
+  .comp-topbar .comp-exit-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--border-strong, rgba(255,255,255,.18)); color: var(--text, #e8ecf4); background: rgba(255,255,255,.04); font-weight: 600; font-size: 14px; text-decoration: none; }
+  .comp-topbar .comp-exit-btn:hover, .comp-topbar .comp-exit-btn:focus-visible { border-color: #f5b83d; color: var(--text, #e8ecf4); outline: none; }
   .replay-short { display: none; }
   .instrument-tab.closed::after { content: ' ⏸'; opacity: 0.6; }
   /* Long-form accounts hold up to the full position cap - let the list
@@ -103,7 +109,7 @@
       <div class="comp-stat comp-stat-wide"><span class="label">P&amp;L</span><span class="value" id="compPnl">—</span></div>
       <div class="comp-stat"><span class="label">Rank</span><span class="value" id="compRank">—</span></div>
       <div class="instrument-tabs" id="instrumentTabs"></div>
-      <a href="/competitions" class="leave-match-btn" style="text-decoration:none;">← Hub</a>
+      <a href="/play" class="comp-exit-btn" id="compExitBtn" aria-label="Exit to home">Exit</a>
     </div>
     <div class="comp-banner hidden" id="compBanner"></div>
 
@@ -144,14 +150,21 @@
         </div>
 
         <div>
-          <div class="text-secondary" style="font-size:12px;margin-bottom:6px;">STOP LOSS / TAKE PROFIT (pips)</div>
+          <div class="sltp-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+            <span class="text-secondary" style="font-size:12px;">STOP LOSS / TAKE PROFIT</span>
+            <div class="lot-selector" id="sltpModeToggle">
+              <button type="button" class="lot-chip active" data-mode="pips">Pips</button>
+              <button type="button" class="lot-chip" data-mode="price">Price</button>
+              <button type="button" class="lot-chip" data-mode="drag" title="Put TP and SL lines on the chart and drag them">Drag</button>
+            </div>
+          </div>
           <div class="pretrade-sltp-row">
             <label class="text-sell">SL</label>
-            <input type="number" id="preSlInput" min="0" step="1" placeholder="off" />
+            <input type="number" id="preSlInput" min="0" step="1" placeholder="pips off" />
           </div>
           <div class="pretrade-sltp-row">
             <label class="text-buy">TP</label>
-            <input type="number" id="preTpInput" min="0" step="1" placeholder="off" />
+            <input type="number" id="preTpInput" min="0" step="1" placeholder="pips off" />
           </div>
         </div>
 
@@ -210,6 +223,7 @@
   <script src="/js/socket.js"></script>
   <script src="/js/sound.js"></script>
   <script src="/js/chart.js"></script>
+  <script src="/js/sltp-drag.js"></script>
   <script src="/js/card-icons.js"></script>
   <script src="/js/fire.js"></script>
   <script src="/js/competition-play.js"></script>

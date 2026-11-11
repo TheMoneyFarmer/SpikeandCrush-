@@ -134,7 +134,45 @@
     $('sellBtn').disabled = !tradeable;
   }
 
-  const openRows = new Set(); // rows the player opened for SL/TP; kept across re-renders
+  // Rows are built once per position and then only updated: a full
+  // innerHTML rebuild on every price update wiped whatever the player was
+  // typing into SL/TP before they could press Set.
+  const rowEls = new Map(); // positionId -> row element
+  const sltpText = (p) => (p.stopLoss == null && p.takeProfit == null ? '' : `SL ${p.stopLoss ?? '-'} · TP ${p.takeProfit ?? '-'}`);
+  function buildRow(p) {
+    const row = document.createElement('div');
+    row.className = 'position-row';
+    row.dataset.id = p.id;
+    row.innerHTML = `
+        <div class="position-main-row">
+          <button type="button" class="pos-toggle" data-toggle aria-expanded="false" title="Stop loss and take profit">
+            <span class="pos-side ${p.side === 'BUY' ? 'is-buy' : 'is-sell'}">${p.side}</span>
+            <span class="info">
+              <span class="pos-what"><b>${p.lots}</b> ${TW.escapeHtml(p.symbol)}</span>
+              <span class="pos-at text-secondary">@ ${p.entryPrice}<span class="pos-sltp" data-sltp-text></span></span>
+            </span>
+          </button>
+          <div class="pnl" data-pnl></div>
+          <button class="btn pos-close" data-close aria-label="Close ${p.side} ${p.lots} ${TW.escapeHtml(p.symbol)}" title="Close position">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
+        <div class="position-sltp-row">
+          <label>SL</label><input type="number" step="any" data-sl placeholder="off" aria-label="Stop loss price" />
+          <label>TP</label><input type="number" step="any" data-tp placeholder="off" aria-label="Take profit price" />
+          <button class="btn" data-save-sltp>Set</button>
+        </div>`;
+    // A box the player has typed into keeps its value until Set (or Escape).
+    for (const input of row.querySelectorAll('[data-sl], [data-tp]')) {
+      input.addEventListener('input', () => { input.dataset.dirty = '1'; });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') row.querySelector('[data-save-sltp]').click();
+        if (e.key === 'Escape') { delete input.dataset.dirty; input.blur(); renderPositions(); }
+      });
+    }
+    return row;
+  }
+
   function renderPositions() {
     const list = $('positionsList');
     const positions = view.positions || [];
@@ -143,34 +181,37 @@
     );
     $('gameMobileTradeBadge').classList.toggle('hidden', positions.length === 0);
     if (!positions.length) {
+      rowEls.clear();
       list.innerHTML = '<div class="text-secondary" style="font-size:13px;">No open positions</div>';
       return;
     }
-    list.innerHTML = positions
-      .map(
-        (p) => `
-      <div class="position-row${openRows.has(String(p.id)) ? ' open' : ''}" data-id="${p.id}">
-        <div class="position-main-row">
-          <button type="button" class="pos-toggle" data-toggle aria-expanded="${openRows.has(String(p.id))}" title="Stop loss and take profit">
-            <span class="pos-side ${p.side === 'BUY' ? 'is-buy' : 'is-sell'}">${p.side}</span>
-            <span class="info">
-              <span class="pos-what"><b>${p.lots}</b> ${TW.escapeHtml(p.symbol)}</span>
-              <span class="pos-at text-secondary">@ ${p.entryPrice}<span class="pos-sltp">${p.stopLoss == null && p.takeProfit == null ? '' : `SL ${p.stopLoss ?? '-'} · TP ${p.takeProfit ?? '-'}`}</span></span>
-            </span>
-          </button>
-          <div class="pnl ${p.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(p.pnl)}</div>
-          <button class="btn pos-close" data-close aria-label="Close ${p.side} ${p.lots} ${TW.escapeHtml(p.symbol)}" title="Close position">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
-          </button>
-        </div>
-        <div class="position-sltp-row">
-          <label>SL</label><input type="number" step="any" data-sl value="${p.stopLoss ?? ''}" placeholder="off" />
-          <label>TP</label><input type="number" step="any" data-tp value="${p.takeProfit ?? ''}" placeholder="off" />
-          <button class="btn" data-save-sltp>Set</button>
-        </div>
-      </div>`
-      )
-      .join('');
+    if (!rowEls.size) list.innerHTML = '';
+    const seen = new Set();
+    for (const p of positions) {
+      const id = String(p.id);
+      seen.add(id);
+      let row = rowEls.get(id);
+      if (!row) {
+        row = buildRow(p);
+        rowEls.set(id, row);
+        list.appendChild(row);
+      }
+      const pnl = row.querySelector('[data-pnl]');
+      pnl.textContent = money(p.pnl);
+      pnl.className = `pnl ${p.pnl >= 0 ? 'text-buy' : 'text-sell'}`;
+      row.querySelector('[data-sltp-text]').textContent = sltpText(p);
+      for (const [sel, val] of [['[data-sl]', p.stopLoss], ['[data-tp]', p.takeProfit]]) {
+        const input = row.querySelector(sel);
+        if (input.dataset.dirty || document.activeElement === input) continue;
+        input.value = val ?? '';
+      }
+    }
+    for (const [id, row] of rowEls) {
+      if (!seen.has(id)) {
+        row.remove();
+        rowEls.delete(id);
+      }
+    }
   }
 
   function renderTrades() {
@@ -278,15 +319,26 @@
 
   // ---- actions -------------------------------------------------------------------------
 
-  function pipsToPrice(side, pips, kind) {
-    const n = Number(pips);
-    if (!pips || !Number.isFinite(n) || n <= 0) return null;
-    const q = view.quotes[activeSymbol];
-    const info = view.instrumentInfo[activeSymbol];
-    const ref = side === 'BUY' ? q.bid : q.ask;
-    const dist = n * info.pipSize;
-    const below = (kind === 'sl') === (side === 'BUY');
-    return Number((below ? ref - dist : ref + dist).toFixed(info.decimals));
+  // SL/TP for a new trade from the chosen mode: pips from the price, an
+  // exact price, or the lines dragged on the chart (js/sltp-drag.js).
+  let sltpMode = 'pips';
+  let dragLevels = null;
+  let lastMirrored = false;
+  function preTradeLevels(side) {
+    lastMirrored = false;
+    if (sltpMode === 'drag') {
+      const lv = dragLevels && dragLevels.levelsFor(side);
+      if (!lv) return { stopLoss: null, takeProfit: null };
+      lastMirrored = lv.mirrored;
+      return { stopLoss: lv.stopLoss, takeProfit: lv.takeProfit };
+    }
+    if (sltpMode === 'price') {
+      const n = (v) => (v === '' || !(Number(v) > 0) ? null : Number(v));
+      return { stopLoss: n($('preSlInput').value), takeProfit: n($('preTpInput').value) };
+    }
+    // Pips go to the server, which measures them from the real fill price.
+    const pips = (v) => (Number(v) > 0 ? Number(v) : undefined);
+    return { stopLossPips: pips($('preSlInput').value), takeProfitPips: pips($('preTpInput').value) };
   }
 
   async function openTrade(side) {
@@ -299,11 +351,17 @@
           symbol: activeSymbol,
           side,
           lots: selectedLots,
-          stopLoss: pipsToPrice(side, $('preSlInput').value, 'sl'),
-          takeProfit: pipsToPrice(side, $('preTpInput').value, 'tp'),
+          ...preTradeLevels(side),
         },
       });
       TW.Sound.play('tradeOpen');
+      if (sltpMode === 'drag') {
+        if (lastMirrored) TW.toast(`Levels flipped for a ${side}`, 'info');
+        dragLevels.reset();
+      } else {
+        $('preSlInput').value = '';
+        $('preTpInput').value = '';
+      }
       await loadView();
     } catch (e) {
       TW.toast(e.message, 'danger');
@@ -341,12 +399,29 @@
   function selectSymbol(sym) {
     activeSymbol = sym;
     TW.Chart.setActiveSymbol(sym);
+    if (dragLevels) dragLevels.reset();
     renderAll();
   }
 
   // ---- wiring ----------------------------------------------------------------------------
 
   function setupControls() {
+    dragLevels = TW.SltpDrag({ slInput: $('preSlInput'), tpInput: $('preTpInput'), getSymbol: () => activeSymbol, getLots: () => selectedLots, getSpread: (sym) => { const q = view && view.quotes && view.quotes[sym]; return q ? q.ask - q.bid : 0; } });
+    $('sltpModeToggle').addEventListener('click', (e) => {
+      const chip = e.target.closest('.lot-chip[data-mode]');
+      if (!chip) return;
+      sltpMode = chip.dataset.mode;
+      $('sltpModeToggle').querySelectorAll('.lot-chip').forEach((c) => c.classList.toggle('active', c === chip));
+      $('preSlInput').value = '';
+      $('preTpInput').value = '';
+      $('preSlInput').placeholder = sltpMode === 'pips' ? 'pips off' : 'price off';
+      $('preTpInput').placeholder = sltpMode === 'pips' ? 'pips off' : 'price off';
+      $('preSlInput').step = $('preTpInput').step = sltpMode === 'pips' ? '1' : 'any';
+      if (sltpMode === 'drag') {
+        dragLevels.enable();
+        document.querySelector('.game-mobile-tab[data-view="chart"]')?.click();
+      } else dragLevels.disable();
+    });
     $('buyBtn').addEventListener('click', () => openTrade('BUY'));
     $('sellBtn').addEventListener('click', () => openTrade('SELL'));
 
@@ -374,15 +449,18 @@
         const open = !row.classList.contains('open');
         row.classList.toggle('open', open);
         toggle.setAttribute('aria-expanded', String(open));
-        if (open) openRows.add(row.dataset.id);
-        else openRows.delete(row.dataset.id);
+        if (open) setTimeout(() => row.querySelector('[data-sl]')?.focus(), 0);
         return;
       }
       if (e.target.closest('[data-close]')) {
         e.target.closest('[data-close]').disabled = true;
         closePosition(row.dataset.id);
       } else if (e.target.closest('[data-save-sltp]')) {
-        modifyPosition(row.dataset.id, row.querySelector('[data-sl]').value || null, row.querySelector('[data-tp]').value || null);
+        const sl = row.querySelector('[data-sl]');
+        const tp = row.querySelector('[data-tp]');
+        delete sl.dataset.dirty;
+        delete tp.dataset.dirty;
+        modifyPosition(row.dataset.id, sl.value === '' ? null : Number(sl.value), tp.value === '' ? null : Number(tp.value));
       }
     });
 
@@ -432,6 +510,7 @@
         view.quotes = u.quotes;
         view.marketClosed = Object.fromEntries(Object.entries(u.quotes).map(([s, q]) => [s, q.marketClosed]));
         pushQuotesToChart(u.quotes, u.compTime);
+        if (dragLevels) dragLevels.tick();
       }
       if (u.compTime) view.compTime = u.compTime;
       if (u.session) view.session = u.session;
