@@ -57,6 +57,23 @@ module.exports = function competitionsRoutes() {
     return count || 0;
   }
 
+  // The email_footer sponsor for a competition's emails: a live placement
+  // targeted at this competition (or all), unless sponsors are switched off.
+  async function emailFooterSponsor(key) {
+    try {
+      const { data: on } = await supabase.from('app_settings').select('value').eq('key', 'sponsors.enabled').maybeSingle();
+      if (on && on.value === false) return null;
+      const now = Date.now();
+      const { data } = await supabase.from('sponsor_placements').select('targets, starts_at, ends_at, weight, sponsors(name, status)').eq('slot', 'email_footer').eq('status', 'active');
+      const live = (data || []).filter((p) => p.sponsors && p.sponsors.status === 'active' && (!p.starts_at || Date.parse(p.starts_at) <= now) && (!p.ends_at || Date.parse(p.ends_at) > now));
+      const list = (t) => String(t || 'all').split(',').map((x) => x.trim());
+      const pick = live.find((p) => list(p.targets).includes(`competition:${key}`)) || live.find((p) => list(p.targets).includes('all'));
+      return pick ? pick.sponsors.name : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   r.get('/templates', async (req, res) => {
     try {
       const { data, error } = await supabase.from('competition_templates').select('*').order('key');
@@ -178,17 +195,27 @@ module.exports = function competitionsRoutes() {
       if (e2) throw e2;
       const site = String(process.env.SITE_URL || 'https://www.spikeandcrush.com').replace(/\/$/, '');
       const sendDay = new Date().toISOString().slice(0, 10);
+      const sponsorName = await emailFooterSponsor(t.key);
       let sent = 0;
+      let failed = 0;
+      let skipped = 0; // no email provider configured (local runs)
       for (const row of rows) {
         if (!row.player || !row.player.email) continue;
         const { error: e3 } = await supabase.from('competition_waitlist').update({ notified_at: new Date().toISOString() }).eq('id', row.id).is('notified_at', null);
         if (e3) continue;
-        await sendEmail({ to: row.player.email, idempotencyKey: `waitlist-open:${t.key}:${row.user_id}:${sendDay}`, ...waitlistOpenEmail({ username: row.player.username, title: t.title, hook: t.format_hook, link: `${site}/competitions/${t.key}` }) });
-        sent += 1;
+        const out = await sendEmail({ to: row.player.email, idempotencyKey: `waitlist-open:${t.key}:${row.user_id}:${sendDay}`, ...waitlistOpenEmail({ username: row.player.username, title: t.title, hook: t.format_hook, link: `${site}/competitions/${t.key}`, sponsorName }) });
+        if (out && out.error) {
+          // not delivered: clear the mark so the next notify tries this player again
+          failed += 1;
+          await supabase.from('competition_waitlist').update({ notified_at: null }).eq('id', row.id);
+          continue;
+        }
+        if (out && out.skipped) skipped += 1;
+        else sent += 1;
       }
       await supabase.from('competition_waitlist_sends').update({ recipients: sent }).eq('template_key', t.key).eq('sent_by', adminName(req)).eq('recipients', 0);
-      await logAdminAction({ adminUsername: adminName(req), actionType: 'waitlist_notify', targetType: 'competition_template', targetId: t.key, details: { recipients: sent }, ip: clientIp(req) });
-      res.json({ sent });
+      await logAdminAction({ adminUsername: adminName(req), actionType: 'waitlist_notify', targetType: 'competition_template', targetId: t.key, details: { recipients: sent, failed, skipped }, ip: clientIp(req) });
+      res.json({ sent, failed, skipped });
     } catch (e) {
       fail(res, e);
     }

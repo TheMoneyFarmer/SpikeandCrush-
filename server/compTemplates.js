@@ -63,7 +63,9 @@ function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEma
       ]);
       const mine = viewerId ? await db.waitlistMine(viewerId).catch(() => []) : [];
       const out = [];
-      for (const t of templates) out.push(await cardFor(t, { joined: mine.includes(t.key), liveOk, threshold, countByKey }));
+      const ORDER = ['daily', 'weekly', 'weekend', 'monthly'];
+      const sorted = [...templates].sort((x, y) => ORDER.indexOf(x.key) - ORDER.indexOf(y.key));
+      for (const t of sorted) out.push(await cardFor(t, { joined: mine.includes(t.key), liveOk, threshold, countByKey }));
       res.json({ templates: out, pageLine: compStates.COMPETITIONS_PAGE_LINE, loggedIn: Boolean(viewerId) });
     } catch (e) {
       // No templates table yet (migration not run): the page simply has no template cards.

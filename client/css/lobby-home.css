@@ -270,7 +270,12 @@ body.lb-page {
 /* ---- mobile portrait (and anything under 1024) ---- */
 @media (max-width: 1023px) {
   body.lb-page { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-  #twNav, .lb-brand-id, .lb-sponsors, .lb-player, .lb-bottom, .lb-modes { display: none; }
+  #twNav, .lb-brand-id, .lb-player, .lb-bottom, .lb-modes { display: none; }
+  /* sponsor strip: one compact row that scrolls sideways, never wraps */
+  .lb-sponsors { padding: 6px 10px; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  .lb-sponsors::-webkit-scrollbar { display: none; }
+  .lb-sponsors .spx-tile { height: 44px; padding: 0 12px; }
+  .lb-sponsors .spx-logo { height: 22px; }
   #lbMain { gap: 12px; }
   .lb-ticker { height: 28px; margin-top: 8px; }
   .lb-ticker-track, .lb-ticker-track.is-scrolling { animation: none; padding-left: 4px; width: 100%; }

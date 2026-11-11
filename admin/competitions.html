@@ -150,7 +150,7 @@
         const t = tplData.templates.find((x) => x.key === nt.dataset.notify);
         if (!confirm(`Email the ${t.waitlist} players waiting for the ${t.title}? This can be done once every 24 hours.`)) return;
         nt.disabled = true;
-        try { const r = await Admin.api(`/competitions/templates/${t.key}/notify`, { method: 'POST' }); Admin.toast(`Sent to ${r.sent} players`, 'success'); loadTemplates(); } catch (err) { Admin.toast(err.message, 'danger'); nt.disabled = false; }
+        try { const r = await Admin.api(`/competitions/templates/${t.key}/notify`, { method: 'POST' }); Admin.toast(`Sent to ${r.sent} players${r.failed ? `, ${r.failed} failed and will be retried next time` : ''}`, r.failed ? 'warning' : 'success'); loadTemplates(); } catch (err) { Admin.toast(err.message, 'danger'); nt.disabled = false; }
       }
     });
     const $ = (id) => document.getElementById(id);
