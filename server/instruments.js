@@ -155,8 +155,15 @@ function isPlayable(symbol, mode = null) {
   return Boolean(INSTRUMENTS[symbol]) && curated.isEnabled(symbol, mode);
 }
 
-function selectMatchInstruments(count = 5, mode = null) {
-  const all = playableSymbols(mode);
+// opts.topN: only the N most active playable instruments (curation ranking) -
+// Blitz plays the busiest markets only (server/config/modeIdentity.js).
+function selectMatchInstruments(count = 5, mode = null, opts = {}) {
+  let all = playableSymbols(mode);
+  if (opts.topN) {
+    const cat = curated.load();
+    const rank = new Map(((cat && cat.ranking) || []).map((r) => [r.sym, r.rank]));
+    all = all.slice().sort((a, b) => (rank.get(a) || 999) - (rank.get(b) || 999)).slice(0, Math.max(count, opts.topN));
+  }
   count = Math.min(count, all.length);
   const byCategory = {};
   for (const sym of all) {
@@ -555,6 +562,16 @@ function getMarketInfo(matchId) {
   return out;
 }
 
+// Grand War market events: real big moves (top topPercent%) in this match's
+// live window, in data seconds from match start.
+function getBigMoves(matchId, symbol, topPercent) {
+  const match = MATCH_WINDOWS.get(matchId);
+  const entry = match && match[symbol];
+  if (!entry || !entry.curated) return [];
+  const minutes = Math.ceil(entry.live.length / TICKS_PER_MINUTE);
+  return curated.movesBetween(symbol, entry.curated.start, minutes, topPercent).map((m) => ({ symbol, dataSecond: m.minute * TICKS_PER_MINUTE, movePct: m.movePct, rangeBps: m.rangeBps }));
+}
+
 // Real spike events inside this match's live window, in data seconds from
 // match start (curated matches only - nothing is ever invented).
 function getSpikeSchedule(matchId, symbol) {
@@ -653,6 +670,7 @@ module.exports = {
   liveRangeBetween,
   getMarketInfo,
   getSpikeSchedule,
+  getBigMoves,
   getCurrentPrice,
   getPreMatchHistory,
   getChartContext,

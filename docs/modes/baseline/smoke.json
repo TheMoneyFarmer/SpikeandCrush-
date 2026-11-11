@@ -1,0 +1,42 @@
+[
+  {
+    "name": "landing page loads with no console errors",
+    "ok": true,
+    "note": ""
+  },
+  {
+    "name": "login works with the test account",
+    "ok": true,
+    "note": ""
+  },
+  {
+    "name": "lobby loads at 1440x900",
+    "ok": true,
+    "note": ""
+  },
+  {
+    "name": "lobby loads at 390x844",
+    "ok": true,
+    "note": ""
+  },
+  {
+    "name": "competitions page loads",
+    "ok": true,
+    "note": ""
+  },
+  {
+    "name": "socket connects and reconnects",
+    "ok": true,
+    "note": ""
+  },
+  {
+    "name": "a Solo match starts and a trade opens and closes",
+    "ok": true,
+    "note": "traded USDJPY"
+  },
+  {
+    "name": "support widget opens",
+    "ok": true,
+    "note": ""
+  }
+]

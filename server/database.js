@@ -725,6 +725,28 @@ async function upsertPresence({ playerId, status, currentMatchId, currentLobbyId
   if (error) throw error;
 }
 
+// Best finished run in a mode (Solo ghost / personal best, Daily Challenge
+// leader): optional player and time window. Seeded persona accounts excluded.
+async function getBestRun({ mode, playerId = null, sinceIso = null, untilIso = null }) {
+  assertConfigured();
+  let q = supabase
+    .from('match_players')
+    .select('match_id, player_id, final_pnl, matches!inner(mode, status, end_time), players!inner(username, is_persona)')
+    .eq('matches.mode', mode)
+    .eq('matches.status', 'finished')
+    .eq('players.is_persona', false)
+    .not('final_pnl', 'is', null)
+    .order('final_pnl', { ascending: false })
+    .limit(1);
+  if (playerId) q = q.eq('player_id', playerId);
+  if (sinceIso) q = q.gte('matches.end_time', sinceIso);
+  if (untilIso) q = q.lt('matches.end_time', untilIso);
+  const { data, error } = await q;
+  if (error) throw error;
+  const row = data && data[0];
+  return row ? { matchId: row.match_id, playerId: row.player_id, username: row.players.username, pnl: Number(row.final_pnl) } : null;
+}
+
 // ---- replays / clips ------------------------------------------------------------
 
 async function createReplay({ matchId, eventLog, priceData, players, pnlSnapshots }) {
@@ -2597,6 +2619,7 @@ module.exports = {
   getSponsorById,
   sponsorStats,
   isConfigured,
+  getBestRun,
   fetchWithTimeout,
   coinsOfTypeToday,
   getProgress,

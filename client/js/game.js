@@ -199,6 +199,7 @@ window.TW = window.TW || {};
   // come from the server (state.rules), not a second copy here.
   function showMatchRules(state) {
     const rules = state.rules || {};
+    const modeInfo = TW.Modes ? TW.Modes.rulesRows(state) : null;
 
     const overlay = document.createElement('div');
     overlay.className = 'match-rules-overlay';
@@ -206,10 +207,11 @@ window.TW = window.TW || {};
     overlay.innerHTML = `
       <div class="match-rules-card">
         <div class="rules-header">
-          <div class="rules-mode-badge">⚔️ ${TW.escapeHtml(state.modeLabel || state.mode)}</div>
+          <div class="rules-mode-badge">${TW.escapeHtml((modeInfo && modeInfo.displayName) || state.modeLabel || state.mode)}</div>
           <div class="rules-countdown" id="rulesCountdown">5</div>
         </div>
         <h2 class="rules-title">Match Rules</h2>
+        ${modeInfo && modeInfo.banner ? `<p class="rules-mode-banner">${TW.escapeHtml(modeInfo.banner)}</p>` : ''}
         <div class="rules-grid">
           <div class="rule-item"><div class="rule-label">Starting Capital</div><div class="rule-value">$10,000</div></div>
           <div class="rule-item"><div class="rule-label">Duration</div><div class="rule-value">${formatClock(state.durationSeconds)} Minutes</div></div>
@@ -218,13 +220,12 @@ window.TW = window.TW || {};
           <div class="rule-item"><div class="rule-label">Margin Call</div><div class="rule-value">${rules.marginCallLevel}% margin level</div></div>
           <div class="rule-item"><div class="rule-label">Stop Out</div><div class="rule-value">${rules.stopOutLevel}% margin level</div></div>
           <div class="rule-item"><div class="rule-label">Loss Limit</div><div class="rule-value" style="font-size:12px;">-${rules.softLossPct * 100}% in ${rules.softLossWindowSeconds / 60} min pauses new trades</div></div>
-          <div class="rule-item"><div class="rule-label">Sabotage Cards</div><div class="rule-value">${state.cardsPerPlayer} Cards — 1 use each</div></div>
+          ${modeInfo ? modeInfo.rows.map(([k, v], i) => `<div class="rule-item"${i === modeInfo.rows.length - 1 && (7 + modeInfo.rows.length) % 2 ? ' style="grid-column:1 / -1;"' : ''}><div class="rule-label">${TW.escapeHtml(k)}</div><div class="rule-value" style="font-size:12px;">${TW.escapeHtml(v)}</div></div>`).join('') : `<div class="rule-item"><div class="rule-label">Sabotage Cards</div><div class="rule-value">${state.cardsPerPlayer} Cards, 1 use each</div></div>`}
           <div class="rule-item" style="grid-column:1 / -1;"><div class="rule-label">Instruments</div><div class="rule-value" style="font-size:12px;">${(state.instruments || []).join(' · ')}</div></div>
           <div class="rule-item"><div class="rule-label">Entry Cost</div><div class="rule-value">${state.entryCoins ?? 0} Coins</div></div>
-          <div class="rule-item"><div class="rule-label">Winner</div><div class="rule-value" style="font-size:12px;">Highest P&amp;L at zero</div></div>
+          ${modeInfo ? '' : '<div class="rule-item"><div class="rule-label">Winner</div><div class="rule-value" style="font-size:12px;">Highest P&amp;L at zero</div></div>'}
         </div>
         <div class="rules-reminder">
-          <span class="reminder-icon">⚠️</span>
           All positions close automatically when the timer ends. No exceptions.
         </div>
         <button class="btn-rules-ready" id="rulesReadyBtn">Ready — Let's Trade</button>
@@ -256,6 +257,8 @@ window.TW = window.TW || {};
     overlay.style.transition = 'opacity 0.3s';
     overlay.style.opacity = '0';
     setTimeout(() => overlay.remove(), 300);
+    // Walkthrough: the first-match tour, or this mode's short intro.
+    setTimeout(() => { if (!matchEnded && TW.Tours) TW.Tours.forMatch(lastState); }, 700);
   }
 
   function computeEquity() {
@@ -1112,7 +1115,7 @@ window.TW = window.TW || {};
           ${challenge && me ? `<div class="ea-sub">${TW.formatMoney(me.pnl)} vs ${TW.formatMoney(challenge.pnl)} on the same market</div>` : ''}
           ${me && me.isDraw ? `<div class="ea-sub">Tied with ${me.drawWith.map(esc).join(', ')} · prize split ${me.combinedPrizePercentage}% ÷ ${me.splitCount}</div>` : ''}
         </div>
-        ${me ? `<div class="ea-you">
+        ${me ? `<div class="ea-you" data-tour="result-you">
           <div class="ea-lbl">Your P&amp;L</div>
           <div class="ea-big mono ${me.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(me.pnl)}</div>
           <div class="ea-lbl">${pct(me.pnl)} on $10,000${solo ? '' : ` · #${me.rank} of ${playerCount}`}</div>
@@ -1134,10 +1137,10 @@ window.TW = window.TW || {};
         </div>
         <div data-slot="result_screen" data-target="mode:${esc(lastState?.mode || '')}" hidden></div>
         ${tierChanged ? `<div class="ea-rankup">${ic('trophy', 16)} Rank up: you are now ${esc(me.newTier)}</div>` : ''}
-        <div class="ea-fire" data-fire-slot></div>
+        <div class="ea-fire" data-fire-slot data-tour="result-rewards"></div>
         <div class="ea-stat ea-equity"><span class="ea-lbl">Your equity</span><div class="end-equity-curve">${buildEquitySvg(me.equityHistory, payload.feed, TW.getPlayer()?.username)}</div></div>` : ''}
       </aside>
-      <footer class="end-actions ea-actions">
+      <footer class="end-actions ea-actions" data-tour="result-actions">
         <a class="ea-pill" href="/play">Play another mode</a>
         <button type="button" class="ea-pill" id="shareResultBtn">Share result</button>
         <a class="ea-pill ea-push" href="/replay?match=${encodeURIComponent(matchId)}">Watch replay</a>
@@ -1146,6 +1149,8 @@ window.TW = window.TW || {};
     `;
     document.body.appendChild(overlay);
     if (TW.Fire) TW.Fire.renderResults(overlay, me, payload);
+    // Walkthrough: what the results screen shows, after the first match.
+    if (me && TW.Tours) setTimeout(() => TW.Tours.forResults(), 3200);
     if (me && me.rank === 1 && window.TW && TW.Lottie) TW.Lottie.play('win');
     if (TW.SponsorSlots) TW.SponsorSlots.scan(overlay);
 
@@ -1299,7 +1304,11 @@ window.TW = window.TW || {};
 
     async function openShareModal() {
       const pnlPct = me ? ((me.pnl / 10000) * 100).toFixed(1) : '0';
-      const shareText = me
+      // Per-mode line (js/modes.js), e.g. "I survived 3 cuts in Elimination".
+      const modeLine = me && TW.Modes ? TW.Modes.shareLine(me) : '';
+      const shareText = modeLine
+        ? `${modeLine} ${me.pnl >= 0 ? '+' : ''}${pnlPct}%. Think you can beat that? Join at ${window.location.host}`
+        : me
         ? `I just finished #${me.rank} in Spike & Crush at ${me.pnl >= 0 ? '+' : ''}${pnlPct}% in ${durationLabel}. Think you can beat that? Join at ${window.location.host}`
         : `I just finished a Spike & Crush match. Join at ${window.location.host}`;
       const [sqUrl, wideUrl] = await Promise.all([drawResultCardPng(1080, 1080), drawResultCardPng(1200, 630)]);
@@ -1467,6 +1476,7 @@ window.TW = window.TW || {};
     TW.toast(`✅ ${data.username} reconnected`, 'info');
   });
 
+  let ghostRequested = false;
   socket.on('match:state', (state) => {
     lastState = state;
     const modeEl = document.getElementById('topbarMode');
@@ -1490,6 +1500,13 @@ window.TW = window.TW || {};
     }
     setupInstrumentTabs(state.instruments);
     TW.Sabotage.render(state);
+    if (TW.Modes) TW.Modes.setState(state);
+    // Solo / Daily Challenge / challenge link: fetch the ghost once (it is
+    // also pushed live as mode:ghost when it loads after the start).
+    if (!ghostRequested && state.status === 'active' && (state.mode === 'solo' || state.mode === 'async' || state.challenge)) {
+      ghostRequested = true;
+      TW.api(`/api/match/${encodeURIComponent(matchId)}/ghost`).then((r) => { if (r && TW.Fire) TW.Fire.setGhost(r.ghost, r.personal); }).catch(() => {});
+    }
     if (TW.Fire) {
       TW.Fire.setYou(state.you);
       TW.Fire.setChallenge(state.challenge);
@@ -1513,7 +1530,7 @@ window.TW = window.TW || {};
     if (me) {
       myAccount.balance = me.balance;
       myAccount.positions = me.positions || [];
-      riskLocked = Boolean(me.eliminated || me.softLocked);
+      riskLocked = Boolean(me.eliminated || me.softLocked || me.spectator);
       updateTradeButtonsDisabled();
     }
 
@@ -1525,6 +1542,7 @@ window.TW = window.TW || {};
   let lastCountdownSecond = null;
   socket.on('price:update', (data) => {
     if (matchStartedAtMs === null) matchStartedAtMs = Date.now() - data.elapsedSeconds * 1000;
+    if (TW.Fire && TW.Fire.setElapsed) TW.Fire.setElapsed(data.elapsedSeconds);
     lastPrices = data.prices;
     // Candles are built on market time: at a replay speed above 1 one real
     // second carries several data seconds, and 1m candles must still be the
@@ -1624,6 +1642,11 @@ window.TW = window.TW || {};
   socket.on('missions:complete', (payload) => TW.Fire && TW.Fire.missionComplete(payload));
   socket.on('spike:alert', (payload) => TW.Fire && TW.Fire.spikeAlert(payload));
   socket.on('spike:result', (payload) => TW.Fire && TW.Fire.spikeResult(payload));
+  socket.on('elim:warning', (payload) => TW.Modes && TW.Modes.onWarning(payload));
+  socket.on('elim:cut', (payload) => TW.Modes && TW.Modes.onCut(payload));
+  socket.on('elim:out', (payload) => TW.Modes && TW.Modes.onOut(payload));
+  socket.on('mode:ghost', (payload) => TW.Fire && TW.Fire.setGhost(payload, payload.personal));
+  socket.on('mode:checkpoint', (payload) => TW.Modes && TW.Modes.onCheckpoint(payload));
   // Reversal Flash: private 1s heads-up before the shared price reversal
   // actually starts - opponents only learn about it once it's already moving.
   socket.on('sabotage:reversal_warning', () => TW.Sabotage.showReversalWarning());

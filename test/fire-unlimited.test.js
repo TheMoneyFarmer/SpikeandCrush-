@@ -26,16 +26,22 @@ test('60 players all land in the same open Quick War lobby; Private War takes 10
   assert.strictEqual(engine.buildMatchStatePayloadFor(room, null).maxPlayers, null);
 });
 
-test('fixed formats keep their size: Solo 1 + 3 AI seats, Tournament 2', async () => {
+test('fixed formats keep their size: Solo 1 + 3 AI seats, bracket rounds 2; public Elimination has no cap', async () => {
   const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
   const solo = await engine.createMatch('solo');
   for (let i = 0; i < 4; i++) engine.joinMatch(solo, p(`s${i}`));
   // Full: the 4th seat starts the countdown, so a 5th is refused either way.
   assert.strictEqual(engine.joinMatch(solo, p('s9')).success, false);
-  const t = await engine.createMatch('tournament');
+  // User-made bracket rounds stay 1v1 through the overrides index.js passes.
+  const t = await engine.createMatch('tournament', { configOverrides: { maxPlayers: 2, idealPlayers: 2, minPlayers: 2, fillMethod: 'none', entryCoins: 0, lobbyTimeoutMs: 0 } });
   engine.joinMatch(t, p('a'));
   engine.joinMatch(t, p('b'));
   assert.strictEqual(engine.joinMatch(t, p('c')).success, false);
+  // Public Elimination: unlimited seats like the other multiplayer modes.
+  const e = await engine.createMatch('tournament');
+  for (let i = 0; i < 20; i++) assert.ok(engine.joinMatch(e, p(`e${i}`)).success, `seat ${i}`);
+  assert.strictEqual(e.config.maxPlayers, null);
   await engine.forceEndMatch(solo.id).catch(() => {});
   await engine.forceEndMatch(t.id).catch(() => {});
+  await engine.forceEndMatch(e.id).catch(() => {});
 });

@@ -151,7 +151,7 @@ test('history sends played prices but nothing past the clock', async (t) => {
   assert.ok(Math.max(...played.map((x) => x.t)) <= 31);
 });
 
-test('Blitz War deals 5 instruments and 3 cards, like Quick War, in 3 minutes', async () => {
+test('Blitz War deals 5 instruments and 5 cards in 3 minutes', async () => {
   await instruments.preloadAll?.();
   const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
   const match = await engine.createMatch('blitz');
@@ -159,24 +159,28 @@ test('Blitz War deals 5 instruments and 3 cards, like Quick War, in 3 minutes', 
   assert.strictEqual(match.config.durationSeconds, 180);
   assert.strictEqual(match.instruments.length, 5);
   assert.strictEqual(new Set(match.instruments).size, 5);
-  assert.strictEqual(match.players.p1.cards.length, 3);
+  assert.strictEqual(match.players.p1.cards.length, 5);
+  assert.strictEqual(match.rules.cards.handSize, 5);
 });
 
-test('saved deck: every card comes from it when it holds enough', async () => {
+test('saved deck: every card comes from it when it holds enough (per-mode hand and card pool)', async () => {
   await instruments.preloadAll?.();
   const sabotage = require('../server/sabotage');
-  const deck = Object.keys(sabotage.CARDS).slice(0, 5);
-  // Fire gameplay: only unlocked cards can be dealt, and the hand holds at
-  // most cards.handSize (4) - so Grand War's 5-card deal is now 4.
-  const handSize = require('../server/config/gameFeel').get().cards.handSize;
+  const cardRules = require('../server/cards');
+  const all = Object.keys(sabotage.CARDS);
   for (const mode of ['quick', 'blitz', 'solo', 'private', 'tournament', 'grand']) {
     const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
     const match = await engine.createMatch(mode);
-    engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck, unlockedCards: Object.keys(sabotage.CARDS) });
+    // The deck holds 5 cards this mode may deal (Blitz: no heavy cards, Solo: defense only).
+    const deck = cardRules.allowedPool(match, { unlockedCards: all }).slice(0, 5);
+    engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck, unlockedCards: all });
+    const r = match.rules.cards;
+    const want = r.startingHand ? Math.min(r.handSize, r.startingHand.count) : Math.min(r.handSize, r.startCount);
     const cards = match.players.p1.cards.map((c) => c.type);
-    assert.strictEqual(cards.length, Math.min(handSize, match.config.cardsPerPlayer), mode);
+    assert.strictEqual(cards.length, Math.min(want, deck.length), mode);
     assert.strictEqual(new Set(cards).size, cards.length, mode + ' has duplicates');
-    assert.ok(cards.every((t) => deck.includes(t)), mode + ' dealt outside the deck');
+    if (!r.startingHand) assert.ok(cards.every((t) => deck.includes(t)), mode + ' dealt outside the deck');
+    await engine.forceEndMatch(match.id).catch(() => {});
   }
 });
 
@@ -205,7 +209,13 @@ test('saved deck: never shown to other players, and Grand War can still change c
   engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck: all.slice(0, 5) });
   assert.strictEqual(match.players.p1.deck, undefined);
   assert.ok(!JSON.stringify(engine.buildMatchStatePayloadFor(match, null)).includes('"deck"'));
-  const swapped = all.slice(1, 6);
+  // Grand War's lobby pick: the 5 cards you start with.
+  const choice = engine.buildMatchStatePayloadFor(match, 'p1').loadoutChoice;
+  assert.strictEqual(choice.count, 5);
+  const swapped = choice.allowed.slice(1, 6);
   assert.strictEqual(engine.selectLoadoutCards(match.id, 'p1', swapped).success, true);
   assert.deepStrictEqual(match.players.p1.cards.map((c) => c.type), swapped);
+  // Heavy cards and the wrong count are refused.
+  // The wrong count is refused.
+  assert.strictEqual(engine.selectLoadoutCards(match.id, 'p1', choice.allowed.slice(0, 3)).success, false);
 });

@@ -1,0 +1,56 @@
+/* Lobby mode cards with identity + Compare modes and Private host sheets
+   (js/mode-lobby.js). Tokens: panel #0E1320, tile #111724, line #1D2638,
+   text #E8ECF4, muted #9AA4B8, gold #F5B83D, spike #2EE6A6. */
+.lb-mode-grid .lb-mode { position: relative; height: auto; min-height: 120px; }
+.lb-mode-meta { display: flex; flex-direction: column; gap: 2px; max-width: 100%; min-width: 0; }
+.lb-mode-win { font: 500 11px/1.25 Inter, system-ui, sans-serif; color: #9aa4b8; overflow: hidden; max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lb-mode-live { display: inline-flex; align-items: center; gap: 4px; font: 600 11px/1.2 Rajdhani, Inter, sans-serif; color: #2ee6a6; }
+.lb-mode-live i { width: 6px; height: 6px; border-radius: 50%; background: #2ee6a6; }
+.lb-mode-tag { position: absolute; top: -8px; right: 6px; padding: 2px 7px; border-radius: 6px; background: #f5b83d; color: #07090f; font: 700 10px/1.4 Rajdhani, Inter, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; pointer-events: none; }
+.lb-mode.is-suggested { box-shadow: 0 0 0 1px rgba(245, 184, 61, 0.7); }
+.lb-mode-grid { padding-top: 12px; }
+.lb-compare-btn { flex: none; align-self: center; white-space: nowrap; padding: 8px 12px; border-radius: 8px; border: 1px solid #1d2638; background: transparent; color: #e8ecf4; font: 600 12px/1 Inter, system-ui, sans-serif; cursor: pointer; }
+.lb-compare-btn:hover, .lb-compare-btn:focus-visible { border-color: #f5b83d; outline: none; }
+
+/* Sheets */
+.mode-sheet { position: fixed; inset: 0; z-index: 5000; display: grid; place-items: center; padding: 16px; background: rgba(7, 9, 15, 0.72); }
+.msh-panel { width: min(460px, 100%); max-height: calc(100vh - 32px); overflow: auto; border-radius: 14px; background: #0e1320; border: 1px solid #1d2638; color: #e8ecf4; font: 400 13px/1.45 Inter, system-ui, sans-serif; }
+.msh-panel.wide { width: min(1080px, 100%); }
+.msh-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: #0e1320; border-bottom: 1px solid #1d2638; font: 700 18px/1 Rajdhani, Inter, sans-serif; }
+.msh-close { background: none; border: 0; color: #9aa4b8; font-size: 22px; line-height: 1; cursor: pointer; padding: 2px 6px; }
+.msh-body { padding: 14px 16px 16px; }
+.msh-note { margin: 0 0 12px; color: #9aa4b8; }
+.msh-link { display: inline-block; margin-top: 12px; color: #f5b83d; }
+.msh-table-wrap { overflow-x: auto; }
+.msh-table { width: 100%; border-collapse: collapse; }
+.msh-table th, .msh-table td { padding: 10px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid #1d2638; }
+.msh-table thead th { font: 600 11px/1 Inter, system-ui, sans-serif; color: #9aa4b8; text-transform: uppercase; letter-spacing: 0.05em; }
+.msh-table tbody th b { display: block; font: 700 15px/1.2 Rajdhani, Inter, sans-serif; color: #f5b83d; }
+.msh-table span { display: block; color: #9aa4b8; font-size: 12px; }
+.msh-form { display: flex; flex-direction: column; gap: 10px; }
+.msh-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.msh-row span { color: #9aa4b8; }
+.msh-row select { min-width: 0; max-width: 62%; padding: 8px; border-radius: 8px; border: 1px solid #1d2638; background: #111724; color: #e8ecf4; font: inherit; }
+.msh-row select:disabled { opacity: 0.45; }
+.msh-primary { margin-top: 4px; padding: 11px; border: 0; border-radius: 10px; background: #f5b83d; color: #07090f; font: 700 15px/1 Rajdhani, Inter, sans-serif; letter-spacing: 0.03em; cursor: pointer; }
+
+/* Phone: the comparison table becomes one card per mode. */
+@media (max-width: 720px) {
+  .msh-table thead { display: none; }
+  .msh-table, .msh-table tbody, .msh-table tr, .msh-table th, .msh-table td { display: block; width: 100%; }
+  .msh-table tr { padding: 10px 0; border-bottom: 1px solid #1d2638; }
+  .msh-table th, .msh-table td { border: 0; padding: 3px 0; }
+  .msh-table td::before { content: attr(data-k) ": "; color: #9aa4b8; }
+  .msh-table td span { display: inline; margin-left: 4px; }
+  .msh-row { flex-direction: column; align-items: stretch; gap: 4px; }
+  .msh-row select { max-width: none; }
+}
+@media (max-width: 720px) { .lb-compare-btn { align-self: flex-start; margin: 10px 0 4px; } }
+
+/* Desktop console row: seven tiles plus Compare modes and the join box. */
+@media (min-width: 1024px) {
+  .lb-modes { gap: 16px; }
+  .lb-mode-grid .lb-mode { width: 108px; padding: 12px; grid-template-rows: 1fr auto auto auto; }
+  .lb-mode-grid .lb-mode-name { font-size: 14px; }
+  .lb-mode-grid .lb-mode-meta { min-height: 42px; justify-content: flex-start; }
+}

@@ -374,7 +374,7 @@
       <div class="settings-panel" id="tab-help">
         <h3 style="margin-top:0;">Tutorial Replay</h3>
         <div class="toggle-row">
-          <div class="meta">Main onboarding tutorial<div class="note">The full walkthrough shown on your first visit to the Trading Floor.</div></div>
+          <div class="meta">Walkthrough<div class="note">Replays the lobby tour now, and shows the match, results and mode tours again in your next matches.</div></div>
           <button class="btn" id="replayMainTutorialBtn">Replay</button>
         </div>
         <div class="toggle-row">
@@ -889,8 +889,10 @@
       // Floor (.tw-hero-section, #modeQuickBtn, etc.) - starting it here
       // would just show every step centered with no spotlight, so redirect
       // there first and let tutorial.js's own query-param check start it.
-      localStorage.removeItem('sc_tutorial_done');
-      window.location.href = '/?replay_tutorial=1';
+      // Clears this account's tour progress, so every tour (lobby, first
+      // match, results, each mode's intro) shows again where it belongs.
+      const go = () => { window.location.href = '/play?replay_tutorial=1'; };
+      if (TW.Tours) TW.Tours.reset().then(go, go); else go();
     });
     document.getElementById('resetModeTutorialsBtn')?.addEventListener('click', () => {
       TW.resetModeTutorials?.();

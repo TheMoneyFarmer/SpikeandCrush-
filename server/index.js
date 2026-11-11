@@ -37,6 +37,8 @@ const discover = require('./discover');
 const rankSplit = require('./rankSplit');
 const cosmetics = require('./cosmetics');
 const gameFeel = require('./config/gameFeel');
+const modeIdentity = require('./config/modeIdentity');
+const toursConfig = require('./config/tours');
 const tournament = require('./tournament');
 const presence = require('./presence');
 const friendsHub = require('./friendsHub');
@@ -901,6 +903,48 @@ app.post('/api/tutorial/complete', requireDb, authenticate, async (req, res) => 
   }
 });
 
+// ---- walkthrough (server/config/tours.js) ----------------------------------
+// The tours with this account's progress (players.settings.tours, versioned).
+app.get('/api/tours', requireDb, authenticate, (req, res) => {
+  const cfg = toursConfig.get();
+  const progress = (req.player.settings && req.player.settings.tours) || {};
+  res.json({ enabled: cfg.enabled, tours: cfg.tours, progress, legacyDone: Boolean(req.player.tutorial_completed) });
+});
+
+// One tour finished or skipped (at which step). The lobby tour also sets the
+// legacy tutorial_completed flag that older code still reads.
+app.post('/api/tours/progress', requireDb, authenticate, async (req, res) => {
+  try {
+    const { tour, outcome, step } = req.body || {};
+    const def = toursConfig.get().tours[tour];
+    if (!def) return res.status(400).json({ error: 'Unknown tour' });
+    if (!['completed', 'skipped'].includes(outcome)) return res.status(400).json({ error: 'outcome must be completed or skipped' });
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    const settings = { ...(player.settings || {}) };
+    settings.tours = { ...(settings.tours || {}), [tour]: { v: def.version, outcome, step: Number.isInteger(step) ? Math.max(0, Math.min(step, def.steps.length)) : null, at: new Date().toISOString() } };
+    const updates = { settings };
+    if (tour === 'lobby' && !player.tutorial_completed) Object.assign(updates, { tutorial_completed: true, tutorial_completed_at: new Date().toISOString() });
+    await db.updatePlayer(player.id, updates);
+    res.json({ success: true, progress: settings.tours });
+  } catch (e) {
+    console.error('[tours progress]', e);
+    res.status(500).json({ error: 'Could not save tour progress' });
+  }
+});
+
+// Settings > Replay the walkthrough: clears this account's tour progress.
+app.post('/api/tours/reset', requireDb, authenticate, async (req, res) => {
+  try {
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    const settings = { ...(player.settings || {}) };
+    delete settings.tours;
+    await db.updatePlayer(player.id, { settings });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Could not reset the walkthrough' });
+  }
+});
+
 app.post('/api/auth/reset-password', authLimiter, requireDb, async (req, res) => {
   const { email } = req.body || {};
   if (typeof email === 'string' && email.length <= 254) {
@@ -1149,11 +1193,12 @@ app.get('/api/discord/callback', requireDb, async (req, res) => {
 
 const MATCHMAKING_BY_MODE = {
   quick: (playerInfo) => matchmaking.quickPlay(gameEngine, playerInfo),
+  tournament: (playerInfo) => matchmaking.eliminationPlay(gameEngine, playerInfo),
   blitz: (playerInfo) => matchmaking.blitzPlay(gameEngine, playerInfo),
   grand: (playerInfo) => matchmaking.grandPlay(gameEngine, playerInfo),
   solo: (playerInfo, body) => matchmaking.soloPlay(gameEngine, playerInfo, body?.instruments),
   async: (playerInfo) => matchmaking.asyncPlay(gameEngine, playerInfo),
-  private: (playerInfo) => matchmaking.createPrivateWar(gameEngine, playerInfo),
+  private: (playerInfo, body) => matchmaking.createPrivateWar(gameEngine, playerInfo, body?.hostOptions),
 };
 
 const MAX_OPEN_MATCHES_PER_PLAYER = 3;
@@ -1190,6 +1235,7 @@ app.post('/api/match/create', deployDrain.blockNewMatches, opsMonitor.blockNewMa
     if (!player) return res.status(404).json({ error: 'Player not found' });
     if (gameEngine.isInLiveMatch(player.id)) return res.status(409).json({ error: LIVE_MATCH_BUSY_ERROR });
     const mode = MATCHMAKING_BY_MODE[req.body?.mode] ? req.body.mode : 'private';
+    if (modeIdentity.identity(mode).enabled === false) return res.status(403).json({ error: 'This mode is switched off right now. Try another mode.' });
     const modeConfig = gameEngine.MATCH_MODES[mode];
     const entryCoins = modeConfig ? modeConfig.entryCoins : 0;
 
@@ -1283,6 +1329,15 @@ app.get('/api/match/:id', (req, res) => {
   const match = gameEngine.getMatch(req.params.id);
   if (!match) return res.status(404).json({ error: 'Match not found' });
   res.json(gameEngine.buildMatchStatePayloadFor(match, null));
+});
+
+// The ghost run a Solo / Daily Challenge / challenge-link match races
+// against (per-second P&L), for a page that loads or reconnects mid-match.
+app.get('/api/match/:id/ghost', authenticate, (req, res) => {
+  const match = gameEngine.getMatch(req.params.id);
+  if (!match) return res.status(404).json({ error: 'Match not found' });
+  if (!match.players[req.tokenPlayer.id]) return res.status(403).json({ error: 'Not in this match' });
+  res.json(gameEngine.getGhost(req.params.id));
 });
 
 app.get('/api/match/:id/history', (req, res) => {
@@ -3086,7 +3141,10 @@ app.post('/api/tournament/:id/play', deployDrain.blockNewMatches, requireDb, aut
     const toPlayerInfo = (p) => ({ id: p.id, username: p.username, country: p.country, war_rating: p.war_rating, tier: tierForRating(p.war_rating) });
 
     const match = await gameEngine.createMatch('tournament', {
-      configOverrides: { tournamentId: t.id, round: myReg.current_round, matchupIndex: matchup.matchup },
+      // Bracket rounds keep their original shape: exactly 2 players, no lobby
+      // fill, no entry fee. (The 'tournament' key is also the public
+      // Elimination mode; with 2 players no cut ever happens.)
+      configOverrides: { tournamentId: t.id, round: myReg.current_round, matchupIndex: matchup.matchup, label: 'Tournament round', maxPlayers: 2, idealPlayers: 2, minPlayers: 2, fillMethod: 'none', entryCoins: 0, lobbyTimeoutMs: 0 },
     });
     gameEngine.joinMatch(match, { ...toPlayerInfo(playerA), ...loadA });
     gameEngine.joinMatch(match, { ...toPlayerInfo(playerB), ...loadB });
@@ -3307,7 +3365,7 @@ app.post('/api/challenge/:code/start', requireDb, authenticate, async (req, res)
         fillMethod: 'none',
         aiOpponents: 0,
         entryCoins: 0,
-        challenge: { username: c.username, pnl: c.pnl, creatorId: c.creatorId },
+        challenge: { username: c.username, pnl: c.pnl, creatorId: c.creatorId, sourceMatchId: c.sourceMatchId },
       },
     });
     const joined = gameEngine.joinMatch(match, { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, tier: tierForRating(player.war_rating), ...(await loadCardLoadout(player)) });
@@ -3494,6 +3552,18 @@ app.use(
 );
 
 // ---- home page stats --------------------------------------------------------------
+
+// Public mode catalog for the lobby cards, Compare modes sheet and How to
+// play: identity, best for, win condition, card slots and live seats, with
+// the real length and entry from MATCH_MODES (never redefined here).
+app.get('/api/modes/catalog', cacheJson(10000), (req, res) => {
+  const counts = gameEngine.getModeCounts();
+  const modes = modeIdentity.publicCatalog().map((m) => {
+    const mm = gameEngine.MATCH_MODES[m.key] || {};
+    return { ...m, durationSeconds: mm.durationSeconds || null, entryCoins: mm.entryCoins || 0, minPlayers: m.key === 'tournament' ? modeIdentity.identity('tournament').elimination.minPlayersToStart : mm.minPlayers || 1, live: counts[m.key] || 0 };
+  });
+  res.json({ modes });
+});
 
 app.get('/api/stats/home', cacheJson(10000), async (req, res) => {
   try {

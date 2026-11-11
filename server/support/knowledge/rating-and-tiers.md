@@ -11,7 +11,7 @@ needs_review: false
 
 **Ratings.** Ranked matches change your rating by finishing position. In a 4-player match: 1st: +25, 2nd: +10, 3rd: 0, 4th: -25. In a 6-player match: 1st: +25, 2nd: +10, 3rd: 0, 4th: -10, 5th: -10, 6th: -25. You get 5 extra points for a gain if your opponents were rated higher on average, and lose 5 more on a loss if they were rated lower.
 
-Only ranked modes change a rating: Quick War (War Rating), Grand War (Grand War rating), Solo Ranked (Solo rating). Blitz War, Async Daily Challenge, Private War, Tournament War do not change any rating. Long-form competitions also adjust your War Rating when they settle.
+Only ranked modes change a rating: Quick War (War Rating), Grand War (Grand War rating), Solo Ranked (Solo rating). Blitz War, Elimination, Async Daily Challenge, Private War do not change any rating. Long-form competitions also adjust your War Rating when they settle.
 
 **Tiers** come from your War Rating:
 - Recruit: 0-999

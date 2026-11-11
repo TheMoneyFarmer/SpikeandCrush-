@@ -37,6 +37,11 @@ function quickPlay(gameEngine, playerInfo) {
   return joinOpenLobby(gameEngine, 'quick', playerInfo);
 }
 
+// Elimination (internal key 'tournament'): a public lobby like Quick.
+function eliminationPlay(gameEngine, playerInfo) {
+  return joinOpenLobby(gameEngine, 'tournament', playerInfo);
+}
+
 function blitzPlay(gameEngine, playerInfo) {
   return joinOpenLobby(gameEngine, 'blitz', playerInfo);
 }
@@ -59,8 +64,10 @@ async function soloPlay(gameEngine, playerInfo, favouriteInstruments) {
   return { success: true, matchId: match.id, roomCode: match.roomCode };
 }
 
-async function createPrivateWar(gameEngine, playerInfo) {
-  const match = await gameEngine.createMatch('private');
+// hostOptions: cards on/off, deck level, starting hand, cuts, flavor -
+// validated in server/config/modeIdentity.js hostOptions().
+async function createPrivateWar(gameEngine, playerInfo, hostOptions = null) {
+  const match = await gameEngine.createMatch('private', { hostOptions: require('./config/modeIdentity').hostOptions(hostOptions || {}) });
   match.hostId = playerInfo.id; // charged the 1-coin hosting fee once the match actually starts - see gameEngine.activateMatch
   const result = gameEngine.joinMatch(match, playerInfo);
   if (!result.success) return result;
@@ -90,4 +97,4 @@ function joinByRoomCode(gameEngine, roomCode, playerInfo) {
   return { success: true, matchId: match.id, roomCode: match.roomCode };
 }
 
-module.exports = { quickPlay, blitzPlay, grandPlay, soloPlay, asyncPlay, createPrivateWar, joinByRoomCode };
+module.exports = { quickPlay, eliminationPlay, blitzPlay, grandPlay, soloPlay, asyncPlay, createPrivateWar, joinByRoomCode };

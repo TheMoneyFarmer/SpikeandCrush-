@@ -346,3 +346,20 @@
 }
 .tutorial-confirm-box p { color: var(--text-secondary); font-size: 13px; line-height: 1.5; margin: 8px 0 18px; }
 .tutorial-confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+/* Walkthrough Back button (js/tutorial.js) and phone spacing. */
+.btn-tutorial-back {
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font);
+}
+.btn-tutorial-back:hover { color: var(--text); }
+@media (max-width: 480px) {
+  .tutorial-card { padding: 16px; }
+  .tutorial-footer { flex-wrap: wrap; gap: 8px; }
+}

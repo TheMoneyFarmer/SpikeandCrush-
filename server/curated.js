@@ -124,4 +124,29 @@ function spikesBetween(symbol, from, count) {
   return out.sort((a, b) => a.minute - b.minute);
 }
 
-module.exports = { load, setDir, getDir, isActive, getPlaylist, isEnabled, enabledSymbols, pickStart, isValidStart, barsAt, spikesBetween, durationKey };
+// Big real moves (top topPercent% of the loop's 1-minute ranges) inside
+// playlist minutes [from, from+count): Grand War's scheduled market events.
+// Thresholds are computed once per instrument and percentile.
+const moveThresholds = new Map();
+function movesBetween(symbol, from, count, topPercent) {
+  const pl = getPlaylist(symbol);
+  if (!pl) return [];
+  const key = `${symbol}:${topPercent}`;
+  if (!moveThresholds.has(key)) {
+    const bps = pl.bars.map(([o, h, l]) => ((h - l) / o) * 1e4).sort((a, b) => a - b);
+    moveThresholds.set(key, bps[Math.min(bps.length - 1, Math.floor((1 - topPercent / 100) * bps.length))]);
+  }
+  const thr = moveThresholds.get(key);
+  const n = pl.bars.length;
+  const out = [];
+  for (let k = 0; k < count; k++) {
+    const i = (((from + k) % n) + n) % n;
+    const [o, h, l, c] = pl.bars[i];
+    const r = ((h - l) / o) * 1e4;
+    if (r >= thr) out.push({ minute: k, rangeBps: Number(r.toFixed(2)), movePct: Number((((c - o) / o) * 100).toFixed(3)) });
+  }
+  return out;
+}
+
+module.exports = {
+  movesBetween, load, setDir, getDir, isActive, getPlaylist, isEnabled, enabledSymbols, pickStart, isValidStart, barsAt, spikesBetween, durationKey };

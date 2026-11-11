@@ -36,6 +36,8 @@
           <button class="admin-tab" data-tab="progression">Progression</button>
           <button class="admin-tab" data-tab="ranksplit">Rank Split</button>
           <button class="admin-tab" data-tab="discover">Discover</button>
+          <button class="admin-tab" data-tab="modes">Game Modes</button>
+          <button class="admin-tab" data-tab="tours">Walkthrough</button>
         </div>
         <div class="admin-tab-panel" id="tab-market"></div>
         <div class="admin-tab-panel" id="tab-monitor"></div>
@@ -43,6 +45,8 @@
         <div class="admin-tab-panel" id="tab-progression"></div>
         <div class="admin-tab-panel" id="tab-ranksplit"></div>
         <div class="admin-tab-panel" id="tab-discover"></div>
+        <div class="admin-tab-panel" id="tab-modes"></div>
+        <div class="admin-tab-panel" id="tab-tours"></div>
       </div>
     </main>
   </div>
@@ -214,10 +218,106 @@
       bindSaves(el);
     }
 
+    // Game Modes: each mode's identity (server/config/modeIdentity.js). Edits
+    // apply to new matches; GAME_RULES and match lengths are not here.
+    async function saveMode(mode, value) {
+      try {
+        await Admin.api(`/fire/modes/${mode}`, { method: 'PUT', body: { value } });
+        Admin.toast ? Admin.toast(`${mode} saved: new matches use it`, 'success') : alert('Saved');
+        await load();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function renderModes() {
+      const el = document.getElementById('tab-modes');
+      const M = S.modes;
+      if (!M) { el.innerHTML = '<div class="panel">The game server did not send mode settings (older build).</div>'; return; }
+      const keys = Object.keys(M.defaults);
+      const row = (k) => {
+        const e = M.effective[k];
+        const on = e.enabled !== false;
+        const cards = e.cards && e.cards.enabled === false ? 'off' : `${e.cards.handSize} slots${e.cards.sabotage === false ? ', no sabotage' : ''}${e.cards.startingHand ? `, start ${e.cards.startingHand.count}` : ''}`;
+        const extra = [e.elimination && e.elimination.enabled !== false ? `cuts every ${e.elimination.everyMinutes} min from ${e.elimination.firstCutMinute}, ${Math.round(e.elimination.cutShare * 100)}%` : '', e.events && e.events.minutes && e.events.minutes.length ? `events at ${e.events.minutes.join('/')} min` : '', e.xpMultiplier && e.xpMultiplier !== 1 ? `XP x${e.xpMultiplier}` : ''].filter(Boolean).join('; ');
+        return `<tr><td><b>${esc(e.displayName)}</b><div class="fx-note">${esc(k)}</div></td><td>${on ? '<span class="fx-ok">On</span>' : '<span class="fx-bad">Off</span>'}</td><td>${(M.live && M.live[k]) || 0}</td><td>${esc(cards)}</td><td>${esc(extra || '-')}</td><td>${M.overrides[k] ? 'yes' : '-'}</td>
+          <td><button class="btn" data-mode-toggle="${esc(k)}" data-on="${on ? 1 : 0}">${on ? 'Turn off' : 'Turn on'}</button></td></tr>`;
+      };
+      el.innerHTML = `<div class="panel fx-section"><h4>Modes</h4><p class="fx-note">A mode that is off disappears from the lobby cards. Settings apply to matches created after the save; running matches keep their rules. Every save is audit-logged. Trading rules and money maths are identical in every mode and are not editable here.</p>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mode</th><th>Status</th><th>Seats now</th><th>Cards</th><th>Special</th><th>Overridden</th><th></th></tr></thead><tbody>${keys.map(row).join('')}</tbody></table></div></div>` +
+        keys.map((k) => `<div class="panel fx-section"><h4>${esc(M.effective[k].displayName)} <span class="fx-note">(${esc(k)})</span></h4>
+          <p class="fx-note">Overrides only, merged over the defaults (Quick is the base for every mode). Keys: displayName, identity, bestFor, winCondition, winShort, special, preStartBanner, cards { handSize, allowedTiers, startingHand, sabotage, refillAtStreak }, instrumentPool, spikeAlerts { minGapSeconds }, events { minutes }, checkpointMinute, elimination { firstCutMinute, everyMinutes, cutShare, minPlayersToStart, warnSeconds }, missions, missionChain, xpMultiplier, enabled.</p>
+          <textarea class="fx-json" id="mode-ov-${esc(k)}">${esc(JSON.stringify((M.overrides[k]) || {}, null, 2))}</textarea>
+          <div class="fx-row"><button class="btn btn-primary" data-mode-save="${esc(k)}">Save ${esc(k)}</button></div>
+          <details><summary class="fx-note">Live values</summary><pre class="fx-json" style="white-space:pre-wrap">${esc(JSON.stringify(M.effective[k], null, 2))}</pre></details></div>`).join('');
+      el.querySelectorAll('[data-mode-save]').forEach((b) => b.addEventListener('click', () => {
+        try { saveMode(b.dataset.modeSave, JSON.parse(document.getElementById(`mode-ov-${b.dataset.modeSave}`).value || '{}')); } catch (e) { alert(`Invalid JSON: ${e.message}`); }
+      }));
+      el.querySelectorAll('[data-mode-toggle]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.modeToggle;
+        const cur = { ...(M.overrides[k] || {}) };
+        if (b.dataset.on === '1') cur.enabled = false; else delete cur.enabled;
+        if (b.dataset.on === '1' && !confirm(`Turn ${k} off? It disappears from the lobby for new players.`)) return;
+        saveMode(k, cur);
+      }));
+    }
+
+    // Walkthrough: switch, per-tour on/off and version, step text, stats.
+    // Saving writes the full overrides object (only what differs is kept).
+    function renderTours() {
+      const el = document.getElementById('tab-tours');
+      const T = S.tours;
+      if (!T) { el.innerHTML = '<div class="panel">The game server did not send the walkthrough (older build).</div>'; return; }
+      const cfg = T.config;
+      const ids = Object.keys(cfg.tours);
+      el.innerHTML = `<div class="panel fx-section"><h4>Walkthrough: ${cfg.enabled ? '<span class="fx-ok">ON</span>' : '<span class="fx-bad">OFF</span>'}</h4>
+          <p class="fx-note">Tours spotlight real page elements (data-tour anchors). Text edits apply on the next page load. Raise a tour's version to show it again to everyone who already finished it (the lobby then shows "What's new" instead of the full tour). Every save is audit-logged.</p>
+          <div class="fx-row"><label><input type="checkbox" id="tourMaster" ${cfg.enabled ? 'checked' : ''}/> Walkthrough on</label></div>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Tour</th><th>Page</th><th>Steps</th><th>On</th><th>Version</th><th>Completed</th><th>Skipped</th><th>Completion</th><th>Skipped at step</th></tr></thead><tbody>
+          ${ids.map((id) => { const t = cfg.tours[id]; return `<tr><td><b>${esc(t.label)}</b><div class="fx-note">${esc(id)}</div></td><td>${esc(t.page)}</td><td>${t.steps.length}</td>
+            <td><input type="checkbox" data-tour-on="${esc(id)}" ${t.enabled ? 'checked' : ''}/></td>
+            <td><input type="number" min="1" step="1" data-tour-ver="${esc(id)}" value="${t.version}" style="width:64px"/></td>
+            <td data-stat="${esc(id)}:completed">…</td><td data-stat="${esc(id)}:skipped">…</td><td data-stat="${esc(id)}:rate">…</td><td data-stat="${esc(id)}:steps">…</td></tr>`; }).join('')}
+          </tbody></table></div></div>` +
+        ids.map((id) => { const t = cfg.tours[id]; return `<div class="panel fx-section"><h4>${esc(t.label)} <span class="fx-note">(${esc(id)})</span></h4>
+          ${t.steps.map((st, i) => `<div class="fx-row" style="align-items:flex-start"><span class="fx-note" style="min-width:140px">${i + 1}. anchor: ${esc(st.anchor || 'centred')}</span>
+            <input data-step-title="${esc(id)}:${i}" value="${esc(st.title)}" style="min-width:220px" maxlength="120"/>
+            <textarea data-step-body="${esc(id)}:${i}" rows="2" style="flex:1;min-width:280px" maxlength="600">${esc(st.body)}</textarea></div>`).join('')}</div>`; }).join('') +
+        `<div class="fx-row"><button class="btn btn-primary" id="toursSave">Save walkthrough</button></div>`;
+      document.getElementById('toursSave').onclick = async () => {
+        const value = { enabled: document.getElementById('tourMaster').checked, tours: {} };
+        for (const id of ids) {
+          const t = cfg.tours[id];
+          const o = {};
+          const on = el.querySelector(`[data-tour-on="${id}"]`).checked;
+          if (!on) o.enabled = false;
+          const ver = parseInt(el.querySelector(`[data-tour-ver="${id}"]`).value, 10);
+          if (Number.isInteger(ver) && ver > 0) o.version = ver;
+          o.steps = t.steps.map((st, i) => ({ title: el.querySelector(`[data-step-title="${id}:${i}"]`).value, body: el.querySelector(`[data-step-body="${id}:${i}"]`).value }));
+          value.tours[id] = o;
+        }
+        try {
+          await Admin.api('/fire/tours', { method: 'PUT', body: { value } });
+          Admin.toast ? Admin.toast('Walkthrough saved', 'success') : alert('Saved');
+          await load();
+        } catch (e) { alert(e.message); }
+      };
+      Admin.api(`/fire/tour-stats?ids=${ids.join(',')}`).then((r) => {
+        for (const id of ids) {
+          const x = (r.tours || {})[id] || {};
+          const set = (k, v) => { const c = el.querySelector(`[data-stat="${id}:${k}"]`); if (c) c.textContent = v; };
+          set('completed', x.completed ?? '-');
+          set('skipped', x.skipped ?? '-');
+          set('rate', x.completionRate == null ? '-' : `${x.completionRate}%`);
+          set('steps', Object.entries(x.skipSteps || {}).map(([k, v]) => `${k}: ${v}`).join(', ') || '-');
+        }
+      }).catch((e) => { el.querySelectorAll('[data-stat]').forEach((c) => { c.textContent = '-'; }); el.insertAdjacentHTML('afterbegin', `<div class="panel fx-bad">Stats: ${esc(e.message)}</div>`); });
+    }
+
     async function load() {
       try {
         S = await Admin.api('/fire/state');
-        renderMarket(); renderMonitor(); renderSettings(); renderProgression(); renderRankSplit(); renderDiscover();
+        renderMarket(); renderMonitor(); renderSettings(); renderProgression(); renderRankSplit(); renderDiscover(); renderModes(); renderTours();
         tabs();
       } catch (e) {
         document.querySelector('.admin-content').insertAdjacentHTML('afterbegin', `<div class="panel fx-bad">${esc(e.message)}</div>`);

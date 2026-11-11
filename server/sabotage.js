@@ -120,6 +120,9 @@ const CARDS = {
     'For 20s attack cards cannot target you and market cards do not affect you.'),
   cleanse: C('cleanse', 'Cleanse', 'defense', 'defense', 'rare', 'cleanse', 0,
     'Removes every card effect on you and shields you for 5s.'),
+  // Elimination only (dealt where a match has cuts - server/cards.js allowedPool).
+  lifeline: C('lifeline', 'Lifeline', 'defense', 'defense', 'rare', 'lifeline', 0,
+    'Elimination: protects you from the next cut, once per match.'),
 };
 
 // Old threat-only card -> its replacement (same slot in the deck).
@@ -472,6 +475,14 @@ function playCard(match, casterId, cardType, ctx = {}, now = Date.now()) {
       caster.effects.shield = { until: now + CARD_AMOUNTS.shieldSeconds * 1000, by: caster.id };
       result.feedText = `${caster.username} raised a Shield`;
       result.notify.push({ to: caster.id, event: 'cards:shield', payload: { until: caster.effects.shield.until } });
+      break;
+    case 'lifeline':
+      if (!match.rules || !match.rules.elimination) return { success: false, error: 'Lifeline only works in matches with cuts' };
+      if (caster.lifelineUsed) return { success: false, error: 'Lifeline can be used once per match' };
+      caster.lifelineUsed = true;
+      caster.effects.lifeline = { charges: 1, by: caster.id };
+      result.feedText = `${caster.username} threw a Lifeline - safe from the next cut`;
+      result.notify.push({ to: caster.id, event: 'cards:lifeline', payload: { charges: 1 } });
       break;
     case 'cleanse':
       for (const k of TIMED_TARGET_EFFECTS) caster.effects[k] = null;
