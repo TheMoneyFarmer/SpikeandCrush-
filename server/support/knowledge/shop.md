@@ -10,7 +10,7 @@ needs_review: false
 # The shop
 
 The shop sells cosmetic items for coins:
-- Card variants: 64 items
+- Card variants: 66 items
 - Avatar frames: 5 items
 - Profile backgrounds: 5 items
 - Nameplate effects: 5 items

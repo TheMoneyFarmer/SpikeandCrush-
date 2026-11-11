@@ -2,20 +2,22 @@
 slug: sabotage-cards
 title: "Sabotage cards and abilities"
 category: cards
-tags: ["cards", "sabotage", "abilities", "deck", "freeze", "news bomb"]
+tags: ["cards", "sabotage", "abilities", "deck", "freeze", "news bomb", "lifeline", "shield", "cleanse", "defense card"]
 source: code
 needs_review: false
 ---
 
 # Sabotage cards and abilities
 
-You hold up to 4 cards at once. You are dealt cards at the start of a match (how many depends on the mode and your rank, never more than 4), and you **earn more by winning trades in a row**: see "Earning cards, streaks and Heat". Each card can be played once. Only cards you have unlocked are ever dealt or earned; new players start with 4 starter cards and unlock the rest by playing (see "Levels, ranks and card unlocks"). You can save a deck of up to 5 unlocked cards on the Cards page.
+**Defense cards** play at once on yourself: **Shield** (for 20s attack cards cannot target you and market cards do not affect you), **Cleanse** (removes every card effect on you and shields you for 5s) and **Lifeline** (Elimination only: protects you from the next cut, once per match; unlocks at level 6). Every other card is an attack or market card.
+
+You hold up to 4 cards at once (Blitz War: 2). You are dealt cards at the start of a match (how many depends on the mode and your rank, never more than 4), and you **earn more by winning trades in a row**: see "Earning cards, streaks and Heat". Each card can be played once. Only cards you have unlocked are ever dealt or earned; new players start with 4 starter cards and unlock the rest by playing (see "Levels, ranks and card unlocks"). You can save a deck of up to 5 unlocked cards on the Cards page.
 
 **How to play one:** tap the card, then pick a player from the live ranking (search, or tap Random, Leader, Above me or Below me). Defensive cards play at once on yourself. Every card changes something real: your rival's spread, fills, stop loss, take profit, trade size, how often they can trade, or their banked profit.
 
 **Protection:** a player hit by a card is protected for 10 seconds. A player can have only one timed card effect on them at a time. Shielded and offline players can't be targeted. No card can take a player below 50% of the starting capital in one hit.
 
-There are 32 cards:
+There are 33 cards:
 - **Profit Tax** (epic, targets one player; Reach Level 13): The target's next winning close within 20s pays 25% of its profit to you (max 300).
 - **Spread Blowout** (rare, targets one player; Reach Level 6): Triples the target's spread on every instrument for 20s.
 - **Slippage Storm** (rare, targets one player; Reach Level 7): The target's next 2 fills (open or close) within 30s fill 2 spreads worse.
@@ -48,5 +50,6 @@ There are 32 cards:
 - **Stop Snipe** (rare, targets one player; Reach Level 10): Drag the target's best position's stop-loss to break-even, wiping their cushion.
 - **Shield** (common, plays on yourself; starter card): For 20s attack cards cannot target you and market cards do not affect you.
 - **Cleanse** (rare, plays on yourself; Play 10 matches): Removes every card effect on you and shields you for 5s.
+- **Lifeline** (rare, plays on yourself; Reach Level 6): Elimination: protects you from the next cut, once per match.
 
 Card variants (silver, gold) from the shop are cosmetic only. Coins never buy a card.

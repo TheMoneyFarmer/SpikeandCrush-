@@ -492,6 +492,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       rules: { ...marginRules.MARGIN_RULES, maxPositions: MAX_POSITIONS, softLossPct: SOFT_LOSS_PCT, softLossWindowSeconds: SOFT_LOSS_WINDOW_SECONDS },
       cardCatalog: sabotage.getCardCatalog(),
       fire: fireClientConfig(match),
+      // Grand War lobby picker: how many cards this viewer picks, from which.
+      loadoutChoice: match.status === 'waiting' && viewerId && match.players[viewerId] ? (({ count, allowed }) => ({ count, allowed }))(loadoutRules(match, match.players[viewerId])) : null,
       // The mode's rules as the player should see them. Never the instrument,
       // size or direction of a coming market event (that would be future data).
       modeRules: modeRulesForClient(match),
@@ -3033,6 +3035,22 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   // Lets a player pick their own loadout while waiting in the lobby (Grand
   // War deals 5 cards but lets you choose WHICH 5 - other modes deal a fixed
   // random hand and don't call this). Replaces the auto-dealt hand outright.
+  // The hand a player may pick in the lobby: the same rules dealForMode
+  // deals by (slot count, starting-hand size and tiers, unlocked and
+  // mode-allowed cards only).
+  function loadoutRules(match, player) {
+    const r = match.rules && match.rules.cards;
+    if (!r) return { enabled: true, count: match.config.cardsPerPlayer, allowed: Object.keys(sabotage.CARDS) };
+    if (!r.enabled) return { enabled: false, count: 0, allowed: [] };
+    let allowed = cardRules.allowedPool(match, player);
+    let count = Math.min(r.handSize, match.config.cardsPerPlayer);
+    if (r.startingHand) {
+      allowed = allowed.filter((id) => r.startingHand.tiers.includes(modeIdentity.cardTier(id, progression.BASIC_DECK, sabotage.CARDS[id].rarity)));
+      count = Math.min(r.handSize, r.startingHand.count);
+    }
+    return { enabled: true, count: Math.min(count, allowed.length), allowed };
+  }
+
   function selectLoadoutCards(matchId, playerId, cardTypes) {
     const match = matches.get(matchId);
     if (!match) return { success: false, error: 'Match not found' };
@@ -3040,12 +3058,15 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const player = match.players[playerId];
     if (!player) return { success: false, error: 'Player not in match' };
 
-    const expectedCount = match.config.cardsPerPlayer;
+    const lr = loadoutRules(match, player);
+    if (!lr.enabled) return { success: false, error: 'Cards are off in this match' };
+    const expectedCount = lr.count;
+    const pool = lr.allowed;
     if (!Array.isArray(cardTypes) || cardTypes.length !== expectedCount) {
       return { success: false, error: `Select exactly ${expectedCount} cards` };
     }
-    const validTypes = new Set(Object.keys(sabotage.CARDS));
-    if (!cardTypes.every((t) => validTypes.has(t))) return { success: false, error: 'Invalid card selection' };
+    const validTypes = new Set(pool);
+    if (!cardTypes.every((t) => validTypes.has(t))) return { success: false, error: 'That card is locked or not allowed in this mode' };
     if (new Set(cardTypes).size !== cardTypes.length) return { success: false, error: 'Cannot select duplicate cards' };
 
     player.cards = cardTypes.map((type) => ({ type, used: false }));

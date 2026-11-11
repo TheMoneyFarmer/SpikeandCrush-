@@ -26,6 +26,7 @@ const {
 const { TEMPLATES, competitionInstruments } = require('../../compEngine');
 const { CARDS } = require('../../sabotage');
 const gameFeelCfg = require('../../config/gameFeel');
+const modeIdentity = require('../../config/modeIdentity');
 const progressionRules = require('../../progression');
 const shop = require('../../shop');
 const battlepass = require('../../battlepass');
@@ -45,16 +46,26 @@ const minutes = (seconds) => {
 const coins = (n) => (n === 0 ? 'free' : `${n} coin${n === 1 ? '' : 's'}`);
 const sign = (n) => (n > 0 ? `+${n}` : String(n));
 
-const MODE_ORDER = ['quick', 'blitz', 'grand', 'solo', 'async', 'private', 'tournament'];
+const MODE_ORDER = ['quick', 'blitz', 'grand', 'tournament', 'solo', 'async', 'private'];
+// Mode identity (server/config/modeIdentity.js): name, cards and how you win.
+const MI = (k) => modeIdentity.identity(k);
+const modeName = (k) => MI(k).displayName;
+const handOf = (k) => {
+  const c = MI(k).cards || {};
+  if (c.enabled === false) return 'none';
+  if (c.defenseOnly) return 'defense cards only (Shield, Cleanse)';
+  const start = c.startingHand ? c.startingHand.count : Math.min(MATCH_MODES[k].cardsPerPlayer, c.handSize);
+  return `${start} to start, up to ${c.handSize}${c.sabotage === false ? ', defense only' : ''}`;
+};
 
 function modeRow(key) {
   const m = MATCH_MODES[key];
   const entry =
     key === 'private' ? `${coins(PRIVATE_WAR_HOST_FEE)} for the host, free for invited players`
-    : key === 'tournament' ? 'set per tournament'
     : coins(m.entryCoins);
   const ranked = m.ranked ? `yes (${m.ratingKey === 'war_rating' ? 'War Rating' : m.ratingKey === 'grand_war_rating' ? 'separate Grand War rating' : 'separate Solo rating'})` : 'no';
-  return `| ${m.label} | ${minutes(MODE_DURATIONS[key])} | ${entry} | ${m.maxPlayers ? `${m.minPlayers}-${m.maxPlayers}` : `${m.minPlayers}+ (no limit)`} | ${Math.min(m.cardsPerPlayer, gameFeelCfg.get().cards.handSize)} | ${ranked} |`;
+  const players = key === 'tournament' ? `no limit, cuts need ${MI('tournament').elimination.minPlayersToStart}+` : m.maxPlayers === 1 ? 'just you' : key === 'solo' ? 'you and 3 AI traders' : m.maxPlayers ? `${m.minPlayers}-${m.maxPlayers}` : `${m.minPlayers}+ (no limit)`;
+  return `| ${modeName(key)} | ${minutes(MODE_DURATIONS[key])} | ${entry} | ${players} | ${handOf(key)} | ${MI(key).winShort} | ${ranked} |`;
 }
 
 function compTemplateBlock(key) {
@@ -155,18 +166,84 @@ Margin Call is also the name of a sabotage card, which closes a target's open po
       slug: 'game-modes',
       title: 'Game modes and match durations',
       category: 'modes',
-      tags: ['modes', 'duration', 'how long', 'quick war', 'blitz', 'grand war', 'solo', 'async', 'private', 'tournament', 'entry fee'],
-      body: `| Mode | Match length | Entry | Players | Cards | Ranked |
-|---|---|---|---|---|---|
+      tags: ['modes', 'duration', 'how long', 'quick war', 'blitz', 'grand war', 'elimination', 'solo', 'daily challenge', 'async', 'private', 'tournament', 'entry fee', 'which mode', 'difference between modes', 'compare modes'],
+      body: `Every mode uses the same trading rules and the same money maths (starting capital, leverage, margin, prizes). What changes is the length, the cards and how you win. The lobby's **Compare modes** button shows this table too.
+
+| Mode | Match length | Entry | Players | Cards | How you win | Ranked |
+|---|---|---|---|---|---|---|
 ${MODE_ORDER.map(modeRow).join('\n')}
 
-- **${MATCH_MODES.quick.label}**: the standard match.
-- **${MATCH_MODES.blitz.label}**: a short, cheap, unranked sprint.
-- **${MATCH_MODES.grand.label}**: the long mode. Your saved deck loads, and you can change your cards in the lobby.
-- **${MATCH_MODES.solo.label}**: free, against AI opponents only, with its own rating.
-- **${MATCH_MODES.async.label}**: everyone that day trades the same market window, alone, with no sabotage. Separate daily leaderboard.
-- **${MATCH_MODES.private.label}**: invite friends with a 6-digit room code. The host pays ${coins(PRIVATE_WAR_HOST_FEE)} when the match starts; invited players join free. Unranked.
-- **${MATCH_MODES.tournament.label}**: one-on-one bracket matches inside a tournament. The entry fee is set per tournament.`,
+${MODE_ORDER.map((k) => `- **${modeName(k)}**: ${MI(k).identity} Best for: ${MI(k).bestFor.toLowerCase()}. ${MI(k).special}.`).join('\n')}
+
+New players: start with **${modeName('quick')}** (the lobby marks it "New? Start here"). The lobby remembers the last mode you played.
+
+User-made bracket tournaments (the Tournaments page) are separate from ${modeName('tournament')}: they are one-on-one rounds, the entry fee is set per tournament, and they have no cuts.`    },
+    {
+      slug: 'elimination',
+      title: 'Elimination: cuts, Danger and Lifeline',
+      category: 'modes',
+      tags: ['elimination', 'cut', 'cuts', 'knocked out', 'eliminated', 'danger', 'lifeline', 'spectator', 'out', 'survive', 'bottom 20'],
+      body: (() => {
+        const e = MI('tournament').elimination;
+        const times = [];
+        for (let t = e.firstCutMinute * 60; t < MODE_DURATIONS.tournament; t += e.everyMinutes * 60) times.push(t / 60);
+        return `${modeName('tournament')} lasts ${minutes(MODE_DURATIONS.tournament)} and costs ${coins(MATCH_MODES.tournament.entryCoins)}.
+
+**Cuts.** At ${times.join(', ')} minutes the bottom ${Math.round(e.cutShare * 100)}% of the players still in are knocked out, at least one player each time. Cuts only happen if at least ${e.minPlayersToStart} players started, and they stop when fewer than ${e.minPlayersToStart} remain.
+
+**Warnings.** ${e.warnSeconds} seconds before each cut the match strip shows "Cut in 0:${String(e.warnSeconds).padStart(2, '0')}". Players in the group that would go out carry a **Danger** tag on the leaderboard.
+
+**When you are cut.** Your open positions are closed at the cut and you can keep watching the match, but you can't trade. Your place is set by when you went out: anyone who survives longer finishes above you, and players cut in the same round are ordered by P&L.
+
+**Winning.** The players who survive every cut are ranked by equity at the end. Prizes use the same split as every mode.
+
+**Lifeline.** A defense card that unlocks at level ${progressionRules.UNLOCKS.lifeline ? progressionRules.UNLOCKS.lifeline.level : 6}. Play it before a cut and you are skipped at the next cut, once per match. It only works in ${modeName('tournament')}.`;
+      })(),
+    },
+    {
+      slug: 'grand-war-events',
+      title: 'Grand War: market events, half-time and Steady Hand',
+      category: 'modes',
+      tags: ['grand war', 'market event', 'events', 'half-time', 'halftime', 'checkpoint', 'steady hand', 'badge', 'starting hand'],
+      body: (() => {
+        const g = MI('grand');
+        return `${modeName('grand')} lasts ${minutes(MODE_DURATIONS.grand)}.
+
+**Starting hand.** You start with ${g.cards.startingHand.count} basic or mid cards (you can pick them in the lobby) and earn the rest, up to ${g.cards.handSize}, by winning trades.
+
+**Market events.** Three events are scheduled near minutes ${g.events.minutes.join(', ')}. Each one is one of the biggest real moves of that session in the price data, found within ${Math.round(g.events.searchWindowSeconds / 60)} minutes of the mark. Nothing is invented and the direction is never shown in advance. The match strip says "Market event" a few seconds before. If no big real move exists near a mark, that event is skipped.
+
+**Half-time.** At minute ${g.checkpointMinute} a half-time card shows the leader and the top five.
+
+**Steady Hand.** At the end, the badge goes to the top-three finisher with the smallest dip from their own peak equity.`;
+      })(),
+    },
+    {
+      slug: 'solo-ghost-daily',
+      title: 'Solo Ranked ghost, personal best and Daily Challenge ghost',
+      category: 'modes',
+      tags: ['ghost', 'personal best', 'best run', 'beat yesterday', 'solo', 'solo ranked', 'daily challenge', 'async', 'mission chain'],
+      body: `**${modeName('solo')}** is free. You trade against 3 AI traders, so there is never a wait. There is no sabotage: you only get defense cards. The match strip shows the **ghost** of your best ${modeName('solo')} run: its P&L at the same second, and whether you lead or trail it. It also shows your best result from yesterday to beat. Missions come as a chain: finish one to unlock the next. The result screen shows the gap to your ghost and your personal best.
+
+**${modeName('async')}**: everyone trades the same market window today, with no cards. The strip shows the ghost of today's best run so far.
+
+**Challenge links**: after a match tap Challenge a friend. Your friend plays the exact same market and sees your run as their ghost.
+
+A ghost only appears once there is a previous finished run to compare with.`,
+    },
+    {
+      slug: 'private-house-rules',
+      title: 'Private War house rules',
+      category: 'modes',
+      tags: ['private', 'private war', 'house rules', 'host', 'room code', 'host options', 'cards off', 'deck level'],
+      body: `When you host a ${modeName('private')} you choose the house rules before the room opens:
+- **Cards**: on, or off for pure trading.
+- **Deck level**: basic cards only, basic and mid, or the full deck.
+- **Starting hand**: the mode default, or 1 to 4 cards.
+- **Elimination cuts**: off, or on (the bottom ${Math.round(MI('tournament').elimination.cutShare * 100)}% out every ${MI('tournament').elimination.everyMinutes} minutes, with ${MI('tournament').elimination.minPlayersToStart} or more players).
+- **Card style**: Quick War (4 slots) or Blitz (2 slots, fast refill).
+
+Every guest sees these rules in the room and again before the start. The match length stays ${minutes(MODE_DURATIONS.private)}. Hosting costs ${coins(PRIVATE_WAR_HOST_FEE)}, charged only when the match starts; invited players join free. Private matches are unranked.`,
     },
     {
       slug: 'prizes-and-scoring',
@@ -247,8 +324,10 @@ ${NO_CASH} Competition prizes are coins only.`,
       slug: 'sabotage-cards',
       title: 'Sabotage cards and abilities',
       category: 'cards',
-      tags: ['cards', 'sabotage', 'abilities', 'deck', 'freeze', 'news bomb'],
-      body: `You hold up to ${F.cards.handSize} cards at once. You are dealt cards at the start of a match (how many depends on the mode and your rank, never more than ${F.cards.handSize}), and you **earn more by winning trades in a row**: see "Earning cards, streaks and Heat". Each card can be played once. Only cards you have unlocked are ever dealt or earned; new players start with ${progressionRules.BASIC_DECK.length} starter cards and unlock the rest by playing (see "Levels, ranks and card unlocks"). You can save a deck of up to 5 unlocked cards on the Cards page.
+      tags: ['cards', 'sabotage', 'abilities', 'deck', 'freeze', 'news bomb', 'lifeline', 'shield', 'cleanse', 'defense card'],
+      body: `**Defense cards** play at once on yourself: **Shield** (${CARDS.shield.description.replace(/\.$/, '').replace(/^F/, 'f')}), **Cleanse** (${CARDS.cleanse.description.replace(/\.$/, '').replace(/^R/, 'r')}) and **Lifeline** (${modeName('tournament')} only: protects you from the next cut, once per match; unlocks at level ${progressionRules.UNLOCKS.lifeline ? progressionRules.UNLOCKS.lifeline.level : 6}). Every other card is an attack or market card.
+
+You hold up to ${F.cards.handSize} cards at once (${modeName('blitz')}: ${MI('blitz').cards.handSize}). You are dealt cards at the start of a match (how many depends on the mode and your rank, never more than ${F.cards.handSize}), and you **earn more by winning trades in a row**: see "Earning cards, streaks and Heat". Each card can be played once. Only cards you have unlocked are ever dealt or earned; new players start with ${progressionRules.BASIC_DECK.length} starter cards and unlock the rest by playing (see "Levels, ranks and card unlocks"). You can save a deck of up to 5 unlocked cards on the Cards page.
 
 **How to play one:** tap the card, then pick a player from the live ranking (search, or tap Random, Leader, Above me or Below me). Defensive cards play at once on yourself. Every card changes something real: your rival's spread, fills, stop loss, take profit, trade size, how often they can trade, or their banked profit.
 

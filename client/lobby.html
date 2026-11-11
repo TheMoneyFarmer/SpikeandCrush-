@@ -212,7 +212,7 @@
           ['Open positions', `Up to ${r.maxPositions || 10}`],
           ['Margin call / stop out', `${r.marginCallLevel || 100}% / ${r.stopOutLevel || 50}%`],
           ['Loss limit', r.softLossPct ? `-${r.softLossPct * 100}% in ${Math.round((r.softLossWindowSeconds || 0) / 60)} min pauses new trades` : 'None'],
-          ['Cards', `${st.cardsPerPlayer ?? 3} to start, win trades to earn more`],
+          ['Cards', st.modeRules && st.modeRules.handSize === 0 ? 'Off in this match' : `${st.loadoutChoice ? st.loadoutChoice.count : st.cardsPerPlayer ?? 3} to start, up to ${(st.modeRules && st.modeRules.handSize) || 4} slots, win trades to earn more`],
           ['Markets', (st.instruments || []).join(' · ')],
         ];
         document.getElementById('cdMode').textContent = st.modeLabel || '';
@@ -569,11 +569,15 @@
       const dealtTypes = new Set((me?.cards || []).map((c) => c.type));
 
       if (isGrandWar) {
+        // The mode's own pick: Grand War starts with 2 basic or mid cards.
+        const choice = currentState.loadoutChoice || { count: currentState.cardsPerPlayer, allowed: currentState.cardCatalog.map((c) => c.id) };
+        const pickCount = choice.count;
+        const allowedSet = new Set(choice.allowed);
         if (selectedCardTypes.size === 0) dealtTypes.forEach((t) => selectedCardTypes.add(t));
         container.innerHTML = `
-          <div style="margin-bottom:10px;font-weight:700;">${selectedCardTypes.size}/${currentState.cardsPerPlayer} selected</div>
+          <div style="margin-bottom:10px;font-weight:700;">${selectedCardTypes.size}/${pickCount} selected <span class="text-secondary" style="font-weight:400;font-size:12px;">Grand War starts you with basic and mid cards; earn the rest in the match.</span></div>
           <div class="tw-loadout-card-grid" id="loadoutCardGrid">
-            ${currentState.cardCatalog.map((c) => loadoutCardTile(c, { selectable: true, selected: selectedCardTypes.has(c.id), playedCount: playedById[c.id] || 0 })).join('')}
+            ${currentState.cardCatalog.filter((c) => allowedSet.has(c.id)).map((c) => loadoutCardTile(c, { selectable: true, selected: selectedCardTypes.has(c.id), playedCount: playedById[c.id] || 0 })).join('')}
           </div>
           <button class="btn btn-primary" id="confirmLoadoutBtn" style="margin-top:14px;width:100%;">Confirm Selection</button>
         `;
@@ -581,13 +585,13 @@
           el.addEventListener('click', () => {
             const type = el.dataset.cardType;
             if (selectedCardTypes.has(type)) selectedCardTypes.delete(type);
-            else if (selectedCardTypes.size < currentState.cardsPerPlayer) selectedCardTypes.add(type);
+            else if (selectedCardTypes.size < pickCount) selectedCardTypes.add(type);
             renderLoadoutCardsTab(container);
           });
         });
         container.querySelector('#confirmLoadoutBtn').addEventListener('click', async () => {
-          if (selectedCardTypes.size !== currentState.cardsPerPlayer) {
-            TW.toast(`Select exactly ${currentState.cardsPerPlayer} cards`, 'warning');
+          if (selectedCardTypes.size !== pickCount) {
+            TW.toast(`Select exactly ${pickCount} cards`, 'warning');
             return;
           }
           const result = await TW.emitAck('loadout:select_cards', { cardTypes: Array.from(selectedCardTypes) });

@@ -209,7 +209,14 @@ test('saved deck: never shown to other players, and Grand War can still change c
   engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck: all.slice(0, 5) });
   assert.strictEqual(match.players.p1.deck, undefined);
   assert.ok(!JSON.stringify(engine.buildMatchStatePayloadFor(match, null)).includes('"deck"'));
-  const swapped = all.slice(1, 6);
+  // Grand War's pick follows its starting hand: 2 basic or mid cards.
+  const choice = engine.buildMatchStatePayloadFor(match, 'p1').loadoutChoice;
+  assert.strictEqual(choice.count, 2);
+  const swapped = choice.allowed.slice(1, 3);
   assert.strictEqual(engine.selectLoadoutCards(match.id, 'p1', swapped).success, true);
   assert.deepStrictEqual(match.players.p1.cards.map((c) => c.type), swapped);
+  // Heavy cards and the wrong count are refused.
+  const heavy = all.find((id) => !choice.allowed.includes(id));
+  assert.strictEqual(engine.selectLoadoutCards(match.id, 'p1', [choice.allowed[0], heavy]).success, false);
+  assert.strictEqual(engine.selectLoadoutCards(match.id, 'p1', choice.allowed.slice(0, 3)).success, false);
 });

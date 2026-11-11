@@ -7,96 +7,79 @@ window.TW = window.TW || {};
 // intercepts the existing click handlers already wired in main.js
 // rather than replacing them, so the real match-start logic is untouched.
 (function () {
+  // Mode intro cards (shown the first 3 times a mode is opened). The facts
+  // match server/config/modeIdentity.js and the help page's Game Modes.
+  const PRIZES = 'Entry coins from every player go into the prize pool. The platform keeps 15%. The top four share the rest: 50%, 25%, 15% and 10%.';
   const modeData = {
     quickwar: {
-      icon: 'swords', name: 'Quick War', tagline: 'The standard battle.', color: 'var(--accent)',
-      duration: '10 Minutes', players: '2+ Players, no limit', entry: '10 Coins', ranked: 'Yes — affects War Rating',
-      instruments: '5 Random Instruments', cards: '3 Cards — from your saved deck',
+      icon: 'swords', name: 'Quick War', tagline: 'The full game. Start here.', color: 'var(--accent)',
+      duration: '10 Minutes', players: '2+ Players, no limit', entry: '10 Coins', ranked: 'Yes: War Rating',
       sections: [
-        { title: 'How It Works', content: 'All players start with $10,000 virtual capital. You have 10 minutes to make as much profit as possible by trading any of 5 random instruments. Buy when you think price goes up. Sell when you think price goes down. The player with the highest P&L when the timer hits zero wins.' },
-        { title: 'The Sabotage Layer', content: 'Each player gets 3 sabotage cards at the start, from their saved deck if they have one, otherwise at random. You can play each card once. Cards affect opponents - freeze their trading, force close their positions, spike their spreads, or show them fake news. Choose when to play them carefully.' },
-        { title: 'How You Win Coins', content: 'Entry coins from every player enter the prize pool. The platform keeps 15%. Winners share the rest, weighted toward the top finishers.' },
-        { title: 'War Rating', content: 'Finishing 1st gains rating. Finishing last loses rating. Your rating determines your tier from Recruit to War Lord.' },
+        { title: 'How It Works', content: 'Everyone starts with $10,000 of virtual capital and 5 instruments. Buy if you think the price will rise, sell if you think it will fall. Highest equity when the timer hits zero wins.' },
+        { title: 'Cards', content: 'You start with 3 cards and hold up to 4. Win trades in a row to earn more. Each card is played once and changes something real for its target: a frozen position, a wider spread, a closed trade.' },
+        { title: 'The Extras', content: 'The current leader wears the crown. Spike alerts warn you seconds before a big real move. Quick missions pay a few coins. Heat is a separate score and never changes your P&L or rank.' },
+        { title: 'Prizes and Rating', content: `${PRIZES} Finishing high gains War Rating; finishing last loses it.` },
       ],
-      tips: [
-        'Manage your risk - do not use all your capital on one trade',
-        'Watch the leaderboard to know when to be aggressive',
-        'Save sabotage cards for the last few minutes when it matters most',
-        'Use stop losses to protect profits before the timer ends',
-      ],
+      tips: ['Do not put all your capital on one trade', 'Save a card for the last minute', 'Use a stop loss to protect a winning trade'],
     },
     blitz: {
-      icon: 'bolt', name: 'Blitz War', tagline: 'Three minutes of pure chaos.', color: 'var(--warning)',
-      duration: '3 Minutes', players: '2+ Players, no limit', entry: '5 Coins', ranked: 'No — casual only',
-      instruments: '5 Random Instruments', cards: '3 Cards — from your saved deck',
+      icon: 'bolt', name: 'Blitz War', tagline: 'Three minutes on the busiest markets.', color: 'var(--warning)',
+      duration: '3 Minutes', players: '2+ Players, no limit', entry: '5 Coins', ranked: 'No',
       sections: [
-        { title: 'How It Works', content: 'Same as Quick War but 3 minutes only. No time to be patient. No time to wait for the perfect setup. You must act fast. The entire match can flip in the last 30 seconds.' },
-        { title: 'Three Cards, Three Minutes', content: 'Each player gets 3 sabotage cards, the same as Quick War, but only 3 minutes to use them. You can play each card once, so every one you hold at the buzzer is wasted.' },
-        { title: 'Why Play Blitz', content: 'It is the fastest way to earn coins. A 3-minute match means you can play several Blitz Wars in the time it takes to play one Quick War. Perfect for short sessions or fast action.' },
+        { title: 'How It Works', content: 'Same trading as Quick War, but 3 minutes and only the most active markets. The match can flip in the last 30 seconds.' },
+        { title: 'Two Slots, Fast Refill', content: 'You hold 2 cards, not 4. One winning trade earns a card and two in a row earn two, so play them: a card you still hold at the buzzer is wasted. Heavy (epic and legendary) cards are not used in Blitz.' },
+        { title: 'More Spikes', content: 'Spike alerts come more often. The result screen shows your fastest winning trade.' },
       ],
-      tips: [
-        'Move fast - every second counts',
-        'Do not hold your sabotage cards too long - unused cards do nothing',
-        'Take profits early - do not wait for perfect exits',
-        'High leverage is higher risk in 3 minutes',
-      ],
+      tips: ['Take profits early', 'Play your cards, do not hoard them', 'Big lots in 3 minutes cut both ways'],
     },
     grandwar: {
-      icon: 'trophy', name: 'Grand War', tagline: 'The prestige battle.', color: 'var(--gold, var(--accent-gold))',
-      duration: '20 Minutes', players: '4+ Players, no limit', entry: '25 Coins', ranked: 'Yes — separate Grand War rating',
-      instruments: '5 Random Instruments', cards: '5 Cards — you choose your deck',
+      icon: 'crown', name: 'Grand War', tagline: 'Twenty minutes of strategy.', color: 'var(--gold, var(--accent-gold))',
+      duration: '20 Minutes', players: '4+ Players, no limit', entry: '25 Coins', ranked: 'Yes: Grand War rating',
       sections: [
-        { title: 'How It Works', content: 'Grand War is the longest and highest-stakes mode. More players, more time, more sabotage. Your 5 cards start from your saved deck, and you can change them in the lobby. Strategy matters more here than in Quick War.' },
-        { title: 'Deck Selection', content: 'Your saved deck loads automatically. You can swap any card in the lobby before the match starts. Different combinations work for different strategies.' },
-        { title: 'The Meta Game', content: 'You can see opponents in the pre-match lobby - their tier, favourite instrument, win rate. Use this to decide your card selection and opening strategy.' },
+        { title: 'A Slow Start', content: 'You start with only 2 basic or mid cards (pick them in the lobby) and earn the rest, up to 4, by winning trades.' },
+        { title: 'Market Events', content: 'Three events are scheduled near minutes 5, 10 and 15. Each is one of the biggest real moves of that session, from the price data. The direction is never shown in advance.' },
+        { title: 'Half-time and Steady Hand', content: 'At minute 10 the half-time card shows the top five. The Steady Hand badge goes to the top-three finisher with the smallest dip from their peak.' },
+        { title: 'Prizes and Rating', content: `${PRIZES} Grand War has its own rating.` },
       ],
-      tips: [
-        'Do not rush in the first 5 minutes - observe opponents',
-        'Card selection matters - think about what opponents might bring',
-        'Manage stamina - 20 minutes is long, stay focused',
-        'The winner is often not the most aggressive player',
+      tips: ['Have a plan for each event', 'Protect your peak, not just your total', 'Twenty minutes is long: pace yourself'],
+    },
+    elimination: {
+      icon: 'trophy', name: 'Elimination', tagline: 'Survive the cuts.', color: 'var(--accent-red, #ff4d5e)',
+      duration: '15 Minutes', players: '4+ for cuts, no limit', entry: '10 Coins', ranked: 'No',
+      sections: [
+        { title: 'The Cuts', content: 'At 3, 6, 9 and 12 minutes the bottom 20% of the players still in are knocked out, at least one each time. Cuts stop when fewer than 4 players remain.' },
+        { title: 'Warnings', content: 'The match strip shows "Cut in 0:30" before each cut. If you are in the group that would go out, you carry a Danger tag.' },
+        { title: 'When You Are Cut', content: 'Your open positions close at that moment and you can keep watching. Anyone who survives longer finishes above you.' },
+        { title: 'Lifeline', content: 'The Lifeline card (unlocks at level 6) protects you from the next cut, once per match.' },
       ],
+      tips: ['Staying out of the bottom matters more than leading', 'Watch the clock before each cut', 'Keep Lifeline for when you are in danger'],
     },
     solo: {
-      icon: 'target', name: 'Solo Ranked', tagline: 'You vs the machines.', color: 'var(--info, #4fc3f7)',
-      duration: '10 Minutes', players: 'You vs AI Opponents', entry: 'Free', ranked: 'Yes — separate Solo Rating',
-      instruments: 'Random', cards: '3 Cards — from your saved deck',
+      icon: 'target', name: 'Solo Ranked', tagline: 'Race your own best run.', color: 'var(--info, #4fc3f7)',
+      duration: '10 Minutes', players: 'You vs 3 AI traders', entry: 'Free', ranked: 'Yes: Solo rating',
       sections: [
-        { title: 'How It Works', content: 'Solo Ranked is free to enter. You play against AI opponents, each with a distinct personality and strategy - some aggressive, some patient, some unpredictable.' },
-        { title: 'Why Play Solo', content: 'Practice new instruments without risking coins in a real match. Learn how sabotage cards work against different opponent types. Improve your rating without spending entry fees, any time.' },
-        { title: 'Solo Rating', content: 'Solo Ranked has its own rating separate from your main War Rating - a measure of pure trading skill against consistent AI opponents, independent of sabotage strategy.' },
+        { title: 'How It Works', content: 'Free and always open. You trade against 3 AI traders with their own personalities, so there is never a wait.' },
+        { title: 'Your Ghost', content: 'The match strip shows the ghost of your best Solo run, second by second, and your best result from yesterday to beat.' },
+        { title: 'No Sabotage', content: 'Nobody can attack you here. You only get defense cards. Missions come as a chain of three: finish one to unlock the next.' },
       ],
-      tips: [
-        'Use Solo Ranked to practice instruments you are not familiar with',
-        'Test different sabotage card strategies risk-free',
-        'Study AI behaviour - it mirrors real trader archetypes',
-        'Your solo rating is a good indicator of your raw trading skill',
-      ],
+      tips: ['Use Solo to learn a new instrument', 'Try to beat yesterday, not just win', 'Your Solo rating is separate from War Rating'],
     },
     async: {
-      icon: 'calendar', name: 'Async Daily Challenge', tagline: 'Everyone trades the same market.', color: 'var(--accent-red, #ba68c8)',
-      duration: '10 Minutes — complete any time today', players: 'Everyone who enters today', entry: '5 Coins', ranked: 'Separate daily leaderboard',
-      instruments: '3 Pre-selected — same for everyone', cards: 'None — pure trading skill',
+      icon: 'calendar', name: 'Daily Challenge', tagline: 'One market for everyone today.', color: 'var(--accent-red, #ba68c8)',
+      duration: '10 Minutes, any time today', players: 'Everyone who enters today', entry: '5 Coins', ranked: 'Daily leaderboard',
       sections: [
-        { title: 'How It Works', content: 'Every day a new 10-minute historical market window is selected. Every player trades the exact same window - same prices, same movements, same opportunities. No real-time opponents, no sabotage. Just you and the market.' },
-        { title: 'Why It Is Fair', content: 'Because everyone trades the exact same market data, the only variable is your decision-making. It is the purest measure of trading skill on the platform.' },
-        { title: 'When Results Show', content: 'Complete the challenge any time before the daily deadline. Once it passes, the leaderboard is revealed and the daily winner is announced.' },
+        { title: 'How It Works', content: 'Every player trades the exact same 10-minute window of real price data today. No live opponents, no cards: just you and the market.' },
+        { title: 'The Ghost', content: 'The match strip shows the ghost of today\'s best run so far. After your run, send a challenge link: your friend plays the same market and races your run.' },
+        { title: 'When Results Show', content: 'Play any time before the daily deadline. Then the leaderboard is revealed and the winner announced.' },
       ],
-      tips: [
-        'Check the instruments before entering to prepare your strategy',
-        'No sabotage means pure trading - use proper risk management',
-        'Complete early so you are not rushed',
-        'The daily challenge is the best way to improve your real trading skills',
-      ],
+      tips: ['Look at the instruments before you start', 'With no cards, risk management decides it', 'Play early so you are not rushed'],
     },
   };
 
   // The mode keys main.js calls TW.startModeWithTutorial(...) with - kept
   // here so resetModeTutorials() knows which localStorage counters to clear.
-  // #modePrivateBtn/#modeTournamentBtn aren't included: private opens a
-  // create/join flow and tournament navigates away, neither is a "play this
-  // mode now" moment a mode card fits.
-  const MODE_KEYS = ['quickwar', 'blitz', 'grandwar', 'solo', 'async'];
+  // #modePrivateBtn isn't included: it opens the house-rules sheet instead.
+  const MODE_KEYS = ['quickwar', 'blitz', 'grandwar', 'elimination', 'solo', 'async'];
   const MAX_SHOWN = 3;
 
   function playsKey(mode) { return `sc_mode_plays_${mode}`; }
@@ -119,7 +102,7 @@ window.TW = window.TW || {};
           </div>
           <button class="mode-card-close" aria-label="Close">${TW.icon ? TW.icon('close', { size: 18 }) : '×'}</button>
         </div>
-        <div class="mode-stats-row">
+        <div class="mode-stats-row" data-tour="mode-intro">
           <div class="mode-stat"><div class="mode-stat-label">Duration</div><div class="mode-stat-value">${TW.escapeHtml(data.duration)}</div></div>
           <div class="mode-stat"><div class="mode-stat-label">Players</div><div class="mode-stat-value">${TW.escapeHtml(data.players)}</div></div>
           <div class="mode-stat"><div class="mode-stat-label">Entry</div><div class="mode-stat-value">${TW.escapeHtml(data.entry)}</div></div>
@@ -134,12 +117,12 @@ window.TW = window.TW || {};
           `).join('')}
           <div class="mode-tips">
             <h4 class="mode-section-title">Pro tips</h4>
-            ${data.tips.map((tip) => `<div class="mode-tip-item"><span class="mode-tip-bullet" style="color:${data.color}">→</span><span>${TW.escapeHtml(tip)}</span></div>`).join('')}
+            ${data.tips.map((tip) => `<div class="mode-tip-item"><span class="mode-tip-bullet" style="color:${data.color}">-</span><span>${TW.escapeHtml(tip)}</span></div>`).join('')}
           </div>
         </div>
         <div class="mode-card-footer">
           <button class="btn-mode-learn-more">Maybe Later</button>
-          <button class="btn-mode-play">Play ${TW.escapeHtml(data.name)} →</button>
+          <button class="btn-mode-play">Play ${TW.escapeHtml(data.name)}</button>
         </div>
       </div>
     `;
