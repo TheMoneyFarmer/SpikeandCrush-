@@ -32,7 +32,7 @@
       case 'match_header_chip':
         return link(`<span class="spx-label">${esc(p.label)}</span>${logo(p, 'spx-logo')}`, 'spx-chip');
       case 'spike_strip_tag':
-        return link(`<span class="spx-label">${esc(p.label)}</span> ${esc(p.sponsor.name)}`, 'spx-tag');
+        return link(`<span class="spx-label">Spike alerts presented by</span> <b>${esc(p.sponsor.name)}</b>`, 'spx-tag');
       case 'email_footer':
         return '';
       case 'prematch':

@@ -64,3 +64,16 @@ test('report: counts only, no player handles, emails or ids', () => {
   assert.doesNotMatch(html, /user_id|username|handle/i);
   assert.doesNotMatch(html, /\$/, 'no currency symbol');
 });
+
+test('competition emails: one sponsor line, never funding or money wording', () => {
+  const { waitlistConfirmEmail, waitlistOpenEmail } = require('../server/compEmails');
+  const a = waitlistConfirmEmail({ username: 'Sam', title: 'Daily War', hook: 'Trade the real session.', rhythm: 'Runs every weekday when live', link: 'https://x.test/competitions/daily', sponsorName: 'Acme Markets' });
+  const b = waitlistOpenEmail({ username: 'Sam', title: 'Daily War', hook: 'Trade the real session.', link: 'https://x.test/competitions/daily', sponsorName: 'Acme Markets' });
+  const none = waitlistOpenEmail({ username: 'Sam', title: 'Daily War', hook: 'h', link: 'https://x.test' });
+  for (const e of [a, b]) {
+    assert.strictEqual((e.html.match(/Acme Markets/g) || []).length, 1, 'exactly one sponsor line');
+    assert.match(e.text, /Presented by Acme Markets/);
+    assert.doesNotMatch(e.html + e.text, /funded|provided by|guaranteed|win money|\$/i);
+  }
+  assert.doesNotMatch(none.html, /Presented by/);
+});

@@ -80,9 +80,11 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
     return (!start || new Date(start).getTime() <= now) && (!end || new Date(end).getTime() > now);
   }
 
-  function targetMatches(targets, target) {
+  // A cosmetic is only "Sponsored" when its own item id is targeted: 'all'
+  // would mark every item in the shop.
+  function targetMatches(targets, target, slot) {
     const list = String(targets || 'all').split(',').map((s) => s.trim()).filter(Boolean);
-    if (list.includes('all')) return true;
+    if (list.includes('all')) return slot !== 'cosmetic';
     return Boolean(target) && list.includes(target);
   }
 
@@ -146,7 +148,7 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
       return row && row.slot === slot ? [publicPayload(row)] : [];
     }
     if (!(await enabled())) return [];
-    const rows = (await rowsFor(slot)).filter((r) => live(r, now) && targetMatches(r.targets, target));
+    const rows = (await rowsFor(slot)).filter((r) => live(r, now) && targetMatches(r.targets, target, slot));
     if (!rows.length) return [];
     if (SLOTS[slot].multi) return weightedOrder(rows).slice(0, max).map(publicPayload);
     // One presenting sponsor per competition / target: a specific target beats "all".

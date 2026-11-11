@@ -1270,7 +1270,8 @@ window.TW = window.TW || {};
       ctx.font = `400 ${sq ? 24 : 20}px Inter, sans-serif`;
       ctx.fillText(window.location.host, pad, H - pad + 8);
 
-      const sp = window.TW && TW.SponsorSlots ? TW.SponsorSlots.current('result_screen', `mode:${lastState?.mode || ''}`) : null;
+      const placed = window.TW && TW.SponsorSlots ? TW.SponsorSlots.current('result_screen', `mode:${lastState?.mode || ''}`) : null;
+      const sp = placed && placed.sponsor && placed.sponsor.name ? placed.sponsor : null;
       if (sp) {
         const img = await loadImg(sp.logoDarkUrl || sp.logoUrl);
         const right = W - pad;
