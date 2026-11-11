@@ -77,7 +77,7 @@
           <button type="button" class="lb-mode" id="modePrivateBtn" data-mode="private" data-tour="mode-private" style="--mode:#C3CBDB"><span class="lb-mode-ic"></span><span class="lb-mode-name">Private</span><span class="lb-mode-dur" data-dur="private">10 min</span></button>
           <button type="button" class="lb-mode" id="modeTournamentBtn" data-mode="tournament" data-tour="mode-tournament" style="--mode:#F59E0B"><span class="lb-mode-ic"></span><span class="lb-mode-name">Elimination</span><span class="lb-mode-dur" data-dur="tournament">15 min</span></button>
         </div>
-        <div class="lb-join">
+        <div class="lb-join" data-tour="join-private">
           <label class="lb-label" for="joinRoomCodeInput">Join a private war</label>
           <input type="text" id="joinRoomCodeInput" inputmode="numeric" placeholder="6 digit code" maxlength="6" autocomplete="off" />
           <button type="button" id="joinPrivateBtn" class="lb-btn lb-btn-dark">Join</button>
@@ -85,7 +85,7 @@
       </section>
 
       <!-- 4. Featured -->
-      <section class="lb-card lb-hero" id="lbHero" data-hero-chart aria-label="Featured competition">
+      <section class="lb-card lb-hero" id="lbHero" data-hero-chart aria-label="Featured competition" data-tour="featured">
         <div class="lb-hero-inner" id="lbHeroInner"><div class="lb-skel" style="height:260px"></div></div>
       </section>
 

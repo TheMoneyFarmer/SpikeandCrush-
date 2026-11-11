@@ -257,6 +257,8 @@ window.TW = window.TW || {};
     overlay.style.transition = 'opacity 0.3s';
     overlay.style.opacity = '0';
     setTimeout(() => overlay.remove(), 300);
+    // Walkthrough: the first-match tour, or this mode's short intro.
+    setTimeout(() => { if (!matchEnded && TW.Tours) TW.Tours.forMatch(lastState); }, 700);
   }
 
   function computeEquity() {
@@ -1113,7 +1115,7 @@ window.TW = window.TW || {};
           ${challenge && me ? `<div class="ea-sub">${TW.formatMoney(me.pnl)} vs ${TW.formatMoney(challenge.pnl)} on the same market</div>` : ''}
           ${me && me.isDraw ? `<div class="ea-sub">Tied with ${me.drawWith.map(esc).join(', ')} · prize split ${me.combinedPrizePercentage}% ÷ ${me.splitCount}</div>` : ''}
         </div>
-        ${me ? `<div class="ea-you">
+        ${me ? `<div class="ea-you" data-tour="result-you">
           <div class="ea-lbl">Your P&amp;L</div>
           <div class="ea-big mono ${me.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(me.pnl)}</div>
           <div class="ea-lbl">${pct(me.pnl)} on $10,000${solo ? '' : ` · #${me.rank} of ${playerCount}`}</div>
@@ -1134,10 +1136,10 @@ window.TW = window.TW || {};
           <div class="ea-stat"><span class="ea-lbl">Trades · Cards played</span><b>${me.tradesMade} · ${me.cardsPlayed}</b></div>
         </div>
         ${tierChanged ? `<div class="ea-rankup">${ic('trophy', 16)} Rank up: you are now ${esc(me.newTier)}</div>` : ''}
-        <div class="ea-fire" data-fire-slot></div>
+        <div class="ea-fire" data-fire-slot data-tour="result-rewards"></div>
         <div class="ea-stat ea-equity"><span class="ea-lbl">Your equity</span><div class="end-equity-curve">${buildEquitySvg(me.equityHistory, payload.feed, TW.getPlayer()?.username)}</div></div>` : ''}
       </aside>
-      <footer class="end-actions ea-actions">
+      <footer class="end-actions ea-actions" data-tour="result-actions">
         <a class="ea-pill" href="/play">Play another mode</a>
         <button type="button" class="ea-pill" id="shareResultBtn">Share result</button>
         <a class="ea-pill ea-push" href="/replay?match=${encodeURIComponent(matchId)}">Watch replay</a>
@@ -1146,6 +1148,8 @@ window.TW = window.TW || {};
     `;
     document.body.appendChild(overlay);
     if (TW.Fire) TW.Fire.renderResults(overlay, me, payload);
+    // Walkthrough: what the results screen shows, after the first match.
+    if (me && TW.Tours) setTimeout(() => TW.Tours.forResults(), 3200);
     if (me && me.rank === 1 && window.TW && TW.Lottie) TW.Lottie.play('win');
 
     // reveal: 3rd, then 2nd, then 1st

@@ -82,6 +82,49 @@ function router() {
     }
   });
 
+  // Walkthrough (server/config/tours.js): switch, per-tour on/off, version
+  // and step text. Stored in game_config key 'tours'; audit-logged.
+  r.put('/tours', async (req, res) => {
+    if (!['admin', 'super_admin'].includes(req.admin.role)) return res.status(403).json({ error: 'Admins only' });
+    const value = req.body && req.body.value;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return res.status(400).json({ error: 'value must be an object' });
+    try {
+      const { data } = await supabase.from('game_config').select('value').eq('key', 'tours').maybeSingle();
+      const before = (data && data.value) || null;
+      await supabase.from('game_config').upsert({ key: 'tours', value, updated_by: req.admin.username, updated_at: new Date().toISOString() });
+      await internal.fire('/reload', {});
+      await logAdminAction({ adminUsername: req.admin.username, actionType: 'update_walkthrough', targetType: 'game_config', targetId: 'tours', details: { before, after: value }, ip: clientIp(req) });
+      res.json({ success: true });
+    } catch (e) {
+      res.status(502).json({ error: `Could not apply: ${e.message}` });
+    }
+  });
+
+  // Completion and skip counts per tour from players.settings.tours, plus the
+  // step people skip at. Counts are per account (latest outcome only).
+  r.get('/tour-stats', async (req, res) => {
+    if (!isConfigured) return res.json({ tours: {} });
+    const ids = String(req.query.ids || '').split(',').filter((x) => /^[a-zA-Z_]{1,40}$/.test(x)).slice(0, 20);
+    try {
+      const out = {};
+      for (const id of ids) {
+        const count = async (outcome) => {
+          const { count: n, error } = await supabase.from('players').select('id', { count: 'exact', head: true }).eq(`settings->tours->${id}->>outcome`, outcome);
+          if (error) throw error;
+          return n || 0;
+        };
+        const [completed, skipped] = await Promise.all([count('completed'), count('skipped')]);
+        const { data: rows } = await supabase.from('players').select(`step:settings->tours->${id}->step`).eq(`settings->tours->${id}->>outcome`, 'skipped').limit(5000);
+        const skipSteps = {};
+        for (const r2 of rows || []) if (r2.step !== null && r2.step !== undefined) skipSteps[r2.step + 1] = (skipSteps[r2.step + 1] || 0) + 1;
+        out[id] = { completed, skipped, completionRate: completed + skipped ? Math.round((completed / (completed + skipped)) * 1000) / 10 : null, skipSteps };
+      }
+      res.json({ tours: out });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Rebuild playlists (super_admin): runs the curation in the background on
   // the game server, validates, swaps only if the guarantee holds.
   r.post('/rebuild', requireSuperAdmin, async (req, res) => {

@@ -67,7 +67,7 @@
         <div class="timer-ring" id="timerRing"><div class="topbar-timer" id="topbarTimer">10:00</div></div>
         <div class="tb-rank"><div class="topbar-pnl-label">Rank</div><div class="tb-rank-value" id="topbarRank">-</div></div>
       </div>
-      <div class="instrument-tabs" id="instrumentTabs"></div>
+      <div class="instrument-tabs" id="instrumentTabs" data-tour="instruments"></div>
       <div class="tb-zone tb-right">
         <a href="/play" id="headerCoinWrap" class="tw-coin-balance hidden">🪙 <span id="headerCoinBalance">0</span></a>
         <a href="/play" class="leave-match-btn match-home-btn" id="matchHomeBtn" title="Go to Home. Your match keeps running.">Home</a>
@@ -83,7 +83,7 @@
         <!-- Match strip: crown, rival, missions; spike alerts use this same
              row. Its 32px height is always reserved, so the chart never
              moves or shrinks when an alert appears (css/fire.css). -->
-        <div class="match-strip" id="spikeStrip" aria-live="polite"></div>
+        <div class="match-strip" id="spikeStrip" aria-live="polite" data-tour="strip"></div>
         <div class="chart-quotes">
           <div class="quote"><span class="label">Bid</span><span class="bid mono" id="quoteBid">-</span></div>
           <div class="quote"><span class="label">Ask</span><span class="ask mono" id="quoteAsk">-</span></div>
@@ -138,7 +138,7 @@
             <button class="draw-tool-btn draw-tool-danger" id="clearDrawingsBtn" title="Clear all drawings on this chart">🗑️</button>
             <button class="draw-tool-btn" id="magnetToggleBtn" title="Magnet snap to candle">🧲</button>
           </div>
-          <div class="chart-canvas-wrap" id="chartCanvasWrap">
+          <div class="chart-canvas-wrap" id="chartCanvasWrap" data-tour="chart">
             <div id="chartCanvas"></div>
             <canvas id="drawingCanvas"></canvas>
             <div class="chart-effect-overlay" id="chartEffectOverlay"></div>
@@ -154,7 +154,7 @@
       <div class="trading-panel" id="tradingPanel">
         <div class="trading-panel-handle" id="tradingPanelHandle">▲ Trade</div>
 
-        <div class="trade-buttons">
+        <div class="trade-buttons" data-tour="trade">
           <button class="btn btn-buy" id="buyBtn"><span>BUY</span><span class="btn-px mono" id="buyBtnPx"></span></button>
           <button class="btn btn-sell" id="sellBtn"><span>SELL</span><span class="btn-px mono" id="sellBtnPx"></span></button>
         </div>
@@ -205,7 +205,7 @@
           <div class="risk-calc-row" id="riskCalcRow"></div>
         </div>
 
-        <div class="positions-block">
+        <div class="positions-block" data-tour="positions">
           <div class="text-secondary positions-head" style="font-size:12px;margin-bottom:6px;">Open positions <span id="positionsCount"></span></div>
           <div class="positions-list" id="positionsList"></div>
         </div>
@@ -236,14 +236,14 @@
     </div>
 
     <div class="game-bottom" id="gameBottom">
-      <div class="sabotage-panel">
+      <div class="sabotage-panel" data-tour="cards">
         <div class="fire-tray-head">
           <span class="text-secondary" style="font-size:12px;">Cards</span>
           <div class="heat-meter" id="heatMeter" hidden></div>
         </div>
         <div class="card-slots card-tray" id="cardSlots"></div>
       </div>
-      <div class="leaderboard-panel" id="leaderboardPanel">
+      <div class="leaderboard-panel" id="leaderboardPanel" data-tour="standings">
         <div class="lb-head"><span class="lb-title">Standings</span><span class="lb-live">Live</span></div>
         <div class="race-list" id="raceList"></div>
         <table class="leaderboard-table">
@@ -306,6 +306,7 @@
   <script src="js/sabotage.js"></script>
   <script src="js/fire.js"></script>
   <script src="js/modes.js"></script>
+  <script src="js/tutorial.js"></script>
   <script src="js/leaderboard.js"></script>
   <script src="js/arena-layout.js"></script>
   <script src="js/game.js"></script>

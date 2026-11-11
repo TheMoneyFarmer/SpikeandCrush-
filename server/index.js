@@ -38,6 +38,7 @@ const rankSplit = require('./rankSplit');
 const cosmetics = require('./cosmetics');
 const gameFeel = require('./config/gameFeel');
 const modeIdentity = require('./config/modeIdentity');
+const toursConfig = require('./config/tours');
 const tournament = require('./tournament');
 const presence = require('./presence');
 const friendsHub = require('./friendsHub');
@@ -878,6 +879,48 @@ app.post('/api/tutorial/complete', requireDb, authenticate, async (req, res) => 
   } catch (e) {
     console.error('[tutorial complete]', e);
     res.status(500).json({ error: 'Could not save tutorial completion' });
+  }
+});
+
+// ---- walkthrough (server/config/tours.js) ----------------------------------
+// The tours with this account's progress (players.settings.tours, versioned).
+app.get('/api/tours', requireDb, authenticate, (req, res) => {
+  const cfg = toursConfig.get();
+  const progress = (req.player.settings && req.player.settings.tours) || {};
+  res.json({ enabled: cfg.enabled, tours: cfg.tours, progress, legacyDone: Boolean(req.player.tutorial_completed) });
+});
+
+// One tour finished or skipped (at which step). The lobby tour also sets the
+// legacy tutorial_completed flag that older code still reads.
+app.post('/api/tours/progress', requireDb, authenticate, async (req, res) => {
+  try {
+    const { tour, outcome, step } = req.body || {};
+    const def = toursConfig.get().tours[tour];
+    if (!def) return res.status(400).json({ error: 'Unknown tour' });
+    if (!['completed', 'skipped'].includes(outcome)) return res.status(400).json({ error: 'outcome must be completed or skipped' });
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    const settings = { ...(player.settings || {}) };
+    settings.tours = { ...(settings.tours || {}), [tour]: { v: def.version, outcome, step: Number.isInteger(step) ? Math.max(0, Math.min(step, def.steps.length)) : null, at: new Date().toISOString() } };
+    const updates = { settings };
+    if (tour === 'lobby' && !player.tutorial_completed) Object.assign(updates, { tutorial_completed: true, tutorial_completed_at: new Date().toISOString() });
+    await db.updatePlayer(player.id, updates);
+    res.json({ success: true, progress: settings.tours });
+  } catch (e) {
+    console.error('[tours progress]', e);
+    res.status(500).json({ error: 'Could not save tour progress' });
+  }
+});
+
+// Settings > Replay the walkthrough: clears this account's tour progress.
+app.post('/api/tours/reset', requireDb, authenticate, async (req, res) => {
+  try {
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    const settings = { ...(player.settings || {}) };
+    delete settings.tours;
+    await db.updatePlayer(player.id, { settings });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Could not reset the walkthrough' });
   }
 });
 
