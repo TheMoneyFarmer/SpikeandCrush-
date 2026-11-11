@@ -1,6 +1,6 @@
 'use strict';
 
-// Recurring competition cards (Daily, Weekly, Weekend, Monthly) and partner
+// Recurring competition cards (Daily Open, Weekend Open) and partner
 // competition cards. Used by /competitions and /competitions/:key.
 // Every word on a card comes from the server (competition_templates + the
 // rules in server/competitionStates.js). A locked card keeps its full
@@ -37,7 +37,7 @@
       </div>
       <h3 id="tc-${esc(t.key)}"><a href="${esc(t.detailUrl)}">${esc(t.title)}</a></h3>
       <div class="tc-sched">${esc(t.scheduleText)} · ${esc(t.lengthText)}</div>
-      <div class="tc-prize${p.kind === 'coins' ? ' tc-prize-coins' : ''}">${esc(p.label)}</div>
+      <div class="tc-prize${p.kind === 'coins' ? ' tc-prize-coins' : ''}">${esc(p.amount ? `${p.amount} prize pool` : p.label)}</div>
       ${p.top ? `<div class="tc-top-line">${esc(p.top)}</div>` : ''}
       <p class="tc-hook">${esc(t.formatHook)}</p>
       <div class="tc-rules-line">${esc(t.rulesLine)}</div>
@@ -45,7 +45,7 @@
       <div class="tc-sponsor" data-slot="competition_card" data-target="${esc(t.sponsorTarget)}" data-variant="line" hidden></div>
       ${actions(t, variant)}
       ${t.canEnter ? '' : `<div class="tc-rhythm">${esc(t.rhythmText)}</div>`}
-      ${t.waitlist.count ? `<div class="tc-waiting">${Number(t.waitlist.count).toLocaleString()} players waiting</div>` : ''}
+      <div class="tc-waiting">${t.waitlist.count ? `${Number(t.waitlist.count).toLocaleString()} players waiting` : 'Be first on the list'}</div>
       ${variant === 'card' ? `<a class="tc-more" href="${esc(t.detailUrl)}">How it works</a>` : ''}
     </article>`;
   }
@@ -66,11 +66,20 @@
     </article>`;
   }
 
+  // Sign up first, then land back on the same page with the list joined:
+  // ?join=tpl:daily or ?join=lst:<id> is picked up by the page after login.
+  function signUpThenJoin(target) {
+    try {
+      const u = new URL(location.href);
+      u.searchParams.set('join', target);
+      localStorage.setItem('tw_redirect_after_login', u.toString());
+    } catch (e) { /* fall back to the page */ }
+    location.href = '/?login=required';
+  }
+
   async function join(key, source) {
     if (!(TW.isLoggedIn && TW.isLoggedIn())) {
-      // Sign up first, then land back here with the list joined automatically.
-      try { localStorage.setItem('tw_redirect_after_login', `${location.origin}/competitions/${key}?join=1`); } catch (e) { /* fall back to the page */ }
-      location.href = '/?login=required';
+      signUpThenJoin(`tpl:${key}`);
       return false;
     }
     const res = await fetch(`/api/competition-templates/${encodeURIComponent(key)}/waitlist`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ source }) });
@@ -85,12 +94,58 @@
     return true;
   }
 
+  // Partner listings: the same list, keyed by listing.
+  async function joinListing(id, source) {
+    if (!(TW.isLoggedIn && TW.isLoggedIn())) { signUpThenJoin(`lst:${id}`); return false; }
+    const res = await fetch(`/api/competition-listings/${encodeURIComponent(id)}/waitlist`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ source }) });
+    if (!res.ok) { (TW.toast || alert)('Could not join the list right now'); return false; }
+    TW.toast && TW.toast("You're on the list. We'll email you once when it opens.", 'info');
+    return true;
+  }
+  async function leaveListing(id) {
+    const res = await fetch(`/api/competition-listings/${encodeURIComponent(id)}/waitlist`, { method: 'DELETE', headers: authHeaders() });
+    if (!res.ok) { (TW.toast || alert)('Could not leave the list right now'); return false; }
+    TW.toast && TW.toast('You have left the list.', 'info');
+    return true;
+  }
+  async function toggleSave(id, saved) {
+    if (!(TW.isLoggedIn && TW.isLoggedIn())) { signUpThenJoin(`save:${id}`); return null; }
+    const res = await fetch(`/api/competition-listings/${encodeURIComponent(id)}/save`, { method: saved ? 'DELETE' : 'POST', headers: authHeaders() });
+    if (!res.ok) { (TW.toast || alert)('Could not save this right now'); return null; }
+    return !saved;
+  }
+
+  // After sign-up: finish what the visitor started (join a list, save a listing).
+  async function resumeAfterLogin(reload) {
+    const u = new URL(location.href);
+    const target = u.searchParams.get('join');
+    if (!target || !(TW.isLoggedIn && TW.isLoggedIn())) return;
+    u.searchParams.delete('join');
+    history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+    const [kind, id] = target.split(':');
+    if (kind === 'tpl' || target === '1') {
+      const key = kind === 'tpl' ? id : document.body.dataset.templateKey;
+      if (key) await join(key, 'signup');
+    } else if (kind === 'lst') await joinListing(id, 'signup');
+    else if (kind === 'save') await toggleSave(id, false);
+    if (reload) await reload();
+  }
+
   function wire(root, reload) {
     root.addEventListener('click', async (e) => {
       const j = e.target.closest('[data-join]');
       const l = e.target.closest('[data-leave]');
+      const jl = e.target.closest('[data-join-listing]');
+      const ll = e.target.closest('[data-leave-listing]');
+      const sv = e.target.closest('[data-save]');
       if (j) { j.disabled = true; if (await join(j.dataset.join, j.dataset.source)) await reload(); else j.disabled = false; }
       if (l) { l.disabled = true; if (await leave(l.dataset.leave)) await reload(); else l.disabled = false; }
+      if (jl) { jl.disabled = true; if (await joinListing(jl.dataset.joinListing, jl.dataset.source)) await reload(); else jl.disabled = false; }
+      if (ll) { ll.disabled = true; if (await leaveListing(ll.dataset.leaveListing)) await reload(); else ll.disabled = false; }
+      if (sv) {
+        const now = await toggleSave(sv.dataset.save, sv.getAttribute('aria-pressed') === 'true');
+        if (now !== null) { sv.setAttribute('aria-pressed', String(now)); sv.setAttribute('aria-label', now ? 'Saved. Remove from saved' : 'Save for later'); }
+      }
     });
   }
 
@@ -103,5 +158,5 @@
     return res.ok ? res.json() : null;
   }
 
-  TW.CompTemplates = { templateCard, partnerCard, join, leave, wire, fetchTemplates, fetchTemplate };
+  TW.CompTemplates = { templateCard, partnerCard, join, leave, joinListing, leaveListing, toggleSave, resumeAfterLogin, wire, fetchTemplates, fetchTemplate, esc, CHECK, BELL, EXT };
 })();

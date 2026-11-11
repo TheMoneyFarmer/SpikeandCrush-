@@ -23,10 +23,11 @@ window.Admin = window.Admin || {};
       { key: 'tournaments-history', label: 'Tournament History', href: '/tournaments.html?tab=history' },
       { key: 'tournaments-sponsors', label: 'Sponsors / Prizes', href: '/tournaments.html?tab=sponsors' },
       { key: 'competitions', label: 'Competitions', href: '/competitions.html' },
+      { key: 'listings', label: 'Partner Listings', href: '/listings.html' },
     ]},
     { group: 'Sponsors', icon: 'handshake', items: [
       { key: 'sponsors', label: 'Sponsors', href: '/sponsors.html' },
-      { key: 'sponsors-leads', label: 'Sponsor Leads', href: '/sponsors.html?tab=leads' },
+      { key: 'sponsors-leads', label: 'Partner Requests', href: '/sponsors.html?tab=leads' },
       { key: 'lobby-settings', label: 'Lobby Settings', href: '/sponsors.html?tab=lobby' },
     ]},
     { group: 'Economy', icon: 'coin', items: [

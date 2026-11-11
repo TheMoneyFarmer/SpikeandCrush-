@@ -284,7 +284,7 @@ app.get(/^\/[a-z0-9-]+\.html$/, (req, res, next) => {
 app.use('/api', requireAdmin);
 // Support agents (role 'support') may use the support inbox and nothing else.
 const supportAgentGuard = (req, res, next) => {
-  const supportReadsSponsors = req.method === 'GET' && req.path.startsWith('/sponsors') && !req.path.startsWith('/sponsors/leads');
+  const supportReadsSponsors = req.method === 'GET' && ((req.path.startsWith('/sponsors') && !req.path.startsWith('/sponsors/leads')) || (req.path.startsWith('/listings') && !/\/secrets$/.test(req.path)));
   if (req.admin && req.admin.role === 'support' && !supportReadsSponsors && !(req.baseUrl === '/api' && (req.path.startsWith('/support') || req.path.startsWith('/admins/change-password')))) {
     return res.status(403).json({ error: 'Support agents can only use the Support section' });
   }
@@ -309,6 +309,7 @@ app.use('/api/admins', require('./routes/adminUsers')());
 app.use('/api/partners', require('./routes/partners')());
 app.use('/api/support', require('./routes/support')());
 app.use('/api/sponsors', require('./routes/sponsors')());
+app.use('/api/listings', require('./routes/listings')());
 
 // Anything not matched above (e.g. /lib/auth.js, /server.js) is a 404.
 app.use((req, res) => {

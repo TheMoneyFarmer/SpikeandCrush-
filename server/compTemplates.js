@@ -144,7 +144,10 @@ function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEma
   r.get('/competitions/:key', async (req, res, next) => {
     const k = req.params.key;
     // old addresses: renamed formats move permanently, discontinued ones go to the page
-    if (k in OLD_SLUGS) return res.redirect(301, OLD_SLUGS[k] ? `/competitions/${OLD_SLUGS[k]}` : '/competitions');
+    if (k in OLD_SLUGS) {
+      const qs = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+      return res.redirect(301, OLD_SLUGS[k] ? `/competitions/${OLD_SLUGS[k]}${qs}` : '/competitions');
+    }
     if (!/^[a-z-]{3,30}$/.test(k)) return next();
     let html;
     try { html = fs.readFileSync(path.join(clientDir, 'competition-template.html'), 'utf8'); } catch (e) { return next(); }

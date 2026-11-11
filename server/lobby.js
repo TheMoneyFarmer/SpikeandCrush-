@@ -18,6 +18,11 @@ const LEAD_INTERESTS = ['global_strip', 'competition', 'mode', 'hero', 'tourname
 const LEAD_BUDGETS = ['under_1k', '1k_5k', '5k_20k', '20k_plus', 'not_sure'];
 const LEADS_PER_IP_PER_DAY = 3;
 const LEAD_INBOX = 'hello@spikeandcrush.com';
+const COMPANY_TYPES = ['prop_firm', 'broker', 'sponsor'];
+const WANTS = ['competition', 'prize', 'both'];
+const TIER_INTEREST = ['featured', 'plus', 'standard', 'not_sure'];
+const TYPE_LABEL = { prop_firm: 'Prop firm', broker: 'Broker', sponsor: 'Sponsor' };
+const WANT_LABEL = { competition: 'A competition', prize: 'A prize sponsorship', both: 'Both' };
 const LOBBY_MODES = ['quick', 'blitz', 'grand', 'solo', 'async', 'private', 'tournament'];
 
 // Daily-rotating salt so an ip_hash can't be joined across days. The secret
@@ -293,20 +298,35 @@ function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets,
   r.post('/api/sponsors/:id/click', clickLimiter, handleClick);
 
   // Sponsor enquiry form (/sponsor). Stored, then emailed to the inbox.
+  // Partner with us (/sponsor): brands, brokers and prop firms. Stored in
+  // sponsor_leads, emailed to the inbox, and confirmed to the sender.
   r.post('/api/sponsor-leads', leadLimiter, async (req, res) => {
     if (!db.isConfigured) return res.status(503).json({ error: 'Enquiries are unavailable right now' });
     const b = req.body || {};
+    // Honeypot: people never see this field; bots fill it. Look like success, store nothing.
+    if (String(b.website2 || '').trim()) return res.json({ success: true });
     const clean = (v, max) => String(v || '').trim().slice(0, max);
+    const website = clean(b.website, 200);
     const lead = {
       company: clean(b.company, 120),
       contact_name: clean(b.contactName, 120),
       email: clean(b.email, 200),
-      interest: LEAD_INTERESTS.includes(b.interest) ? b.interest : 'other',
+      company_type: COMPANY_TYPES.includes(b.companyType) ? b.companyType : null,
+      website: website || null,
+      wants: WANTS.includes(b.wants) ? b.wants : null,
+      tier_interest: TIER_INTEREST.includes(b.tierInterest) ? b.tierInterest : 'not_sure',
+      interest: LEAD_INTERESTS.includes(b.interest) ? b.interest : (b.wants === 'prize' ? 'other' : 'competition'),
       budget_band: LEAD_BUDGETS.includes(b.budgetBand) ? b.budgetBand : 'not_sure',
       message: clean(b.message, 2000),
     };
-    if (!lead.company || !lead.contact_name) return res.status(400).json({ error: 'Company and contact name are required' });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) return res.status(400).json({ error: 'Enter a valid email address' });
+    const errors = {};
+    if (!lead.company) errors.company = 'Enter your company name';
+    if (!lead.contact_name) errors.contactName = 'Enter your name';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) errors.email = 'Enter a valid work email';
+    if (!lead.company_type) errors.companyType = 'Choose prop firm, broker or sponsor';
+    if (!lead.wants) errors.wants = 'Choose what you want to list';
+    if (website && !/^https?:\/\/[^\s.]+\.[^\s]+$/i.test(website)) errors.website = 'Website must start with https://';
+    if (Object.keys(errors).length) return res.status(400).json({ error: Object.values(errors)[0], errors });
     try {
       const hash = ipHash(req);
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
@@ -314,18 +334,27 @@ function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets,
         return res.status(429).json({ error: 'Thanks - we already have your enquiry and will be in touch.' });
       }
       const saved = await db.createSponsorLead({ ...lead, ip_hash: hash });
-      const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+      const esc = (x) => String(x ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
       sendEmail({
         to: LEAD_INBOX,
-        subject: `Sponsor enquiry: ${lead.company}`,
-        html: `<p><b>${esc(lead.company)}</b> - ${esc(lead.contact_name)} &lt;${esc(lead.email)}&gt;</p>
-          <p>Interested in: ${esc(lead.interest)} · Budget: ${esc(lead.budget_band)}</p>
+        idempotencyKey: `partner-lead:${saved.id}`,
+        subject: `Partner request: ${lead.company} (${TYPE_LABEL[lead.company_type]})`,
+        html: `<p><b>${esc(lead.company)}</b> (${esc(TYPE_LABEL[lead.company_type])}) - ${esc(lead.contact_name)} &lt;${esc(lead.email)}&gt;</p>
+          <p>Website: ${esc(lead.website || 'not given')}<br>Wants to list: ${esc(WANT_LABEL[lead.wants])}<br>Tier interest: ${esc(lead.tier_interest)}</p>
           <p>${esc(lead.message).replace(/\n/g, '<br>')}</p>`,
-      }).catch((e) => console.warn('[sponsor lead email]', e.message));
+        text: `${lead.company} (${TYPE_LABEL[lead.company_type]}) - ${lead.contact_name} <${lead.email}>\nWebsite: ${lead.website || 'not given'}\nWants to list: ${WANT_LABEL[lead.wants]}\nTier interest: ${lead.tier_interest}\n\n${lead.message}`,
+      }).catch((e) => console.warn('[partner lead email]', e.message));
+      sendEmail({
+        to: lead.email,
+        idempotencyKey: `partner-lead-confirm:${saved.id}`,
+        subject: 'We have your request',
+        html: `<p>Hi ${esc(lead.contact_name)},</p><p>Thanks for your interest in partnering with Spike &amp; Crush. We have your request for ${esc(lead.company)} and will reply within two working days.</p><p>If you need us sooner, reply to this email.</p>`,
+        text: `Hi ${lead.contact_name},\n\nThanks for your interest in partnering with Spike & Crush. We have your request for ${lead.company} and will reply within two working days.\n\nIf you need us sooner, reply to this email.`,
+      }).catch((e) => console.warn('[partner lead confirm]', e.message));
       res.json({ success: true, id: saved.id });
     } catch (e) {
       console.error('[sponsor lead]', e);
-      res.status(500).json({ error: 'Could not send your enquiry. Please email hello@spikeandcrush.com.' });
+      res.status(500).json({ error: 'Could not send your request. Please email hello@spikeandcrush.com.' });
     }
   });
 

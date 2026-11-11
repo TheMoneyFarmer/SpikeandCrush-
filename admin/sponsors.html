@@ -51,7 +51,7 @@
 
         <div class="admin-tabs">
           <button class="admin-tab" data-tab="sponsors">Sponsors</button>
-          <button class="admin-tab" data-tab="leads">Sponsor Leads</button>
+          <button class="admin-tab" data-tab="leads">Partner requests</button>
           <button class="admin-tab" data-tab="lobby">Lobby Settings</button>
         </div>
 
@@ -79,7 +79,7 @@
         <div class="admin-tab-panel" id="tab-leads">
           <div class="panel">
             <div class="sp-toolbar">
-              <div class="field"><label for="leadStatus">Status</label><select id="leadStatus"><option value="">All</option><option>new</option><option>contacted</option><option>closed</option></select></div>
+              <div class="field"><label for="leadStatus">Status</label><select id="leadStatus"><option value="">All</option><option>new</option><option>contacted</option><option>signed</option><option>declined</option><option>closed</option></select></div>
             </div>
             <div id="leadTable">Loading…</div>
           </div>
@@ -508,18 +508,22 @@
         const { leads } = await Admin.api(`/sponsors/leads${status ? `?status=${status}` : ''}`);
         wrap.innerHTML = `
           <div class="admin-table-wrap"><table class="admin-table">
-            <thead><tr><th>Received</th><th>Company</th><th>Contact</th><th>Interest</th><th>Budget</th><th>Message</th><th>Status</th></tr></thead>
+            <thead><tr><th>Received</th><th>Company</th><th>Contact</th><th>Wants</th><th>Tier</th><th>Message</th><th>Status and notes</th></tr></thead>
             <tbody>${leads.map((l) => `<tr>
               <td>${Admin.timeAgo(l.created_at)}</td>
-              <td>${esc(l.company)}</td>
+              <td><b>${esc(l.company)}</b><div class="muted">${esc({ prop_firm: 'Prop firm', broker: 'Broker', sponsor: 'Sponsor' }[l.company_type] || l.interest || '')}</div>${l.website ? `<div class="muted">${esc(l.website)}</div>` : ''}</td>
               <td>${esc(l.contact_name)}<br><a href="mailto:${esc(l.email)}">${esc(l.email)}</a></td>
-              <td>${esc(l.interest || '')}</td>
-              <td>${esc(l.budget_band || '')}</td>
+              <td>${esc({ competition: 'A competition', prize: 'A prize sponsorship', both: 'Both' }[l.wants] || '')}</td>
+              <td>${esc(l.tier_interest || '')}</td>
               <td style="max-width:320px;white-space:pre-wrap;">${esc(l.message || '')}</td>
-              <td><select class="edit-field" data-lead="${l.id}">${['new', 'contacted', 'closed'].map((st) => `<option ${st === l.status ? 'selected' : ''}>${st}</option>`).join('')}</select></td>
-            </tr>`).join('') || '<tr><td colspan="7">No enquiries yet</td></tr>'}</tbody>
+              <td style="min-width:200px"><select class="edit-field" data-lead="${l.id}">${['new', 'contacted', 'signed', 'declined', 'closed'].map((st) => `<option ${st === l.status ? 'selected' : ''}>${st}</option>`).join('')}</select>
+                <textarea class="edit-field" data-lead-notes="${l.id}" rows="2" placeholder="Notes" style="width:100%;margin-top:6px">${esc(l.notes || '')}</textarea></td>
+            </tr>`).join('') || '<tr><td colspan="7">No requests yet</td></tr>'}</tbody>
           </table></div>`;
         applyRole();
+        wrap.querySelectorAll('[data-lead-notes]').forEach((ta) => ta.addEventListener('change', async () => {
+          try { await Admin.api(`/sponsors/leads/${ta.dataset.leadNotes}`, { method: 'PUT', body: { notes: ta.value } }); Admin.toast('Notes saved', 'success'); } catch (e) { Admin.toast(e.message, 'danger'); }
+        }));
         wrap.querySelectorAll('[data-lead]').forEach((sel) => sel.addEventListener('change', async () => {
           try {
             await Admin.api(`/sponsors/leads/${sel.dataset.lead}`, { method: 'PUT', body: { status: sel.value } });

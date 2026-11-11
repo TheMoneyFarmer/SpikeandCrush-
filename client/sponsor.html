@@ -4,14 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <!-- seo:start -->
-<title>Sponsor | Spike &amp; Crush</title>
-<meta name="description" content="Put your brand in front of traders: present a competition, a game mode or the lobby partner strip." />
+<title>Partner with us | Spike &amp; Crush</title>
+<meta name="description" content="List a competition or sponsor a prize on Spike &amp; Crush. For prop firms, brokers and brands." />
 <link rel="canonical" href="https://www.spikeandcrush.com/sponsor" />
 <meta name="theme-color" content="#14213d" />
 <link rel="manifest" href="/site.webmanifest" />
 <meta property="og:site_name" content="Spike &amp; Crush" />
-<meta property="og:title" content="Sponsor | Spike &amp; Crush" />
-<meta property="og:description" content="Put your brand in front of traders: present a competition, a game mode or the lobby partner strip." />
+<meta property="og:title" content="Partner with us | Spike &amp; Crush" />
+<meta property="og:description" content="List a competition or sponsor a prize on Spike &amp; Crush. For prop firms, brokers and brands." />
 <meta property="og:url" content="https://www.spikeandcrush.com/sponsor" />
 <meta property="og:type" content="website" />
 <meta property="og:image" content="https://www.spikeandcrush.com/og-image.png" />
@@ -45,6 +45,16 @@
   .sp-status { margin-top: 4px; font-size: 14px; }
   .sp-status.ok { color: var(--spike); }
   .sp-status.err { color: var(--crush); }
+  .sp-tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 20px; }
+  .sp-tier { border-radius: var(--r-card); border: 1px solid var(--line); background: var(--panel-3); padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .sp-tier h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  .sp-tier p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .sp-tier .sp-price { color: var(--gold, #f5b83d); font-weight: 600; }
+  .sp-tier.t-featured { border-color: var(--gold, #f5b83d); }
+  .sp-tier.t-plus { border-color: var(--spike, #1fd38a); }
+  .sp-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+  .sp-err { color: var(--crush); font-size: 13px; }
+  @media (max-width: 760px) { .sp-tiers { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 600px) { .sp-form { grid-template-columns: minmax(0, 1fr); } }
 </style>
   <link rel="stylesheet" href="/css/console.css" />
@@ -55,37 +65,50 @@
     <a class="lb-link-gold" href="/play">Back to the lobby</a>
     <header class="sp-head" data-candle-bg>
       <div>
-        <span class="lb-label">Partners</span>
-        <h1>Sponsor a game</h1>
-        <p>Present a competition, a game mode or the lobby partner strip to traders playing Spike &amp; Crush. Tell us what you have in mind and we'll get back to you.</p>
+        <span class="lb-label">For prop firms, brokers and brands</span>
+        <h1>Partner with us</h1>
+        <p>List your competition or sponsor a prize, in front of traders who play every day. Tell us what you have in mind and we will reply within two working days.</p>
+        <p style="margin-top:10px">Want to run a competition with friends? Use the <a class="lb-link-gold" href="/play">Tournament</a> option in game modes.</p>
       </div>
     </header>
 
+    <section class="sp-tiers" id="spTiers" aria-label="Listing tiers">
+      <div class="sp-tier t-featured"><h2>Featured</h2><p>Top of its tab and of All, a larger row, a gold ring and the Featured chip. Your logo also shows in the lobby sponsor strip and on the result screen.</p></div>
+      <div class="sp-tier t-plus"><h2>Plus</h2><p>Listed above Standard, with a green ring and the Plus chip.</p></div>
+      <div class="sp-tier"><h2>Standard</h2><p>A listing in its tab. Within a tier, whoever listed first stays first.</p></div>
+    </section>
+
     <section class="lb-card">
       <form class="sp-form" id="sponsorForm" novalidate>
+        <div class="sp-hp" aria-hidden="true"><label for="website2">Leave this empty</label><input id="website2" name="website2" tabindex="-1" autocomplete="off" /></div>
         <div class="sp-field"><label class="lb-label" for="company">Company</label><input id="company" name="company" required maxlength="120" autocomplete="organization" /></div>
         <div class="sp-field"><label class="lb-label" for="contactName">Contact name</label><input id="contactName" name="contactName" required maxlength="120" autocomplete="name" /></div>
-        <div class="sp-field full"><label class="lb-label" for="email">Email</label><input id="email" name="email" type="email" required maxlength="200" autocomplete="email" /></div>
-        <div class="sp-field"><label class="lb-label" for="interest">What you'd like to sponsor</label>
-          <select id="interest" name="interest">
-            <option value="competition">A competition</option>
-            <option value="mode">A game mode</option>
-            <option value="global_strip">Lobby partner strip</option>
-            <option value="hero">Lobby hero placement</option>
-            <option value="tournament">A tournament</option>
-            <option value="other">Something else</option>
+        <div class="sp-field"><label class="lb-label" for="email">Work email</label><input id="email" name="email" type="email" required maxlength="200" autocomplete="email" /></div>
+        <div class="sp-field"><label class="lb-label" for="website">Website</label><input id="website" name="website" type="url" maxlength="200" placeholder="https://" autocomplete="url" /></div>
+        <div class="sp-field"><label class="lb-label" for="companyType">You are</label>
+          <select id="companyType" name="companyType" required>
+            <option value="">Choose one</option>
+            <option value="prop_firm">A prop firm</option>
+            <option value="broker">A broker</option>
+            <option value="sponsor">A brand or sponsor</option>
           </select></div>
-        <div class="sp-field"><label class="lb-label" for="budgetBand">Budget</label>
-          <select id="budgetBand" name="budgetBand">
+        <div class="sp-field"><label class="lb-label" for="wants">You want to list</label>
+          <select id="wants" name="wants" required>
+            <option value="">Choose one</option>
+            <option value="competition">A competition</option>
+            <option value="prize">A prize sponsorship</option>
+            <option value="both">Both</option>
+          </select></div>
+        <div class="sp-field full"><label class="lb-label" for="tierInterest">Listing tier you are interested in</label>
+          <select id="tierInterest" name="tierInterest">
             <option value="not_sure">Not sure yet</option>
-            <option value="under_1k">Under 1k</option>
-            <option value="1k_5k">1k to 5k</option>
-            <option value="5k_20k">5k to 20k</option>
-            <option value="20k_plus">20k or more</option>
+            <option value="featured">Featured</option>
+            <option value="plus">Plus</option>
+            <option value="standard">Standard</option>
           </select></div>
         <div class="sp-field full"><label class="lb-label" for="message">Message</label><textarea id="message" name="message" maxlength="2000"></textarea></div>
         <div class="full">
-          <button type="submit" class="lb-btn lb-btn-gold" id="sponsorSubmit">Send enquiry</button>
+          <button type="submit" class="lb-btn lb-btn-gold" id="sponsorSubmit">Send request</button>
           <div class="sp-status" id="sponsorStatus" role="status" aria-live="polite"></div>
         </div>
       </form>
@@ -104,6 +127,16 @@
   <script src="/js/candle-bg.js"></script>
   <script>
     (function () {
+      // Tier price lines show only once they are set in admin.
+      fetch('/api/listing-tiers').then((r) => (r.ok ? r.json() : { tiers: [] })).then(({ tiers }) => {
+        const box = document.getElementById('spTiers');
+        (tiers || []).forEach((t, i) => {
+          const card = box.children[['featured', 'plus', 'standard'].indexOf(t.key)];
+          if (!card) return;
+          card.querySelector('h2').textContent = t.name;
+          if (t.price_text) { const p = document.createElement('p'); p.className = 'sp-price'; p.textContent = `From ${t.price_text} per month`; card.appendChild(p); }
+        });
+      }).catch(() => {});
       const form = document.getElementById('sponsorForm');
       const status = document.getElementById('sponsorStatus');
       const btn = document.getElementById('sponsorSubmit');
@@ -112,7 +145,12 @@
         const body = Object.fromEntries(new FormData(form).entries());
         if (!body.company.trim() || !body.contactName.trim()) {
           status.className = 'sp-status err';
-          status.textContent = 'Please fill in your company and contact name.';
+          status.textContent = 'Please fill in your company and your name.';
+          return;
+        }
+        if (!body.companyType || !body.wants) {
+          status.className = 'sp-status err';
+          status.textContent = 'Choose what kind of company you are and what you want to list.';
           return;
         }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {

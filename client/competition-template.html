@@ -30,6 +30,9 @@
 .ct-times { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 14px; }
 .ct-times span:nth-child(odd) { color: var(--c-mute); }
 .ct-side { position: sticky; top: 80px; }
+.ct-split { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+.ct-split th { text-align: left; font-weight: 500; color: var(--c-mute); font-size: 12px; padding: 6px 0; border-bottom: 1px solid var(--c-hair); }
+.ct-split td { padding: 6px 0; border-bottom: 1px solid var(--c-hair); color: var(--c-body); font-variant-numeric: tabular-nums; }
 .ct-side .tc-card h3 { font-size: 18px; }
 @media (max-width: 900px) { .ct-wrap { grid-template-columns: minmax(0, 1fr); padding: 16px; } .ct-side { position: static; order: -1; } }
 </style>
@@ -46,11 +49,11 @@
   <div>
     <div data-slot="competition_card" data-variant="header" id="ctSponsor" hidden></div>
     <section class="ct-sec" aria-labelledby="ctHow"><h2 id="ctHow">How it works</h2><p id="ctWhat"></p><div class="ct-times" id="ctTimes"></div></section>
-    <section class="ct-sec" aria-labelledby="ctPrizeH"><h2 id="ctPrizeH">Prize</h2><p id="ctPrize"></p><p id="ctPrizeTop"></p></section>
+    <section class="ct-sec" aria-labelledby="ctPrizeH"><h2 id="ctPrizeH">Prize</h2><p id="ctPrize"></p><p id="ctPrizeTop"></p><table class="ct-split" id="ctSplit" hidden><thead><tr><th scope="col">Place</th><th scope="col">Share</th><th scope="col">Amount</th></tr></thead><tbody></tbody></table></section>
     <section class="ct-sec" aria-labelledby="ctRulesH"><h2 id="ctRulesH">Rules</h2>
       <ul id="ctRules"></ul>
       <p><strong>No AI, bots or EAs.</strong> Every trade must be placed by you. We review trading patterns, and accounts that trade automatically are removed and lose any prize.</p>
-      <p>You can enter more than one competition at the same time. For example, you can enter the Daily and the Weekly together.</p>
+      <p>You can enter more than one competition at the same time. For example, you can enter the Daily Open and the Weekend Open together.</p>
     </section>
     <section class="ct-sec" aria-labelledby="ctPayH"><h2 id="ctPayH">Who pays the prize, and how</h2>
       <p>Entry is free. It never costs coins or money, and nothing you can buy affects it.</p>
@@ -76,15 +79,9 @@
 <script>
 (function () {
   const key = location.pathname.split('/').filter(Boolean).pop();
-  // Planned windows (UTC) for each format, shown in the player's own timezone.
-  const WINDOWS = {
-    daily: { days: 'Monday to Friday', start: [0, 0], end: [22, 0], note: 'One full trading day each weekday.' },
-    weekly: { days: 'Monday to Friday, one account all week', start: [0, 0], end: [21, 0], note: 'Starts Monday, ends Friday.' },
-    weekend: { days: 'Saturday and Sunday', start: [0, 0], end: [23, 0], note: 'Starts Saturday, ends Sunday. Crypto markets only.' },
-    monthly: { days: 'The whole calendar month', start: [0, 0], end: [23, 0], note: 'Starts on the 1st, ends on the last day of the month.' },
-  };
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'your time';
-  const at = (h, m) => { const d = new Date(); d.setUTCHours(h, m, 0, 0); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
+  const when = (iso) => new Date(iso).toLocaleString([], { weekday: 'long', hour: '2-digit', minute: '2-digit' });
+  const money = (n, cur) => { try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur || 'USD', maximumFractionDigits: 0 }).format(n); } catch (e) { return `${cur} ${Math.round(n)}`; } };
 
   async function render() {
     const d = await TW.CompTemplates.fetchTemplate(key);
@@ -94,9 +91,23 @@
     document.getElementById('ctTitle').textContent = t.title;
     document.getElementById('ctHook').textContent = t.formatHook;
     document.getElementById('ctWhat').textContent = `${t.scheduleText}. ${t.lengthText}. ${t.rulesLine}`;
-    const w = WINDOWS[key];
-    document.getElementById('ctTimes').innerHTML = w ? `<span>When</span><span>${w.days}</span><span>Market session</span><span>${at(...w.start)} to ${at(...w.end)} (${tz})</span><span>Note</span><span>${w.note} Exact times are confirmed when each run opens.</span>` : '';
-    document.getElementById('ctPrize').textContent = t.prize.label === 'Cash prizes' ? 'Cash prizes. The prize pool for each run is announced, with the paying partner, before the run opens.' : t.prize.label;
+    document.body.dataset.templateKey = t.key;
+    const w = t.nextWindow;
+    const isWeekend = t.key === 'weekend';
+    const rows = [['When', t.scheduleText]];
+    if (w) {
+      rows.push([isWeekend ? 'Next weekend' : 'Next session', `${when(w.startsAt)} to ${when(w.endsAt)} (${tz})`]);
+      if (isWeekend) rows.push(['Length', 'Two days, Saturday to Sunday']);
+      else if (w.sessionName) rows.push(['Market session', `${w.sessionName}, shown in your time (${tz})`]);
+    }
+    if (t.instruments && t.instruments.length) rows.push(['Weekend markets', `${t.marketsLabel || 'crypto'}: ${t.instruments.join(', ')}`]);
+    rows.push(['Note', 'Exact times are confirmed when each run opens.']);
+    document.getElementById('ctTimes').innerHTML = rows.map(([k, v]) => `<span>${TW.escapeHtml(k)}</span><span>${TW.escapeHtml(v)}</span>`).join('');
+    document.getElementById('ctPrize').textContent = t.prize.amount ? `${t.prize.amount} prize pool, paid in money by the competition partner named in the terms of each run.` : 'Cash prizes. The prize pool for each run is announced, with the paying partner, before the run opens.';
+    const pool = Number(String(t.prize.amount || '').replace(/[^0-9.]/g, '')) || 0;
+    const split = document.getElementById('ctSplit');
+    split.hidden = !(t.prizeBreakdown && t.prizeBreakdown.length);
+    split.querySelector('tbody').innerHTML = (t.prizeBreakdown || []).map((x) => `<tr><td>${TW.escapeHtml(x.places)}</td><td>${Number(x.share)}%</td><td>${pool ? TW.escapeHtml(money((pool * Number(x.share)) / 100, t.prize.currency)) : ''}</td></tr>`).join('');
     document.getElementById('ctPrizeTop').textContent = t.prize.top || '';
     document.getElementById('ctRules').innerHTML = [t.rulesLine, ...(t.moneyRules || [])].map((r) => `<li>${TW.escapeHtml(r)}</li>`).join('');
     const sp = document.getElementById('ctSponsor');
@@ -107,13 +118,8 @@
   }
 
   TW.CompTemplates.wire(document.getElementById('ctCard'), render);
-  render().then(async (t) => {
-    // Back from sign-up with ?join=1: join the list automatically, then tidy the URL.
-    if (t && new URLSearchParams(location.search).get('join') === '1' && TW.isLoggedIn && TW.isLoggedIn()) {
-      if (!t.waitlist.joined) { await TW.CompTemplates.join(t.key, 'signup'); await render(); }
-      history.replaceState(null, '', location.pathname);
-    }
-  });
+  // Back from sign-up with ?join=...: join the list automatically, then tidy the URL.
+  render().then(() => TW.CompTemplates.resumeAfterLogin(render));
 })();
 </script>
 <script src="/js/bottom-nav.js"></script>

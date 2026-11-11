@@ -41,8 +41,12 @@ function createSitemap(db) {
       const urls = SITEMAP_PATHS.map((p) => ({ loc: `${SITE}${p}` }));
       try {
         if (db.isConfigured) {
-          const live = (await db.listPublishedCompetitions()).filter((c) => !['ended', 'completed', 'cancelled', 'settled'].includes(c.status));
-          for (const c of live.slice(0, 49000)) urls.push({ loc: `${SITE}/competition/${c.id}`, lastmod: c.updated_at || c.created_at });
+          const all = await db.listPublishedCompetitions();
+          // native runs have play pages; partner listings have detail pages
+          const live = all.filter((c) => c.type === 'native' && !['ended', 'completed', 'cancelled', 'settled', 'void'].includes(c.status) && c.state !== 'closed');
+          for (const c of live.slice(0, 40000)) urls.push({ loc: `${SITE}/competition/${c.id}`, lastmod: c.updated_at || c.created_at });
+          for (const c of all.filter((x) => x.type !== 'native' && x.slug && x.state !== 'closed').slice(0, 5000)) urls.push({ loc: `${SITE}/competitions/listing/${c.slug}`, lastmod: c.updated_at || c.created_at });
+          for (const slug of ['daily-open', 'weekend-open']) urls.push({ loc: `${SITE}/competitions/${slug}` });
         }
       } catch (e) {
         console.error('[sitemap]', e.message);

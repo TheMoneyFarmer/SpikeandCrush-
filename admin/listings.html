@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Partner Listings — Spike & Crush Admin</title>
+<link rel="icon" href="/icons/admin.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/admin-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
+<style>
+  .ls-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+  .ls-toolbar .field { margin: 0; }
+  .ls-logo { width: 36px; height: 36px; border-radius: 9px; object-fit: contain; background: #182746; }
+  .ls-chip { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); margin-right: 4px; }
+  .ls-chip.featured { border-color: #f5b83d; color: #f5b83d; }
+  .ls-chip.plus { border-color: #1fd38a; color: #1fd38a; }
+  .ls-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 14px; }
+  .ls-form .wide { grid-column: 1 / -1; }
+  .ls-form .field { margin: 0; }
+  .ls-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+  .ls-secret { display: grid; grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: end; }
+  .ls-warn { color: #ff6b6b; font-weight: 600; font-size: 13px; }
+  .muted { color: var(--text-secondary, #9AA4B8); font-size: 12px; }
+  .hidden { display: none !important; }
+  @media (max-width: 1100px) { .ls-grid { grid-template-columns: minmax(0, 1fr); } .ls-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  @media (max-width: 640px) { .ls-form { grid-template-columns: minmax(0, 1fr); } .ls-secret { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="listings"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+        <div class="readonly-note hidden panel" id="readonlyNote">Your role is read-only here.</div>
+        <div class="panel">
+          <div class="ls-toolbar">
+            <div class="field"><label for="fType">Type</label><select id="fType"><option value="">All</option><option value="prop">Prop firms</option><option value="broker">Brokers</option><option value="sponsored">Sponsored</option></select></div>
+            <div class="field"><label for="fTier">Tier</label><select id="fTier"><option value="">All</option><option value="featured">Featured</option><option value="plus">Plus</option><option value="standard">Standard</option></select></div>
+            <div class="field"><label for="fState">Status</label><select id="fState"><option value="">All</option><option value="draft">Draft</option><option value="coming_soon">Coming soon</option><option value="running">Running</option><option value="closed">Closed</option></select></div>
+            <div class="field"><label for="fPreview">Preview</label><select id="fPreview"><option value="">All</option><option value="yes">Preview only</option><option value="no">Real partners</option></select></div>
+            <span style="flex:1"></span>
+            <button class="btn editor-only" id="seedBtn">Load seed listings</button>
+            <button class="btn btn-primary editor-only" id="newBtn">New listing</button>
+          </div>
+          <div id="keyWarn" class="ls-warn hidden" style="margin-bottom:10px">LISTING_SECRETS_KEY is not set on the admin server: links and codes cannot be saved.</div>
+          <div class="admin-table-wrap"><table class="admin-table">
+            <thead><tr><th></th><th>Listing</th><th>Type</th><th>Tier</th><th>Status</th><th>Prize</th><th>Listed</th><th>Waiting</th><th>Clicks</th><th>Link</th></tr></thead>
+            <tbody id="lsBody"><tr><td colspan="10" class="muted">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
+        <div class="ls-grid">
+          <div class="panel hidden" id="editPanel"></div>
+          <div class="panel" id="tiersPanel"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="js/time-ago.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Partner Listings');
+    const esc = Admin.escapeHtml;
+    const $ = (id) => document.getElementById(id);
+    let data = { listings: [], tiers: [] };
+    const TYPE = { prop: 'Prop firm', broker: 'Broker', sponsored: 'Sponsored' };
+    const STATUS = { draft: 'Draft', coming_soon: 'Coming soon', running: 'Running', closed: 'Closed' };
+    const local = (iso) => (iso ? new Date(new Date(iso).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
+    const toIso = (v) => (v ? new Date(v).toISOString() : null);
+
+    async function load() {
+      const qs = new URLSearchParams();
+      [['fType', 'type'], ['fTier', 'tier'], ['fState', 'state'], ['fPreview', 'preview']].forEach(([id, k]) => { if ($(id).value) qs.set(k, $(id).value); });
+      try { data = await Admin.api(`/listings?${qs}`); } catch (e) { $('lsBody').innerHTML = `<tr><td colspan="10">${esc(e.message)}</td></tr>`; return; }
+      $('readonlyNote').classList.toggle('hidden', data.canEdit);
+      document.querySelectorAll('.editor-only').forEach((el) => el.classList.toggle('hidden', !data.canEdit));
+      $('seedBtn').classList.toggle('hidden', !data.isSuper);
+      $('keyWarn').classList.toggle('hidden', data.secretsKey);
+      $('lsBody').innerHTML = data.listings.map((l) => `<tr class="ls-row" data-id="${l.id}" style="cursor:pointer">
+        <td>${l.organizer?.logo_url ? `<img class="ls-logo" src="${esc(l.organizer.logo_dark_url || l.organizer.logo_url)}" alt="">` : ''}</td>
+        <td><b>${esc(l.title)}</b><div class="muted">${esc(l.organizer?.name || '')}${l.is_preview ? ' · <span class="ls-chip">Preview</span>' : ''}${l.pin_tab ? ` · pinned on ${esc(l.pin_tab)}` : ''}</div></td>
+        <td>${TYPE[l.type]}</td>
+        <td><span class="ls-chip ${l.tier}">${esc(l.tier)}</span></td>
+        <td>${STATUS[l.status] || l.status}</td>
+        <td>${l.prize_kind === 'money' ? `${esc(l.prize_currency)} ${Number(l.prize_pool).toLocaleString()}` : esc(l.prize_text || '')}</td>
+        <td class="muted">${Admin.formatDate(l.listed_at)}</td>
+        <td>${l.waitlist}</td>
+        <td>${l.outbound_clicks}</td>
+        <td>${l.outbound.set ? 'Set' : '<span class="muted">Not set</span>'}</td>
+      </tr>`).join('') || '<tr><td colspan="10" class="muted">No listings</td></tr>';
+      document.querySelectorAll('.ls-row').forEach((tr) => tr.addEventListener('click', () => edit(data.listings.find((x) => x.id === tr.dataset.id))));
+      renderTiers();
+    }
+
+    function field(id, label, value, attrs = '') { return `<label class="field">${label}<input id="${id}" value="${esc(value ?? '')}" ${attrs}></label>`; }
+    function edit(l) {
+      const isNew = !l;
+      l = l || { type: 'prop', title: '', organizer: {}, listing: {}, prize_kind: 'money', prize_currency: 'USD', tier: 'standard', status: 'draft', is_preview: false, outbound: {} };
+      const lj = l.listing || {};
+      const p = $('editPanel');
+      p.classList.remove('hidden');
+      p.innerHTML = `<h3 style="margin-top:0">${isNew ? 'New listing' : esc(l.title)}</h3>
+        <div class="ls-form">
+          <label class="field">Type<select id="eType">${Object.entries(TYPE).map(([k, v]) => `<option value="${k}" ${k === l.type ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+          <label class="field">Status<select id="eStatus">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${k === l.status ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+          <label class="field" style="display:flex;gap:8px;align-items:center;margin-top:18px"><input type="checkbox" id="ePreview" ${l.is_preview ? 'checked' : ''} style="width:auto"> Preview (example listing)</label>
+          ${field('eTitle', 'Competition name', l.title, 'maxlength="120"')}
+          ${field('eOrg', 'Partner name', l.organizer?.name, 'maxlength="120"')}
+          ${field('eSlug', 'Address (slug)', l.slug, 'maxlength="60" placeholder="made from the names"')}
+          ${field('eKind', 'Kind', lj.kind, 'placeholder="Monthly challenge race"')}
+          ${field('eCountry', 'Country code', l.organizer?.country_code, 'maxlength="2" placeholder="GB"')}
+          ${field('eYears', 'Years in operation', l.organizer?.years_operating, 'type="number" min="0"')}
+          ${field('eRating', 'Rating (0 to 5)', l.organizer?.rating, 'type="number" step="0.1" min="0" max="5"')}
+          <label class="field">Prize<select id="ePrizeKind"><option value="money" ${l.prize_kind === 'money' ? 'selected' : ''}>Money</option><option value="goods" ${l.prize_kind === 'goods' ? 'selected' : ''}>Goods</option></select></label>
+          ${field('ePrizeAmount', 'Prize amount', l.prize_pool, 'type="number" min="0"')}
+          ${field('ePrizeCur', 'Currency', l.prize_currency, 'maxlength="3"')}
+          <div class="wide">${field('ePrizeText', 'Goods prize (sponsored)', l.prize_text, 'maxlength="140" placeholder="A trading laptop"')}</div>
+          <div class="wide">${field('eHow', 'How to win (sponsored)', lj.howToWin, 'maxlength="140"')}</div>
+          <div class="wide">${field('eRules', 'Rule chips, comma separated', (lj.rules || []).join(', '))}</div>
+          ${field('eAssets', 'Markets', (lj.assets || []).join(', '), 'placeholder="FX, Indices"')}
+          ${field('ePlatforms', 'Platforms', (lj.platforms || []).join(', '), 'placeholder="MT5"')}
+          ${field('eAccount', 'Account type (broker)', lj.accountType)}
+          ${field('eLeverage', 'Leverage as the broker states it', lj.leverage)}
+          <div class="wide"><label class="field">Summary<textarea id="eSummary" maxlength="400">${esc(l.rules_summary || '')}</textarea></label></div>
+          <label class="field">Starts<input type="datetime-local" id="eStart" value="${local(l.starts_at)}"></label>
+          <label class="field">Ends<input type="datetime-local" id="eEnd" value="${local(l.ends_at)}"></label>
+          <span></span>
+          <label class="field">Tier<select id="eTier">${['featured', 'plus', 'standard'].map((t) => `<option ${t === l.tier ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+          <label class="field">Tier from<input type="datetime-local" id="eTierStart" value="${local(l.tier_starts_at)}"></label>
+          <label class="field">Tier until<input type="datetime-local" id="eTierEnd" value="${local(l.tier_ends_at)}"></label>
+          <label class="field">Pin to the top of<select id="ePin"><option value="">No pin</option>${['all', 'prop', 'broker', 'sponsored'].map((t) => `<option value="${t}" ${t === l.pin_tab ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+          <label class="field">Pin from<input type="datetime-local" id="ePinStart" value="${local(l.pin_starts_at)}"></label>
+          <label class="field">Pin until<input type="datetime-local" id="ePinEnd" value="${local(l.pin_ends_at)}"></label>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="editor-only">
+          <button class="btn btn-primary" id="eSave">${isNew ? 'Create' : 'Save'}</button>
+          ${isNew ? '' : '<button class="btn" id="eClose">Close listing</button><button class="btn" id="eNotify">Notify waitlist</button>'}
+        </div>
+        ${isNew ? '' : `<h4 style="margin:18px 0 6px">Logo</h4>
+        <div class="editor-only" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="file" id="eLogo" accept="image/png,image/svg+xml,image/webp"><select id="eLogoVar"><option value="light">Light background</option><option value="dark">Dark background</option></select><button class="btn" id="eLogoUp">Upload</button></div>
+        <div style="display:flex;gap:12px;margin-top:8px">${l.organizer?.logo_url ? `<img class="ls-logo" style="width:56px;height:56px;background:#fff" src="${esc(l.organizer.logo_url)}" alt="Light">` : ''}${l.organizer?.logo_dark_url ? `<img class="ls-logo" style="width:56px;height:56px" src="${esc(l.organizer.logo_dark_url)}" alt="Dark">` : ''}</div>
+        <h4 style="margin:18px 0 6px">Outbound link and codes</h4>
+        <p class="muted">Stored encrypted. Never shown to players: the page links to an opaque redirect that adds the codes. ${data.isSuper ? 'Reveal shows the real values and is logged.' : 'Only a super admin can reveal them.'}</p>
+        <div class="ls-secret">
+          <span class="muted">Link</span><input id="sUrl" placeholder="${esc(l.outbound.url || 'https://')}" ${data.canEdit ? '' : 'disabled'}><span></span>
+          <span class="muted">Referral</span><input id="sRefP" placeholder="parameter" value="${esc(l.outbound.refParam || '')}"><input id="sRef" placeholder="${esc(l.outbound.ref || 'code')}">
+          <span class="muted">IB</span><input id="sIbP" placeholder="parameter" value="${esc(l.outbound.ibParam || '')}"><input id="sIb" placeholder="${esc(l.outbound.ib || 'code')}">
+          <span class="muted">Discount</span><input id="sDiscP" placeholder="parameter" value="${esc(l.outbound.discountParam || '')}"><input id="sDisc" placeholder="${esc(l.outbound.discount || 'code')}">
+        </div>
+        <p class="muted">Leave a box empty to keep its current value.</p>
+        <div style="display:flex;gap:8px;margin-top:8px">${data.canEdit ? '<button class="btn" id="sSave">Save link and codes</button>' : ''}${data.isSuper ? '<button class="btn" id="sReveal">Reveal</button>' : ''}</div>
+        <div id="sOut" class="muted" style="margin-top:8px"></div>`}`;
+      $('eSave')?.addEventListener('click', async () => {
+        const body = {
+          type: $('eType').value, status: $('eStatus').value, preview: $('ePreview').checked, title: $('eTitle').value, organizerName: $('eOrg').value, slug: $('eSlug').value || undefined,
+          kind: $('eKind').value, country: $('eCountry').value, years: $('eYears').value, rating: $('eRating').value,
+          prizeKind: $('ePrizeKind').value, prizeAmount: $('ePrizeAmount').value || 0, prizeCurrency: $('ePrizeCur').value || 'USD', prizeText: $('ePrizeText').value, howToWin: $('eHow').value,
+          rules: $('eRules').value, assets: $('eAssets').value, platforms: $('ePlatforms').value, accountType: $('eAccount').value, leverage: $('eLeverage').value, summary: $('eSummary').value,
+          startsAt: toIso($('eStart').value), endsAt: toIso($('eEnd').value), tier: $('eTier').value, tierStartsAt: toIso($('eTierStart').value), tierEndsAt: toIso($('eTierEnd').value),
+          pinTab: $('ePin').value, pinStartsAt: toIso($('ePinStart').value), pinEndsAt: toIso($('ePinEnd').value),
+        };
+        try { await Admin.api(isNew ? '/listings' : `/listings/${l.id}`, { method: isNew ? 'POST' : 'PUT', body }); Admin.toast('Saved', 'success'); await load(); } catch (e) { Admin.toast(e.message, 'danger'); }
+      });
+      $('eClose')?.addEventListener('click', async () => { try { await Admin.api(`/listings/${l.id}`, { method: 'DELETE' }); Admin.toast('Listing closed', 'success'); p.classList.add('hidden'); load(); } catch (e) { Admin.toast(e.message, 'danger'); } });
+      $('eNotify')?.addEventListener('click', async () => { try { const r = await Admin.api(`/listings/${l.id}/notify`, { method: 'POST' }); Admin.toast(`Sent to ${r.sent} players${r.failed ? `, ${r.failed} failed` : ''}`, 'success'); } catch (e) { Admin.toast(e.message, 'danger'); } });
+      $('eLogoUp')?.addEventListener('click', async () => {
+        const f = $('eLogo').files[0]; if (!f) return Admin.toast('Choose a file first', 'warning');
+        const fd = new FormData(); fd.append('logo', f);
+        const res = await fetch(`/api/listings/${l.id}/logo?variant=${$('eLogoVar').value}`, { method: 'POST', body: fd, credentials: 'include' });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) return Admin.toast(j.error || 'Upload failed', 'danger');
+        Admin.toast('Logo uploaded', 'success'); load();
+      });
+      $('sSave')?.addEventListener('click', async () => {
+        const body = {};
+        const put = (id, k) => { const v = $(id).value.trim(); if (v) body[k] = v; };
+        put('sUrl', 'outboundUrl'); put('sRef', 'refCode'); put('sIb', 'ibCode'); put('sDisc', 'discountCode');
+        body.refParam = $('sRefP').value.trim(); body.ibParam = $('sIbP').value.trim(); body.discountParam = $('sDiscP').value.trim();
+        try { await Admin.api(`/listings/${l.id}/secrets`, { method: 'PUT', body }); Admin.toast('Saved (encrypted)', 'success'); load(); } catch (e) { Admin.toast(e.message, 'danger'); }
+      });
+      $('sReveal')?.addEventListener('click', async () => {
+        try { const s = await Admin.api(`/listings/${l.id}/secrets`); $('sOut').textContent = `Link: ${s.outboundUrl || 'not set'} · ${s.refParam || 'ref'}=${s.refCode || '-'} · ${s.ibParam || 'ib'}=${s.ibCode || '-'} · ${s.discountParam || 'discount'}=${s.discountCode || '-'}`; } catch (e) { Admin.toast(e.message, 'danger'); }
+      });
+      document.querySelectorAll('#editPanel .editor-only').forEach((el) => el.classList.toggle('hidden', !data.canEdit));
+      p.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderTiers() {
+      $('tiersPanel').innerHTML = `<h3 style="margin-top:0">Listing tiers</h3><p class="muted">Order on every tab: tier first (Featured, Plus, Standard), then who listed first, then name. Prices show on Partner with us only when set.</p>
+        ${data.tiers.map((t) => `<div style="border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px">
+          <div class="ls-form" style="grid-template-columns:1fr 1fr">
+            <label class="field">Name<input data-tier-name="${t.key}" value="${esc(t.name)}" ${data.canEdit ? '' : 'disabled'}></label>
+            <label class="field">Price line (blank hides it)<input data-tier-price="${t.key}" value="${esc(t.price_text || '')}" placeholder="$500" ${data.canEdit ? '' : 'disabled'}></label>
+            <label class="field wide">What it includes<textarea data-tier-perks="${t.key}" rows="2" ${data.canEdit ? '' : 'disabled'}>${esc(t.perks || '')}</textarea></label>
+          </div>
+          ${data.canEdit ? `<button class="btn btn-sm" data-tier-save="${t.key}">Save ${esc(t.name)}</button>` : ''}
+        </div>`).join('')}`;
+      document.querySelectorAll('[data-tier-save]').forEach((b) => b.addEventListener('click', async () => {
+        const k = b.dataset.tierSave;
+        try { await Admin.api(`/listings/tiers/${k}`, { method: 'PUT', body: { name: document.querySelector(`[data-tier-name="${k}"]`).value, priceText: document.querySelector(`[data-tier-price="${k}"]`).value, perks: document.querySelector(`[data-tier-perks="${k}"]`).value } }); Admin.toast('Tier saved', 'success'); load(); } catch (e) { Admin.toast(e.message, 'danger'); }
+      }));
+    }
+
+    ['fType', 'fTier', 'fState', 'fPreview'].forEach((id) => $(id).addEventListener('change', load));
+    $('newBtn').addEventListener('click', () => edit(null));
+    $('seedBtn').addEventListener('click', async () => {
+      try { const r = await Admin.api('/listings/seed', { method: 'POST' }); Admin.toast(`Seed loaded: ${r.created} new, ${r.updated} refreshed`, 'success'); load(); } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
+    load();
+  </script>
+</body>
+</html>

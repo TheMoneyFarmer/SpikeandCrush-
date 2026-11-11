@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Partner competition | Spike &amp; Crush</title>
+<meta name="description" content="A free-to-enter partner competition listed on Spike &amp; Crush." />
+<!-- seo:dynamic (server/listings.js fills title, description, canonical and JSON-LD) -->
+<link rel="icon" href="/icons/compete.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/compete-32.png" type="image/png" sizes="32x32" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/themes.css">
+<link rel="stylesheet" href="/css/mobile.css">
+<link rel="stylesheet" href="/css/candle-bg.css">
+<link rel="stylesheet" href="/css/console.css" />
+<link rel="stylesheet" href="/css/comp-templates.css">
+<link rel="stylesheet" href="/css/comp-page.css">
+<script>(function(){try{var t=localStorage.getItem("sc_theme")==="light"?"light":"default";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<style>
+.ld-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 24px 140px; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+.ld-hero { grid-column: 1 / -1; padding: 26px 24px; border-radius: 18px; position: relative; overflow: hidden; background: var(--c-deep); display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.ld-hero img { width: 72px; height: 72px; border-radius: 18px; flex: 0 0 auto; }
+.ld-hero h1 { margin: 4px 0; font-weight: 300; font-size: clamp(28px, 4vw, 42px); letter-spacing: -0.015em; line-height: 1.1; }
+.ld-hero .cp-org { font-size: 15px; }
+.ld-hero-text { min-width: 0; flex: 1 1 260px; position: relative; z-index: 1; }
+.ld-sec { padding: 18px 20px; border-radius: 14px; background: var(--c-deep); margin-bottom: 14px; }
+.ld-sec h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+.ld-sec p, .ld-sec li { color: var(--c-body); font-size: 14px; line-height: 1.55; }
+.ld-sec ul { margin: 0; padding-left: 18px; }
+.ld-facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 14px; margin: 0; }
+.ld-facts dt { color: var(--c-mute); }
+.ld-facts dd { margin: 0; color: var(--c-body); }
+.ld-side { position: sticky; top: 80px; display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 16px; background: var(--c-deep); box-shadow: inset 0 0 0 1px var(--c-hair-2); }
+.ld-side .cp-prize { text-align: left; }
+.ld-side .cp-prize b { font-size: 26px; }
+.ld-out { width: 100%; }
+.ld-note { padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--c-gold) 14%, transparent); color: var(--c-gold); font-size: 13px; }
+.ld-small { font-size: 12px; color: var(--c-mute); margin: 0; }
+@media (max-width: 900px) { .ld-wrap { grid-template-columns: minmax(0, 1fr); padding: 16px 16px 140px; } .ld-side { position: static; order: -1; } }
+</style>
+<script src="/js/analytics.js" defer></script>
+</head>
+<body data-page="competition-listing">
+<div id="twNav" data-active="tournaments"></div>
+<main class="ld-wrap" id="ldWrap">
+  <section class="ld-hero" data-candle-bg>
+    <img id="ldLogo" src="/icons/compete.svg" alt="">
+    <div class="ld-hero-text">
+      <a href="/competitions" style="color:var(--c-link);text-decoration:none;font-size:13px">All competitions</a>
+      <h1 id="ldTitle">Partner competition</h1>
+      <div class="cp-org" id="ldOrg"></div>
+      <div class="cp-chips" id="ldChips" style="margin-top:8px"></div>
+    </div>
+  </section>
+  <div>
+    <div class="ld-note" id="ldNote" hidden>This partner's link is not set up yet. You are back on our page for this competition.</div>
+    <section class="ld-sec" aria-labelledby="ldAboutH"><h2 id="ldAboutH">About this competition</h2><p id="ldSummary"></p><dl class="ld-facts" id="ldFacts"></dl></section>
+    <section class="ld-sec" aria-labelledby="ldRulesH"><h2 id="ldRulesH">Rules</h2><ul id="ldRules"></ul>
+      <p>Entry is free. The competition runs on the partner's own site, under the partner's rules. Spike &amp; Crush only lists it.</p></section>
+    <section class="ld-sec" aria-labelledby="ldPayH"><h2 id="ldPayH">Prizes</h2><p id="ldPay"></p>
+      <p>Coins won in Spike &amp; Crush game modes are separate: they have no cash value. See the <a href="/terms#competition-prizes" style="color:var(--c-link)">Terms</a>.</p></section>
+  </div>
+  <aside class="ld-side" id="ldSide" aria-label="Status and actions"></aside>
+</main>
+<script src="/js/icons.js"></script>
+<script src="/js/time-ago.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
+<script src="/js/auth.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/socket.js"></script>
+<script src="/js/candle-bg.js"></script>
+<script src="/js/comp-templates.js"></script>
+<script>
+(function () {
+  const CT = TW.CompTemplates;
+  const esc = CT.esc;
+  const slug = location.pathname.split('/').filter(Boolean).pop();
+  const TYPE = { prop: 'Prop firm', broker: 'Broker', sponsored: 'Sponsored' };
+  const dt = (d) => (d ? new Date(d).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '');
+  if (new URLSearchParams(location.search).get('note') === 'not-configured') document.getElementById('ldNote').hidden = false;
+
+  async function render() {
+    const headers = TW.getToken && TW.getToken() ? { Authorization: `Bearer ${TW.getToken()}` } : {};
+    const res = await fetch(`/api/competition-listings/${encodeURIComponent(slug)}`, { headers });
+    if (!res.ok) { document.getElementById('ldTitle').textContent = 'Competition not found'; return; }
+    const { listing: l } = await res.json();
+    const host = l.organizer.name;
+    document.title = `${l.title} by ${host} | Spike & Crush`;
+    document.getElementById('ldTitle').textContent = l.title;
+    document.getElementById('ldOrg').textContent = `Hosted by ${host}${l.kind ? ` · ${l.kind}` : ''}`;
+    if (l.organizer.logo) document.getElementById('ldLogo').src = l.organizer.logo;
+    document.getElementById('ldChips').innerHTML = [
+      `<span class="cp-chip cp-chip-type">${esc(TYPE[l.type])}</span>`,
+      l.tier === 'featured' ? '<span class="cp-chip cp-chip-featured">Featured</span>' : l.tier === 'plus' ? '<span class="cp-chip cp-chip-plus">Plus</span>' : '',
+      l.preview ? '<span class="cp-chip cp-chip-preview" title="Example listing. A real partner replaces it when they sign.">Preview</span>' : '',
+      '<span class="cp-chip">Free entry</span>',
+    ].join('');
+    document.getElementById('ldSummary').textContent = l.summary || '';
+    const facts = [
+      ['Starts', dt(l.startsAt)], ['Ends', dt(l.endsAt)],
+      l.accountType && ['Account', l.accountType], l.leverage && ['Leverage', `${l.leverage}, as the broker states it`],
+      l.assets.length && ['Markets', l.assets.join(', ')], l.platforms.length && ['Platforms', l.platforms.join(', ')],
+      l.organizer.country && ['Country', `${l.organizer.country} (Preview data)`],
+      l.organizer.years != null && ['In operation', `${l.organizer.years} years (Preview data)`],
+      l.organizer.rating != null && ['Rating', `${l.organizer.rating} of 5 (Preview data)`],
+    ].filter(Boolean);
+    document.getElementById('ldFacts').innerHTML = facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+    document.getElementById('ldRules').innerHTML = (l.rules.length ? l.rules : ['Set by the partner']).map((r) => `<li>${esc(r)}</li>`).join('');
+    document.getElementById('ldPay').textContent = l.type === 'sponsored'
+      ? `${host} gives the prize: ${l.prize.text || l.prize.label}. How to win: ${l.howToWin || 'set by the sponsor'}. The offer is applied automatically when you follow our link.`
+      : `${l.prize.amount ? `${l.prize.amount} in prizes, ` : ''}set and paid by ${host} under its own terms. Spike & Crush does not pay these prizes and never asks for bank or card details.`;
+    const prize = l.prize.amount ? `<b class="cp-gold">${esc(l.prize.amount)}</b><span>Prize</span>` : `<b class="cp-goods">${esc(l.prize.text || l.prize.label)}</b><span>To win</span>`;
+    const notify = l.waitlist.joined
+      ? `<button type="button" class="tc-btn tc-on cp-btn" data-leave-listing="${esc(l.id)}">${CT.CHECK}<span>You're on the list</span></button>`
+      : `<button type="button" class="tc-btn tc-notify cp-btn" data-join-listing="${esc(l.id)}" data-source="detail">${CT.BELL}<span>Notify me</span></button>`;
+    // The outbound button stays disabled while Coming soon. Once live it is the opaque /go/ link.
+    const out = l.outbound
+      ? `<a class="tc-btn tc-primary ld-out" href="${esc(l.outbound)}" target="_blank" rel="noopener sponsored">Compete on ${esc(host)} ${CT.EXT}</a>`
+      : `<button type="button" class="tc-btn tc-soon ld-out" disabled aria-disabled="true">Compete on ${esc(host)}: coming soon</button>`;
+    document.getElementById('ldSide').innerHTML = `
+      <span class="cp-pill-soon" style="align-self:flex-start">${l.state === 'running' ? 'Live' : 'Coming soon'}</span>
+      <div class="cp-prize">${prize}</div>
+      ${out}
+      ${notify}
+      ${l.type === 'sponsored' ? '<p class="ld-small">Offer applied automatically through our link.</p>' : ''}
+      <p class="ld-small">${l.waitlist.count ? `${Number(l.waitlist.count).toLocaleString()} players waiting` : 'Be first on the list.'}</p>`;
+  }
+  CT.wire(document.getElementById('ldWrap'), render);
+  render().then(() => CT.resumeAfterLogin(render));
+})();
+</script>
+<script src="/js/bottom-nav.js"></script>
+<script src="/js/support-widget.js"></script>
+</body>
+</html>

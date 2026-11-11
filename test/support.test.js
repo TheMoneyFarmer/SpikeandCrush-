@@ -205,7 +205,8 @@ test('KB articles and prompt quote the live constants', () => {
   // The modes table uses each mode's display name (server/config/modeIdentity.js).
   const modeIdentity = require('../server/config/modeIdentity');
   for (const key of Object.keys(MATCH_MODES)) assert.ok(all.includes(`| ${modeIdentity.identity(key).displayName} | ${MODE_DURATIONS[key] / 60} minute`), key);
-  for (const t of Object.values(TEMPLATES)) assert.ok(all.includes(t.title), t.title);
+  // Competitions (2026-11-12): the Daily Open and Weekend Open are current; Weekly and Monthly are closed.
+  for (const name of ['Daily Open', 'Weekend Open', 'Two days, Saturday to Sunday', 'have been closed']) assert.ok(all.includes(name), name);
   assert.ok(/no cash value and cannot be withdrawn/.test(all));
   const prompt = buildSystemPrompt();
   assert.ok(prompt.includes(`Starting capital $${GAME_RULES.STARTING_CAPITAL}`));

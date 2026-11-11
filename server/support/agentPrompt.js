@@ -8,12 +8,11 @@
 // never typed by hand, so it cannot drift from the real rules.
 
 const { GAME_RULES, MODE_DURATIONS, MATCH_MODES, SOFT_LOSS_PCT, SOFT_LOSS_WINDOW_SECONDS, RECONNECT_GRACE_SECONDS, TIERS, PRIVATE_WAR_HOST_FEE } = require('../gameEngine');
-const { TEMPLATES } = require('../compEngine');
 const { LEVERAGE, MARGIN_CALL_LEVEL, STOP_OUT_LEVEL } = require('../marginRules');
 const { INVITE_REWARD_COINS, INVITE_MAX_PAID } = require('../referralRules');
 const { NO_CASH, CONTACT_EMAIL } = require('./knowledge/articles');
 
-const PROMPT_VERSION = 'support-agent-v1.5 (2026-11-11)';
+const PROMPT_VERSION = 'support-agent-v1.6 (2026-11-12)';
 
 function liveRules() {
   const modes = Object.keys(MATCH_MODES)
@@ -23,17 +22,13 @@ function liveRules() {
       return `- ${m.label} (${k}): ${MODE_DURATIONS[k] / 60} min, ${entry}, ${m.ranked ? 'ranked' : 'unranked'}, ${m.cardsPerPlayer} cards`;
     })
     .join('\n');
-  const comps = Object.values(TEMPLATES)
-    .map((t) => `- ${t.title}: entry ${t.entryFee} coins; default prizes ${t.payouts.map((p) => `#${p.rank} ${p.coins}`).join(', ')} coins`)
-    .join('\n');
   return `Starting capital $${GAME_RULES.STARTING_CAPITAL} (virtual). Leverage ${LEVERAGE}:1. No lot limit: size is decided by free margin. Max ${GAME_RULES.MAX_POSITIONS} open positions.
 Margin level = equity / margin used x 100. Margin call at ${MARGIN_CALL_LEVEL}%: warning and no new trades. Stop-out at ${STOP_OUT_LEVEL}%: the biggest losing position is closed, then the next, until the level recovers; the player keeps trading.
 Soft limit: losing ${SOFT_LOSS_PCT * 100}% within a ${SOFT_LOSS_WINDOW_SECONDS / 60}-minute window blocks new trades until the next window.
 Disconnect: ${RECONNECT_GRACE_SECONDS}s to reconnect, then it counts as leaving (positions closed, placed last).
 Modes:
 ${modes}
-Competitions: the Daily, Weekly, Weekend and Monthly competitions are COMING SOON. They cannot be entered yet; players can tap Notify me. When they open they are free to enter with cash prizes paid by the competition partner named in each competition's terms (see the "Competition prizes" article). Runs already open or entered before the change finish as coin events with these details (UTC):
-${comps}
+Competitions: the Daily Open (Mon to Fri, open to close, prize pool currently $5,000) and the Weekend Open (Saturday 00:00 to Sunday 23:59, two days, crypto only, prize pool currently $10,000) are COMING SOON and free to enter, with prizes paid by the partner named in each competition's terms. Nobody can enter yet; players can tap Notify me. The Weekly War and Monthly Grand were closed and their entrants refunded. Prop firm, broker and sponsored listings are also coming soon, run on the partner's site, and are marked Preview while they are example listings with invented names.
 Coins and Battle Pass Premium are not on sale; no payments are being taken.
 Invites: ${INVITE_REWARD_COINS} coins to the inviter when an invited friend finishes their first match against another real player, up to ${INVITE_MAX_PAID} paid invites.
 Tiers: ${TIERS.map((t) => `${t.name} ${t.min}${t.max === Infinity ? '+' : `-${t.max}`}`).join(', ')}.

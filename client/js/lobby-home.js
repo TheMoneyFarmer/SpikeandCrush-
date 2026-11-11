@@ -18,12 +18,7 @@
 
   const STATS_REFRESH_MS = 15000;
   const SLOW_REFRESH_MS = 60000;
-  const COMP_FORMATS = {
-    daily: { label: 'Daily War', sub: '22h full session' },
-    weekly: { label: 'Weekly War', sub: 'Mon to Fri' },
-    weekend: { label: 'Weekend Blitz', sub: 'Crypto · Sat to Sun' },
-    monthly: { label: 'Monthly Grand', sub: 'Full month' },
-  };
+  // (competition names come from the server: Daily Open, Weekend Open)
   const MODE_LABEL = { quick: 'Quick War', blitz: 'Blitz War', grand: 'Grand War', solo: 'Solo Ranked', private: 'Private War', async: 'Daily Challenge', tournament: 'Tournament' };
 
   const state = {
@@ -31,6 +26,7 @@
     lastPrices: new Map(),
     mine: new Set(),
     featured: null,
+    templates: null,
     impressionsSent: new Set(),
   };
 
@@ -200,76 +196,55 @@
   let countdownTimer = null;
   let lastAnnounced = '';
 
-  function renderHero(featured, failed) {
+  // The hero features our own competition: the Daily Open on weekdays, the
+  // Weekend Open at weekends. Coming soon until live data exists; the only
+  // actions are Notify me and Details (no Enter, no coin figures).
+  function renderHero(_unused, failed) {
     const el = $('lbHeroInner');
     if (!el) return;
     clearInterval(countdownTimer);
-    if (failed) {
+    if (failed && !state.templates) {
       el.innerHTML = errorBox('Could not load the featured competition.', 'lbHeroRetry');
-      $('lbHeroRetry').addEventListener('click', loadStats);
+      $('lbHeroRetry').addEventListener('click', loadCompetitions);
       return;
     }
-    if (!featured) {
+    const list = state.templates || [];
+    if (!list.length) {
       el.innerHTML = `
         <div class="lb-hero-empty">
           <div class="lb-label">Competitions</div>
-          <div class="lb-hero-title lb-hero-title-sm">No live competitions right now.</div>
-          <a class="lb-link-gold" href="/competitions">See the schedule ${ic('arrowRight', 16)}</a>
+          <div class="lb-hero-title lb-hero-title-sm">Free competitions with money prizes are coming soon.</div>
+          <a class="lb-link-gold" href="/competitions">See the competitions ${ic('arrowRight', 16)}</a>
           <div class="lb-hero-actions"><button type="button" class="lb-btn lb-btn-outline" id="lbHeroQuick">${ic('bolt', 18)}<span>Quick play · ${quickMinutes()} min</span></button></div>
         </div>`;
       $('lbHeroQuick').addEventListener('click', () => $('modeQuickBtn')?.click());
       return;
     }
-    const live = featured.status === 'active';
-    const entered = state.mine.has(featured.id);
-    const fmtLabel = COMP_FORMATS[featured.frequency]?.label || 'Competition';
-    // The full title is the heading; the button uses the short format name so it never truncates.
+    const weekend = [0, 6].includes(new Date().getDay());
+    const t = list.find((x) => x.key === (weekend ? 'weekend' : 'daily')) || list[0];
+    const waiting = t.waitlist.count ? Number(t.waitlist.count).toLocaleString('en-US') : 'Be first';
     el.innerHTML = `
       <div class="lb-hero-top">
-        ${live ? `<span class="lb-live">${'<span class="lb-live-dot"></span>'}Live</span>` : '<span class="lb-soon">Starts soon</span>'}
-        <span class="lb-label">${esc(fmtLabel)}${COMP_FORMATS[featured.frequency] ? ` · ${esc(COMP_FORMATS[featured.frequency].sub)}` : ''}</span>
+        <span class="lb-soon">Coming soon</span>
+        <span class="lb-label">${esc(t.scheduleText)}${t.marketsLabel ? ` · weekend markets: ${esc(t.marketsLabel)}` : ''}</span>
       </div>
-      <h1 class="lb-hero-title">${esc(featured.title)}</h1>
-      <div class="lb-presented" data-slot="competition_card" data-target="competition:${esc(featured.frequency || featured.id)}" data-variant="line" hidden></div>
+      <h1 class="lb-hero-title">${esc(t.title)}</h1>
+      <div class="lb-presented" data-slot="competition_card" data-target="${esc(t.sponsorTarget)}" data-variant="line" hidden></div>
       <div class="lb-hero-nums">
-        <div><div class="lb-stat-label">Prize pool</div><div class="lb-hero-num gold">${coinsHtml(featured.prizeCoins, 'gold')}</div></div>
-        <div><div class="lb-stat-label">Entry</div><div class="lb-hero-num">${featured.entryCoins > 0 ? coinsHtml(featured.entryCoins) : 'Free'}</div></div>
-        <div><div class="lb-stat-label">${live ? 'Ends in' : 'Starts in'}</div><div class="lb-hero-num" id="lbCountdown" aria-hidden="true">—</div></div>
+        <div><div class="lb-stat-label">Prize</div><div class="lb-hero-num gold">${esc(t.prize.amount || t.prize.label)}</div></div>
+        <div><div class="lb-stat-label">Entry</div><div class="lb-hero-num">Free</div></div>
+        <div><div class="lb-stat-label">Waiting</div><div class="lb-hero-num">${esc(waiting)}</div></div>
       </div>
       <div class="lb-hero-actions">
-        <button type="button" class="lb-btn lb-btn-gold lb-btn-xl" id="lbHeroEnter">${ic(entered ? 'play' : 'flag', 20)}<span>${entered ? 'Continue' : 'Enter'} ${esc(COMP_FORMATS[featured.frequency]?.label || featured.title)}</span></button>
+        ${t.waitlist.joined
+          ? `<button type="button" class="lb-btn lb-btn-outline lb-btn-xl" id="lbHeroNotify" data-leave="${esc(t.key)}">${ic('check', 20)}<span>You're on the list</span></button>`
+          : `<button type="button" class="lb-btn lb-btn-gold lb-btn-xl" id="lbHeroNotify" data-join="${esc(t.key)}">${ic('bell', 20)}<span>Notify me</span></button>`}
+        <a class="lb-btn lb-btn-outline lb-btn-lg" href="${esc(t.detailUrl)}">Details</a>
         <button type="button" class="lb-btn lb-btn-outline lb-btn-lg" id="lbHeroQuick">${ic('bolt', 18)}<span>Quick play · ${quickMinutes()} min</span></button>
       </div>`;
     if (window.TW && TW.SponsorSlots) TW.SponsorSlots.scan(el);
     $('lbHeroQuick').addEventListener('click', () => $('modeQuickBtn')?.click());
-    $('lbHeroEnter').addEventListener('click', async (e) => {
-      if (entered) {
-        window.location.href = `/competition/${featured.id}`;
-        return;
-      }
-      e.currentTarget.disabled = true;
-      const ok = await TW.enterCompetition({ id: featured.id, title: featured.title, entryCoins: featured.entryCoins, prizeCoins: featured.prizeCoins });
-      if (!ok && $('lbHeroEnter')) $('lbHeroEnter').disabled = false;
-    });
-    const target = new Date(live ? featured.endsAt : featured.startsAt).getTime();
-    const tick = () => {
-      const left = target - Date.now();
-      const cd = $('lbCountdown');
-      if (cd) cd.textContent = span(left);
-      // Screen readers hear the countdown once a minute, not every second.
-      const spoken = `${live ? 'Ends' : 'Starts'} in ${shortSpan(left)}`;
-      if (spoken !== lastAnnounced && Date.now() % 60000 < 1000) {
-        lastAnnounced = spoken;
-        $('lbCountdownLive').textContent = spoken;
-      }
-      if (left <= 0) {
-        clearInterval(countdownTimer);
-        loadStats(true);
-      }
-    };
-    tick();
-    $('lbCountdownLive').textContent = `${featured.title}: ${live ? 'ends' : 'starts'} in ${shortSpan(target - Date.now())}`;
-    countdownTimer = setInterval(tick, 1000);
+    $('lbCountdownLive').textContent = `${t.title}: coming soon`;
   }
 
   function quickMinutes() {
@@ -314,65 +289,59 @@
     }
   }
 
-  function pickCompetitions(all) {
-    const usable = all.filter((c) => c.type === 'native' && c.lifecycle !== 'void' && c.status !== 'ended');
-    const rows = [];
-    for (const freq of Object.keys(COMP_FORMATS)) {
-      const pool = usable.filter((c) => c.frequency === freq);
-      const pick = pool.find((c) => c.status === 'active') || pool.filter((c) => c.status === 'upcoming').sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0];
-      if (pick) rows.push(pick);
-    }
-    usable.filter((c) => c.status === 'active' && !rows.includes(c)).forEach((c) => rows.push(c));
-    return rows.slice(0, 8);
+  let compWired = false;
+  function wireComps() {
+    if (compWired || !window.TW || !TW.CompTemplates) return;
+    compWired = true;
+    const root = document.getElementById('lbMain') || document.body;
+    TW.CompTemplates.wire(root, loadCompetitions);
   }
 
   async function loadCompetitions() {
+    wireComps();
     const list = $('lbCompList');
-    if (!list) return;
     try {
-      const [{ competitions = [] }] = await Promise.all([fetch('/api/competitions').then((r) => (r.ok ? r.json() : Promise.reject(new Error('bad')))), loadMine()]);
-      const rows = pickCompetitions(competitions);
-      if (!rows.length) {
-        list.innerHTML = emptyBox(`<span>No live competitions right now.</span><a class="lb-link-gold" href="/competitions">See the schedule ${ic('arrowRight', 16)}</a>`);
-        return;
-      }
-      const now = Date.now();
-      list.innerHTML = rows
-        .map((c) => {
-          const live = c.status === 'active';
-          const isIn = state.mine.has(c.id);
-          const label = COMP_FORMATS[c.frequency]?.label || c.title;
-          const when = live ? `${shortSpan(new Date(c.ends_at) - now)} left` : `Starts in ${shortSpan(new Date(c.starts_at) - now)}`;
-          return `
-          <div class="lb-comp-row ${live ? 'is-live' : ''}">
+      const [tpl, mineRes] = await Promise.all([
+        TW.CompTemplates.fetchTemplates(),
+        TW.isLoggedIn() ? TW.api('/api/competitions-mine').catch(() => ({ competitions: [] })) : Promise.resolve({ competitions: [] }),
+      ]);
+      state.templates = (tpl.templates || []).filter((t) => t.prize && t.prize.kind !== 'coins');
+      renderHero();
+      if (!list) return;
+      // Runs the player already entered before the change: they can carry on.
+      const entered = (mineRes.competitions || []).filter((m) => m.status !== 'ended' && m.lifecycle !== 'void' && m.status !== 'void');
+      const rows = state.templates.map((t) => `
+          <div class="lb-comp-row">
             <div class="lb-comp-name">
-              <span class="lb-comp-title">${live ? '<span class="lb-live-dot" aria-hidden="true"></span>' : ''}${esc(label)}</span>
-              <span class="lb-comp-sub">${live ? 'Live' : 'Upcoming'} · ${esc(when)} · ${fmt(c.entry_count)} in</span>
+              <span class="lb-comp-title">${esc(t.title)}</span>
+              <span class="lb-comp-sub">Coming soon · ${esc(t.scheduleText)}${t.waitlist.count ? ` · ${fmt(t.waitlist.count)} waiting` : ''}</span>
             </div>
             <div class="lb-comp-prize">
-              <span class="lb-comp-pool">${coinsHtml(prizeCoins(c), 'gold')}</span>
-              <span class="lb-comp-entry">${c.entry_fee_coins > 0 ? `entry ${fmt(c.entry_fee_coins)} coins` : 'free entry'}</span>
+              <span class="lb-comp-pool gold">${esc(t.prize.amount || t.prize.label)}</span>
+              <span class="lb-comp-entry">free entry</span>
             </div>
-            <button type="button" class="lb-btn ${live ? 'lb-btn-gold' : 'lb-btn-dark'} lb-comp-btn" data-comp="${esc(c.id)}" aria-label="${isIn ? 'Continue' : 'Enter'} ${esc(c.title)}">${isIn ? 'Continue' : 'Enter'}</button>
-          </div>`;
-        })
-        .join('');
-      list.querySelectorAll('[data-comp]').forEach((btn) =>
-        btn.addEventListener('click', async () => {
-          const c = rows.find((x) => x.id === btn.dataset.comp);
-          if (state.mine.has(c.id)) {
-            window.location.href = `/competition/${c.id}`;
-            return;
-          }
-          btn.disabled = true;
-          const ok = await TW.enterCompetition({ id: c.id, title: c.title, entryCoins: c.entry_fee_coins, prizeCoins: prizeCoins(c) });
-          if (!ok) btn.disabled = false;
-        })
-      );
-      if (state.featured) renderHero(state.featured);
+            ${t.waitlist.joined
+              ? `<button type="button" class="lb-btn lb-btn-dark lb-comp-btn" data-leave="${esc(t.key)}" aria-label="You're on the list for ${esc(t.title)}. Leave the list">On the list</button>`
+              : `<button type="button" class="lb-btn lb-btn-dark lb-comp-btn" data-join="${esc(t.key)}" aria-label="Notify me when ${esc(t.title)} opens">Notify me</button>`}
+          </div>`);
+      for (const m of entered) {
+        rows.push(`
+          <div class="lb-comp-row">
+            <div class="lb-comp-name">
+              <span class="lb-comp-title">${esc(m.title || 'Your competition')}</span>
+              <span class="lb-comp-sub">You entered this run</span>
+            </div>
+            <div class="lb-comp-prize"></div>
+            <a class="lb-btn lb-btn-gold lb-comp-btn" href="/competition/${esc(m.competitionId)}">Continue</a>
+          </div>`);
+      }
+      list.innerHTML = rows.join('') || emptyBox(`<span>Free competitions are coming soon.</span><a class="lb-link-gold" href="/competitions">See the competitions ${ic('arrowRight', 16)}</a>`);
     } catch (e) {
-      list.innerHTML = errorBox('Could not load competitions.', 'lbCompRetry');
-      $('lbCompRetry').addEventListener('click', loadCompetitions);
+      if (list) {
+        list.innerHTML = errorBox('Could not load competitions.', 'lbCompRetry');
+        $('lbCompRetry').addEventListener('click', loadCompetitions);
+      }
+      renderHero(null, true);
     }
   }
 
@@ -468,16 +437,13 @@
       renderStats(stats);
       renderSponsors();
       renderModes(stats.modes);
-      const changed = JSON.stringify(stats.featured) !== JSON.stringify(state.featured);
       state.featured = stats.featured;
-      if (changed || force || !$('lbHeroEnter')) renderHero(stats.featured);
     } catch (e) {
       statsFailures++;
       renderTicker(null, true);
       if (!state.stats) {
         $('lbStats').innerHTML = errorBox('Could not load today’s stats.', 'lbStatsRetry');
         $('lbStatsRetry').addEventListener('click', () => loadStats(true));
-        renderHero(null, true);
         renderModes(null);
       }
     }

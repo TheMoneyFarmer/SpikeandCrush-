@@ -300,6 +300,13 @@ function createListingsRouter({ db, authenticate, optionalViewerId, sendEmail, c
     res.type('html').send(html);
   });
 
+  // Tier names, perks and price lines for the Partner with us page (prices blank until set).
+  r.get('/api/listing-tiers', readLimiter, async (req, res) => {
+    if (!db.isConfigured) return res.json({ tiers: [] });
+    const { data } = await sb().from('listing_tiers').select('key, name, rank, perks, price_text').order('rank');
+    res.json({ tiers: (data || []).map((x) => ({ ...x, price_text: x.price_text && String(x.price_text).trim() ? x.price_text : null })) });
+  });
+
   r.clearCache = () => { cache = { at: 0, rows: null }; countCache = { at: 0, map: {} }; };
   return r;
 }

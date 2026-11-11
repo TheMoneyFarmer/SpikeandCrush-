@@ -23,7 +23,6 @@ const {
   PRIVATE_WAR_HOST_FEE,
   baseRatingForPosition,
 } = require('../../gameEngine');
-const { TEMPLATES, competitionInstruments } = require('../../compEngine');
 const { CARDS } = require('../../sabotage');
 const gameFeelCfg = require('../../config/gameFeel');
 const modeIdentity = require('../../config/modeIdentity');
@@ -68,11 +67,6 @@ function modeRow(key) {
   return `| ${modeName(key)} | ${minutes(MODE_DURATIONS[key])} | ${entry} | ${players} | ${handOf(key)} | ${MI(key).winShort} | ${ranked} |`;
 }
 
-function compTemplateBlock(key) {
-  const t = TEMPLATES[key];
-  const pays = t.payouts.map((p) => `${ordinal(p.rank)}: ${p.coins} coins`).join(', ');
-  return `### ${t.title}\n${t.description}\n\n- Entry: ${coins(t.entryFee)}\n- Instruments: ${competitionInstruments(t.instruments).join(', ')}\n- Default prizes (coins): ${pays}`;
-}
 
 function ordinal(n) {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -294,29 +288,53 @@ ${EXPERIENCE_LEVELS.map((l) => `- ${l.label}: ${l.max === Infinity ? `${l.min}+`
     },
     {
       slug: 'competitions',
-      title: 'Competitions: daily, weekly, weekend and monthly',
+      title: 'Competitions: the Daily Open and the Weekend Open',
       category: 'competitions',
-      tags: ['competition', 'daily war', 'weekly war', 'weekend blitz', 'monthly grand', 'coming soon', 'notify me', 'waitlist', 'entry', 'settlement', 'leaderboard', 'bot', 'EA', 'expert advisor', 'automated trading', 'AI'],
-      body: `The Daily, Weekly, Weekend and Monthly competitions are **coming soon**. They are being rebuilt as free-to-enter competitions with cash prizes paid by a competition partner (see "Competition prizes: who pays and how").
+      tags: ['competition', 'daily open', 'weekend open', 'coming soon', 'notify me', 'waitlist', 'free entry', 'why free', 'two days', 'saturday', 'sunday', 'crypto', 'weekend markets', 'bot', 'EA', 'expert advisor', 'automated trading', 'AI'],
+      body: `Spike & Crush runs two competitions of its own: the **Daily Open** and the **Weekend Open**. Both are **coming soon**: nobody can enter them yet. They open when live market data is switched on.
 
-**Coming soon**
-- A coming soon card cannot be entered yet. Tap **Notify me** and we email you once when it opens, plus a short confirmation now. You can leave the list from the competition's page.
-- Each competition has its own page (for example /competitions/daily) with how it works, times in your own timezone, the prize and the rules.
-- Nobody can say exactly when they open until the partner and prize are confirmed. The card shows the planned rhythm, like "Every weekday" or "One weekend a month".
-- There is no other daily, weekly, weekend or monthly event to enter in the meantime. The game modes (Quick, Blitz, Grand, Solo, Async, Private and Tournament War) are open any time and pay coins.
+**Daily Open**: Monday to Friday, one competition per day, from market open to market close. Prize pool currently $5,000 (paid in money by the competition partner named in the terms). Free entry.
 
-**Runs that were already going**
-Only a run that a player had already entered before the change keeps going, and it finishes as a coin event under its old rules. No new coin runs are being scheduled. ${NO_CASH} The old details, for players asking about a run they are already in:
+**Weekend Open**: one competition each weekend, from Saturday 00:00 to Sunday 23:59. **Two days, Saturday to Sunday.** Prize pool currently $10,000. Free entry. It uses weekend markets only, which means crypto (Bitcoin and Ethereum for now).
 
-${['daily', 'weekly', 'weekend', 'monthly'].map(compTemplateBlock).join('\n\n')}
+**Why entry is free**: these competitions pay prizes in money, so they never take coins or money to enter. Nothing you can buy gives you an advantage.
 
-**How a run works (both kinds)**
-- One account with ${money(rules.STARTING_CAPITAL)} of virtual capital, with the same leverage, margin rules and position limit as matches. Your account lives between sessions.
-- Ranking is by equity at the end. Ties are broken by fewer trades, then by who entered first.
-- Reaching the ${STOP_OUT_LEVEL}% margin level closes your biggest losers first. Your account stays open.
-- You can enter more than one competition at a time, for example the Daily and the Weekly.
+**Why everything says Coming soon**: they will run on live market data, which is not switched on yet. Until then the only buttons are Coming soon (greyed out), Notify me and Details. There is no other way to enter early.
 
-**Bots, EAs and AI are not allowed.** Every trade in a competition must be placed by the player by hand: no AI, bots, EAs (expert advisors), scripts or automated trading. We review trading patterns, and accounts that trade automatically are removed and lose any prize.`,
+**Notify me**: tap Notify me on a card and we email you once when it opens, plus a short confirmation now. You can leave the list from the competition's page. You can be on the list for both.
+
+**Rules when they open**: a verified profile, one account per player, and every trade placed by you by hand: no AI, bots, EAs (expert advisors), scripts or automated trading. We review trading patterns, and accounts that trade automatically are removed and lose any prize. You can enter the Daily Open and the Weekend Open together.
+
+Game modes (Quick, Blitz, Grand, Elimination, Solo, Async, Private and Tournament) are open any time and pay coins. ${NO_CASH}`,
+    },
+    {
+      slug: 'monthly-grand-closed',
+      title: 'Where did the Weekly War and the Monthly Grand go?',
+      category: 'competitions',
+      tags: ['monthly grand', 'weekly war', 'daily war', 'weekend blitz', 'closed', 'refund', 'discontinued', 'renamed', 'my coins back', 'entry refunded'],
+      body: `The **Weekly War** and the **Monthly Grand** have been closed. Every player who had entered a run that was still going or about to start got their entry coins back in their balance, once, with a message and an email to say so. Your history from past runs is kept.
+
+The **Daily War** is now the **Daily Open**, and the **Weekend Blitz** is now the **Weekend Open**. Both are free to enter with money prizes and are coming soon (see "Competitions: the Daily Open and the Weekend Open").
+
+If you entered a Daily or Weekend run before the change, you can still finish it from your own link on the Play page (Continue). It pays coins under its old rules. ${NO_CASH}
+
+If a player says their coins were not refunded, offer a human agent to check.`,
+    },
+    {
+      slug: 'partner-listings',
+      title: 'Partner competitions: prop firms, brokers and sponsored prizes',
+      category: 'competitions',
+      tags: ['prop firm', 'broker', 'sponsored', 'partner listing', 'preview', 'preview tag', 'featured', 'plus', 'heart', 'save', 'offer', 'discount', 'partner with us', 'list a competition'],
+      body: `Below our own competitions, the Competitions page lists competitions run by **prop firms**, **brokers** and **sponsors**.
+
+- **Prop firms and brokers** run their competitions on their own site, under their own rules. They set and pay the prize. Spike & Crush only lists them.
+- **Sponsored listings** offer a prize such as a trading laptop, a phone or a course bundle for a result on Spike & Crush, for example the best weekend trader. The sponsor gives the prize. Any offer is applied automatically when you follow our link; there is no code to type.
+- All of them are **coming soon** for now: Coming soon, Notify me and Details are the only buttons. When they open, the Details page gets a "Compete on" button that opens the partner's site in a new tab.
+- The **Preview** tag means it is an example listing. The names are made up, and a real partner replaces it when they sign.
+- **Featured** and **Plus** are paid listing tiers. Featured listings come first, then Plus, then Standard; within a tier, whoever listed first stays first.
+- The heart saves a listing to your account so you can find it later.
+
+Companies that want to list a competition or sponsor a prize can use **Partner with us** (/sponsor). Players who want to run a competition with friends can use the **Tournament** option in game modes.`,
     },
     {
       slug: 'competition-prizes',
@@ -325,18 +343,15 @@ ${['daily', 'weekly', 'weekend', 'monthly'].map(compTemplateBlock).join('\n\n')}
       tags: ['cash prize', 'prize pool', 'real money', 'win money', 'payout', 'partner', 'free entry', 'verified', 'bots', 'EA', 'AI'],
       body: `There are two kinds of prize on Spike & Crush, and they never mix.
 
-**Game modes pay coins.** Quick, Blitz, Grand, Solo, Async, Private and Tournament War pay coins. ${NO_CASH}
+**Game modes pay coins.** Quick, Blitz, Grand, Elimination, Solo, Async, Private and Tournament pay coins. ${NO_CASH}
 
-**"Hosted by" competitions** are different again: a partner runs them on the partner's own site, and the partner sets the prize and the rules. Spike & Crush only lists them; the "Compete on" button opens the partner's site in a new tab, and you sign up and trade there.
-
-**Some competitions have a cash prize.** The Daily, Weekly, Weekend and Monthly competitions will be cash prize competitions played here on Spike & Crush, on our own trading screen. When a competition card says "Cash prizes" or shows a prize pool:
+**Competitions pay money or goods.** The Daily Open ($5,000) and the Weekend Open ($10,000) will be played here on Spike & Crush. Prop firm, broker and sponsored competitions are listed on the same page.
 - Entry is always free. It never costs coins or money.
-- The prize is paid in money by the competition partner named in that competition's terms, not by Spike & Crush.
+- The prize is paid by the competition partner named in that competition's terms on its Details page, not by Spike & Crush.
 - To be paid, a winner verifies their identity with the partner and completes the partner's payout form. Spike & Crush never asks for bank or card details, and support cannot pay out or speed up a prize.
-- Rules: a verified profile, one account per player, and every trade placed by you: no AI, bots or EAs. We review trading patterns. Accounts that trade automatically are removed and lose any prize.
-- Coins and cash prizes are separate: coins never become a cash prize, and a cash prize is never paid in coins.
+- Coins and competition prizes are separate: coins never become a prize, and a prize is never paid in coins.
 
-These competitions are coming soon. The full rules are in the Terms, under Competition Prizes (/terms#competition-prizes).
+All competitions are coming soon. The full rules are in the Terms, under Competition Prizes (/terms#competition-prizes).
 
 If a player asks about a specific prize payment, the partner named in the competition's terms handles it. If they cannot reach the partner, offer a human agent.`,
     },

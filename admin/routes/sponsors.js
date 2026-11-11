@@ -18,7 +18,7 @@ const compStates = require('../../server/competitionStates');
 const TIERS = ['platinum', 'gold', 'silver', 'partner'];
 const STATUSES = ['draft', 'active', 'paused', 'ended'];
 const PLACEMENTS = ['global_strip', 'hero', 'competition', 'mode'];
-const LEAD_STATUSES = ['new', 'contacted', 'closed'];
+const LEAD_STATUSES = ['new', 'contacted', 'signed', 'declined', 'closed'];
 const MODES = ['quick', 'blitz', 'grand', 'solo', 'async', 'private', 'tournament'];
 const LOGO_BUCKET = 'sponsor-logos';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -332,7 +332,7 @@ function router() {
 
   r.get('/leads', async (req, res) => {
     try {
-      let q = supabase.from('sponsor_leads').select('id, company, contact_name, email, interest, budget_band, message, status, created_at').order('created_at', { ascending: false }).limit(500);
+      let q = supabase.from('sponsor_leads').select('id, company, contact_name, email, interest, budget_band, message, status, created_at, company_type, website, wants, tier_interest, notes, updated_at').order('created_at', { ascending: false }).limit(500);
       if (LEAD_STATUSES.includes(req.query.status)) q = q.eq('status', req.query.status);
       const { data, error } = await q;
       if (error) throw error;
@@ -343,14 +343,20 @@ function router() {
   });
 
   r.put('/leads/:id', requireEditor, async (req, res) => {
-    const status = req.body?.status;
-    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Lead not found' });
-    if (!LEAD_STATUSES.includes(status)) return res.status(400).json({ error: `status must be one of ${LEAD_STATUSES.join(', ')}` });
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Request not found' });
+    const patch = {};
+    if (req.body?.status !== undefined) {
+      if (!LEAD_STATUSES.includes(req.body.status)) return res.status(400).json({ error: `status must be one of ${LEAD_STATUSES.join(', ')}` });
+      patch.status = req.body.status;
+    }
+    if (req.body?.notes !== undefined) patch.notes = String(req.body.notes || '').slice(0, 4000) || null;
+    if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nothing to update' });
+    patch.updated_at = new Date().toISOString();
     try {
-      const { data, error } = await supabase.from('sponsor_leads').update({ status }).eq('id', req.params.id).select('id, company, status').maybeSingle();
+      const { data, error } = await supabase.from('sponsor_leads').update(patch).eq('id', req.params.id).select('id, company, status').maybeSingle();
       if (error) throw error;
-      if (!data) return res.status(404).json({ error: 'Lead not found' });
-      await audit(req, 'sponsor_lead_status', 'sponsor_leads', data.id, { company: data.company, status });
+      if (!data) return res.status(404).json({ error: 'Request not found' });
+      await audit(req, 'partner_request_update', 'sponsor_leads', data.id, { company: data.company, ...(patch.status ? { status: patch.status } : {}), ...(patch.notes !== undefined ? { notes_changed: true } : {}) });
       res.json({ lead: data });
     } catch (e) {
       res.status(500).json({ error: e.message });
