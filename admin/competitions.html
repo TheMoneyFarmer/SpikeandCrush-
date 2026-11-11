@@ -39,6 +39,18 @@
             <tbody id="tplBody"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
           </table></div>
         </div>
+        <div class="panel" id="partnerPanel">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <h3 style="margin:0">Partner competitions</h3>
+            <span class="muted">Hosted on a sponsor's own site. We list it and link out; the sponsor sets and pays the prize.</span>
+            <button class="btn btn-sm" id="pcNew" style="margin-left:auto">New partner competition</button>
+          </div>
+          <div class="admin-table-wrap" style="margin-top:12px"><table class="admin-table">
+            <thead><tr><th>Competition</th><th>Hosted by</th><th>Dates</th><th>Prize text</th><th>Listed</th><th></th></tr></thead>
+            <tbody id="pcBody"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+          </table></div>
+          <div id="pcForm"></div>
+        </div>
         <div class="panel">
           <h3>Test competition</h3>
           <p class="muted">Starts now, never listed on the public hub. Replay speed 144 = a full day of market in 10 minutes. Production competitions always replay at 1x.</p>
@@ -159,6 +171,49 @@
       try { await Admin.api(`/competitions/templates/${editing.key}`, { method: 'PUT', body }); $('tplModal').classList.add('hidden'); Admin.toast('Saved', 'success'); loadTemplates(); } catch (e) { Admin.toast(e.message, 'danger'); }
     });
     loadTemplates();
+
+    // ---- partner competitions ----
+    let pcData = null;
+    const localDT = (iso) => (iso ? new Date(new Date(iso).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
+    async function loadPartners() {
+      try { pcData = await Admin.api('/competitions/partner'); } catch (e) {
+        document.getElementById('pcBody').innerHTML = `<tr><td colspan="6" class="muted">${Admin.escapeHtml(e.message)} (has the sponsors migration been run?)</td></tr>`;
+        return;
+      }
+      document.getElementById('pcNew').hidden = !pcData.canEdit;
+      document.getElementById('pcBody').innerHTML = pcData.competitions.map((c) => `<tr>
+        <td><b>${Admin.escapeHtml(c.title)}</b><div class="muted">${Admin.escapeHtml(c.external_url || '')}</div></td>
+        <td>${Admin.escapeHtml(c.sponsors?.name || '')}</td>
+        <td class="muted">${Admin.formatDate(c.starts_at)} to ${Admin.formatDate(c.ends_at)}</td>
+        <td>${Admin.escapeHtml(c.prize_text || '')}</td>
+        <td>${c.is_published ? 'Yes' : 'No'}</td>
+        <td>${pcData.canEdit ? `<button class="btn btn-sm" data-pc-edit="${c.id}">Edit</button>` : ''}</td>
+      </tr>`).join('') || '<tr><td colspan="6" class="muted">None yet</td></tr>';
+    }
+    function openPartner(c) {
+      const v = c || { title: '', sponsor_id: '', external_url: '', prize_text: '', rules_summary: '', is_published: true };
+      document.getElementById('pcForm').innerHTML = `<div class="config-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px">
+        <label class="field">Title<input id="pcTitle" maxlength="120" value="${Admin.escapeHtml(v.title)}"></label>
+        <label class="field">Hosted by (sponsor)<select id="pcSponsor"><option value="">Choose</option>${pcData.sponsors.map((x) => `<option value="${x.id}" ${x.id === v.sponsor_id ? 'selected' : ''}>${Admin.escapeHtml(x.name)}${x.status === 'active' ? '' : ` (${x.status})`}</option>`).join('')}</select></label>
+        <label class="field" style="grid-column:1/-1">Competition link on the sponsor's site (https)<input id="pcUrl" value="${Admin.escapeHtml(v.external_url || '')}" placeholder="https://"></label>
+        <label class="field">Starts<input type="datetime-local" id="pcStart" value="${localDT(v.starts_at)}"></label>
+        <label class="field">Ends<input type="datetime-local" id="pcEnd" value="${localDT(v.ends_at)}"></label>
+        <label class="field" style="grid-column:1/-1">Prize text, exactly as the sponsor gave it (140 max)<input id="pcPrize" maxlength="140" value="${Admin.escapeHtml(v.prize_text || '')}"></label>
+        <label class="field" style="grid-column:1/-1">Rules summary (400 max)<textarea id="pcRules" maxlength="400">${Admin.escapeHtml(v.rules_summary || '')}</textarea></label>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pcPub" ${v.is_published ? 'checked' : ''}> Listed on the competitions page</label>
+      </div>
+      <p class="muted">Cards say "Hosted by" and "Prize and rules set by" the sponsor. Entry is free and happens on the sponsor's site; the link goes through /go/ with UTM tags.</p>
+      <div style="display:flex;gap:8px"><button class="btn btn-primary" id="pcSave">${c ? 'Save' : 'Create'}</button><button class="btn" id="pcCancel">Cancel</button></div>`;
+      document.getElementById('pcCancel').addEventListener('click', () => { document.getElementById('pcForm').innerHTML = ''; });
+      document.getElementById('pcSave').addEventListener('click', async () => {
+        const st = document.getElementById('pcStart').value, en = document.getElementById('pcEnd').value;
+        const body = { title: document.getElementById('pcTitle').value, sponsorId: document.getElementById('pcSponsor').value, externalUrl: document.getElementById('pcUrl').value, startsAt: st ? new Date(st).toISOString() : null, endsAt: en ? new Date(en).toISOString() : null, prizeText: document.getElementById('pcPrize').value, rulesSummary: document.getElementById('pcRules').value, published: document.getElementById('pcPub').checked };
+        try { await Admin.api(c ? `/competitions/partner/${c.id}` : '/competitions/partner', { method: c ? 'PUT' : 'POST', body }); Admin.toast('Saved', 'success'); document.getElementById('pcForm').innerHTML = ''; loadPartners(); } catch (e) { Admin.toast(e.message, 'danger'); }
+      });
+    }
+    document.getElementById('pcNew').addEventListener('click', () => openPartner(null));
+    document.getElementById('pcBody').addEventListener('click', (e) => { const b = e.target.closest('[data-pc-edit]'); if (b) openPartner(pcData.competitions.find((c) => c.id === b.dataset.pcEdit)); });
+    loadPartners();
 
     let comps = [];
     let activeId = null;

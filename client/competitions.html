@@ -350,6 +350,7 @@ async function loadTemplates() {
 }
 
 // Partner competitions: listings with a partner placement (counted through /go/).
+const partnerHref = new Map();
 async function loadPartnerCards() {
   const partners = allComps.filter((c) => c.prize_kind === 'partner' || c.type === 'external');
   if (!partners.length) return;
@@ -357,6 +358,7 @@ async function loadPartnerCards() {
   const d = await fetch(`/api/slots?want=${encodeURIComponent(want)}`).then((r) => (r.ok ? r.json() : { slots: {} })).catch(() => ({ slots: {} }));
   const cards = partners.map((c) => {
     const [p] = (d.slots || {})[`competition_card:partner:${c.id}`] || [];
+    if (p) partnerHref.set(c.id, p.href);
     return p ? TW.CompTemplates.partnerCard(c, p.sponsor.name, p) : '';
   }).filter(Boolean);
   if (!cards.length) return;
@@ -764,7 +766,8 @@ async function handleCTA(compId, btn) {
   TW.api('/api/competitions/' + encodeURIComponent(compId) + '/click', { method: 'POST' }).catch(() => {});
 
   if (comp.type === 'external') {
-    const url = safeUrl(comp.external_url);
+    // through /go/ when the partner has a placement (counted, UTM-tagged)
+    const url = partnerHref.get(comp.id) || safeUrl(comp.external_url);
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
     else TW.toast('This competition has no entry link yet', 'warning');
     return;

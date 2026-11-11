@@ -209,6 +209,93 @@ module.exports = function competitionsRoutes() {
     }
   });
 
+
+  // ---- partner competitions -------------------------------------------------------
+  // Hosted and paid by a sponsor on their own site. We list it, link out through
+  // /go/ (counted, UTM-tagged) and never take entries, money or payouts here.
+  const isHttps = (u) => { try { return new URL(u).protocol === 'https:'; } catch (e) { return false; } };
+  function partnerFields(b = {}) {
+    const title = String(b.title || '').trim().slice(0, 120);
+    if (!title) return { error: 'Title is required' };
+    if (!/^[0-9a-f-]{36}$/i.test(String(b.sponsorId || ''))) return { error: 'Pick the hosting sponsor' };
+    if (!isHttps(String(b.externalUrl || ''))) return { error: "The sponsor's competition link must start with https://" };
+    if (!b.startsAt || !b.endsAt || Number.isNaN(Date.parse(b.startsAt)) || Number.isNaN(Date.parse(b.endsAt))) return { error: 'Start and end dates are required' };
+    if (Date.parse(b.endsAt) <= Date.parse(b.startsAt)) return { error: 'End must be after start' };
+    const prizeText = String(b.prizeText || '').trim().slice(0, 140);
+    const rules = String(b.rulesSummary || '').trim().slice(0, 400);
+    for (const [k, v] of [['Title', title], ['Prize text', prizeText], ['Rules summary', rules]]) {
+      const bad = compStates.cardTextViolations(v);
+      if (bad.length) return { error: `${k} uses wording that is not allowed on cards (${bad.join(', ')})` };
+    }
+    return {
+      fields: {
+        title, type: 'external', prize_kind: 'partner', state: 'open', data_source: 'live',
+        entry_fee_coins: 0, prize_pool: 0, prize_top_amount: 0, prize_text: prizeText || null, rules_summary: rules || null,
+        external_url: String(b.externalUrl).trim(), starts_at: new Date(b.startsAt).toISOString(), ends_at: new Date(b.endsAt).toISOString(),
+        sponsor_id: b.sponsorId, is_published: b.published !== false, description: rules || null,
+      },
+    };
+  }
+
+  r.get('/partner', async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('competitions').select('id, title, starts_at, ends_at, external_url, prize_text, rules_summary, sponsor_id, is_published, click_count, sponsors(name)').eq('prize_kind', 'partner').order('starts_at', { ascending: false }).limit(200);
+      if (error) throw error;
+      const { data: sponsors } = await supabase.from('sponsors').select('id, name, status').order('name');
+      res.json({ competitions: data || [], sponsors: sponsors || [], canEdit: canEdit(req) });
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+
+  async function syncPartnerPlacement(comp, req) {
+    const target = `partner:${comp.id}`;
+    const row = { sponsor_id: comp.sponsor_id, slot: 'competition_card', placement: 'competition', targets: target, weight: 1, status: comp.is_published ? 'active' : 'paused', active: !!comp.is_published, creative: 'logo_tagline_cta', cta_text: null, cta_url: comp.external_url, starts_at: comp.starts_at, ends_at: comp.ends_at, updated_at: new Date().toISOString() };
+    const { data: existing } = await supabase.from('sponsor_placements').select('id').eq('slot', 'competition_card').eq('targets', target).maybeSingle();
+    if (existing) {
+      const { error } = await supabase.from('sponsor_placements').update(row).eq('id', existing.id);
+      if (error) throw error;
+      return existing.id;
+    }
+    const { data, error } = await supabase.from('sponsor_placements').insert({ ...row, created_by: adminName(req) }).select('id').single();
+    if (error) throw error;
+    return data.id;
+  }
+
+  r.post('/partner', async (req, res) => {
+    if (!canEdit(req)) return res.status(403).json({ error: 'Your role cannot create competitions' });
+    const { fields, error: invalid } = partnerFields(req.body);
+    if (invalid) return res.status(400).json({ error: invalid });
+    try {
+      compStates.assertSeparation(fields);
+      const { data: comp, error } = await supabase.from('competitions').insert(fields).select('*').single();
+      if (error) throw error;
+      const placementId = await syncPartnerPlacement(comp, req);
+      await logAdminAction({ adminUsername: adminName(req), actionType: 'partner_competition_create', targetType: 'competition', targetId: comp.id, details: { title: comp.title, sponsor_id: comp.sponsor_id, placementId }, ip: clientIp(req) });
+      res.json({ competition: comp, placementId });
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+
+  r.put('/partner/:id', async (req, res) => {
+    if (!canEdit(req)) return res.status(403).json({ error: 'Your role cannot change competitions' });
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ error: 'Competition not found' });
+    const { fields, error: invalid } = partnerFields(req.body);
+    if (invalid) return res.status(400).json({ error: invalid });
+    try {
+      compStates.assertSeparation(fields);
+      const { data: comp, error } = await supabase.from('competitions').update(fields).eq('id', req.params.id).eq('prize_kind', 'partner').select('*').maybeSingle();
+      if (error) throw error;
+      if (!comp) return res.status(404).json({ error: 'Partner competition not found' });
+      const placementId = await syncPartnerPlacement(comp, req);
+      await logAdminAction({ adminUsername: adminName(req), actionType: 'partner_competition_update', targetType: 'competition', targetId: comp.id, details: { title: comp.title, published: comp.is_published }, ip: clientIp(req) });
+      res.json({ competition: comp, placementId });
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+
   // Entrants with their accounts, ranked by equity (or final rank once settled).
   r.get('/:id/entrants', async (req, res) => {
     try {
