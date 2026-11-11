@@ -199,6 +199,7 @@ window.TW = window.TW || {};
   // come from the server (state.rules), not a second copy here.
   function showMatchRules(state) {
     const rules = state.rules || {};
+    const modeInfo = TW.Modes ? TW.Modes.rulesRows(state) : null;
 
     const overlay = document.createElement('div');
     overlay.className = 'match-rules-overlay';
@@ -206,10 +207,11 @@ window.TW = window.TW || {};
     overlay.innerHTML = `
       <div class="match-rules-card">
         <div class="rules-header">
-          <div class="rules-mode-badge">⚔️ ${TW.escapeHtml(state.modeLabel || state.mode)}</div>
+          <div class="rules-mode-badge">${TW.escapeHtml((modeInfo && modeInfo.displayName) || state.modeLabel || state.mode)}</div>
           <div class="rules-countdown" id="rulesCountdown">5</div>
         </div>
         <h2 class="rules-title">Match Rules</h2>
+        ${modeInfo && modeInfo.banner ? `<p class="rules-mode-banner">${TW.escapeHtml(modeInfo.banner)}</p>` : ''}
         <div class="rules-grid">
           <div class="rule-item"><div class="rule-label">Starting Capital</div><div class="rule-value">$10,000</div></div>
           <div class="rule-item"><div class="rule-label">Duration</div><div class="rule-value">${formatClock(state.durationSeconds)} Minutes</div></div>
@@ -218,13 +220,12 @@ window.TW = window.TW || {};
           <div class="rule-item"><div class="rule-label">Margin Call</div><div class="rule-value">${rules.marginCallLevel}% margin level</div></div>
           <div class="rule-item"><div class="rule-label">Stop Out</div><div class="rule-value">${rules.stopOutLevel}% margin level</div></div>
           <div class="rule-item"><div class="rule-label">Loss Limit</div><div class="rule-value" style="font-size:12px;">-${rules.softLossPct * 100}% in ${rules.softLossWindowSeconds / 60} min pauses new trades</div></div>
-          <div class="rule-item"><div class="rule-label">Sabotage Cards</div><div class="rule-value">${state.cardsPerPlayer} Cards — 1 use each</div></div>
+          ${modeInfo ? modeInfo.rows.map(([k, v]) => `<div class="rule-item"><div class="rule-label">${TW.escapeHtml(k)}</div><div class="rule-value" style="font-size:12px;">${TW.escapeHtml(v)}</div></div>`).join('') : `<div class="rule-item"><div class="rule-label">Sabotage Cards</div><div class="rule-value">${state.cardsPerPlayer} Cards, 1 use each</div></div>`}
           <div class="rule-item" style="grid-column:1 / -1;"><div class="rule-label">Instruments</div><div class="rule-value" style="font-size:12px;">${(state.instruments || []).join(' · ')}</div></div>
           <div class="rule-item"><div class="rule-label">Entry Cost</div><div class="rule-value">${state.entryCoins ?? 0} Coins</div></div>
-          <div class="rule-item"><div class="rule-label">Winner</div><div class="rule-value" style="font-size:12px;">Highest P&amp;L at zero</div></div>
+          ${modeInfo ? '' : '<div class="rule-item"><div class="rule-label">Winner</div><div class="rule-value" style="font-size:12px;">Highest P&amp;L at zero</div></div>'}
         </div>
         <div class="rules-reminder">
-          <span class="reminder-icon">⚠️</span>
           All positions close automatically when the timer ends. No exceptions.
         </div>
         <button class="btn-rules-ready" id="rulesReadyBtn">Ready — Let's Trade</button>
@@ -1416,12 +1417,20 @@ window.TW = window.TW || {};
     TW.toast(`✅ ${data.username} reconnected`, 'info');
   });
 
+  let ghostRequested = false;
   socket.on('match:state', (state) => {
     lastState = state;
     const modeEl = document.getElementById('topbarMode');
     if (modeEl) modeEl.textContent = state.modeLabel || '';
     setupInstrumentTabs(state.instruments);
     TW.Sabotage.render(state);
+    if (TW.Modes) TW.Modes.setState(state);
+    // Solo / Daily Challenge / challenge link: fetch the ghost once (it is
+    // also pushed live as mode:ghost when it loads after the start).
+    if (!ghostRequested && state.status === 'active' && (state.mode === 'solo' || state.mode === 'async' || state.challenge)) {
+      ghostRequested = true;
+      TW.api(`/api/match/${encodeURIComponent(matchId)}/ghost`).then((r) => { if (r && TW.Fire) TW.Fire.setGhost(r.ghost, r.personal); }).catch(() => {});
+    }
     if (TW.Fire) {
       TW.Fire.setYou(state.you);
       TW.Fire.setChallenge(state.challenge);
@@ -1445,7 +1454,7 @@ window.TW = window.TW || {};
     if (me) {
       myAccount.balance = me.balance;
       myAccount.positions = me.positions || [];
-      riskLocked = Boolean(me.eliminated || me.softLocked);
+      riskLocked = Boolean(me.eliminated || me.softLocked || me.spectator);
       updateTradeButtonsDisabled();
     }
 
@@ -1457,6 +1466,7 @@ window.TW = window.TW || {};
   let lastCountdownSecond = null;
   socket.on('price:update', (data) => {
     if (matchStartedAtMs === null) matchStartedAtMs = Date.now() - data.elapsedSeconds * 1000;
+    if (TW.Fire && TW.Fire.setElapsed) TW.Fire.setElapsed(data.elapsedSeconds);
     lastPrices = data.prices;
     // Candles are built on market time: at a replay speed above 1 one real
     // second carries several data seconds, and 1m candles must still be the
@@ -1556,6 +1566,11 @@ window.TW = window.TW || {};
   socket.on('missions:complete', (payload) => TW.Fire && TW.Fire.missionComplete(payload));
   socket.on('spike:alert', (payload) => TW.Fire && TW.Fire.spikeAlert(payload));
   socket.on('spike:result', (payload) => TW.Fire && TW.Fire.spikeResult(payload));
+  socket.on('elim:warning', (payload) => TW.Modes && TW.Modes.onWarning(payload));
+  socket.on('elim:cut', (payload) => TW.Modes && TW.Modes.onCut(payload));
+  socket.on('elim:out', (payload) => TW.Modes && TW.Modes.onOut(payload));
+  socket.on('mode:ghost', (payload) => TW.Fire && TW.Fire.setGhost(payload, payload.personal));
+  socket.on('mode:checkpoint', (payload) => TW.Modes && TW.Modes.onCheckpoint(payload));
   // Reversal Flash: private 1s heads-up before the shared price reversal
   // actually starts - opponents only learn about it once it's already moving.
   socket.on('sabotage:reversal_warning', () => TW.Sabotage.showReversalWarning());

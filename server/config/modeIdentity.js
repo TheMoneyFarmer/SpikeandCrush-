@@ -71,8 +71,9 @@ const DEFAULTS = {
     special: 'Start with 2 cards, events at 5, 10 and 15 minutes, Steady Hand badge',
     cards: { startingHand: { count: 2, tiers: ['basic', 'mid'] }, heavyFromStart: true },
     // Scheduled market events: real indexed spikes nearest these data minutes.
-    // Biggest real move (top 5% of 1-minute ranges) within the window around each minute.
-    events: { minutes: [5, 10, 15], searchWindowSeconds: 120, topPercent: 5 },
+    // Biggest real move within the window around each minute: the top 10% of
+    // 1-minute ranges first, then the top 25% (measured coverage 96.5%).
+    events: { minutes: [5, 10, 15], searchWindowSeconds: 120, topPercent: 10, fallbackTopPercent: 25 },
     checkpointMinute: 10,
     steadyHandBadge: true,
     missions: ['hold_180', 'survive_events', 'two_wins'],
@@ -103,11 +104,11 @@ const DEFAULTS = {
     preStartBanner: 'Elimination: 15 minutes, a cut every 3 minutes, survive to win.',
   },
   solo: {
-    displayName: 'Solo Practice',
+    displayName: 'Solo Ranked',
     icon: 'target',
-    identity: 'Practice on your own: beat your own best run and finish a mission chain.',
-    bestFor: 'Learning and beating your personal best',
-    winCondition: 'Beat your own best',
+    identity: 'Free, always open: race the ghost of your own best run and finish a mission chain.',
+    bestFor: 'Learning, practice and beating your personal best',
+    winCondition: 'Highest equity at the table; your own best run is the ghost to beat',
     winShort: 'Beat your best',
     special: 'No sabotage, ghost of your best run, 3-mission chain',
     cards: { sabotage: false, allowedTiers: ['basic', 'mid'], defenseOnly: true },
@@ -115,7 +116,7 @@ const DEFAULTS = {
     missions: ['first_trade', 'two_wins', 'hold_60'],
     missionChain: true,
     resultHighlights: ['ghostDelta', 'personalBest'],
-    preStartBanner: 'Solo: 10 minutes, no sabotage, beat your own best.',
+    preStartBanner: 'Solo Ranked: 10 minutes, free, no sabotage, beat your own best run.',
   },
   async: {
     displayName: 'Daily Challenge',
@@ -284,7 +285,7 @@ function publicCatalog() {
   return Object.keys(DEFAULTS)
     .map((key) => {
       const id = identity(key);
-      return { key, enabled: id.enabled !== false, displayName: id.displayName, icon: id.icon, identity: id.identity, bestFor: id.bestFor, winCondition: id.winCondition, winShort: id.winShort, special: id.special, cardSlots: id.cards && id.cards.enabled === false ? 0 : (id.cards && id.cards.handSize) || 4, sabotage: !(id.cards && id.cards.sabotage === false), banner: id.preStartBanner };
+      return { key, enabled: id.enabled !== false, displayName: id.displayName, icon: id.icon, identity: id.identity, bestFor: id.bestFor, winCondition: id.winCondition, winShort: id.winShort, special: id.special, cardSlots: id.cards && id.cards.enabled === false ? 0 : (id.cards && id.cards.handSize) || 4, sabotage: !(id.cards && id.cards.sabotage === false), startingHand: (id.cards && id.cards.startingHand && id.cards.startingHand.count) || null, cutsEveryMinutes: id.elimination && id.elimination.enabled !== false ? id.elimination.everyMinutes : null, events: id.events ? id.events.minutes : null, hostOptions: id.hostOptions || null, banner: id.preStartBanner };
     });
 }
 

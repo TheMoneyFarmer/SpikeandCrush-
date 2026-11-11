@@ -36,6 +36,7 @@
           <button class="admin-tab" data-tab="progression">Progression</button>
           <button class="admin-tab" data-tab="ranksplit">Rank Split</button>
           <button class="admin-tab" data-tab="discover">Discover</button>
+          <button class="admin-tab" data-tab="modes">Game Modes</button>
         </div>
         <div class="admin-tab-panel" id="tab-market"></div>
         <div class="admin-tab-panel" id="tab-monitor"></div>
@@ -43,6 +44,7 @@
         <div class="admin-tab-panel" id="tab-progression"></div>
         <div class="admin-tab-panel" id="tab-ranksplit"></div>
         <div class="admin-tab-panel" id="tab-discover"></div>
+        <div class="admin-tab-panel" id="tab-modes"></div>
       </div>
     </main>
   </div>
@@ -214,10 +216,54 @@
       bindSaves(el);
     }
 
+    // Game Modes: each mode's identity (server/config/modeIdentity.js). Edits
+    // apply to new matches; GAME_RULES and match lengths are not here.
+    async function saveMode(mode, value) {
+      try {
+        await Admin.api(`/fire/modes/${mode}`, { method: 'PUT', body: { value } });
+        Admin.toast ? Admin.toast(`${mode} saved: new matches use it`, 'success') : alert('Saved');
+        await load();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function renderModes() {
+      const el = document.getElementById('tab-modes');
+      const M = S.modes;
+      if (!M) { el.innerHTML = '<div class="panel">The game server did not send mode settings (older build).</div>'; return; }
+      const keys = Object.keys(M.defaults);
+      const row = (k) => {
+        const e = M.effective[k];
+        const on = e.enabled !== false;
+        const cards = e.cards && e.cards.enabled === false ? 'off' : `${e.cards.handSize} slots${e.cards.sabotage === false ? ', no sabotage' : ''}${e.cards.startingHand ? `, start ${e.cards.startingHand.count}` : ''}`;
+        const extra = [e.elimination && e.elimination.enabled !== false ? `cuts every ${e.elimination.everyMinutes} min from ${e.elimination.firstCutMinute}, ${Math.round(e.elimination.cutShare * 100)}%` : '', e.events && e.events.minutes && e.events.minutes.length ? `events at ${e.events.minutes.join('/')} min` : '', e.xpMultiplier && e.xpMultiplier !== 1 ? `XP x${e.xpMultiplier}` : ''].filter(Boolean).join('; ');
+        return `<tr><td><b>${esc(e.displayName)}</b><div class="fx-note">${esc(k)}</div></td><td>${on ? '<span class="fx-ok">On</span>' : '<span class="fx-bad">Off</span>'}</td><td>${(M.live && M.live[k]) || 0}</td><td>${esc(cards)}</td><td>${esc(extra || '-')}</td><td>${M.overrides[k] ? 'yes' : '-'}</td>
+          <td><button class="btn" data-mode-toggle="${esc(k)}" data-on="${on ? 1 : 0}">${on ? 'Turn off' : 'Turn on'}</button></td></tr>`;
+      };
+      el.innerHTML = `<div class="panel fx-section"><h4>Modes</h4><p class="fx-note">A mode that is off disappears from the lobby cards. Settings apply to matches created after the save; running matches keep their rules. Every save is audit-logged. Trading rules and money maths are identical in every mode and are not editable here.</p>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mode</th><th>Status</th><th>Seats now</th><th>Cards</th><th>Special</th><th>Overridden</th><th></th></tr></thead><tbody>${keys.map(row).join('')}</tbody></table></div></div>` +
+        keys.map((k) => `<div class="panel fx-section"><h4>${esc(M.effective[k].displayName)} <span class="fx-note">(${esc(k)})</span></h4>
+          <p class="fx-note">Overrides only, merged over the defaults (Quick is the base for every mode). Keys: displayName, identity, bestFor, winCondition, winShort, special, preStartBanner, cards { handSize, allowedTiers, startingHand, sabotage, refillAtStreak }, instrumentPool, spikeAlerts { minGapSeconds }, events { minutes }, checkpointMinute, elimination { firstCutMinute, everyMinutes, cutShare, minPlayersToStart, warnSeconds }, missions, missionChain, xpMultiplier, enabled.</p>
+          <textarea class="fx-json" id="mode-ov-${esc(k)}">${esc(JSON.stringify((M.overrides[k]) || {}, null, 2))}</textarea>
+          <div class="fx-row"><button class="btn btn-primary" data-mode-save="${esc(k)}">Save ${esc(k)}</button></div>
+          <details><summary class="fx-note">Live values</summary><pre class="fx-json" style="white-space:pre-wrap">${esc(JSON.stringify(M.effective[k], null, 2))}</pre></details></div>`).join('');
+      el.querySelectorAll('[data-mode-save]').forEach((b) => b.addEventListener('click', () => {
+        try { saveMode(b.dataset.modeSave, JSON.parse(document.getElementById(`mode-ov-${b.dataset.modeSave}`).value || '{}')); } catch (e) { alert(`Invalid JSON: ${e.message}`); }
+      }));
+      el.querySelectorAll('[data-mode-toggle]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.modeToggle;
+        const cur = { ...(M.overrides[k] || {}) };
+        if (b.dataset.on === '1') cur.enabled = false; else delete cur.enabled;
+        if (b.dataset.on === '1' && !confirm(`Turn ${k} off? It disappears from the lobby for new players.`)) return;
+        saveMode(k, cur);
+      }));
+    }
+
     async function load() {
       try {
         S = await Admin.api('/fire/state');
-        renderMarket(); renderMonitor(); renderSettings(); renderProgression(); renderRankSplit(); renderDiscover();
+        renderMarket(); renderMonitor(); renderSettings(); renderProgression(); renderRankSplit(); renderDiscover(); renderModes();
         tabs();
       } catch (e) {
         document.querySelector('.admin-content').insertAdjacentHTML('afterbegin', `<div class="panel fx-bad">${esc(e.message)}</div>`);

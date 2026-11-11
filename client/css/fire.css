@@ -57,6 +57,9 @@
 .ms-spike b { color: var(--fx-text); }
 .ms-count { font-family: var(--fx-display); font-weight: 700; color: var(--fx-gold); font-size: 15px; }
 .ms-note { margin-left: auto; overflow: hidden; text-overflow: ellipsis; }
+.match-strip.ms-cut { border-color: var(--fx-gold); color: var(--fx-text); background: linear-gradient(90deg, rgba(245, 184, 61, 0.14), var(--fx-panel) 60%); }
+.match-strip.ms-cut.ms-danger { border-color: var(--fx-crush); background: linear-gradient(90deg, rgba(255, 77, 94, 0.16), var(--fx-panel) 60%); }
+.match-strip.ms-danger .ms-cut-label, .match-strip.ms-danger .ms-count { color: var(--fx-crush); }
 @keyframes fx-strip-pulse { 50% { box-shadow: inset 0 0 0 1px var(--fx-gold); } }
 
 /* ---- market speed badge ---- */

@@ -41,6 +41,10 @@
   <link rel="stylesheet" href="/css/cards.css" />
   <link rel="stylesheet" href="/css/lobby-versus.css" />
 <script src="/js/analytics.js" defer></script>
+  <style>
+    .vs-mode-rules { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; font: 500 12px/1.4 Inter, system-ui, sans-serif; color: #9aa4b8; }
+    .vs-mode-rules b { color: #f5b83d; font-weight: 600; }
+  </style>
 </head>
 <body data-page="lobby">
   <div id="twNav" data-active=""></div>
@@ -75,6 +79,7 @@
       <h1 class="vs-title" id="vsTitle">Waiting for rivals</h1>
       <div class="vs-timer" id="lobbyFillTimer"></div>
       <div class="vs-rules">$10,000 to start · Leverage 100:1 · No lot limit · Max 10 positions · Margin call 100% · Stop out 50%</div>
+      <div class="vs-mode-rules" id="vsModeRules" data-tour="room-rules" hidden></div>
     </header>
 
     <ul class="vs-fighters" id="fighterRow" aria-label="Traders in this lobby"></ul>
@@ -136,6 +141,7 @@
   <script src="js/friends-panel.js"></script>
   <script src="js/card-icons.js"></script>
   <script src="js/sabotage.js"></script>
+  <script src="js/modes.js"></script>
   <script>
     TW.requireAuth();
 
@@ -280,6 +286,14 @@
       const modeEl = document.getElementById('matchModeValue');
       if (state.lobbyTier) modeEl.textContent += ` · ${state.lobbyTier.charAt(0).toUpperCase()}${state.lobbyTier.slice(1)} lobby`;
       if (state.status === 'waiting' && state.lobbyTier) checkRankFallback(state.matchId);
+      // This mode's own rules (and a Private War host's house rules), so every
+      // guest knows them before the start.
+      const mr = window.TW && TW.Modes ? TW.Modes.rulesRows(state) : null;
+      const mrEl = document.getElementById('vsModeRules');
+      if (mrEl && mr) {
+        mrEl.hidden = false;
+        mrEl.innerHTML = `${mr.banner ? `<b>${TW.escapeHtml(mr.banner)}</b>` : ''}<span>${mr.rows.map(([k, v]) => `${TW.escapeHtml(k)}: ${TW.escapeHtml(v)}`).join(' · ')}</span>`;
+      }
       const instrumentsValueEl = document.getElementById('matchInstrumentsValue');
       // Mobile shows each instrument as its own chip (matches the reference
       // mockup); desktop keeps the plain "/"-joined text unchanged.

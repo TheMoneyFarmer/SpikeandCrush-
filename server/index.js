@@ -37,6 +37,7 @@ const discover = require('./discover');
 const rankSplit = require('./rankSplit');
 const cosmetics = require('./cosmetics');
 const gameFeel = require('./config/gameFeel');
+const modeIdentity = require('./config/modeIdentity');
 const tournament = require('./tournament');
 const presence = require('./presence');
 const friendsHub = require('./friendsHub');
@@ -1170,6 +1171,7 @@ app.post('/api/match/create', deployDrain.blockNewMatches, opsMonitor.blockNewMa
     if (!player) return res.status(404).json({ error: 'Player not found' });
     if (gameEngine.isInLiveMatch(player.id)) return res.status(409).json({ error: LIVE_MATCH_BUSY_ERROR });
     const mode = MATCHMAKING_BY_MODE[req.body?.mode] ? req.body.mode : 'private';
+    if (modeIdentity.identity(mode).enabled === false) return res.status(403).json({ error: 'This mode is switched off right now. Try another mode.' });
     const modeConfig = gameEngine.MATCH_MODES[mode];
     const entryCoins = modeConfig ? modeConfig.entryCoins : 0;
 
@@ -1263,6 +1265,15 @@ app.get('/api/match/:id', (req, res) => {
   const match = gameEngine.getMatch(req.params.id);
   if (!match) return res.status(404).json({ error: 'Match not found' });
   res.json(gameEngine.buildMatchStatePayloadFor(match, null));
+});
+
+// The ghost run a Solo / Daily Challenge / challenge-link match races
+// against (per-second P&L), for a page that loads or reconnects mid-match.
+app.get('/api/match/:id/ghost', authenticate, (req, res) => {
+  const match = gameEngine.getMatch(req.params.id);
+  if (!match) return res.status(404).json({ error: 'Match not found' });
+  if (!match.players[req.tokenPlayer.id]) return res.status(403).json({ error: 'Not in this match' });
+  res.json(gameEngine.getGhost(req.params.id));
 });
 
 app.get('/api/match/:id/history', (req, res) => {
@@ -3286,7 +3297,7 @@ app.post('/api/challenge/:code/start', requireDb, authenticate, async (req, res)
         fillMethod: 'none',
         aiOpponents: 0,
         entryCoins: 0,
-        challenge: { username: c.username, pnl: c.pnl, creatorId: c.creatorId },
+        challenge: { username: c.username, pnl: c.pnl, creatorId: c.creatorId, sourceMatchId: c.sourceMatchId },
       },
     });
     const joined = gameEngine.joinMatch(match, { id: player.id, username: player.username, country: player.country, war_rating: player.war_rating, tier: tierForRating(player.war_rating), ...(await loadCardLoadout(player)) });
@@ -3473,6 +3484,18 @@ app.use(
 );
 
 // ---- home page stats --------------------------------------------------------------
+
+// Public mode catalog for the lobby cards, Compare modes sheet and How to
+// play: identity, best for, win condition, card slots and live seats, with
+// the real length and entry from MATCH_MODES (never redefined here).
+app.get('/api/modes/catalog', cacheJson(10000), (req, res) => {
+  const counts = gameEngine.getModeCounts();
+  const modes = modeIdentity.publicCatalog().map((m) => {
+    const mm = gameEngine.MATCH_MODES[m.key] || {};
+    return { ...m, durationSeconds: mm.durationSeconds || null, entryCoins: mm.entryCoins || 0, minPlayers: m.key === 'tournament' ? modeIdentity.identity('tournament').elimination.minPlayersToStart : mm.minPlayers || 1, live: counts[m.key] || 0 };
+  });
+  res.json({ modes });
+});
 
 app.get('/api/stats/home', cacheJson(10000), async (req, res) => {
   try {

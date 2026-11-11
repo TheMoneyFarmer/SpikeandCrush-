@@ -1,0 +1,31 @@
+/* Per-mode match UI (js/modes.js). Tokens from css/fire.css. */
+.player-status-badge.danger { background: rgba(255, 77, 94, 0.16); color: var(--fx-crush, #ff4d5e); border: 1px solid rgba(255, 77, 94, 0.45); }
+.race-tag.tag-danger { background: rgba(255, 77, 94, 0.16); color: var(--fx-crush, #ff4d5e); }
+tr.row-out, .race-row.is-out { opacity: 0.5; }
+
+/* Out view: a row under the match strip, part of the layout. */
+.mode-out-bar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 6px 10px; margin-bottom: 6px; box-sizing: border-box; border-radius: 8px; border: 1px solid rgba(255, 77, 94, 0.45); background: rgba(255, 77, 94, 0.1); color: var(--fx-text, #e8ecf4); font: 500 12px/1.35 var(--fx-body, Inter, system-ui, sans-serif); }
+.mode-out-bar svg { flex: none; color: var(--fx-crush, #ff4d5e); }
+.mode-out-bar span { flex: 1; min-width: 0; }
+.mode-out-leave { flex: none; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--fx-line, #1d2638); color: var(--fx-text, #e8ecf4); text-decoration: none; font-weight: 600; }
+body.mode-spectator .trade-buttons button, body.mode-spectator #buyBtn, body.mode-spectator #sellBtn { opacity: 0.4; pointer-events: none; }
+
+/* Grand War half-time card: top of the standings panel. */
+.mode-checkpoint { margin: 0 0 8px; padding: 10px 12px; border-radius: 10px; background: #111724; border: 1px solid rgba(245, 184, 61, 0.5); color: #e8ecf4; font: 500 12px/1.4 Inter, system-ui, sans-serif; }
+.mc-head { display: flex; align-items: center; justify-content: space-between; font-family: Rajdhani, Inter, sans-serif; font-size: 15px; color: #f5b83d; }
+.mc-close { background: none; border: 0; color: #9aa4b8; font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.mc-crown { display: flex; align-items: center; gap: 6px; margin: 4px 0; color: #f5b83d; }
+.mc-top { margin: 4px 0 0; padding-left: 18px; }
+.mc-top li { display: flex; justify-content: space-between; gap: 10px; }
+.mc-top b { font-family: Rajdhani, Inter, sans-serif; }
+
+/* Result screen: the mode's own highlights. */
+.mode-highlights { margin-bottom: 10px; padding: 10px 12px; border-radius: 10px; background: #111724; border: 1px solid #1d2638; }
+.mh-title { font: 700 12px/1 Rajdhani, Inter, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #f5b83d; margin-bottom: 8px; }
+.mh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.mh-grid span { display: block; font: 500 11px/1.2 Inter, system-ui, sans-serif; color: #9aa4b8; }
+.mh-grid strong { font: 700 16px/1.3 Rajdhani, Inter, sans-serif; color: #e8ecf4; }
+.mh-badge { margin-top: 8px; font: 600 12px/1.3 Inter, system-ui, sans-serif; color: #2ee6a6; }
+
+/* Pre-start banner on the match rules card. */
+.rules-mode-banner { margin: -4px 0 12px; padding: 8px 10px; border-radius: 8px; background: rgba(245, 184, 61, 0.1); border: 1px solid rgba(245, 184, 61, 0.35); color: #e8ecf4; font: 600 13px/1.4 Inter, system-ui, sans-serif; }

@@ -10,6 +10,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const express = require('express');
 const gameFeel = require('./config/gameFeel');
+const modeIdentity = require('./config/modeIdentity');
 const curated = require('./curated');
 const progression = require('./progression');
 const sabotage = require('./sabotage');
@@ -36,6 +37,13 @@ async function loadConfig(db) {
     gameFeel.applyOverrides(stored || {});
   } catch (e) {
     console.warn('[fire] could not load game_feel overrides:', e.message);
+  }
+  // Per-mode identity overrides (admin Fire Gameplay > Game Modes). New
+  // matches snapshot them at creation; running matches keep their rules.
+  try {
+    modeIdentity.applyOverrides((await db.getGameConfig('mode_identity')) || {});
+  } catch (e) {
+    console.warn('[fire] could not load mode_identity overrides:', e.message);
   }
   return gameFeel.get();
 }
@@ -189,6 +197,7 @@ function createFireAdminRouter({ db, gameEngine, getOnlineSettings }) {
       privacyAdoption: { sample: priv.length, appearOffline: share((p) => p.appearOffline), statusFriendsOrNobody: share((p) => p.statusVisibility !== 'everyone'), hiddenFromDiscover: share((p) => !p.showInDiscover), requestsNotEveryone: share((p) => p.requestsFrom !== 'everyone') },
       rankSplit: { enabled: rankSplit.enabled(), lobbies, suggestedTrigger: `turn on when concurrent players in public matches stay above ${gameFeel.get().rankSplit.suggestedTriggerConcurrent}` },
       tables: db.fireTablesStatus ? db.fireTablesStatus() : null,
+      modes: { defaults: modeIdentity.DEFAULTS, overrides: modeIdentity.getOverrides(), effective: Object.fromEntries(Object.keys(modeIdentity.DEFAULTS).map((k) => [k, modeIdentity.identity(k)])), live: gameEngine.getModeCounts ? gameEngine.getModeCounts() : {} },
     });
   });
 

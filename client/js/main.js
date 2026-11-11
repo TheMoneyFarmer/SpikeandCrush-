@@ -608,10 +608,14 @@ window.TW = window.TW || {};
     document.getElementById('modeSoloBtn')?.addEventListener('click', () => withModeTutorial('solo', () => startMatch('solo')));
     document.getElementById('modeAsyncBtn')?.addEventListener('click', () => withModeTutorial('async', () => { window.location.href = '/async'; }));
     document.getElementById('modePrivateBtn')?.addEventListener('click', () => {
+      // House rules sheet (js/mode-lobby.js); the 1 coin fee is stated there.
+      if (TW.ModeLobby) return TW.ModeLobby.openPrivateSheet((hostOptions) => startMatch('private', hostOptions));
       if (!confirm('Hosting a Private War costs 1 coin, charged when the match starts. Friends you invite play free. Continue?')) return;
       startMatch('private');
     });
-    document.getElementById('modeTournamentBtn')?.addEventListener('click', () => { window.location.href = '/tournaments'; });
+    // Elimination: the public cut-based mode (internal key 'tournament').
+    // User-made bracket tournaments stay on /tournaments.
+    document.getElementById('modeTournamentBtn')?.addEventListener('click', () => withModeTutorial('elimination', () => startMatch('tournament')));
 
     document.getElementById('joinPrivateBtn')?.addEventListener('click', () => {
       const input = document.getElementById('joinRoomCodeInput');
@@ -634,9 +638,9 @@ window.TW = window.TW || {};
       }
     }
 
-    async function startMatch(mode) {
+    async function startMatch(mode, hostOptions) {
       try {
-        const data = await TW.api('/api/match/create', { method: 'POST', body: { mode } });
+        const data = await TW.api('/api/match/create', { method: 'POST', body: hostOptions ? { mode, hostOptions } : { mode } });
         window.location.href = `lobby.html?matchId=${data.matchId}`;
       } catch (err) {
         TW.toast(err.message, 'danger');

@@ -17,7 +17,9 @@ TW.Leaderboard = (function () {
       if (row.id === viewerId) tr.className = 'self-row';
       const pnlClass = row.pnl >= 0 ? 'text-buy' : 'text-sell';
       let badge = '';
-      if (row.eliminated) badge = '<span class="player-status-badge eliminated">OUT</span>';
+      if (row.out) badge = `<span class="player-status-badge eliminated" title="Knocked out in cut ${row.outRound || ''}">OUT${row.outRound ? ` R${row.outRound}` : ''}</span>`;
+      else if (row.eliminated) badge = '<span class="player-status-badge eliminated">OUT</span>';
+      else if (row.danger) badge = '<span class="player-status-badge danger" title="In the bottom group at the next cut">DANGER</span>';
       else if (row.softLocked) badge = '<span class="player-status-badge locked">LOCKED</span>';
 
       const prevRank = prevRanks.get(row.id);
@@ -27,6 +29,7 @@ TW.Leaderboard = (function () {
       }
       prevRanks.set(row.id, row.rank);
 
+      if (row.out) tr.classList.add('row-out');
       tr.innerHTML = `
         <td class="${rankClass}">${row.rank}</td>
         <td>${TW.renderUsername(row)}${badge}</td>
@@ -57,10 +60,12 @@ TW.Leaderboard = (function () {
       const pct = Math.min(50, (Math.abs(r.pnl) / scale) * 50);
       const tags = [];
       if (r.crown) tags.push('<span class="race-tag tag-crown">Crown</span>');
-      if (r.eliminated) tags.push('<span class="race-tag tag-out">Out</span>');
+      if (r.out) tags.push(`<span class="race-tag tag-out">Out${r.outRound ? ` R${r.outRound}` : ''}</span>`);
+      else if (r.eliminated) tags.push('<span class="race-tag tag-out">Out</span>');
+      else if (r.danger) tags.push('<span class="race-tag tag-danger">Danger</span>');
       else if (r.softLocked) tags.push('<span class="race-tag tag-hit">Locked</span>');
       (r.status || []).forEach((s) => { if (TAG[s] && s !== 'out') tags.push(`<span class="race-tag tag-${s}">${TAG[s]}</span>`); });
-      return `<div class="race-row${r.id === viewerId ? ' is-you' : ''}">
+      return `<div class="race-row${r.id === viewerId ? ' is-you' : ''}${r.out ? ' is-out' : ''}">
         <span class="race-rank mono">${r.rank}</span>
         <span class="race-av" style="background:${colorFor(r.id)}" aria-hidden="true">${TW.escapeHtml(name.slice(0, 2).toUpperCase())}</span>
         <span class="race-top"><span class="race-name">${r.id === viewerId ? 'You' : TW.escapeHtml(name)}</span>${tags.join('')}<span class="race-pnl mono ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(r.pnl)}</span></span>

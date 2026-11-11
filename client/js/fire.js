@@ -17,6 +17,9 @@ TW.Fire = (function () {
   let challenge = null; // ghost challenge: { username, pnl } to beat
   let lobbyTier = null; // rank-split lobby tier badge
   let idleText = null; // pages without a leaderboard strip (competitions)
+  let ghost = null; // { label, pnl, curve[second] } - Solo best run, today's leader, challenger
+  let personal = null; // { best, yesterday } for Solo
+  let elapsed = 0;
 
   const strip = () => document.getElementById('spikeStrip');
 
@@ -32,6 +35,37 @@ TW.Fire = (function () {
   function setIdleText(t) {
     idleText = t;
     drawIdle();
+  }
+
+  function setGhost(g, p) {
+    ghost = g && (g.curve || Number.isFinite(g.pnl)) ? g : null;
+    if (p !== undefined) personal = p;
+    drawIdle();
+  }
+
+  let lastDrawnSecond = -1;
+  function setElapsed(sec) {
+    elapsed = sec;
+    if (ghost && ghost.curve && sec !== lastDrawnSecond) {
+      lastDrawnSecond = sec;
+      drawIdle();
+    }
+  }
+
+  // The ghost's P&L at this second (last known value at or before it).
+  function ghostNow() {
+    if (!ghost) return null;
+    if (!ghost.curve) return null;
+    for (let i = Math.min(elapsed, ghost.curve.length - 1); i >= 0; i--) if (ghost.curve[i] != null) return ghost.curve[i];
+    return 0;
+  }
+
+  function ghostChip(mine) {
+    const g = ghostNow();
+    const target = g === null ? ghost.pnl : g;
+    const myPnl = mine ? mine.pnl : 0;
+    const diff = myPnl - target;
+    return `<span class="ms-rival ms-ghost" title="${TW.escapeHtml(ghost.label || 'Ghost')}: ${g === null ? 'final result' : 'P&amp;L at this second of their run'}">${TW.escapeHtml(ghost.label || 'Ghost')}: <b>${TW.formatMoney(target)}</b>${g === null ? ' final' : ' now'} <i class="${diff >= 0 ? 'text-buy' : 'text-sell'}">${diff >= 0 ? 'you lead by' : 'you trail by'} ${TW.formatMoney(Math.abs(diff))}</i></span>${personal && personal.yesterday != null ? `<span class="ms-rival">Beat yesterday: <b>${TW.formatMoney(personal.yesterday)}</b></span>` : ''}`;
   }
 
   function setLobbyTier(t) {
@@ -56,7 +90,7 @@ TW.Fire = (function () {
     el.innerHTML = `
       ${lobbyTier ? `<span class="ms-tier">${TW.escapeHtml(lobbyTier.charAt(0).toUpperCase() + lobbyTier.slice(1))} lobby</span>` : ''}
       <span class="ms-crown" title="Current leader">${icon('crown', 14)}<span>${leader ? TW.escapeHtml(leader.username) : '-'}</span></span>
-      ${challenge ? `<span class="ms-rival">To beat: <b>${TW.escapeHtml(challenge.username)}</b> <i class="${challenge.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(challenge.pnl)}</i>${mine ? ` <i>(you ${TW.formatMoney(mine.pnl)})</i>` : ''}</span>` : mine && mine.rank === 1 ? '<span class="ms-rival you-lead">You wear the crown</span>' : above ? `<span class="ms-rival">Rival above: <b>${TW.escapeHtml(above.username)}</b> <i class="${above.pnl - mine.pnl > 0 ? 'text-sell' : ''}">${TW.formatMoney(above.pnl - mine.pnl)} ahead</i></span>` : ''}
+      ${ghost ? ghostChip(mine) : challenge ? `<span class="ms-rival">To beat: <b>${TW.escapeHtml(challenge.username)}</b> <i class="${challenge.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(challenge.pnl)}</i>${mine ? ` <i>(you ${TW.formatMoney(mine.pnl)})</i>` : ''}</span>` : mine && mine.rank === 1 ? '<span class="ms-rival you-lead">You wear the crown</span>' : above ? `<span class="ms-rival">Rival above: <b>${TW.escapeHtml(above.username)}</b> <i class="${above.pnl - mine.pnl > 0 ? 'text-sell' : ''}">${TW.formatMoney(above.pnl - mine.pnl)} ahead</i></span>` : ''}
       <span class="ms-missions">${chips}</span>`;
   }
 
@@ -89,14 +123,15 @@ TW.Fire = (function () {
     TW.Sound.play('spikeAlert');
     const draw = () => {
       el.className = `match-strip ms-alert${reduceMotion ? '' : ' ms-pulse'}`;
-      el.innerHTML = `<span class="ms-spike">${icon('spike', 16)}<b>Spike incoming</b> in <span class="ms-count">${left}s</span></span><span class="ms-note">Real move from the data. Direction unknown.</span>`;
+      const ev = payload.kind === 'event';
+      el.innerHTML = `<span class="ms-spike">${icon('spike', 16)}<b>${ev ? `Market event ${payload.eventNo || ''}` : 'Spike incoming'}</b> in <span class="ms-count">${left}s</span></span><span class="ms-note">${ev ? 'One of the biggest real moves of the session. Direction unknown.' : 'Real move from the data. Direction unknown.'}</span>`;
     };
     draw();
     alertTimer = setInterval(() => {
       left -= 1;
       if (left <= 0) {
         clearInterval(alertTimer);
-        el.innerHTML = `<span class="ms-spike">${icon('spike', 16)}<b>Spike now</b></span>`;
+        el.innerHTML = `<span class="ms-spike">${icon('spike', 16)}<b>${payload.kind === 'event' ? 'Market event now' : 'Spike now'}</b></span>`;
         return;
       }
       draw();
@@ -110,11 +145,42 @@ TW.Fire = (function () {
     mode = 'result';
     const pct = Number(payload.movePct) || 0;
     el.className = 'match-strip ms-result';
-    el.innerHTML = `<span class="ms-spike">${icon('spike', 16)}<b>Spike ${TW.escapeHtml(payload.symbol)}</b> <span class="${pct >= 0 ? 'text-buy' : 'text-sell'}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</span></span>`;
+    el.innerHTML = `<span class="ms-spike">${icon('spike', 16)}<b>${payload.kind === 'event' ? `Market event ${payload.eventNo || ''}:` : 'Spike'} ${TW.escapeHtml(payload.symbol)}</b> <span class="${pct >= 0 ? 'text-buy' : 'text-sell'}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</span></span>`;
     resultTimer = setTimeout(() => {
       mode = 'idle';
       drawIdle();
     }, (payload.showSeconds || 4) * 1000);
+  }
+
+  // ---- Elimination: "Cut in 0:30" in the strip (never over the chart) --------
+  let cutTimer = null;
+  function cutWarning(payload) {
+    const el = strip();
+    if (!el) return;
+    clearInterval(alertTimer);
+    clearTimeout(resultTimer);
+    clearInterval(cutTimer);
+    mode = 'alert';
+    let left = Math.max(1, Math.round(payload.inSeconds));
+    const mine = rows.find((r) => r.id === you);
+    const draw = () => {
+      const danger = mine && mine.danger;
+      const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      el.className = `match-strip ms-cut${danger ? ' ms-danger' : ''}${reduceMotion ? '' : ' ms-pulse'}`;
+      el.innerHTML = `<span class="ms-spike ms-cut-label">${icon('cut', 16)}<b>Cut ${payload.round}</b> in <span class="ms-count">${clock}</span></span><span class="ms-note">${danger ? 'You are in the danger zone. Climb out before the cut.' : `The bottom ${payload.cutCount} ${payload.cutCount === 1 ? 'player is' : 'players are'} knocked out.`}</span>`;
+    };
+    draw();
+    TW.Sound.play('spikeAlert');
+    cutTimer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(cutTimer);
+        mode = 'idle';
+        drawIdle();
+        return;
+      }
+      draw();
+    }, 1000);
   }
 
   // ---- result screen extras ---------------------------------------------------
@@ -128,8 +194,10 @@ TW.Fire = (function () {
     const lvl = pr && pr.level;
     const levelUp = pr && pr.levelAfter > pr.levelBefore;
     const beat = payload && payload.challenge ? `<div class="fr-challenge ${me.pnl > payload.challenge.pnl ? 'text-buy' : 'text-sell'}"><b>${me.pnl > payload.challenge.pnl ? 'You beat' : 'You did not beat'} ${TW.escapeHtml(payload.challenge.username)}</b>: ${TW.formatMoney(me.pnl)} vs ${TW.formatMoney(payload.challenge.pnl)} on the same market</div>` : '';
+    const modeHtml = TW.Modes ? TW.Modes.resultHighlights(me, f) : '';
     panel.innerHTML = `
       ${beat}
+      ${modeHtml}
       <div class="fr-stats">
         <div><span class="fr-k">${icon('heat', 14)} Heat</span><strong>${Math.round(f.heat)}</strong></div>
         <div><span class="fr-k">Best streak</span><strong>${f.bestStreak}</strong></div>
@@ -224,5 +292,5 @@ TW.Fire = (function () {
     });
   }
 
-  return { setYou, setChallenge, setLobbyTier, setIdleText, setLeaderboard, setMissions, missionComplete, spikeAlert, spikeResult, renderResults, drawIdle };
+  return { setYou, setChallenge, setLobbyTier, setIdleText, setGhost, setElapsed, setLeaderboard, setMissions, missionComplete, spikeAlert, spikeResult, cutWarning, renderResults, drawIdle };
 })();

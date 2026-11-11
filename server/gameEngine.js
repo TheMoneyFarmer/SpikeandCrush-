@@ -456,10 +456,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     };
   }
 
-  function fireClientConfig() {
+  function fireClientConfig(match) {
     const f = gameFeel.get();
+    const mc = match && match.rules && match.rules.cards;
     return {
-      handSize: f.cards.handSize,
+      // The mode's own slot count (Blitz 2) wins over the global hand size.
+      handSize: mc ? (mc.enabled ? mc.handSize : 0) : f.cards.handSize,
       earnedCards: f.cards.earnedCards,
       streakRewards: f.cards.streakRewards,
       refillAtStreak: f.cards.refillAtStreak,
@@ -489,7 +491,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       entryCoins: match.config.entryCoins,
       rules: { ...marginRules.MARGIN_RULES, maxPositions: MAX_POSITIONS, softLossPct: SOFT_LOSS_PCT, softLossWindowSeconds: SOFT_LOSS_WINDOW_SECONDS },
       cardCatalog: sabotage.getCardCatalog(),
-      fire: fireClientConfig(),
+      fire: fireClientConfig(match),
       // The mode's rules as the player should see them. Never the instrument,
       // size or direction of a coming market event (that would be future data).
       modeRules: modeRulesForClient(match),
@@ -978,19 +980,68 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
   // Spike alerts, Grand War's scheduled market events and Elimination's cuts
   // for this match, from its mode rules (server/config/modeIdentity.js).
+  // The run to race against, loaded once when the match goes live (never
+  // blocks the start). Ghost challenge link: the challenger's run. Solo: your
+  // own best Solo run. Daily Challenge: today's top run. The curve is the
+  // replay's per-second P&L (replays.pnl_snapshots) - nothing new is stored.
+  async function loadGhost(match) {
+    if (!db.isConfigured) return;
+    const humans = Object.values(match.players).filter((p) => !p.isAI);
+    if (humans.length !== 1) return;
+    const me = humans[0];
+    const c = match.config.challenge;
+    let ref = null;
+    let label = null;
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
+    if (c && c.sourceMatchId) {
+      ref = { matchId: c.sourceMatchId, playerId: c.creatorId, username: c.username, pnl: c.pnl };
+      label = `${c.username}'s run`;
+    } else if (match.mode === 'solo') {
+      const [best, yesterday] = await Promise.all([
+        db.getBestRun({ mode: 'solo', playerId: me.id }),
+        db.getBestRun({ mode: 'solo', playerId: me.id, sinceIso: new Date(dayStart.getTime() - 86400000).toISOString(), untilIso: dayStart.toISOString() }),
+      ]);
+      match.personal = { best: best ? best.pnl : null, yesterday: yesterday ? yesterday.pnl : null };
+      ref = best;
+      label = 'Your best run';
+    } else if (match.mode === 'async') {
+      ref = await db.getBestRun({ mode: 'async', sinceIso: dayStart.toISOString() });
+      if (ref && ref.playerId === me.id) label = 'Your best today';
+      else if (ref) label = `${ref.username}, today's leader`;
+    }
+    if (!ref || match.status !== 'active') return;
+    const replay = await db.getReplay(ref.matchId).catch(() => null);
+    const snaps = replay && replay.pnl_snapshots && replay.pnl_snapshots[ref.playerId];
+    const curve = [];
+    if (Array.isArray(snaps)) for (const x of snaps) if (Number.isFinite(x.second)) curve[x.second] = Math.round(Number(x.pnl) || 0);
+    match.ghost = { label, username: ref.username, pnl: ref.pnl, curve: curve.length ? Array.from(curve, (v) => v ?? null) : null };
+    emitToAll(match, 'mode:ghost', { label, username: ref.username, pnl: ref.pnl, curve: match.ghost.curve, personal: match.personal || null });
+  }
+
+  function getGhost(matchId) {
+    const match = matches.get(matchId);
+    return match ? { ghost: match.ghost || null, personal: match.personal || null } : null;
+  }
+
   function planModeSchedule(match, spikeEvents) {
     const rules = match.rules || modeIdentity.rulesFor(match.mode);
     const dataDuration = match.config.durationSeconds * (match.replaySpeed || 1);
     // Grand: the biggest real move near each scheduled minute (never invented).
     const events = [];
     if (rules.events && rules.events.minutes && rules.events.minutes.length) {
-      const big = [];
-      for (const symbol of match.instruments) big.push(...instruments.getBigMoves(match.id, symbol, rules.events.topPercent || 5));
+      // Two passes, both real moves only: the top topPercent first, then the
+      // wider fallbackTopPercent (measured: 10% alone finds all three events
+      // in 64% of matches, with the 25% fallback 98% - scripts/measure-grand-events.js).
+      const movesAt = (pct) => match.instruments.flatMap((symbol) => instruments.getBigMoves(match.id, symbol, pct));
+      const strong = movesAt(rules.events.topPercent || 10);
+      const wide = rules.events.fallbackTopPercent ? movesAt(rules.events.fallbackTopPercent) : [];
       rules.events.minutes.forEach((minute, k) => {
         const at = minute * 60;
-        const near = big
+        const pick = (list) => list
           .filter((e) => Math.abs(e.dataSecond - at) <= (rules.events.searchWindowSeconds || 120) && !events.some((x) => x.dataSecond === e.dataSecond))
           .sort((a, b) => b.rangeBps - a.rangeBps)[0];
+        const near = pick(strong) || pick(wide);
         match.marketEvents.push({ no: k + 1, minute, found: Boolean(near), dataSecond: near ? near.dataSecond : null, symbol: near ? near.symbol : null, movePct: near ? near.movePct : null });
         if (near) events.push({ ...near, kind: 'event', eventNo: k + 1, id: `event-${k + 1}`, alerted: false, resolved: false });
       });
@@ -1218,6 +1269,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const spikeEvents = [];
     for (const symbol of match.instruments) spikeEvents.push(...instruments.getSpikeSchedule(match.id, symbol));
     planModeSchedule(match, spikeEvents);
+    loadGhost(match).catch((e) => console.warn('[ghost] could not load:', e.message));
     for (const p of Object.values(match.players)) cardRules.assignMissions(match, p, { hasSpikes: match.spikePlan.length > 0 });
 
     emitMatchStateToAll(match);
@@ -2716,6 +2768,10 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         eventsSurvived: (match.marketEvents || []).filter((e) => e.found).length ? match.marketEvents.filter((e) => e.found).length : null,
         steadyHand: steadyId === p.id,
         maxDrawdown: p.maxDrawdown !== undefined ? Math.round(p.maxDrawdown * 100) / 100 : null,
+        ghost: match.ghost && !p.isAI ? { label: match.ghost.label, pnl: match.ghost.pnl, delta: Math.round((r.pnl - match.ghost.pnl) * 100) / 100 } : null,
+        personalBest: match.personal && !p.isAI ? Math.max(match.personal.best ?? -Infinity, r.pnl) : null,
+        newBest: Boolean(match.personal && !p.isAI && (match.personal.best == null || r.pnl > match.personal.best)),
+        yesterdayBest: match.personal && !p.isAI ? match.personal.yesterday : null,
       };
       r.fire = {
         heat: p.heat || 0,
@@ -2897,6 +2953,19 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   // now reads the persistent matches table - see db.getMatchesToday for why
   // the in-memory version this used to use quietly reset toward 0 shortly
   // after each match actually finished.
+  // Seats per mode in lobbies and live matches right now (lobby mode cards).
+  // Computer seats count, same owner decision as the public online number.
+  // User-made bracket rounds are not public Elimination games.
+  function getModeCounts() {
+    const counts = {};
+    for (const match of matches.values()) {
+      if (!['waiting', 'countdown', 'active'].includes(match.status)) continue;
+      if (match.config.tournamentId) continue;
+      counts[match.mode] = (counts[match.mode] || 0) + Object.keys(match.players).length;
+    }
+    return counts;
+  }
+
   async function getHomeStats() {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -3416,6 +3485,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   }
 
   return {
+    getGhost,
+    getModeCounts,
     MAX_PLAYERS,
     MIN_PLAYERS,
     MATCH_MODES,

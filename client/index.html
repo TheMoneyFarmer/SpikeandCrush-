@@ -43,6 +43,7 @@
 <link rel="stylesheet" href="/css/lobby-home.css">
   <link rel="stylesheet" href="/css/console.css" />
   <link rel="stylesheet" href="/css/lobby-console.css" />
+  <link rel="stylesheet" href="/css/mode-lobby.css" />
 <script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="index" class="lb-page">
@@ -62,19 +63,19 @@
 
     <main id="lbMain">
       <!-- 3. Mode row (console home row) -->
-      <section class="lb-modes" id="lbModes" aria-label="Game modes">
+      <section class="lb-modes" id="lbModes" aria-label="Game modes" data-tour="modes">
         <div class="lb-sheet-head">
           <span class="lb-label">Choose a mode</span>
           <button type="button" class="lb-icon-btn" id="lbSheetClose" aria-label="Close modes"></button>
         </div>
         <div class="lb-mode-grid">
-          <button type="button" class="lb-mode" id="modeQuickBtn" data-mode="quick" style="--mode:#F5B83D"><span class="lb-mode-ic"></span><span class="lb-mode-name">Quick</span><span class="lb-mode-dur" data-dur="quick">10 min</span></button>
-          <button type="button" class="lb-mode" id="modeBlitzBtn" data-mode="blitz" style="--mode:#FF4D5E"><span class="lb-mode-ic"></span><span class="lb-mode-name">Blitz</span><span class="lb-mode-dur" data-dur="blitz">3 min</span></button>
-          <button type="button" class="lb-mode" id="modeGrandBtn" data-mode="grand" style="--mode:#A78BFA"><span class="lb-mode-ic"></span><span class="lb-mode-name">Grand</span><span class="lb-mode-dur" data-dur="grand">20 min</span></button>
-          <button type="button" class="lb-mode" id="modeSoloBtn" data-mode="solo" style="--mode:#2EE6A6"><span class="lb-mode-ic"></span><span class="lb-mode-name">Solo</span><span class="lb-mode-dur" data-dur="solo">10 min</span></button>
-          <button type="button" class="lb-mode" id="modeAsyncBtn" data-mode="async" style="--mode:#4DA6FF"><span class="lb-mode-ic"></span><span class="lb-mode-name">Async</span><span class="lb-mode-dur" data-dur="async">10 min</span></button>
-          <button type="button" class="lb-mode" id="modePrivateBtn" data-mode="private" style="--mode:#C3CBDB"><span class="lb-mode-ic"></span><span class="lb-mode-name">Private</span><span class="lb-mode-dur" data-dur="private">10 min</span></button>
-          <button type="button" class="lb-mode" id="modeTournamentBtn" data-mode="tournament" style="--mode:#F59E0B"><span class="lb-mode-ic"></span><span class="lb-mode-name">Tournament</span><span class="lb-mode-dur" data-dur="tournament">15 min</span></button>
+          <button type="button" class="lb-mode" id="modeQuickBtn" data-mode="quick" data-tour="mode-quick" style="--mode:#F5B83D"><span class="lb-mode-ic"></span><span class="lb-mode-name">Quick</span><span class="lb-mode-dur" data-dur="quick">10 min</span></button>
+          <button type="button" class="lb-mode" id="modeBlitzBtn" data-mode="blitz" data-tour="mode-blitz" style="--mode:#FF4D5E"><span class="lb-mode-ic"></span><span class="lb-mode-name">Blitz</span><span class="lb-mode-dur" data-dur="blitz">3 min</span></button>
+          <button type="button" class="lb-mode" id="modeGrandBtn" data-mode="grand" data-tour="mode-grand" style="--mode:#A78BFA"><span class="lb-mode-ic"></span><span class="lb-mode-name">Grand</span><span class="lb-mode-dur" data-dur="grand">20 min</span></button>
+          <button type="button" class="lb-mode" id="modeSoloBtn" data-mode="solo" data-tour="mode-solo" style="--mode:#2EE6A6"><span class="lb-mode-ic"></span><span class="lb-mode-name">Solo</span><span class="lb-mode-dur" data-dur="solo">10 min</span></button>
+          <button type="button" class="lb-mode" id="modeAsyncBtn" data-mode="async" data-tour="mode-async" style="--mode:#4DA6FF"><span class="lb-mode-ic"></span><span class="lb-mode-name">Async</span><span class="lb-mode-dur" data-dur="async">10 min</span></button>
+          <button type="button" class="lb-mode" id="modePrivateBtn" data-mode="private" data-tour="mode-private" style="--mode:#C3CBDB"><span class="lb-mode-ic"></span><span class="lb-mode-name">Private</span><span class="lb-mode-dur" data-dur="private">10 min</span></button>
+          <button type="button" class="lb-mode" id="modeTournamentBtn" data-mode="tournament" data-tour="mode-tournament" style="--mode:#F59E0B"><span class="lb-mode-ic"></span><span class="lb-mode-name">Elimination</span><span class="lb-mode-dur" data-dur="tournament">15 min</span></button>
         </div>
         <div class="lb-join">
           <label class="lb-label" for="joinRoomCodeInput">Join a private war</label>
@@ -154,6 +155,16 @@
   <script src="js/main.js"></script>
   <script src="js/tutorial.js"></script>
   <script src="js/mode-cards.js"></script>
+  <script src="js/mode-lobby.js"></script>
+  <script>
+    // Mode cards: identity, win condition and live seats; refreshed for the live count.
+    (function () {
+      if (!window.TW || !TW.ModeLobby) return;
+      const go = () => TW.ModeLobby.load();
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+      setInterval(() => { if (!document.hidden) go(); }, 30000);
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
   <script src="js/auth.js"></script>
   <script src="/socket.io/socket.io.js"></script>
