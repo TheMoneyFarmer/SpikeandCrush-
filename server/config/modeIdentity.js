@@ -31,8 +31,10 @@ const DEFAULTS = {
     winCondition: 'Highest equity wins',
     winShort: 'Highest equity wins',
     winKey: 'equity',
-    special: 'All features: 4 cards, Heat, missions, spike alerts, crown',
-    cards: { enabled: true, handSize: 4, allowedTiers: ['basic', 'mid', 'heavy'], streakRewards: { 1: 1, 2: 1, 3: 2 }, refillAtStreak: 5, perWinAfterRefill: 1, startingHand: null, sabotage: true },
+    special: 'All features: 5 cards, Heat, missions, spike alerts, crown',
+    // Every mode with cards deals startCount (5) at the start (owner decision
+    // 2026-11-11), capped only by how many cards the player has unlocked.
+    cards: { enabled: true, handSize: 5, startCount: 5, allowedTiers: ['basic', 'mid', 'heavy'], streakRewards: { 1: 1, 2: 1, 3: 2 }, refillAtStreak: 5, perWinAfterRefill: 1, startingHand: null, sabotage: true },
     instrumentPool: 'all',
     spikeAlerts: { enabled: true, minGapSeconds: 60 },
     events: { minutes: [] },
@@ -42,24 +44,24 @@ const DEFAULTS = {
     missionChain: false,
     resultHighlights: ['bestStreak', 'heat'],
     xpMultiplier: 1,
-    preStartBanner: 'Quick War: 10 minutes, up to 4 cards, highest equity wins.',
+    preStartBanner: 'Quick War: 10 minutes, 5 cards, highest equity wins.',
   },
   blitz: {
     displayName: 'Blitz War',
     icon: 'bolt',
-    identity: 'A three-minute sprint on the busiest markets. Two cards, fast refills.',
+    identity: 'A three-minute sprint on the busiest markets. Fast refills, no heavy cards.',
     bestFor: 'A quick fix between other things',
     winCondition: 'Highest equity after 3 minutes',
     winShort: 'Highest equity wins',
-    special: '2 card slots, refills fast, no heavy cards, more spike alerts',
-    cards: { handSize: 2, allowedTiers: ['basic', 'mid'], streakRewards: { 1: 1, 2: 2 }, refillAtStreak: 2, perWinAfterRefill: 1 },
+    special: 'Cards refill fast, no heavy cards, more spike alerts',
+    cards: { allowedTiers: ['basic', 'mid'], streakRewards: { 1: 1, 2: 2 }, refillAtStreak: 2, perWinAfterRefill: 1 },
     // The top of the activity ranking only (server/curated.js catalog).
     instrumentPool: 'top',
     instrumentPoolSize: 6,
     spikeAlerts: { enabled: true, minGapSeconds: 40 },
     missions: ['fast_two_wins', 'first_win_30', 'play_card'],
     resultHighlights: ['fastestWin', 'bestStreak'],
-    preStartBanner: 'Blitz: 3 minutes, 2 cards, highest equity wins.',
+    preStartBanner: 'Blitz: 3 minutes, 5 cards that refill fast, highest equity wins.',
   },
   grand: {
     displayName: 'Grand War',
@@ -68,8 +70,7 @@ const DEFAULTS = {
     bestFor: 'When you have time to plan',
     winCondition: 'Highest equity after 20 minutes',
     winShort: 'Highest equity wins',
-    special: 'Start with 2 cards, events at 5, 10 and 15 minutes, Steady Hand badge',
-    cards: { startingHand: { count: 2, tiers: ['basic', 'mid'] }, heavyFromStart: true },
+    special: 'Market events at 5, 10 and 15 minutes, half-time standings, Steady Hand badge',
     // Scheduled market events: real indexed spikes nearest these data minutes.
     // Biggest real move within the window around each minute: the top 10% of
     // 1-minute ranges first, then the top 25% (measured coverage 96.5%).
@@ -78,7 +79,7 @@ const DEFAULTS = {
     steadyHandBadge: true,
     missions: ['hold_180', 'survive_events', 'two_wins'],
     resultHighlights: ['eventsSurvived', 'steadyHand', 'bestStreak'],
-    preStartBanner: 'Grand War: 20 minutes, 2 cards to start, market events at 5, 10 and 15 minutes.',
+    preStartBanner: 'Grand War: 20 minutes, 5 cards, market events at 5, 10 and 15 minutes.',
   },
   tournament: {
     displayName: 'Elimination',
@@ -110,14 +111,12 @@ const DEFAULTS = {
     bestFor: 'Learning, practice and beating your personal best',
     winCondition: 'Highest equity at the table; your own best run is the ghost to beat',
     winShort: 'Highest equity wins',
-    special: 'No sabotage, ghost of your best run, 3-mission chain',
-    // Only Shield and Cleanse can be held here (Lifeline needs cuts): 2 slots.
-    cards: { handSize: 2, sabotage: false, allowedTiers: ['basic', 'mid'], defenseOnly: true },
+    special: 'Ghost of your best run, 3-mission chain, sabotage the AI traders',
     spikeAlerts: { enabled: true, minGapSeconds: 60 },
     missions: ['first_trade', 'two_wins', 'hold_60'],
     missionChain: true,
     resultHighlights: ['ghostDelta', 'personalBest'],
-    preStartBanner: 'Solo Ranked: 10 minutes, free, no sabotage, beat your own best run.',
+    preStartBanner: 'Solo Ranked: 10 minutes, free, 5 cards, beat your own best run.',
   },
   async: {
     displayName: 'Daily Challenge',
@@ -144,7 +143,7 @@ const DEFAULTS = {
     hostOptions: {
       cards: [true, false],
       deckLevel: ['basic', 'mid', 'full'],
-      startingHand: [0, 1, 2, 3, 4],
+      startingHand: [0, 1, 2, 3, 4, 5],
       eliminationCuts: [false, true],
       flavor: ['quick', 'blitz'],
     },
@@ -255,6 +254,7 @@ function rulesFor(mode, host = null) {
       ...f.cards,
       earnedCards: c.enabled !== false && f.cards.earnedCards,
       handSize: c.handSize ?? f.cards.handSize,
+      startCount: Math.min(c.startCount ?? c.handSize ?? f.cards.handSize, c.handSize ?? f.cards.handSize),
       streakRewards: c.streakRewards || f.cards.streakRewards,
       refillAtStreak: c.refillAtStreak ?? f.cards.refillAtStreak,
       perWinAfterRefill: c.perWinAfterRefill ?? f.cards.perWinAfterRefill,
@@ -286,7 +286,7 @@ function publicCatalog() {
   return Object.keys(DEFAULTS)
     .map((key) => {
       const id = identity(key);
-      return { key, enabled: id.enabled !== false, displayName: id.displayName, icon: id.icon, identity: id.identity, bestFor: id.bestFor, winCondition: id.winCondition, winShort: id.winShort, special: id.special, cardSlots: id.cards && id.cards.enabled === false ? 0 : (id.cards && id.cards.handSize) || 4, sabotage: !(id.cards && id.cards.sabotage === false), startingHand: (id.cards && id.cards.startingHand && id.cards.startingHand.count) || null, cutsEveryMinutes: id.elimination && id.elimination.enabled !== false ? id.elimination.everyMinutes : null, events: id.events ? id.events.minutes : null, hostOptions: id.hostOptions || null, banner: id.preStartBanner };
+      return { key, enabled: id.enabled !== false, displayName: id.displayName, icon: id.icon, identity: id.identity, bestFor: id.bestFor, winCondition: id.winCondition, winShort: id.winShort, special: id.special, cardSlots: id.cards && id.cards.enabled === false ? 0 : (id.cards && id.cards.handSize) || 4, sabotage: !(id.cards && id.cards.sabotage === false), startingHand: (id.cards && id.cards.startingHand && id.cards.startingHand.count) || (id.cards && id.cards.enabled === false ? 0 : (id.cards && (id.cards.startCount || id.cards.handSize)) || 5), cutsEveryMinutes: id.elimination && id.elimination.enabled !== false ? id.elimination.everyMinutes : null, events: id.events ? id.events.minutes : null, hostOptions: id.hostOptions || null, banner: id.preStartBanner };
     });
 }
 

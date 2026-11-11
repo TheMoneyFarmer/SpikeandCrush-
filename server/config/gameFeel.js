@@ -42,7 +42,7 @@ const DEFAULTS = {
   // ---- Part 2: cards ----------------------------------------------------------
   cards: {
     earnedCards: true, // feature flag: streak-earned cards
-    handSize: 4,
+    handSize: 5, // every mode deals 5 at the start (owner decision 2026-11-11)
     // A qualifying win: net profit >= this share of starting capital...
     minWinPctOfCapital: 0.002, // 0.2% = 20 on 10,000 (see docs/fire/README.md for the measurement)
     // ...held at least this long (real seconds)...

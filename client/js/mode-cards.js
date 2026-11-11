@@ -16,7 +16,7 @@ window.TW = window.TW || {};
       duration: '10 Minutes', players: '2+ Players, no limit', entry: '10 Coins', ranked: 'Yes: War Rating',
       sections: [
         { title: 'How It Works', content: 'Everyone starts with $10,000 of virtual capital and 5 instruments. Buy if you think the price will rise, sell if you think it will fall. Highest equity when the timer hits zero wins.' },
-        { title: 'Cards', content: 'You start with 3 cards and hold up to 4. Win trades in a row to earn more. Each card is played once and changes something real for its target: a frozen position, a wider spread, a closed trade.' },
+        { title: 'Cards', content: 'You start with 5 cards. Win trades in a row to earn more. Each card is played once and changes something real for its target: a frozen position, a wider spread, a closed trade.' },
         { title: 'The Extras', content: 'The current leader wears the crown. Spike alerts warn you seconds before a big real move. Quick missions pay a few coins. Heat is a separate score and never changes your P&L or rank.' },
         { title: 'Prizes and Rating', content: `${PRIZES} Finishing high gains War Rating; finishing last loses it.` },
       ],
@@ -27,7 +27,7 @@ window.TW = window.TW || {};
       duration: '3 Minutes', players: '2+ Players, no limit', entry: '5 Coins', ranked: 'No',
       sections: [
         { title: 'How It Works', content: 'Same trading as Quick War, but 3 minutes and only the most active markets. The match can flip in the last 30 seconds.' },
-        { title: 'Two Slots, Fast Refill', content: 'You hold 2 cards, not 4. One winning trade earns a card and two in a row earn two, so play them: a card you still hold at the buzzer is wasted. Heavy (epic and legendary) cards are not used in Blitz.' },
+        { title: 'Fast Refill', content: 'You start with 5 cards. One winning trade earns a card and two in a row earn two, so play them: a card you still hold at the buzzer is wasted. Heavy (epic and legendary) cards are not used in Blitz.' },
         { title: 'More Spikes', content: 'Spike alerts come more often. The result screen shows your fastest winning trade.' },
       ],
       tips: ['Take profits early', 'Play your cards, do not hoard them', 'Big lots in 3 minutes cut both ways'],
@@ -36,7 +36,7 @@ window.TW = window.TW || {};
       icon: 'crown', name: 'Grand War', tagline: 'Twenty minutes of strategy.', color: 'var(--gold, var(--accent-gold))',
       duration: '20 Minutes', players: '4+ Players, no limit', entry: '25 Coins', ranked: 'Yes: Grand War rating',
       sections: [
-        { title: 'A Slow Start', content: 'You start with only 2 basic or mid cards (pick them in the lobby) and earn the rest, up to 4, by winning trades.' },
+        { title: 'Your Hand', content: 'You start with 5 cards and can change them in the lobby before the start.' },
         { title: 'Market Events', content: 'Three events are scheduled near minutes 5, 10 and 15. Each is one of the biggest real moves of that session, from the price data. The direction is never shown in advance.' },
         { title: 'Half-time and Steady Hand', content: 'At minute 10 the half-time card shows the top five. The Steady Hand badge goes to the top-three finisher with the smallest dip from their peak.' },
         { title: 'Prizes and Rating', content: `${PRIZES} Grand War has its own rating.` },
@@ -60,7 +60,7 @@ window.TW = window.TW || {};
       sections: [
         { title: 'How It Works', content: 'Free and always open. You trade against 3 AI traders with their own personalities, so there is never a wait.' },
         { title: 'Your Ghost', content: 'The match strip shows the ghost of your best Solo run, second by second, and your best result from yesterday to beat.' },
-        { title: 'No Sabotage', content: 'Nobody can attack you here. You only get defense cards. Missions come as a chain of three: finish one to unlock the next.' },
+        { title: 'Cards and Missions', content: 'You get 5 cards like every mode and can use them on the AI traders. Missions come as a chain of three: finish one to unlock the next.' },
       ],
       tips: ['Use Solo to learn a new instrument', 'Try to beat yesterday, not just win', 'Your Solo rating is separate from War Rating'],
     },

@@ -69,7 +69,7 @@ async function runMode(mode, { players = 4, opts = {}, checkpoints = [], extra }
   await runMode('quick', {
     checkpoints: [60, 200, 400, 550],
     extra: ({ match, hands, results }) => {
-      check(hands.every((n) => n === Math.min(3, match.rules.cards.handSize)), `hands dealt ${hands.join('/')}`);
+      check(hands.every((n) => n === 5), `5 cards dealt (${hands.join('/')})`);
       check(results.every((r) => r.mode && r.mode.key === 'quick'), 'results carry the mode block');
     },
   });
@@ -77,7 +77,7 @@ async function runMode(mode, { players = 4, opts = {}, checkpoints = [], extra }
   await runMode('blitz', {
     checkpoints: [20, 60, 120, 170],
     extra: ({ match, hands, results }) => {
-      check(hands.every((n) => n === 2), `2 card slots (dealt ${hands.join('/')})`);
+      check(hands.every((n) => n === 5), `5 cards dealt (${hands.join('/')})`);
       const heavy = Object.values(match.players).flatMap((p) => p.cards).filter((c) => ['epic', 'legendary'].includes(sabotage.CARDS[c.type].rarity));
       check(heavy.length === 0, 'no heavy cards held');
       check(results.some((r) => r.mode.highlights.includes('fastestWin')), 'fastest-win highlight on the result');
@@ -88,7 +88,7 @@ async function runMode(mode, { players = 4, opts = {}, checkpoints = [], extra }
     players: 5,
     checkpoints: [120, 290, 320, 590, 610, 890, 910, 1150],
     extra: ({ match, hands, emitted: ev }) => {
-      check(hands.every((n) => n === 2), `starting hand 2 (dealt ${hands.join('/')})`);
+      check(hands.every((n) => n === 5), `5 cards dealt (${hands.join('/')})`);
       const found = match.marketEvents.filter((e) => e.found);
       check(match.marketEvents.length === 3, `3 market events planned (${found.length} found: ${found.map((e) => `${e.minute}m ${e.symbol} ${(e.movePct || 0).toFixed(2)}%`).join(', ')})`);
       check(ev.some((e) => e.ev === 'mode:checkpoint'), 'half-time card sent at minute 10');
@@ -120,8 +120,7 @@ async function runMode(mode, { players = 4, opts = {}, checkpoints = [], extra }
     extra: ({ match, hands }) => {
       check(Object.keys(match.players).length === 4, '1 player + 3 AI seats');
       const human = Object.values(match.players).find((p) => !p.isAI);
-      check(human.cards.every((c) => sabotage.CARDS[c.type].kind === 'defense'), `defense cards only (${human.cards.map((c) => c.type).join(', ')})`);
-      check(Object.values(match.players).filter((p) => p.isAI).every((p) => p.cards.every((c) => sabotage.CARDS[c.type].kind === 'defense')), 'AI seats cannot attack either');
+      check(hands[0] === 5, `5 cards dealt (${human.cards.map((c) => c.type).join(', ')})`);
       const chain = human.missions || [];
       check(chain.length === 3 && chain.filter((m) => m.locked).length >= 1, `3-mission chain (${chain.map((m) => `${m.id}${m.locked ? ' [locked]' : ''}${m.done ? ' [done]' : ''}`).join(', ')})`);
     },

@@ -569,13 +569,13 @@
       const dealtTypes = new Set((me?.cards || []).map((c) => c.type));
 
       if (isGrandWar) {
-        // The mode's own pick: Grand War starts with 2 basic or mid cards.
+        // The mode's own pick: 5 cards from those this player has unlocked.
         const choice = currentState.loadoutChoice || { count: currentState.cardsPerPlayer, allowed: currentState.cardCatalog.map((c) => c.id) };
         const pickCount = choice.count;
         const allowedSet = new Set(choice.allowed);
         if (selectedCardTypes.size === 0) dealtTypes.forEach((t) => selectedCardTypes.add(t));
         container.innerHTML = `
-          <div style="margin-bottom:10px;font-weight:700;">${selectedCardTypes.size}/${pickCount} selected <span class="text-secondary" style="font-weight:400;font-size:12px;">Grand War starts you with basic and mid cards; earn the rest in the match.</span></div>
+          <div style="margin-bottom:10px;font-weight:700;">${selectedCardTypes.size}/${pickCount} selected <span class="text-secondary" style="font-weight:400;font-size:12px;">Pick the 5 cards you start with.</span></div>
           <div class="tw-loadout-card-grid" id="loadoutCardGrid">
             ${currentState.cardCatalog.filter((c) => allowedSet.has(c.id)).map((c) => loadoutCardTile(c, { selectable: true, selected: selectedCardTypes.has(c.id), playedCount: playedById[c.id] || 0 })).join('')}
           </div>

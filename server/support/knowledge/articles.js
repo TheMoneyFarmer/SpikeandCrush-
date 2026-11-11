@@ -54,8 +54,8 @@ const handOf = (k) => {
   const c = MI(k).cards || {};
   if (c.enabled === false) return 'none';
   if (c.defenseOnly) return 'defense cards only (Shield, Cleanse)';
-  const start = c.startingHand ? c.startingHand.count : Math.min(MATCH_MODES[k].cardsPerPlayer, c.handSize);
-  return `${start} to start, up to ${c.handSize}${c.sabotage === false ? ', defense only' : ''}`;
+  const start = c.startingHand ? c.startingHand.count : (c.startCount || c.handSize);
+  return `${start} to start${c.sabotage === false ? ', defense only' : ''}`;
 };
 
 function modeRow(key) {
@@ -209,7 +209,7 @@ User-made bracket tournaments (the Tournaments page) are separate from ${modeNam
         const g = MI('grand');
         return `${modeName('grand')} lasts ${minutes(MODE_DURATIONS.grand)}.
 
-**Starting hand.** You start with ${g.cards.startingHand.count} basic or mid cards (you can pick them in the lobby) and earn the rest, up to ${g.cards.handSize}, by winning trades.
+**Starting hand.** You start with ${g.cards.startCount || g.cards.handSize} cards, like every mode, and can change them in the lobby before the start.
 
 **Market events.** Three events are scheduled near minutes ${g.events.minutes.join(', ')}. Each one is one of the biggest real moves of that session in the price data, found within ${Math.round(g.events.searchWindowSeconds / 60)} minutes of the mark. Nothing is invented and the direction is never shown in advance. The match strip says "Market event" a few seconds before. If no big real move exists near a mark, that event is skipped.
 
@@ -223,7 +223,7 @@ User-made bracket tournaments (the Tournaments page) are separate from ${modeNam
       title: 'Solo Ranked ghost, personal best and Daily Challenge ghost',
       category: 'modes',
       tags: ['ghost', 'personal best', 'best run', 'beat yesterday', 'solo', 'solo ranked', 'daily challenge', 'async', 'mission chain'],
-      body: `**${modeName('solo')}** is free. You trade against 3 AI traders, so there is never a wait. There is no sabotage: you only get defense cards. The match strip shows the **ghost** of your best ${modeName('solo')} run: its P&L at the same second, and whether you lead or trail it. It also shows your best result from yesterday to beat. Missions come as a chain: finish one to unlock the next. The result screen shows the gap to your ghost and your personal best.
+      body: `**${modeName('solo')}** is free. You trade against 3 AI traders, so there is never a wait. You get 5 cards like every mode and can use them on the AI traders. The match strip shows the **ghost** of your best ${modeName('solo')} run: its P&L at the same second, and whether you lead or trail it. It also shows your best result from yesterday to beat. Missions come as a chain: finish one to unlock the next. The result screen shows the gap to your ghost and your personal best.
 
 **${modeName('async')}**: everyone trades the same market window today, with no cards. The strip shows the ghost of today's best run so far.
 
@@ -239,9 +239,9 @@ A ghost only appears once there is a previous finished run to compare with.`,
       body: `When you host a ${modeName('private')} you choose the house rules before the room opens:
 - **Cards**: on, or off for pure trading.
 - **Deck level**: basic cards only, basic and mid, or the full deck.
-- **Starting hand**: the mode default, or 1 to 4 cards.
+- **Starting hand**: the mode default (5), or 1 to 5 cards.
 - **Elimination cuts**: off, or on (the bottom ${Math.round(MI('tournament').elimination.cutShare * 100)}% out every ${MI('tournament').elimination.everyMinutes} minutes, with ${MI('tournament').elimination.minPlayersToStart} or more players).
-- **Card style**: Quick War (4 slots) or Blitz (2 slots, fast refill).
+- **Card style**: Quick War, or Blitz (fast refill, no heavy cards).
 
 Every guest sees these rules in the room and again before the start. The match length stays ${minutes(MODE_DURATIONS.private)}. Hosting costs ${coins(PRIVATE_WAR_HOST_FEE)}, charged only when the match starts; invited players join free. Private matches are unranked.`,
     },
@@ -327,7 +327,7 @@ ${NO_CASH} Competition prizes are coins only.`,
       tags: ['cards', 'sabotage', 'abilities', 'deck', 'freeze', 'news bomb', 'lifeline', 'shield', 'cleanse', 'defense card'],
       body: `**Defense cards** play at once on yourself: **Shield** (${CARDS.shield.description.replace(/\.$/, '').replace(/^F/, 'f')}), **Cleanse** (${CARDS.cleanse.description.replace(/\.$/, '').replace(/^R/, 'r')}) and **Lifeline** (${modeName('tournament')} only: protects you from the next cut, once per match; unlocks at level ${progressionRules.UNLOCKS.lifeline ? progressionRules.UNLOCKS.lifeline.level : 6}). Every other card is an attack or market card.
 
-You hold up to ${F.cards.handSize} cards at once (${modeName('blitz')}: ${MI('blitz').cards.handSize}). You are dealt cards at the start of a match (how many depends on the mode and your rank, never more than ${F.cards.handSize}), and you **earn more by winning trades in a row**: see "Earning cards, streaks and Heat". Each card can be played once. Only cards you have unlocked are ever dealt or earned; new players start with ${progressionRules.BASIC_DECK.length} starter cards and unlock the rest by playing (see "Levels, ranks and card unlocks"). You can save a deck of up to 5 unlocked cards on the Cards page.
+Every mode with cards deals ${MI('quick').cards.startCount} at the start (fewer only if you have unlocked fewer) and you hold up to ${F.cards.handSize} at once. You are dealt cards at the start of a match (how many depends on the mode and your rank, never more than ${F.cards.handSize}), and you **earn more by winning trades in a row**: see "Earning cards, streaks and Heat". Each card can be played once. Only cards you have unlocked are ever dealt or earned; new players start with ${progressionRules.BASIC_DECK.length} starter cards and unlock the rest by playing (see "Levels, ranks and card unlocks"). You can save a deck of up to 5 unlocked cards on the Cards page.
 
 **How to play one:** tap the card, then pick a player from the live ranking (search, or tap Random, Leader, Above me or Below me). Defensive cards play at once on yourself. Every card changes something real: your rival's spread, fills, stop loss, take profit, trade size, how often they can trade, or their banked profit.
 

@@ -4,13 +4,15 @@ Branch `game-modes` (worktree `~/Downloads/spikecrush/spikecrush-modes`), on top
 
 ## What each mode is now
 
+Every mode with cards deals **5 cards at the start** (owner decision 2026-11-11); a new player who has only unlocked 4 starts with 4. The Daily Challenge has no cards.
+
 | Mode | Cards | How you win | What is special |
 |---|---|---|---|
-| Quick War | 3 to start, 4 slots | Highest equity | Unchanged: the full game |
-| Blitz War | 2 slots, fast refill, no heavy cards | Highest equity | Busiest instruments (top 6 of the activity ranking), spike alerts every 40s instead of 60s, "fastest win" on the result |
-| Grand War | Starts with 2 basic/mid, up to 4 | Highest equity | 3 real market events near minutes 5/10/15, half-time card at 10, Steady Hand badge |
-| Elimination (internal key `tournament`) | 4 slots + Lifeline card | Survive the cuts | Bottom 20% cut at 3/6/9/12 min (at least 1, only with 4+ players, stop below 4), "Cut in 0:30" strip, Danger tags, cut players watch |
-| Solo Ranked | 2 slots, defense only (Shield, Cleanse) | Highest equity | Ghost of your best Solo run, yesterday's best, 3-mission chain |
+| Quick War | 5 to start | Highest equity | Unchanged: the full game |
+| Blitz War | 5 to start, fast refill, no heavy cards | Highest equity | Busiest instruments (top 6 of the activity ranking), spike alerts every 40s instead of 60s, "fastest win" on the result |
+| Grand War | 5 to start (pick them in the lobby) | Highest equity | 3 real market events near minutes 5/10/15, half-time card at 10, Steady Hand badge |
+| Elimination (internal key `tournament`) | 5 to start + Lifeline card | Survive the cuts | Bottom 20% cut at 3/6/9/12 min (at least 1, only with 4+ players, stop below 4), "Cut in 0:30" strip, Danger tags, cut players watch |
+| Solo Ranked | 5 to start, can sabotage the AI traders | Highest equity | Ghost of your best Solo run, yesterday's best, 3-mission chain |
 | Daily Challenge (`async`) | None | Best of the day | Ghost of today's best run |
 | Private War | Host decides | Host decides | House rules: cards on/off, deck level, starting hand, cuts on/off, Quick or Blitz card style |
 

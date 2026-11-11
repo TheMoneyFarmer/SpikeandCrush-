@@ -69,7 +69,7 @@ test('9: too small, too short and same-second closes do not count; losing close 
   assert.strictEqual(unused(p), handBefore, 'cards in hand are kept');
 });
 
-test('9: streak 1/2/3 grant 1/1/2, streak 5 refills every slot, hand never above 4, overflow becomes Heat', async () => {
+test('9: streak 1/2/3 grant 1/1/2, streak 5 refills every slot, hand never above 5, overflow becomes Heat', async () => {
   const { engine, match } = await makeMatch();
   const p = match.players.p1;
   emptyHand(p);
@@ -82,14 +82,14 @@ test('9: streak 1/2/3 grant 1/1/2, streak 5 refills every slot, hand never above
   emptyHand(p);
   scriptedTrade(engine, match, 'p1', 100); // streak 4: nothing
   assert.strictEqual(unused(p), 0);
-  scriptedTrade(engine, match, 'p1', 100); // streak 5: refill all four
-  assert.strictEqual(unused(p), 4, 'the "all cards come back" moment');
+  scriptedTrade(engine, match, 'p1', 100); // streak 5: refill all five
+  assert.strictEqual(unused(p), 5, 'the "all cards come back" moment');
   const heat = p.heat;
   scriptedTrade(engine, match, 'p1', 100); // streak 6, hand full -> Heat
-  assert.strictEqual(unused(p), 4);
+  assert.strictEqual(unused(p), 5);
   assert.ok(p.heat > heat + gameFeel.get().cards.heatPerOverflowCard - 1, 'overflow card became Heat');
   for (let i = 0; i < 20; i++) scriptedTrade(engine, match, 'p1', 100);
-  assert.ok(unused(p) <= 4);
+  assert.ok(unused(p) <= 5);
 });
 
 test('9: per-minute and per-match caps hold; the same trade can never grant twice', async () => {

@@ -26,7 +26,7 @@ TW.Modes = (function () {
     const r = state.modeRules;
     if (!r) return null;
     const rows = [];
-    const cards = r.handSize === 0 ? 'Off in this mode' : `${r.handSize} slot${r.handSize === 1 ? '' : 's'}${r.sabotage === false ? ', defense only' : ''}`;
+    const cards = r.handSize === 0 ? 'Off in this mode' : `${r.handSize} to start${r.sabotage === false ? ', defense only' : ''}`;
     rows.push(['Cards', cards]);
     rows.push(['Winner', r.winShort || 'Highest equity at zero']);
     if (r.elimination) {

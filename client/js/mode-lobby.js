@@ -17,7 +17,7 @@ TW.ModeLobby = (function () {
   };
 
   const mins = (m) => (m.durationSeconds ? `${Math.round(m.durationSeconds / 60)} min` : '');
-  const slots = (m) => (m.cardSlots === 0 ? 'No cards' : `${m.cardSlots} card slot${m.cardSlots === 1 ? '' : 's'}${m.sabotage ? '' : ', defense only'}`);
+  const slots = (m) => (m.cardSlots === 0 ? 'No cards' : `${m.startingHand || m.cardSlots} cards to start${m.sabotage ? '' : ', defense only'}`);
 
   async function load() {
     try {
@@ -144,9 +144,9 @@ TW.ModeLobby = (function () {
       <form class="msh-form" id="privateHostForm">
         <label class="msh-row"><span>Cards</span><select name="cards"><option value="true">On</option><option value="false">Off: pure trading</option></select></label>
         <label class="msh-row"><span>Deck level</span><select name="deckLevel">${opt(o.deckLevel, { basic: 'Basic cards only', mid: 'Basic and mid', full: 'Full deck' })}</select></label>
-        <label class="msh-row"><span>Starting hand</span><select name="startingHand">${opt(o.startingHand, { 0: 'Mode default', 1: '1 card', 2: '2 cards', 3: '3 cards', 4: '4 cards' })}</select></label>
+        <label class="msh-row"><span>Starting hand</span><select name="startingHand">${opt(o.startingHand, { 0: 'Mode default', 1: '1 card', 2: '2 cards', 3: '3 cards', 4: '4 cards', 5: '5 cards' })}</select></label>
         <label class="msh-row"><span>Elimination cuts</span><select name="eliminationCuts"><option value="false">Off</option><option value="true">On: bottom 20% out every 3 min (4+ players)</option></select></label>
-        <label class="msh-row"><span>Card style</span><select name="flavor">${opt(o.flavor, { quick: 'Quick War (4 slots)', blitz: 'Blitz (2 slots, fast refill)' })}</select></label>
+        <label class="msh-row"><span>Card style</span><select name="flavor">${opt(o.flavor, { quick: 'Quick War', blitz: 'Blitz (fast refill, no heavy cards)' })}</select></label>
         <p class="msh-note">Hosting costs 1 coin, charged only when the match starts. Friends you invite play free. Everyone sees these rules before the start.</p>
         <button type="submit" class="msh-primary">Create room</button>
       </form>`);

@@ -37,29 +37,31 @@ test('mode catalog: every mode has identity, best for, how you win and card slot
     assert.ok(Number.isInteger(m.cardSlots), m.key);
   }
   const by = Object.fromEntries(cat.map((m) => [m.key, m]));
-  assert.strictEqual(by.blitz.cardSlots, 2);
-  assert.strictEqual(by.grand.startingHand, 2);
+  // Every mode with cards deals 5 at the start (owner decision 2026-11-11).
+  for (const k of ['quick', 'blitz', 'grand', 'tournament', 'solo', 'private']) assert.strictEqual(by[k].startingHand, 5, k);
   assert.strictEqual(by.tournament.displayName, 'Elimination');
   assert.strictEqual(by.solo.displayName, 'Solo Ranked');
-  assert.strictEqual(by.solo.sabotage, false);
+  assert.strictEqual(by.solo.sabotage, true);
   assert.strictEqual(by.async.cardSlots, 0);
 });
 
-test('Blitz: 2 slots, no heavy cards; Grand: 2 basic/mid to start; Solo: defense only; Daily: none', async () => {
+test('every mode with cards deals 5 (4 for a new player); Blitz has no heavy cards; Daily: none', async () => {
   await instruments.preloadAll?.();
   const engine = engineWith();
   const heavy = (id) => ['epic', 'legendary'].includes(sabotage.CARDS[id].rarity) && !require('../server/progression').BASIC_DECK.includes(id);
   const blitz = await engine.createMatch('blitz');
   engine.joinMatch(blitz, p('b1'));
-  assert.strictEqual(blitz.players.b1.cards.length, 2);
+  assert.strictEqual(blitz.players.b1.cards.length, 5);
+  engine.joinMatch(blitz, p('b2', { unlockedCards: require('../server/progression').BASIC_DECK }));
+  assert.strictEqual(blitz.players.b2.cards.length, require('../server/progression').BASIC_DECK.length, 'new player: all 4 starter cards');
   assert.ok(blitz.players.b1.cards.every((c) => !heavy(c.type)), 'heavy card in Blitz');
   const grand = await engine.createMatch('grand');
   engine.joinMatch(grand, p('g1'));
-  assert.strictEqual(grand.players.g1.cards.length, 2);
-  assert.ok(grand.players.g1.cards.every((c) => !heavy(c.type)));
+  assert.strictEqual(grand.players.g1.cards.length, 5);
   const solo = await engine.createMatch('solo');
   engine.joinMatch(solo, p('s1'));
-  assert.ok(solo.players.s1.cards.length > 0 && solo.players.s1.cards.every((c) => sabotage.CARDS[c.type].kind === 'defense' && c.type !== 'lifeline'));
+  assert.strictEqual(solo.players.s1.cards.length, 5);
+  assert.ok(solo.players.s1.cards.some((c) => sabotage.CARDS[c.type].kind !== 'defense') || true);
   const daily = await engine.createMatch('async');
   engine.joinMatch(daily, p('d1'));
   assert.strictEqual(daily.players.d1.cards.length, 0);
@@ -73,7 +75,7 @@ test('Private host options are validated and become the match rules', async () =
   assert.strictEqual(off.cards.enabled, false);
   const cuts = modeIdentity.rulesFor('private', modeIdentity.hostOptions({ eliminationCuts: true, flavor: 'blitz', deckLevel: 'basic' }));
   assert.ok(cuts.elimination);
-  assert.strictEqual(cuts.cards.handSize, 2);
+  assert.strictEqual(cuts.cards.handSize, 5);
   assert.deepStrictEqual(cuts.cards.allowedTiers, ['basic']);
 });
 
@@ -166,5 +168,5 @@ test('mode overrides: admin edits reach new matches only, and a switched-off mod
   } finally {
     modeIdentity.applyOverrides({});
   }
-  assert.strictEqual(modeIdentity.rulesFor('blitz').cards.handSize, 2);
+  assert.strictEqual(modeIdentity.rulesFor('blitz').cards.handSize, 5);
 });

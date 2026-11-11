@@ -2,7 +2,7 @@
 
 window.TW = window.TW || {};
 
-// Card tray (up to 4 cards), Heat meter and the target sheet. The server
+// Card tray (up to 5 cards), Heat meter and the target sheet. The server
 // decides everything (grants, plays, shields); this only shows it and sends
 // the player's choice. Targeting: tap a card, pick a player from the same
 // ranked list as the leaderboard (searchable, with quick picks), right there
@@ -19,7 +19,7 @@ TW.Sabotage = (function () {
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const icon = (k, s) => (TW.CardIcons ? TW.CardIcons.svg(k, s) : '');
-  const fire = () => (lastState && lastState.fire) || { handSize: 4, streakRewards: { 1: 1, 2: 1, 3: 2 }, refillAtStreak: 5, heat: { enabled: true, multipliers: [1, 1.5, 2, 3] } };
+  const fire = () => (lastState && lastState.fire) || { handSize: 5, streakRewards: { 1: 1, 2: 1, 3: 2 }, refillAtStreak: 5, heat: { enabled: true, multipliers: [1, 1.5, 2, 3] } };
   const def = (type) => (lastState ? lastState.cardCatalog.find((c) => c.id === type) : null);
   const me = () => (lastState ? lastState.players.find((p) => p.id === lastState.you) : null);
 
@@ -220,7 +220,7 @@ TW.Sabotage = (function () {
     const box = document.getElementById('cardSlots');
     if (!box) return;
     box.classList.add('sc-tray');
-    const size = fire().handSize || 4;
+    const size = fire().handSize || 5;
     const live = [];
     hand.forEach((c, i) => { if (!c.used && live.length < size) live.push({ key: `${i}`, type: c.type }); });
 

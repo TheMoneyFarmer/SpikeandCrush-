@@ -882,7 +882,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       return;
     }
     let pool = cardRules.allowedPool(match, player);
-    let count = Math.min(r.handSize, player.cards.length);
+    // Every mode deals its startCount (5), capped by the cards this player
+    // has unlocked (a new player owns 4) - not the old per-mode 3.
+    let count = Math.min(r.handSize, r.startCount || r.handSize);
     if (r.startingHand) {
       const basic = progression.BASIC_DECK;
       pool = pool.filter((id) => r.startingHand.tiers.includes(modeIdentity.cardTier(id, basic, sabotage.CARDS[id].rarity)));
@@ -3046,7 +3048,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (!r) return { enabled: true, count: match.config.cardsPerPlayer, allowed: Object.keys(sabotage.CARDS) };
     if (!r.enabled) return { enabled: false, count: 0, allowed: [] };
     let allowed = cardRules.allowedPool(match, player);
-    let count = Math.min(r.handSize, match.config.cardsPerPlayer);
+    let count = Math.min(r.handSize, r.startCount || r.handSize);
     if (r.startingHand) {
       allowed = allowed.filter((id) => r.startingHand.tiers.includes(modeIdentity.cardTier(id, progression.BASIC_DECK, sabotage.CARDS[id].rarity)));
       count = Math.min(r.handSize, r.startingHand.count);

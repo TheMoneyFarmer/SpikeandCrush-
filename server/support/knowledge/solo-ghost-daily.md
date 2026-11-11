@@ -9,7 +9,7 @@ needs_review: false
 
 # Solo Ranked ghost, personal best and Daily Challenge ghost
 
-**Solo Ranked** is free. You trade against 3 AI traders, so there is never a wait. There is no sabotage: you only get defense cards. The match strip shows the **ghost** of your best Solo Ranked run: its P&L at the same second, and whether you lead or trail it. It also shows your best result from yesterday to beat. Missions come as a chain: finish one to unlock the next. The result screen shows the gap to your ghost and your personal best.
+**Solo Ranked** is free. You trade against 3 AI traders, so there is never a wait. You get 5 cards like every mode and can use them on the AI traders. The match strip shows the **ghost** of your best Solo Ranked run: its P&L at the same second, and whether you lead or trail it. It also shows your best result from yesterday to beat. Missions come as a chain: finish one to unlock the next. The result screen shows the gap to your ghost and your personal best.
 
 **Daily Challenge**: everyone trades the same market window today, with no cards. The strip shows the ghost of today's best run so far.
 

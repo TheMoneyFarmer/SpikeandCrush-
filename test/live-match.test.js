@@ -151,7 +151,7 @@ test('history sends played prices but nothing past the clock', async (t) => {
   assert.ok(Math.max(...played.map((x) => x.t)) <= 31);
 });
 
-test('Blitz War deals 5 instruments and 2 card slots (its own identity) in 3 minutes', async () => {
+test('Blitz War deals 5 instruments and 5 cards in 3 minutes', async () => {
   await instruments.preloadAll?.();
   const engine = createGameEngine(fakeIo(), () => {}, () => {}, () => {}, () => true);
   const match = await engine.createMatch('blitz');
@@ -159,8 +159,8 @@ test('Blitz War deals 5 instruments and 2 card slots (its own identity) in 3 min
   assert.strictEqual(match.config.durationSeconds, 180);
   assert.strictEqual(match.instruments.length, 5);
   assert.strictEqual(new Set(match.instruments).size, 5);
-  assert.strictEqual(match.players.p1.cards.length, 2);
-  assert.strictEqual(match.rules.cards.handSize, 2);
+  assert.strictEqual(match.players.p1.cards.length, 5);
+  assert.strictEqual(match.rules.cards.handSize, 5);
 });
 
 test('saved deck: every card comes from it when it holds enough (per-mode hand and card pool)', async () => {
@@ -175,7 +175,7 @@ test('saved deck: every card comes from it when it holds enough (per-mode hand a
     const deck = cardRules.allowedPool(match, { unlockedCards: all }).slice(0, 5);
     engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck, unlockedCards: all });
     const r = match.rules.cards;
-    const want = r.startingHand ? Math.min(r.handSize, r.startingHand.count) : Math.min(r.handSize, match.config.cardsPerPlayer);
+    const want = r.startingHand ? Math.min(r.handSize, r.startingHand.count) : Math.min(r.handSize, r.startCount);
     const cards = match.players.p1.cards.map((c) => c.type);
     assert.strictEqual(cards.length, Math.min(want, deck.length), mode);
     assert.strictEqual(new Set(cards).size, cards.length, mode + ' has duplicates');
@@ -209,14 +209,13 @@ test('saved deck: never shown to other players, and Grand War can still change c
   engine.joinMatch(match, { id: 'p1', username: 'One', war_rating: 1000, deck: all.slice(0, 5) });
   assert.strictEqual(match.players.p1.deck, undefined);
   assert.ok(!JSON.stringify(engine.buildMatchStatePayloadFor(match, null)).includes('"deck"'));
-  // Grand War's pick follows its starting hand: 2 basic or mid cards.
+  // Grand War's lobby pick: the 5 cards you start with.
   const choice = engine.buildMatchStatePayloadFor(match, 'p1').loadoutChoice;
-  assert.strictEqual(choice.count, 2);
-  const swapped = choice.allowed.slice(1, 3);
+  assert.strictEqual(choice.count, 5);
+  const swapped = choice.allowed.slice(1, 6);
   assert.strictEqual(engine.selectLoadoutCards(match.id, 'p1', swapped).success, true);
   assert.deepStrictEqual(match.players.p1.cards.map((c) => c.type), swapped);
   // Heavy cards and the wrong count are refused.
-  const heavy = all.find((id) => !choice.allowed.includes(id));
-  assert.strictEqual(engine.selectLoadoutCards(match.id, 'p1', [choice.allowed[0], heavy]).success, false);
+  // The wrong count is refused.
   assert.strictEqual(engine.selectLoadoutCards(match.id, 'p1', choice.allowed.slice(0, 3)).success, false);
 });

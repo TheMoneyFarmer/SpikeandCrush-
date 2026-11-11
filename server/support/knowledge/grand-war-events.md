@@ -11,7 +11,7 @@ needs_review: false
 
 Grand War lasts 20 minutes.
 
-**Starting hand.** You start with 2 basic or mid cards (you can pick them in the lobby) and earn the rest, up to 4, by winning trades.
+**Starting hand.** You start with 5 cards, like every mode, and can change them in the lobby before the start.
 
 **Market events.** Three events are scheduled near minutes 5, 10, 15. Each one is one of the biggest real moves of that session in the price data, found within 2 minutes of the mark. Nothing is invented and the direction is never shown in advance. The match strip says "Market event" a few seconds before. If no big real move exists near a mark, that event is skipped.
 
