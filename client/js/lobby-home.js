@@ -323,6 +323,7 @@
     if (open) $('modeQuickBtn')?.focus();
   }
   TW.openModeSheet = () => setSheet(true);
+  TW.closeModeSheet = () => setSheet(false);
 
   // ---- 5c. competitions list ------------------------------------------------------------
 

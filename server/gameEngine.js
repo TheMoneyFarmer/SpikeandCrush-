@@ -1040,9 +1040,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       const wide = rules.events.fallbackTopPercent ? movesAt(rules.events.fallbackTopPercent) : [];
       rules.events.minutes.forEach((minute, k) => {
         const at = minute * 60;
+        // Biggest move first, but an instrument not used by an earlier
+        // event wins over one that was (crypto ranges would take all three).
+        const usedSyms = new Set(events.map((x) => x.symbol));
         const pick = (list) => list
           .filter((e) => Math.abs(e.dataSecond - at) <= (rules.events.searchWindowSeconds || 120) && !events.some((x) => x.dataSecond === e.dataSecond))
-          .sort((a, b) => b.rangeBps - a.rangeBps)[0];
+          .sort((a, b) => (usedSyms.has(a.symbol) - usedSyms.has(b.symbol)) || b.rangeBps - a.rangeBps)[0];
         const near = pick(strong) || pick(wide);
         match.marketEvents.push({ no: k + 1, minute, found: Boolean(near), dataSecond: near ? near.dataSecond : null, symbol: near ? near.symbol : null, movePct: near ? near.movePct : null });
         if (near) events.push({ ...near, kind: 'event', eventNo: k + 1, id: `event-${k + 1}`, alerted: false, resolved: false });

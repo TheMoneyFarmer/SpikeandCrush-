@@ -111,7 +111,8 @@ const DEFAULTS = {
     winCondition: 'Highest equity at the table; your own best run is the ghost to beat',
     winShort: 'Beat your best',
     special: 'No sabotage, ghost of your best run, 3-mission chain',
-    cards: { sabotage: false, allowedTiers: ['basic', 'mid'], defenseOnly: true },
+    // Only Shield and Cleanse can be held here (Lifeline needs cuts): 2 slots.
+    cards: { handSize: 2, sabotage: false, allowedTiers: ['basic', 'mid'], defenseOnly: true },
     spikeAlerts: { enabled: true, minGapSeconds: 60 },
     missions: ['first_trade', 'two_wins', 'hold_60'],
     missionChain: true,

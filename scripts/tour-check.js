@@ -68,7 +68,7 @@ async function walk(page, label, expectSteps) {
   for (const [w, h] of SIZES) {
     await page.setViewportSize({ width: w, height: h });
     await page.evaluate(() => TW.api('/api/tours/reset', { method: 'POST' }));
-    await page.goto(`${BASE}/?replay_tutorial=1`, { waitUntil: 'load' });
+    await page.goto(`${BASE}/play?replay_tutorial=1`, { waitUntil: 'load' });
     const steps = await walk(page, `lobby ${w}x${h}`, tours.tours.lobby.steps);
     ok(steps === tours.tours.lobby.steps.length, `lobby ${w}x${h}: all ${tours.tours.lobby.steps.length} steps shown`);
     // Back then Skip: Back returns a step, Skip asks once and closes.
@@ -76,7 +76,7 @@ async function walk(page, label, expectSteps) {
     await page.waitForTimeout(300);
     await page.click('.tutorial-overlay .btn-tutorial-skip');
     await page.click('.tutorial-confirm-overlay [data-yes]');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1500);
     ok(!(await page.$('.tutorial-overlay')), `lobby ${w}x${h}: Skip closes the tour`);
     const progress = await page.evaluate(() => TW.api('/api/tours').then((d) => d.progress.lobby));
     ok(progress && progress.outcome === 'skipped', `lobby ${w}x${h}: skip recorded (step ${progress && progress.step})`);

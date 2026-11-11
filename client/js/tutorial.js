@@ -87,6 +87,17 @@ window.TW = window.TW || {};
     }
 
     place(step, scroll) {
+      // Pages can reveal an anchor that sits in a closed sheet (the phone
+      // lobby's mode sheet), or close it for a step outside it.
+      if (scroll && TW.revealTourAnchor) {
+        const changed = TW.revealTourAnchor(step.anchor || null);
+        if (changed) {
+          this.centerCard();
+          this.spotlight.style.display = 'none';
+          setTimeout(() => { if (this.overlay && this.steps[this.currentStep] === step) this.place(step, false); }, 350);
+          return;
+        }
+      }
       const target = findAnchor(step);
       if (target) {
         if (scroll) target.scrollIntoView({ block: 'center' });
@@ -175,6 +186,7 @@ window.TW = window.TW || {};
       overlay.style.opacity = '0';
       setTimeout(() => overlay.remove(), 250);
       running = null;
+      if (TW.revealTourAnchor) TW.revealTourAnchor(null, true);
       if (this.onFinish) this.onFinish(outcome, this.currentStep);
     }
   }
@@ -217,7 +229,15 @@ window.TW = window.TW || {};
     return !p || p.v < t.version;
   }
 
-  async function record(id, outcome, step) {
+  // One write at a time: the server reads and rewrites players.settings, so
+  // two tours recorded at once would overwrite each other.
+  let queue = Promise.resolve();
+  function record(id, outcome, step) {
+    queue = queue.then(() => recordNow(id, outcome, step));
+    return queue;
+  }
+
+  async function recordNow(id, outcome, step) {
     try {
       const r = await TW.api('/api/tours/progress', { method: 'POST', body: { tour: id, outcome, step } });
       if (cache && r && r.progress) cache = cache.then((d) => (d ? { ...d, progress: r.progress } : d));

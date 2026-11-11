@@ -80,8 +80,10 @@ TW.ModeLobby = (function () {
   }
 
   function addCompareButton() {
-    const head = document.querySelector('#lbModes .lb-sheet-head');
-    if (!head || document.getElementById('lbCompareModes')) return;
+    // In the mode row itself (the sheet header is hidden on desktop), just
+    // before the join-a-room box: visible on desktop and in the phone sheet.
+    const modes = document.getElementById('lbModes');
+    if (!modes || document.getElementById('lbCompareModes')) return;
     const b = document.createElement('button');
     b.type = 'button';
     b.id = 'lbCompareModes';
@@ -89,8 +91,7 @@ TW.ModeLobby = (function () {
     b.setAttribute('data-tour', 'compare-modes');
     b.textContent = 'Compare modes';
     b.addEventListener('click', openCompare);
-    const close = document.getElementById('lbSheetClose');
-    head.insertBefore(b, close || null);
+    modes.insertBefore(b, modes.querySelector('.lb-join'));
   }
 
   // ---- sheets -----------------------------------------------------------------
@@ -170,6 +171,27 @@ TW.ModeLobby = (function () {
       onCreate(hostOptions);
     });
   }
+
+  // Walkthrough helper (js/tutorial.js): on phones the mode tiles live in a
+  // bottom sheet; open it for a step that points inside it and close it for
+  // one that doesn't (or when the tour ends). Returns true if it changed.
+  const SHEET_ANCHORS = /^(modes|mode-\w+|compare-modes|join-private)$/;
+  TW.revealTourAnchor = (anchor, ending) => {
+    const sheet = document.getElementById('lbModes');
+    if (!sheet || !TW.openModeSheet) return false;
+    const open = document.body.classList.contains('lb-sheet-open');
+    const el = anchor ? document.querySelector(`[data-tour="${anchor}"]`) : null;
+    const hidden = el && !(el.getBoundingClientRect().width > 0);
+    if (!ending && anchor && SHEET_ANCHORS.test(anchor) && sheet.contains(el) && hidden && !open) {
+      TW.openModeSheet();
+      return true;
+    }
+    if (open && (ending || !anchor || !SHEET_ANCHORS.test(anchor))) {
+      if (TW.closeModeSheet) TW.closeModeSheet();
+      return !ending;
+    }
+    return false;
+  };
 
   return { load, openCompare, openPrivateSheet, byKey, catalog: () => catalog };
 })();

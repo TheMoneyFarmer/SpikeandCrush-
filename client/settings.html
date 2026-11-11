@@ -891,7 +891,7 @@
       // there first and let tutorial.js's own query-param check start it.
       // Clears this account's tour progress, so every tour (lobby, first
       // match, results, each mode's intro) shows again where it belongs.
-      const go = () => { window.location.href = '/?replay_tutorial=1'; };
+      const go = () => { window.location.href = '/play?replay_tutorial=1'; };
       if (TW.Tours) TW.Tours.reset().then(go, go); else go();
     });
     document.getElementById('resetModeTutorialsBtn')?.addEventListener('click', () => {
