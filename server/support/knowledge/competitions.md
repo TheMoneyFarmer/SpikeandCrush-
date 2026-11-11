@@ -1,57 +1,26 @@
 ---
 slug: competitions
-title: "Competitions: daily, weekly, weekend and monthly"
+title: "Competitions: the Daily Open and the Weekend Open"
 category: competitions
-tags: ["competition", "daily war", "weekly war", "weekend blitz", "monthly grand", "coming soon", "notify me", "waitlist", "entry", "settlement", "leaderboard", "bot", "EA", "expert advisor", "automated trading", "AI"]
+tags: ["competition", "daily open", "weekend open", "coming soon", "notify me", "waitlist", "free entry", "why free", "two days", "saturday", "sunday", "crypto", "weekend markets", "bot", "EA", "expert advisor", "automated trading", "AI"]
 source: code
 needs_review: false
 ---
 
-# Competitions: daily, weekly, weekend and monthly
+# Competitions: the Daily Open and the Weekend Open
 
-The Daily, Weekly, Weekend and Monthly competitions are **coming soon**. They are being rebuilt as free-to-enter competitions with cash prizes paid by a competition partner (see "Competition prizes: who pays and how").
+Spike & Crush runs two competitions of its own: the **Daily Open** and the **Weekend Open**. Both are **coming soon**: nobody can enter them yet. They open when live market data is switched on.
 
-**Coming soon**
-- A coming soon card cannot be entered yet. Tap **Notify me** and we email you once when it opens, plus a short confirmation now. You can leave the list from the competition's page.
-- Each competition has its own page (for example /competitions/daily) with how it works, times in your own timezone, the prize and the rules.
-- Nobody can say exactly when they open until the partner and prize are confirmed. The card shows the planned rhythm, like "Every weekday" or "One weekend a month".
-- There is no other daily, weekly, weekend or monthly event to enter in the meantime. The game modes (Quick, Blitz, Grand, Solo, Async, Private and Tournament War) are open any time and pay coins.
+**Daily Open**: Monday to Friday, one competition per day, from market open to market close. Prize pool currently $5,000 (paid in money by the competition partner named in the terms). Free entry.
 
-**Runs that were already going**
-Only a run that a player had already entered before the change keeps going, and it finishes as a coin event under its old rules. No new coin runs are being scheduled. Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money. The old details, for players asking about a run they are already in:
+**Weekend Open**: one competition each weekend, from Saturday 00:00 to Sunday 23:59. **Two days, Saturday to Sunday.** Prize pool currently $10,000. Free entry. It uses weekend markets only, which means crypto (Bitcoin and Ethereum for now).
 
-### Daily War — 22h Full Session
-One full trading day: Asian open to New York close. Best equity at the bell wins.
+**Why entry is free**: these competitions pay prizes in money, so they never take coins or money to enter. Nothing you can buy gives you an advantage.
 
-- Entry: 10 coins
-- Instruments: XAUUSD, NAS100, BTCUSD, USDJPY, USDCHF
-- Default prizes (coins): 1st: 150 coins, 2nd: 75 coins, 3rd: 40 coins
+**Why everything says Coming soon**: they will run on live market data, which is not switched on yet. Until then the only buttons are Coming soon (greyed out), Notify me and Details. There is no other way to enter early.
 
-### Weekly War — Mon to Fri
-The whole trading week. Five sessions, one account, no resets.
+**Notify me**: tap Notify me on a card and we email you once when it opens, plus a short confirmation now. You can leave the list from the competition's page. You can be on the list for both.
 
-- Entry: 25 coins
-- Instruments: USDJPY, XAUUSD, NAS100, US30, USOIL, BTCUSD, USDCHF, XAGUSD
-- Default prizes (coins): 1st: 600 coins, 2nd: 300 coins, 3rd: 150 coins
+**Rules when they open**: a verified profile, one account per player, and every trade placed by you by hand: no AI, bots, EAs (expert advisors), scripts or automated trading. We review trading patterns, and accounts that trade automatically are removed and lose any prize. You can enter the Daily Open and the Weekend Open together.
 
-### Weekend Blitz
-Crypto never sleeps. Saturday and Sunday on Bitcoin and Ethereum.
-
-- Entry: 15 coins
-- Instruments: BTCUSD, ETHUSD
-- Default prizes (coins): 1st: 250 coins, 2nd: 125 coins, 3rd: 60 coins
-
-### Monthly Grand
-A full month of markets. The long game — patience and risk control win this one.
-
-- Entry: 50 coins
-- Instruments: USDJPY, XAUUSD, XAGUSD, NAS100, US30, GER40, USOIL, BTCUSD, ETHUSD, USDCHF, UK100
-- Default prizes (coins): 1st: 2500 coins, 2nd: 1250 coins, 3rd: 600 coins, 4th: 100 coins, 5th: 100 coins, 6th: 100 coins, 7th: 100 coins, 8th: 100 coins, 9th: 100 coins, 10th: 100 coins
-
-**How a run works (both kinds)**
-- One account with $10,000 of virtual capital, with the same leverage, margin rules and position limit as matches. Your account lives between sessions.
-- Ranking is by equity at the end. Ties are broken by fewer trades, then by who entered first.
-- Reaching the 50% margin level closes your biggest losers first. Your account stays open.
-- You can enter more than one competition at a time, for example the Daily and the Weekly.
-
-**Bots, EAs and AI are not allowed.** Every trade in a competition must be placed by the player by hand: no AI, bots, EAs (expert advisors), scripts or automated trading. We review trading patterns, and accounts that trade automatically are removed and lose any prize.
+Game modes (Quick, Blitz, Grand, Elimination, Solo, Async, Private and Tournament) are open any time and pay coins. Coins have no cash value and cannot be withdrawn, cashed out or exchanged for money.
