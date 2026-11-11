@@ -1,0 +1,46 @@
+/* Sponsor slots: fixed sizes per slot, a visible "Presented by" / "Sponsored"
+   label on every one, and nothing at all when no sponsor is scheduled
+   ([hidden] collapses the slot). js/sponsor-slots.js renders them. */
+[data-slot][hidden] { display: none !important; }
+.spx-label { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: var(--c-mute, rgba(200, 212, 232, 0.72)); white-space: nowrap; }
+.spx-link { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+.spx-link:focus-visible { outline: 2px solid var(--c-focus, #fff); outline-offset: 2px; border-radius: 6px; }
+.spx-logo { display: block; height: 28px; width: auto; max-width: 140px; object-fit: contain; }
+.spx-name { font-weight: 700; font-size: 14px; color: var(--c-on, #f2f5fa); }
+.spx-tagline { font-size: 13px; color: var(--c-body, rgba(232, 238, 248, 0.76)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.spx-row { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.spx-cta { min-height: 36px; padding: 0 14px; border-radius: 9999px; border: 1px solid var(--c-hair-2, rgba(160, 182, 222, 0.26)); font-size: 13px; font-weight: 600; }
+.spx-cta:hover { border-color: var(--c-on, #f2f5fa); }
+
+/* 1. lobby strip: rotating tiles */
+[data-slot="lobby_strip"] { display: flex; align-items: center; gap: 12px; min-height: 56px; }
+.spx-strip { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; flex: 1 1 auto; min-width: 0; }
+.spx-strip::-webkit-scrollbar { display: none; }
+.spx-tile { flex: 0 0 auto; height: 56px; padding: 0 16px; border-radius: 12px; background: var(--c-deep, #182746); box-shadow: inset 0 0 0 1px var(--c-hair, rgba(160, 182, 222, 0.14)); max-width: 300px; }
+
+/* 2. competition card line ("Presented by") and detail header */
+[data-slot="competition_card"] { min-height: 28px; }
+[data-slot="competition_card"][data-variant="header"] { padding: 14px 16px; border-radius: 12px; background: var(--c-deep, #182746); }
+[data-slot="competition_card"][data-variant="header"] .spx-logo { height: 36px; }
+
+/* 3. prematch (lobby countdown): one full-width card */
+[data-slot="prematch"] { margin-top: 14px; }
+.spx-pre { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--c-deep, #182746); flex-wrap: wrap; }
+
+/* 4. match header chip: 24px, never grows */
+[data-slot="match_header_chip"] { height: 24px; max-height: 24px; overflow: hidden; display: inline-flex; flex: 0 0 auto; }
+.spx-chip { height: 24px; padding: 0 8px; gap: 6px; border-radius: 9999px; background: rgba(255, 255, 255, 0.06); }
+.spx-chip .spx-label { font-size: 10px; }
+.spx-chip .spx-logo { height: 14px; max-width: 72px; }
+.spx-chip .spx-name { font-size: 11px; }
+
+/* 5. spike strip tag: text only, inside the strip's own height */
+[data-slot="spike_strip_tag"] { margin-left: auto; flex: 0 0 auto; max-height: 100%; overflow: hidden; white-space: nowrap; font-size: 11px; color: var(--c-mute, rgba(200, 212, 232, 0.72)); }
+.spx-tag { gap: 4px; font-size: 11px; }
+
+/* 6. result screen, 7. leaderboard header, 8. event banner */
+[data-slot="result_screen"] { padding: 12px 14px; border-radius: 12px; background: var(--c-deep, #182746); }
+[data-slot="result_screen"][data-variant="line"] { padding: 0; background: none; }
+[data-slot="leaderboard_header"] { min-height: 28px; }
+[data-slot="event_banner"] { padding: 14px 16px; border-radius: 14px; background: linear-gradient(120deg, color-mix(in srgb, var(--c-blue, #2d7ff9) 22%, var(--c-deep, #182746)), var(--c-deep, #182746)); }
+[data-slot="event_banner"] .spx-tagline { font-size: 15px; color: var(--c-on, #f2f5fa); white-space: normal; }

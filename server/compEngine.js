@@ -7,6 +7,8 @@
 // flags - so a restart, a second server instance or a player closing their
 // laptop for a day changes nothing. The tick job reads it all back each run.
 
+const compStates = require('./competitionStates');
+const liveFeed = require('./liveFeed');
 const crypto = require('crypto');
 const db = require('./database');
 const csvLoader = require('./csvLoader');
@@ -333,6 +335,11 @@ function createCompEngine({ io, notifyPlayer }) {
         status: 400,
       });
     }
+    // Coming soon, paused, live-data-without-a-feed and money-with-a-fee are
+    // refused here, before compEnter, so no coin ledger row is ever written.
+    const gate = compStates.enterGate(comp, { liveOk: await liveFeed.canGoLive(db) });
+    if (!gate.ok) throw Object.assign(new Error(gate.reason), { status: 400 });
+    compStates.assertSeparation(comp);
     const result = await db.compEnter(comp.id, playerId, comp.entry_fee_coins || 0, GAME_RULES.STARTING_CAPITAL);
     if (result.error === 'insufficient_coins') throw Object.assign(new Error('Not enough coins'), { status: 400 });
     if (result.error)
@@ -985,7 +992,19 @@ function createCompEngine({ io, notifyPlayer }) {
 
   async function scheduleUpcoming() {
     const created = [];
+    // Templates admin has locked (Coming soon, paused, closed) or that need the
+    // live feed before it is ready are not scheduled. Without the templates
+    // table (migration not run yet) everything schedules as before.
+    let states = null;
+    try {
+      states = Object.fromEntries((await db.listCompTemplates()).map((t) => [t.key, t]));
+    } catch (e) {
+      states = null;
+    }
+    const liveOk = await liveFeed.canGoLive(db);
     for (const [frequency, tpl] of Object.entries(TEMPLATES)) {
+      const st = states && states[frequency];
+      if (st && (!compStates.ENTERABLE_STATES.includes(st.state) || (st.data_source === 'live' && !liveOk))) continue;
       const existing = await db.listCompetitionsByFrequency(frequency, new Date(Date.now() - 40 * DAY_MS).toISOString());
       for (const slot of slotsFor(tpl, Date.now())) {
         if (existing.some((c) => new Date(c.starts_at).getTime() === slot.startsAt.getTime())) continue;

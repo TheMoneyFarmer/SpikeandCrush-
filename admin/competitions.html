@@ -27,6 +27,18 @@
     <main class="admin-main">
       <div class="admin-topbar" id="adminTopbar"></div>
       <div class="admin-content comp-layout">
+        <div class="panel" id="tplPanel">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <h3 style="margin:0">Recurring competitions</h3>
+            <span class="muted">Daily, Weekly, Weekend and Monthly. Money prizes, always free to enter.</span>
+            <a class="btn btn-sm" href="/api/competitions/templates/waitlist.csv" style="margin-left:auto">Export waitlist counts</a>
+          </div>
+          <div class="adm-strip" id="liveFeedStrip" style="margin-top:12px"></div>
+          <div class="admin-table-wrap" style="margin-top:12px"><table class="admin-table">
+            <thead><tr><th>Competition</th><th>State</th><th>Data</th><th>Card shows</th><th>Waiting</th><th>Last notify</th><th></th></tr></thead>
+            <tbody id="tplBody"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
         <div class="panel">
           <h3>Test competition</h3>
           <p class="muted">Starts now, never listed on the public hub. Replay speed 144 = a full day of market in 10 minutes. Production competitions always replay at 1x.</p>
@@ -53,6 +65,35 @@
     </main>
   </div>
 
+
+  <div class="admin-modal-backdrop hidden" id="tplModal" role="dialog" aria-modal="true" aria-labelledby="tplModalTitle">
+    <div class="admin-modal" style="max-width:640px;width:100%">
+      <h3 id="tplModalTitle">Edit competition</h3>
+      <div class="config-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+        <label class="field">Title<input id="tTitle" maxlength="80"></label>
+        <label class="field">Schedule (plain words)<input id="tSchedule" maxlength="120"></label>
+        <label class="field">Rhythm line under Coming soon<input id="tRhythm" maxlength="120"></label>
+        <label class="field">Length<input id="tLength" maxlength="80"></label>
+        <label class="field" style="grid-column:1/-1">Format line (sells the format, not the money)<input id="tHook" maxlength="160"></label>
+        <label class="field" style="grid-column:1/-1">Rules line<input id="tRules" maxlength="160"></label>
+        <label class="field">State<select id="tState"><option value="coming_soon">Coming soon</option><option value="open">Open</option><option value="running">Running</option><option value="paused">Paused</option><option value="closed">Closed</option></select></label>
+        <label class="field">Reason for a state change<input id="tReason" maxlength="200" placeholder="Required when the state changes"></label>
+      </div>
+      <h4 style="margin:16px 0 6px">Prize (super admin only)</h4>
+      <p class="muted" style="margin:0 0 8px">Only confirm a pool when a named partner has agreed to pay it. A number on a card with no partner behind it is a promise we cannot keep. Until a pool is confirmed, the card says "Cash prizes" with no figure.</p>
+      <div class="config-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+        <label class="field">Prize pool<input id="tPool" type="number" min="0" step="1"></label>
+        <label class="field">Top figure on featured days<input id="tTop" type="number" min="0" step="1"></label>
+        <label class="field">Currency<input id="tCur" maxlength="3" placeholder="USD"></label>
+        <label class="field" style="grid-column:1/-1">Paying partner (admin note, never shown on cards)<input id="tPartner" maxlength="300"></label>
+        <label style="display:flex;gap:8px;align-items:center;grid-column:1/-1"><input type="checkbox" id="tConfirmed"> Prize pool confirmed by the named partner</label>
+      </div>
+      <div class="admin-modal-actions" style="margin-top:16px">
+        <button class="btn" id="tCancel">Cancel</button>
+        <button class="btn btn-primary" id="tSave">Save</button>
+      </div>
+    </div>
+  </div>
   <script src="js/time-ago.js"></script>
   <script src="js/admin-api.js"></script>
   <script src="js/admin-auth.js"></script>
@@ -60,6 +101,64 @@
   <script>
     Admin.renderNav();
     Admin.renderTopbar('Competitions');
+
+    // ---- recurring competition templates ----
+    let tplData = null, editing = null;
+    const STATE_NAMES = { coming_soon: 'Coming soon', open: 'Open', running: 'Running', paused: 'Paused', closed: 'Closed' };
+    async function loadTemplates() {
+      try {
+        tplData = await Admin.api('/competitions/templates');
+      } catch (e) {
+        document.getElementById('tplBody').innerHTML = `<tr><td colspan="7" class="muted">${Admin.escapeHtml(e.message)} (has the sponsors migration been run?)</td></tr>`;
+        return;
+      }
+      const d = tplData;
+      document.getElementById('liveFeedStrip').innerHTML = `
+        <div class="adm-stat"><span>liveFeed.ready</span><b class="mono">${d.liveFeedReady ? 'true' : 'false'}</b>${d.isSuper ? `<button class="btn btn-sm" id="liveToggle" style="margin-top:6px">${d.liveFeedReady ? 'Set false' : 'Set true'}</button>` : ''}<span>Set by the live feed deployment; do not flip by hand.</span></div>
+        <div class="adm-stat"><span>liveFeed.healthy()</span><b class="mono">${d.liveFeedHealthy ? 'true' : 'false'}</b><span>The live feed's own health check. Live competitions open only when both are true.</span></div>`;
+      document.getElementById('liveToggle')?.addEventListener('click', async () => {
+        if (!confirm('This switch is set by the live feed deployment. Change it by hand anyway?')) return;
+        try { await Admin.api('/competitions/settings/live-feed', { method: 'PUT', body: { ready: !d.liveFeedReady } }); loadTemplates(); } catch (e) { Admin.toast(e.message, 'danger'); }
+      });
+      document.getElementById('tplBody').innerHTML = d.templates.map((t) => `<tr>
+        <td><b>${Admin.escapeHtml(t.title)}</b><div class="muted">${Admin.escapeHtml(t.schedule_text)}</div></td>
+        <td><span class="badge ${t.state === 'coming_soon' ? 'badge-info' : t.state === 'open' || t.state === 'running' ? 'badge-online' : 'badge-offline'}">${STATE_NAMES[t.state]}</span>${t.state_reason ? `<div class="muted">${Admin.escapeHtml(t.state_reason)}</div>` : ''}</td>
+        <td>${t.data_source}</td>
+        <td>${Admin.escapeHtml(t.preview.label)}${t.preview.top ? `<div class="muted">${Admin.escapeHtml(t.preview.top)}</div>` : ''}${t.prize_pool_confirmed ? '' : '<div class="muted">No confirmed pool</div>'}</td>
+        <td class="mono">${t.waitlist}</td>
+        <td class="muted">${t.lastNotify ? `${Admin.formatDate(t.lastNotify.created_at)} (${t.lastNotify.recipients})` : 'never'}</td>
+        <td style="white-space:nowrap">${d.canEdit ? `<button class="btn btn-sm" data-edit="${t.key}">Edit</button> <button class="btn btn-sm" data-notify="${t.key}" ${t.waitlist ? '' : 'disabled'}>Notify waitlist</button>` : ''}</td>
+      </tr>`).join('');
+    }
+    document.getElementById('tplBody').addEventListener('click', async (e) => {
+      const ed = e.target.closest('[data-edit]');
+      const nt = e.target.closest('[data-notify]');
+      if (ed) openTpl(tplData.templates.find((t) => t.key === ed.dataset.edit));
+      if (nt) {
+        const t = tplData.templates.find((x) => x.key === nt.dataset.notify);
+        if (!confirm(`Email the ${t.waitlist} players waiting for the ${t.title}? This can be done once every 24 hours.`)) return;
+        nt.disabled = true;
+        try { const r = await Admin.api(`/competitions/templates/${t.key}/notify`, { method: 'POST' }); Admin.toast(`Sent to ${r.sent} players`, 'success'); loadTemplates(); } catch (err) { Admin.toast(err.message, 'danger'); nt.disabled = false; }
+      }
+    });
+    const $ = (id) => document.getElementById(id);
+    function openTpl(t) {
+      editing = t;
+      $('tplModalTitle').textContent = `Edit ${t.title}`;
+      $('tTitle').value = t.title; $('tSchedule').value = t.schedule_text; $('tRhythm').value = t.rhythm_text; $('tLength').value = t.length_text;
+      $('tHook').value = t.format_hook; $('tRules').value = t.rules_line; $('tState').value = t.state; $('tReason').value = '';
+      $('tPool').value = t.prize_pool_amount; $('tTop').value = t.prize_top_amount; $('tCur').value = t.prize_currency; $('tPartner').value = t.prize_partner_note || ''; $('tConfirmed').checked = t.prize_pool_confirmed;
+      ['tPool', 'tTop', 'tCur', 'tPartner', 'tConfirmed'].forEach((id) => { $(id).disabled = !tplData.isSuper; });
+      $('tplModal').classList.remove('hidden');
+    }
+    $('tCancel').addEventListener('click', () => $('tplModal').classList.add('hidden'));
+    $('tSave').addEventListener('click', async () => {
+      const body = { title: $('tTitle').value, schedule_text: $('tSchedule').value, rhythm_text: $('tRhythm').value, length_text: $('tLength').value, format_hook: $('tHook').value, rules_line: $('tRules').value };
+      if ($('tState').value !== editing.state) { body.state = $('tState').value; body.reason = $('tReason').value; }
+      if (tplData.isSuper) Object.assign(body, { prize_pool_amount: Number($('tPool').value), prize_top_amount: Number($('tTop').value), prize_currency: $('tCur').value.toUpperCase() || 'USD', prize_partner_note: $('tPartner').value, prize_pool_confirmed: $('tConfirmed').checked });
+      try { await Admin.api(`/competitions/templates/${editing.key}`, { method: 'PUT', body }); $('tplModal').classList.add('hidden'); Admin.toast('Saved', 'success'); loadTemplates(); } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
+    loadTemplates();
 
     let comps = [];
     let activeId = null;
