@@ -16,6 +16,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { effectiveTier } = require('./listings');
 
 const SLOTS = {
   lobby_strip: { label: 'Sponsored', creative: 'logo_tagline', multi: true },
@@ -151,6 +152,51 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
     return out;
   }
 
+  // ---- Featured partner listings (Featured tier perk) ------------------------------------
+  // Real, published, not-closed listings whose Featured tier is in its window. Preview
+  // (invented) listings never show here. The link is our own listing page, never the
+  // partner's site, so no outbound link or code ever reaches these slots. The placement id
+  // is not a uuid, so impressions never land in the sponsor stats.
+  const LISTING_SLOTS = ['lobby_strip', 'result_screen'];
+  let featuredCache = { at: 0, rows: [] };
+  async function featuredListings(now) {
+    if (typeof db.client !== 'function') return [];
+    if (Date.now() - featuredCache.at < CACHE_MS) return featuredCache.rows.filter((r) => effectiveTier(r, now) === 'featured');
+    let rows = [];
+    try {
+      const { data, error } = await db.client()
+        .from('competitions')
+        .select('id, slug, title, tier, tier_starts_at, tier_ends_at, organizer:organizers(name, logo_url, logo_dark_url)')
+        .in('type', ['external', 'broker', 'sponsored'])
+        .eq('tier', 'featured')
+        .eq('is_published', true)
+        .eq('is_preview', false)
+        .neq('state', 'closed')
+        .not('slug', 'is', null);
+      if (error) throw error;
+      rows = data || [];
+    } catch (e) {
+      rows = [];
+    }
+    featuredCache = { at: Date.now(), rows };
+    return rows.filter((r) => effectiveTier(r, now) === 'featured');
+  }
+  function listingPayload(row, slot) {
+    const o = row.organizer || {};
+    // The result screen is a game-mode screen: no currency there, so a title with money in it is dropped.
+    const money = /[$€£¥₹₦]|\b(usd|eur|gbp|zar|ngn|usdt)\b/i.test(row.title || '');
+    return {
+      placementId: `listing-${row.id}`,
+      slot,
+      label: 'Featured competition',
+      lead: null,
+      sponsor: { name: o.name || row.title, logoUrl: safeLogo(o.logo_url), logoDarkUrl: safeLogo(o.logo_dark_url), tagline: slot === 'result_screen' && money ? null : row.title },
+      cta: slot === 'result_screen' ? { text: 'See competition' } : null,
+      href: `/competitions/listing/${row.slug}`,
+      internal: true,
+    };
+  }
+
   async function resolve(slot, target, { now = Date.now(), previewId = null, max = null } = {}) {
     if (!SLOTS[slot]) return [];
     if (previewId) {
@@ -159,8 +205,13 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
     }
     if (!(await enabled())) return [];
     const rows = (await rowsFor(slot)).filter((r) => live(r, now) && targetMatches(r.targets, target, slot));
-    if (!rows.length) return [];
-    if (SLOTS[slot].multi) return weightedOrder(rows).slice(0, max || (await maxTiles())).map(publicPayload);
+    const listings = LISTING_SLOTS.includes(slot) ? await featuredListings(now) : [];
+    if (SLOTS[slot].multi) {
+      // Paid sponsors first, then Featured listings, within the tile cap.
+      const cap = max || (await maxTiles());
+      return [...weightedOrder(rows).map(publicPayload), ...weightedOrder(listings).map((l) => listingPayload(l, slot))].slice(0, cap);
+    }
+    if (!rows.length) return listings.length ? [listingPayload(weightedPick(listings), slot)] : [];
     // One presenting sponsor per competition / target: a specific target beats "all".
     const specific = rows.filter((r) => String(r.targets || '') !== 'all');
     return [publicPayload(weightedPick(specific.length ? specific : rows))];
@@ -312,7 +363,7 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
     return r;
   }
 
-  return { SLOTS, SLOT_NAMES, resolve, sponsorNameFor, previewToken, verifyPreview, countImpressions, flush, recordEntry, outboundUrl, isBot, router, _bump: bump, _pending: pending, _clearCache: () => { placementCache = new Map(); enabledCache = { at: 0, value: true }; tilesCache = { at: 0, value: 6 }; } };
+  return { SLOTS, SLOT_NAMES, resolve, sponsorNameFor, previewToken, verifyPreview, countImpressions, flush, recordEntry, outboundUrl, isBot, router, _bump: bump, _pending: pending, _clearCache: () => { placementCache = new Map(); featuredCache = { at: 0, rows: [] }; enabledCache = { at: 0, value: true }; tilesCache = { at: 0, value: 6 }; } };
 }
 
 module.exports = { createSponsorSlots, signPreview, SLOTS, SLOT_NAMES, BOT_UA };

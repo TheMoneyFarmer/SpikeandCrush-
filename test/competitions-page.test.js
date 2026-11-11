@@ -93,3 +93,32 @@ test('seed: invented names only, generated logos only, Preview-tagged, tiers as 
   const files = fs.readdirSync(path.join(root, 'client/img/listings'));
   assert.strictEqual(files.length, 17);
 });
+
+test('Featured listings fill the lobby strip and result screen; Previews and money titles never do', async () => {
+  const { createSponsorSlots } = require('../server/sponsorSlots');
+  const now = Date.now();
+  const rows = [
+    { id: 'a1', slug: 'real-cup', title: 'Real Cup', tier: 'featured', tier_starts_at: null, tier_ends_at: null, organizer: { name: 'Realco', logo_url: '/img/listings/x.svg' } },
+    { id: 'a2', slug: 'old-cup', title: 'Old Cup', tier: 'featured', tier_starts_at: null, tier_ends_at: new Date(now - 1000).toISOString(), organizer: { name: 'Oldco' } },
+    { id: 'a3', slug: 'cash-cup', title: '$10K Cash Cup', tier: 'featured', organizer: { name: 'Cashco' } },
+  ];
+  const filters = [];
+  const q = { select() { return q; }, in() { return q; }, eq(k, v) { filters.push(`${k}=${v}`); return q; }, neq() { return q; }, not() { return q; }, then(r) { return Promise.resolve({ data: rows, error: null }).then(r); } };
+  const db = { getAppSetting: async () => null, listLivePlacements: async () => [], client: () => ({ from: () => q }) };
+  const s = createSponsorSlots({ db, secret: 'x'.repeat(32) });
+  const strip = await s.resolve('lobby_strip', null, { now });
+  assert.deepStrictEqual(strip.map((p) => p.sponsor.name).sort(), ['Cashco', 'Realco']); // tier window expired for Oldco
+  assert.ok(filters.includes('is_preview=false') && filters.includes('tier=featured'));
+  for (const p of strip) {
+    assert.ok(p.internal && p.href.startsWith('/competitions/listing/'));
+    assert.ok(!/^[0-9a-f-]{36}$/.test(p.placementId)); // never counted as a sponsor impression
+  }
+  const seen = new Set();
+  for (let i = 0; i < 40; i++) {
+    const [r] = await s.resolve('result_screen', 'mode:classic', { now });
+    seen.add(r.sponsor.name);
+    assert.ok(!/[$€£]/.test(JSON.stringify(r)), 'no currency on a game-mode screen');
+  }
+  assert.ok(seen.has('Realco') && seen.has('Cashco'));
+  assert.deepStrictEqual(await s.resolve('competition_card', 'x', { now }), []); // other slots untouched
+});

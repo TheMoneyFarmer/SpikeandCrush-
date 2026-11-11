@@ -55,7 +55,10 @@
 
   // One renderer per slot, all inside fixed boxes (css/sponsor-slots.css).
   function html(p, el) {
-    const link = (inner, cls = '') => `<a class="spx-link ${cls}" href="${esc(p.href)}" target="_blank" rel="noopener sponsored" data-placement="${esc(p.placementId)}">${inner}</a>`;
+    // Featured partner listings link to our own listing page (same tab); sponsors go out through /go/.
+    const link = (inner, cls = '') => (p.internal
+      ? `<a class="spx-link ${cls}" href="${esc(p.href)}" data-placement="${esc(p.placementId)}" title="${esc(p.label)}">${inner}</a>`
+      : `<a class="spx-link ${cls}" href="${esc(p.href)}" target="_blank" rel="noopener sponsored" data-placement="${esc(p.placementId)}">${inner}</a>`);
     switch (p.slot) {
       case 'match_header_chip':
         return link(`<span class="spx-label">${esc(p.label)}</span>${logo(p, 'spx-logo')}`, 'spx-chip');

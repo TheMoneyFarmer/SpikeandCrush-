@@ -108,7 +108,12 @@ async function seedListings(supabase, seed, { now = Date.now() } = {}) {
   for (const l of seed.listings) {
     const o = l.organizer;
     const orgRow = { seed_key: `org-${l.seedKey}`, name: o.name, logo_url: o.logo, logo_dark_url: o.logoDark || o.logo, country_code: o.country || null, years_operating: o.years ?? null, rating: o.rating ?? null, is_verified: false };
-    const { data: org, error: e1 } = await supabase.from('organizers').upsert(orgRow, { onConflict: 'seed_key' }).select('id').single();
+    // seed_key has a partial unique index, which upsert's ON CONFLICT cannot target: look up, then write.
+    const { data: orgFound, error: e0 } = await supabase.from('organizers').select('id').eq('seed_key', orgRow.seed_key).maybeSingle();
+    if (e0) throw e0;
+    const { data: org, error: e1 } = orgFound
+      ? await supabase.from('organizers').update(orgRow).eq('id', orgFound.id).select('id').single()
+      : await supabase.from('organizers').insert(orgRow).select('id').single();
     if (e1) throw e1;
     out.organizers += 1;
     const type = { prop: 'external', broker: 'broker', sponsored: 'sponsored' }[l.type];
@@ -238,9 +243,10 @@ function createListingsRouter({ db, authenticate, optionalViewerId, sendEmail, c
       const row = await bySlugOrId(req.params.id);
       if (!row) return res.status(404).json({ error: 'Listing not found' });
       const source = ['card', 'detail', 'email', 'signup'].includes(req.body?.source) ? req.body.source : 'card';
-      const { data, error } = await sb().from('competition_waitlist').upsert({ user_id: req.tokenPlayer.id, competition_id: row.id, source }, { onConflict: 'user_id,competition_id', ignoreDuplicates: true }).select('id');
-      if (error) throw error;
-      const created = Array.isArray(data) && data.length > 0;
+      // The (user_id, competition_id) unique index is partial, so no upsert: a duplicate (23505) means already on the list.
+      const { error } = await sb().from('competition_waitlist').insert({ user_id: req.tokenPlayer.id, competition_id: row.id, source });
+      if (error && error.code !== '23505') throw error;
+      const created = !error;
       countCache.at = 0;
       if (created && sendEmail) {
         const player = await db.getPlayerById(req.tokenPlayer.id).catch(() => null);
