@@ -44,3 +44,8 @@
 [data-slot="leaderboard_header"] { min-height: 28px; }
 [data-slot="event_banner"] { padding: 14px 16px; border-radius: 14px; background: linear-gradient(120deg, color-mix(in srgb, var(--c-blue, #2d7ff9) 22%, var(--c-deep, #182746)), var(--c-deep, #182746)); }
 [data-slot="event_banner"] .spx-tagline { font-size: 15px; color: var(--c-on, #f2f5fa); white-space: normal; }
+
+/* During play the screen belongs to the chart: the header chip shows only on
+   wide screens, the spike strip tag only where the strip has spare width. */
+@media (max-width: 1024px) { [data-slot="match_header_chip"] { display: none !important; } }
+@media (max-width: 760px) { [data-slot="spike_strip_tag"] { display: none !important; } }

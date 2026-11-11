@@ -107,6 +107,7 @@
   .tw-tier-badge { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--tier) 55%, transparent); background: color-mix(in srgb, var(--tier) 14%, transparent); color: var(--tier); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
 </style>
   <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/sponsor-slots.css" />
 <script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="leaderboard">
@@ -116,6 +117,7 @@
     <div class="panel lbp-head" data-candle-bg>
       <h2>Global Leaderboard</h2>
     </div>
+    <div data-slot="leaderboard_header" data-target="leaderboard" hidden style="margin-bottom:12px"></div>
     <div class="panel">
       <div class="lb-controls">
         <select id="periodSelect">
@@ -267,6 +269,7 @@
       <p class="legal-text">© 2026 Spike &amp; Crush</p>
     </div>
   </footer>
+  <script src="/js/sponsor-slots.js"></script>
   <script src="js/support-widget.js"></script>
   <script src="/js/candle-bg.js"></script>
 <script src="/js/orientation.js"></script>

@@ -38,6 +38,7 @@
 <link rel="stylesheet" href="css/premium.css" />
 <link rel="stylesheet" href="/css/mobile.css">
   <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/sponsor-slots.css" />
   <link rel="stylesheet" href="/css/cards.css" />
   <link rel="stylesheet" href="/css/lobby-versus.css" />
 <script src="/js/analytics.js" defer></script>
@@ -119,6 +120,7 @@
       </div>
       <div class="cd-rules" id="cdRules"></div>
       <div class="cd-tip">All positions close automatically when the timer ends. Highest P&amp;L wins.</div>
+      <div data-slot="prematch" id="cdSponsor" hidden></div>
     </div>
   </div>
 
@@ -213,6 +215,8 @@
         document.getElementById('cdRules').innerHTML = items.map(([k, v]) => `<div class="cd-rule"><span class="vs-lbl">${k}</span><b>${TW.escapeHtml(String(v))}</b></div>`).join('');
       }
       overlay.classList.remove('hidden');
+      const sp = document.getElementById('cdSponsor');
+      if (sp && st && window.TW && TW.SponsorSlots) { sp.dataset.target = `mode:${st.mode}`; TW.SponsorSlots.renderInto(sp); }
       try { sessionStorage.setItem(`sc_rules_seen_${matchId}`, '1'); } catch (e) { /* the game screen shows them instead */ }
     }
 
@@ -754,6 +758,7 @@
       <p class="legal-text">© 2026 Spike &amp; Crush</p>
     </div>
   </footer>
+  <script src="/js/sponsor-slots.js"></script>
   <script src="js/support-widget.js"></script>
   <script src="/js/orientation.js"></script></body>
 </html>

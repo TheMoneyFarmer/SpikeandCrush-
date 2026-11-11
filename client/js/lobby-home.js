@@ -104,37 +104,15 @@
 
   // ---- 4. sponsors -------------------------------------------------------------------
 
-  const clickHref = (s, placement, target) =>
-    `/api/sponsors/${encodeURIComponent(s.id)}/click?placement=${placement}${target ? `&target=${encodeURIComponent(target)}` : ''}`;
-
-  function sponsorLogo(s, cls) {
-    return s.logoUrl ? `<img class="${cls}" src="${esc(s.logoUrl)}" alt="${esc(s.name)}" loading="lazy" />` : `<span class="${cls} lb-sponsor-name">${esc(s.name)}</span>`;
-  }
-
-  function renderSponsors(list) {
+  // The strip is the lobby_strip sponsor slot (js/sponsor-slots.js): the
+  // server picks the sponsors; the section shows only when there are some.
+  let sponsorsScanned = false;
+  function renderSponsors() {
     const wrap = $('lbSponsors');
-    if (!wrap) return;
-    if (!list || !list.length) {
-      wrap.classList.add('hidden');
-      return;
-    }
-    $('lbSponsorLogos').innerHTML = list
-      .map((s) => `<a class="lb-sponsor" href="${clickHref(s, 'global_strip')}" target="_blank" rel="noopener sponsored" title="${esc(s.name)}">${sponsorLogo(s, 'lb-sponsor-img')}</a>`)
-      .join('');
-    wrap.classList.remove('hidden');
-    trackImpressions(list.map((s) => ({ id: s.id, placement: 'global_strip' })));
-  }
-
-  // One batched impression call per page view per sponsor/placement.
-  function trackImpressions(items) {
-    const fresh = items.filter((it) => {
-      const key = `${it.id}|${it.placement}`;
-      if (state.impressionsSent.has(key)) return false;
-      state.impressionsSent.add(key);
-      return true;
-    });
-    if (!fresh.length) return;
-    fetch('/api/sponsors/impressions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: fresh }), keepalive: true }).catch(() => {});
+    if (sponsorsScanned) return;
+    sponsorsScanned = true;
+    if (!wrap || !window.TW || !TW.SponsorSlots) return;
+    TW.SponsorSlots.scan(wrap).then(() => wrap.classList.toggle('hidden', $('lbSponsorLogos').hidden));
   }
 
   // ---- 5a. player card + mobile profile row --------------------------------------------
@@ -246,14 +224,13 @@
     const entered = state.mine.has(featured.id);
     const fmtLabel = COMP_FORMATS[featured.frequency]?.label || 'Competition';
     // The full title is the heading; the button uses the short format name so it never truncates.
-    const sponsor = featured.sponsor;
     el.innerHTML = `
       <div class="lb-hero-top">
         ${live ? `<span class="lb-live">${'<span class="lb-live-dot"></span>'}Live</span>` : '<span class="lb-soon">Starts soon</span>'}
         <span class="lb-label">${esc(fmtLabel)}${COMP_FORMATS[featured.frequency] ? ` · ${esc(COMP_FORMATS[featured.frequency].sub)}` : ''}</span>
       </div>
       <h1 class="lb-hero-title">${esc(featured.title)}</h1>
-      ${sponsor ? `<a class="lb-presented" href="${clickHref(sponsor, 'competition', featured.id)}" target="_blank" rel="noopener sponsored"><span class="lb-label">Presented by</span>${sponsorLogo(sponsor, 'lb-presented-img')}</a>` : ''}
+      <div class="lb-presented" data-slot="competition_card" data-target="competition:${esc(featured.frequency || featured.id)}" data-variant="line" hidden></div>
       <div class="lb-hero-nums">
         <div><div class="lb-stat-label">Prize pool</div><div class="lb-hero-num gold">${coinsHtml(featured.prizeCoins, 'gold')}</div></div>
         <div><div class="lb-stat-label">Entry</div><div class="lb-hero-num">${featured.entryCoins > 0 ? coinsHtml(featured.entryCoins) : 'Free'}</div></div>
@@ -263,7 +240,7 @@
         <button type="button" class="lb-btn lb-btn-gold lb-btn-xl" id="lbHeroEnter">${ic(entered ? 'play' : 'flag', 20)}<span>${entered ? 'Continue' : 'Enter'} ${esc(COMP_FORMATS[featured.frequency]?.label || featured.title)}</span></button>
         <button type="button" class="lb-btn lb-btn-outline lb-btn-lg" id="lbHeroQuick">${ic('bolt', 18)}<span>Quick play · ${quickMinutes()} min</span></button>
       </div>`;
-    if (sponsor) trackImpressions([{ id: sponsor.id, placement: 'competition' }]);
+    if (window.TW && TW.SponsorSlots) TW.SponsorSlots.scan(el);
     $('lbHeroQuick').addEventListener('click', () => $('modeQuickBtn')?.click());
     $('lbHeroEnter').addEventListener('click', async (e) => {
       if (entered) {
@@ -488,7 +465,7 @@
       state.stats = stats;
       renderTicker(stats.ticker, false);
       renderStats(stats);
-      renderSponsors(stats.sponsors);
+      renderSponsors();
       renderModes(stats.modes);
       const changed = JSON.stringify(stats.featured) !== JSON.stringify(state.featured);
       state.featured = stats.featured;

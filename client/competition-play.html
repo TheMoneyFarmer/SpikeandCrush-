@@ -84,6 +84,7 @@
   }
 </style>
   <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/sponsor-slots.css" />
   <link rel="stylesheet" href="/css/game-console.css" />
   <link rel="stylesheet" href="/css/fire.css" />
   <link rel="stylesheet" href="/css/positions.css" />
@@ -175,6 +176,7 @@
     <div class="game-bottom comp-bottom">
       <div class="leaderboard-panel">
         <div class="text-secondary" style="font-size:12px;margin-bottom:8px;">LEADERBOARD — TOP 10</div>
+        <div data-slot="leaderboard_header" id="compBoardSponsor" hidden style="margin-bottom:8px"></div>
         <table class="leaderboard-table">
           <thead><tr><th>#</th><th>Player</th><th>Equity</th><th>P&amp;L %</th><th>Trades</th></tr></thead>
           <tbody id="leaderboardBody"></tbody>
@@ -211,7 +213,8 @@
   <script src="/js/card-icons.js"></script>
   <script src="/js/fire.js"></script>
   <script src="/js/competition-play.js"></script>
-<script src="/js/support-widget.js"></script>
+<script src="/js/sponsor-slots.js"></script>
+  <script src="/js/support-widget.js"></script>
 <script src="/js/live-match.js"></script>
 <script src="/js/sticky-cta.js" defer></script>
 </body>
