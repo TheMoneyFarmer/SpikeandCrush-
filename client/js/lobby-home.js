@@ -166,6 +166,7 @@
           <div class="lb-mp-tier">${TW.tierBadge(p.tier)}<span class="lb-progress lb-progress-sm"><span style="width:${p.progressPct || 0}%"></span></span></div>
         </div>
         <a class="lb-coins" href="/wallet" aria-label="${fmt(p.coins)} coins">${ic('coin', 16)}<span>${fmt(p.coins)}</span></a>
+        <button type="button" class="lb-icon-btn" id="lbMDiscover" data-discover-toggle aria-controls="twDiscover" aria-expanded="false" aria-label="Discover players">${ic('search')}</button>
         <button type="button" class="lb-icon-btn" id="lbMBell" aria-label="Notifications">${ic('bell')}<span class="lb-unread-dot hidden" id="lbMBellDot" aria-hidden="true"></span></button>`;
       $('lbMBell').addEventListener('click', (e) => {
         e.stopPropagation();

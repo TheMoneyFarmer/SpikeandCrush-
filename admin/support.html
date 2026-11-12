@@ -248,6 +248,30 @@
       };
     }
 
+    // A ticket can point at one match account; the agent then opens that
+    // account's MT5-style history (read only) from here.
+    async function loadAccountLink(id) {
+      const box = $('supAcct');
+      if (!box) return;
+      try {
+        const a = await Admin.api(`/support/conversations/${id}/accounts`);
+        box.innerHTML = `<h3>Linked match account</h3>
+          ${a.linked ? `<div><a href="/account.html?n=${a.linked}" target="_blank" rel="noopener" class="mono">Account ${a.linked}</a> <button class="btn btn-sm" type="button" id="supAcctClear">Unlink</button></div>` : '<div class="text-secondary">None linked</div>'}
+          ${a.hasTicket ? `<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><select id="supAcctPick" style="max-width:100%"><option value="">Pick a recent account</option>${a.recent.map((r) => `<option value="${r.accountNumber}">${r.accountNumber} · ${esc(r.mode)} · ${esc(ago(r.date))}</option>`).join('')}</select><input id="supAcctNum" inputmode="numeric" maxlength="8" placeholder="or type 8 digits" style="width:120px" /><button class="btn btn-sm" type="button" id="supAcctSave">Link</button></div>` : '<div class="text-secondary" style="margin-top:6px">Escalate to a ticket to link an account.</div>'}`;
+        const save = async (value) => {
+          try {
+            await Admin.api(`/support/conversations/${id}/account`, { method: 'POST', body: { accountNumber: value } });
+            Admin.toast(value ? 'Account linked' : 'Account unlinked', 'success');
+            loadAccountLink(id);
+          } catch (e) { Admin.toast(e.message, 'danger'); }
+        };
+        if ($('supAcctSave')) $('supAcctSave').addEventListener('click', () => save($('supAcctNum').value.trim() || $('supAcctPick').value || null));
+        if ($('supAcctClear')) $('supAcctClear').addEventListener('click', () => save(null));
+      } catch (e) {
+        box.innerHTML = `<h3>Linked match account</h3><div class="text-secondary">${esc(e.message)}</div>`;
+      }
+    }
+
     async function loadRight(id) {
       $('supRight').innerHTML = '<div class="sup-empty">Loading</div>';
       try {
@@ -271,7 +295,9 @@
           <div class="sup-sec"><h3>Last 10 matches</h3>${d.matches.length ? `<table class="sup-mini">${d.matches.map((m) => `<tr><td>${esc(m.mode)} · ${esc(ago(m.created_at))}</td><td>#${esc(m.final_rank ?? '-')} ${m.rating_change ? `(${m.rating_change > 0 ? '+' : ''}${esc(m.rating_change)})` : ''} ${m.end_reason ? esc(m.end_reason) : ''}</td></tr>`).join('')}</table>` : '<div class="text-secondary">None</div>'}</div>
           <div class="sup-sec"><h3>Coin ledger (last 20)</h3>${d.ledger.length ? `<table class="sup-mini">${d.ledger.map((l) => `<tr><td>${esc(l.type)} · ${esc(ago(l.created_at))}</td><td>${l.amount > 0 ? '+' : ''}${esc(l.amount)}</td></tr>`).join('')}</table>` : '<div class="text-secondary">None</div>'}</div>
           <div class="sup-sec"><h3>Open tickets</h3>${d.openTickets.length ? d.openTickets.map((t) => `<div>${esc(t.ref)} · ${esc(t.subject)} <span class="text-secondary">(${esc(t.status)})</span></div>`).join('') : '<div class="text-secondary">None</div>'}</div>
-          <div class="sup-sec"><h3>Bans and flags</h3>${d.moderation.length ? d.moderation.map((m) => `<div>${esc(m.action_type)} · ${esc(ago(m.created_at))}${m.reason ? ` · ${esc(m.reason)}` : ''}</div>`).join('') : '<div class="text-secondary">None</div>'}</div>`;
+          <div class="sup-sec"><h3>Bans and flags</h3>${d.moderation.length ? d.moderation.map((m) => `<div>${esc(m.action_type)} · ${esc(ago(m.created_at))}${m.reason ? ` · ${esc(m.reason)}` : ''}</div>`).join('') : '<div class="text-secondary">None</div>'}</div>
+          <div class="sup-sec" id="supAcct"><h3>Linked match account</h3><div class="text-secondary">Loading</div></div>`;
+        loadAccountLink(id);
       } catch (e) {
         $('supRight').innerHTML = `<div class="sup-empty">${esc(e.message)}</div>`;
       }

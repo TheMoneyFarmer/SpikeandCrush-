@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="css/admin-overview.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="/socket.io/socket.io.js"></script>
+<link rel="stylesheet" href="css/admin-records.css" />
 </head>
 <body>
   <div class="admin-shell">
@@ -68,29 +69,29 @@
   <script src="js/admin-nav.js"></script>
   <script src="js/admin-charts.js"></script>
   <script src="js/admin-socket.js"></script>
+  <script src="js/date-range.js"></script>
   <script>
     Admin.renderNav();
     Admin.renderTopbar('Overview');
 
     // ---- controls in the top bar: range, mode, export ----
-    const RANGES = [[1, 'Today'], [7, '7 days'], [30, '30 days'], [90, '90 days']];
     const MODES = [['all', 'All modes'], ['quick', 'Quick War'], ['blitz', 'Blitz War'], ['grand', 'Grand War'], ['solo', 'Solo Ranked'], ['private', 'Private War'], ['other', 'Other']];
     // Validated on the admin navy surface (dataviz skill, 6 slots): fixed order, never cycled.
     const MODE_COLORS = { quick: '#3987e5', blitz: '#d95926', grand: '#199e70', solo: '#c98500', private: '#d55181', other: '#9085e9' };
     const MODE_NAMES = { quick: 'Quick', blitz: 'Blitz', grand: 'Grand', solo: 'Solo', private: 'Private', other: 'Other' };
-    let state = { days: 7, mode: 'all' };
-    try { const s = JSON.parse(localStorage.getItem('adm_ov') || '{}'); if (s.days) state.days = s.days; if (s.mode) state.mode = s.mode; } catch (e) { /* defaults */ }
+    let state = { mode: 'all' };
+    try { const s = JSON.parse(localStorage.getItem('adm_ov') || '{}'); if (s.mode) state.mode = s.mode; } catch (e) { /* defaults */ }
     const tools = document.getElementById('admTopTools');
     tools.innerHTML = `
-      <div class="ov-seg" role="group" aria-label="Date range">${RANGES.map(([d, l]) => `<button type="button" data-days="${d}" aria-pressed="${d === state.days}">${l}</button>`).join('')}</div>
+      <span id="ovRange"></span>
       <label class="ov-select"><span class="sr-only">Game mode</span><select id="ovMode">${MODES.map(([v, l]) => `<option value="${v}" ${v === state.mode ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <button type="button" class="btn btn-sm" id="ovExport">Export CSV</button>`;
-    tools.querySelectorAll('[data-days]').forEach((b) => b.addEventListener('click', () => { state.days = Number(b.dataset.days); save(); load(); }));
     document.getElementById('ovMode').addEventListener('change', (e) => { state.mode = e.target.value; save(); load(); });
     function save() {
       try { localStorage.setItem('adm_ov', JSON.stringify(state)); } catch (e) { /* not remembered */ }
-      tools.querySelectorAll('[data-days]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.days) === state.days)));
     }
+    // Presets or custom from/to, in this admin's time zone, remembered per admin.
+    let range = null;
 
     const fmt = (n) => (n == null ? '–' : Number(n).toLocaleString());
     const esc = (t) => Admin.escapeHtml(String(t ?? ''));
@@ -99,12 +100,16 @@
 
     function bucketLabel(iso) {
       const d = new Date(iso);
-      return data.range.hourly ? d.toLocaleTimeString([], { hour: '2-digit' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      const tz = data.range.tz;
+      if (data.range.unit === 'hour') return d.toLocaleTimeString([], { hour: '2-digit', timeZone: tz });
+      if (data.range.unit === 'month') return d.toLocaleDateString([], { month: 'short', year: '2-digit', timeZone: tz });
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: tz });
     }
 
     // ---- KPI tiles ----
     const UP = '<path d="M12 19V5M5 12l7-7 7 7"/>', DOWN = '<path d="M12 5v14M19 12l-7 7-7-7"/>';
     function delta(cur, prev, unit = '%', goodWhenUp = true) {
+      if (data && data.range && !data.range.compare) return '<span class="ov-delta flat">comparison off</span>';
       if (cur == null || prev == null) return '<span class="ov-delta flat">no earlier data</span>';
       if (unit === 'pts') { const d = Math.round((cur - prev) * 10) / 10; return deltaHtml(d, `${Math.abs(d)} pts`, goodWhenUp); }
       if (!prev) return cur ? '<span class="ov-delta flat">new</span>' : '<span class="ov-delta flat">no change</span>';
@@ -114,7 +119,7 @@
     function deltaHtml(d, text, goodWhenUp) {
       if (d === 0) return '<span class="ov-delta flat">no change</span>';
       const good = (d > 0) === goodWhenUp;
-      return `<span class="ov-delta ${good ? 'good' : 'bad'}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d > 0 ? UP : DOWN}</svg>${text} <span>vs previous ${state.days === 1 ? 'day' : `${state.days} days`}</span></span>`;
+      return `<span class="ov-delta ${good ? 'good' : 'bad'}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d > 0 ? UP : DOWN}</svg>${text} <span>vs previous period</span></span>`;
     }
     function spark(series) {
       if (!series || !series.length) return '';
@@ -131,7 +136,16 @@
         ['Revenue', `$${Number(k.revenue.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, delta(k.revenue.value, k.revenue.prev), spark(k.revenue.series), '/monetisation.html?tab=overview'],
         ['Invite rewards paid', fmt(k.invitesPaid.value), delta(k.invitesPaid.value, k.invitesPaid.prev), '', '/partners.html'],
         ['Waiting on you', fmt(k.supportWaiting.value + k.reportsOpen.value), `<span class="ov-delta flat">${k.supportWaiting.value} chats · ${k.reportsOpen.value} reports</span>`, '', '/support.html'],
+        ['Trades', fmt(k.trades.value), delta(k.trades.value, k.trades.prev), '', '/matches.html?tab=history'],
+        ['Coins spent', fmt(k.coinsSpent.value), delta(k.coinsSpent.value, k.coinsSpent.prev), '', '/monetisation.html?tab=overview'],
+        ['Coins earned', fmt(k.coinsEarned.value), delta(k.coinsEarned.value, k.coinsEarned.prev), '', '/monetisation.html?tab=overview'],
+        ['Coins bought', fmt(k.coinsBought.value), delta(k.coinsBought.value, k.coinsBought.prev), '', '/monetisation.html?tab=overview'],
+        ['Sponsor views', fmt(k.sponsorImpressions.value), `${delta(k.sponsorImpressions.value, k.sponsorImpressions.prev)}<span class="ov-delta flat">${fmt(k.sponsorImpressions.clicks)} clicks</span>`, '', '/sponsors.html'],
+        ['Waitlist sign-ups', fmt(k.waitlistJoins.value), delta(k.waitlistJoins.value, k.waitlistJoins.prev), '', '/competitions.html'],
+        ['Support chats', fmt(k.supportChats.value), delta(k.supportChats.value, k.supportChats.prev, '%', false), '', '/support.html'],
+        ['Friend requests', fmt(k.friendRequests.value), delta(k.friendRequests.value, k.friendRequests.prev), '', '/players.html'],
       ];
+      if (sponsorReview && sponsorReview.expired) tiles.push(['Sponsor placements expired', fmt(sponsorReview.expired), `<span class="ov-delta bad">${fmt(sponsorReview.expiring)} more ending within 10 days</span>`, '<span class="btn btn-sm" style="margin-top:6px">Review expired</span>', '/sponsors.html?view=expired']);
       document.getElementById('ovKpis').innerHTML = tiles.map(([label, value, d, sp, href]) => `<a class="ov-kpi" href="${href}"><span class="ov-sub">${label}</span><b class="mono">${value}</b>${d}${sp}</a>`).join('');
     }
 
@@ -259,10 +273,13 @@
     }
     function TW_timeAgo(iso) { return window.TW && TW.timeAgo ? TW.timeAgo(iso) : new Date(iso).toLocaleString(); }
 
+    let sponsorReview = null;
     async function load() {
       document.querySelector('.ov').classList.add('loading');
       try {
-        data = await Admin.api(`/dashboard/insights?days=${state.days}&mode=${state.mode}`);
+        if (!range) range = await Admin.DateRange.mount(document.getElementById('ovRange'), { onChange: () => load() });
+        data = await Admin.api(`/dashboard/insights?${range.query()}&mode=${state.mode}`);
+        sponsorReview = await Admin.api('/sponsors/lifecycle/summary').catch(() => null);
         // Each section draws on its own, so one failure can't blank the rest.
         for (const fn of [renderKpis, renderActive, renderModes, renderRetention, renderCoins, renderRevenue]) {
           try { fn(); } catch (err) { console.error('[overview]', fn.name, err); }
@@ -275,10 +292,15 @@
     }
     document.getElementById('ovExport').addEventListener('click', () => {
       if (!data) return;
-      const rows = [['bucket', 'active_players', 'new_signups', ...Object.keys(MODE_COLORS).map((k) => `matches_${k}`)]];
+      // The export is the range on screen: series per bucket, then the totals.
+      const rows = [['bucket_start', 'active_players', 'new_signups', ...Object.keys(MODE_COLORS).map((k) => `matches_${k}`)]];
       data.range.labels.forEach((l, i) => rows.push([l, data.series.activePlayers[i], data.series.signups[i], ...Object.keys(MODE_COLORS).map((k) => data.series.matchesByMode[k][i])]));
+      rows.push([]);
+      rows.push(['range_from', data.range.from], ['range_to', data.range.to], ['time_zone', data.range.tz], ['compare_from', data.range.prevFrom || ''], ['compare_to', data.range.prevTo || '']);
+      rows.push(['metric', 'value', 'previous_period']);
+      for (const [k, v] of Object.entries(data.kpis)) if (v && v.value !== undefined) rows.push([k, v.value, v.prev ?? '']);
       const blob = new Blob([rows.map((r) => r.join(',')).join('\n')], { type: 'text/csv' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `overview-${state.days}d-${state.mode}.csv`; a.click(); URL.revokeObjectURL(a.href);
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `overview-${range ? range.fileTag() : 'range'}-${state.mode}.csv`; a.click(); URL.revokeObjectURL(a.href);
     });
 
     load(); loadLive(); loadFeed();

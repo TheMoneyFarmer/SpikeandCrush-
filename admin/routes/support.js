@@ -207,6 +207,41 @@ function router() {
     });
   }));
 
+  // Link this conversation's ticket to one of the player's match account
+  // numbers, so the agent can open that account's history (read only).
+  r.get('/conversations/:id/accounts', h(async (req, res) => {
+    const conv = await q(supabase.from('support_conversations').select('user_id').eq('id', req.params.id).maybeSingle());
+    if (!conv) return res.status(404).json({ error: 'Not found' });
+    const tickets = await q(supabase.from('support_tickets').select('id, account_number').eq('conversation_id', req.params.id).order('created_at').limit(1));
+    let recent = [];
+    if (conv.user_id) {
+      const { data } = await supabase.from('match_players').select('account_number, final_rank, match:matches(mode, created_at)').eq('player_id', conv.user_id).not('account_number', 'is', null).limit(200);
+      recent = (data || []).filter((r) => r.match).sort((a, b) => String(b.match.created_at).localeCompare(String(a.match.created_at))).slice(0, 15)
+        .map((r) => ({ accountNumber: Number(r.account_number), mode: r.match.mode, date: r.match.created_at, rank: r.final_rank }));
+    }
+    res.json({ linked: tickets[0] && tickets[0].account_number ? Number(tickets[0].account_number) : null, hasTicket: Boolean(tickets[0]), recent });
+  }));
+  r.post('/conversations/:id/account', h(async (req, res) => {
+    const n = req.body && req.body.accountNumber != null && req.body.accountNumber !== '' ? Number(req.body.accountNumber) : null;
+    if (n !== null && !(Number.isInteger(n) && n >= 10000000 && n <= 99999999)) return res.status(400).json({ error: 'Account numbers have 8 digits' });
+    const conv = await q(supabase.from('support_conversations').select('user_id').eq('id', req.params.id).maybeSingle());
+    if (!conv) return res.status(404).json({ error: 'Not found' });
+    if (n !== null) {
+      const [mp, ca] = await Promise.all([
+        q(supabase.from('match_players').select('player_id').eq('account_number', n).maybeSingle()),
+        q(supabase.from('comp_accounts').select('player_id').eq('account_number', n).maybeSingle()),
+      ]);
+      const owner = (mp || ca || {}).player_id;
+      if (!owner) return res.status(404).json({ error: 'No account with that number' });
+      if (conv.user_id && owner !== conv.user_id) return res.status(400).json({ error: 'That account belongs to a different player' });
+    }
+    const tickets = await q(supabase.from('support_tickets').select('id').eq('conversation_id', req.params.id).order('created_at').limit(1));
+    if (!tickets[0]) return res.status(400).json({ error: 'This chat has no ticket yet. Escalate it to a ticket first.' });
+    await q(supabase.from('support_tickets').update({ account_number: n, updated_at: new Date().toISOString() }).eq('id', tickets[0].id));
+    await log(req, 'support_link_account', 'support_ticket', tickets[0].id, { accountNumber: n });
+    res.json({ linked: n });
+  }));
+
   // ---- actions (via the game server so the player's chat updates live) ---------
   const action = (name, path, bodyFn = () => ({})) =>
     h(async (req, res) => {
@@ -334,9 +369,18 @@ function router() {
   }));
 
   // ---- analytics ------------------------------------------------------------------------
-  async function analytics(days) {
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    const convs = await q(supabase.from('support_conversations').select('id, status, created_at, escalated_at, escalation_reason, first_human_response_at, resolved_at, csat').gte('created_at', since).limit(10000));
+  // Range: ?preset/from/to/tz (server/dateRange.js); old ?days= still works.
+  function rangeOf(query) {
+    const { resolveRange } = require('../../server/dateRange');
+    const rq = { ...query };
+    if (!rq.preset && !rq.from && !rq.days) rq.days = '30';
+    return resolveRange(rq);
+  }
+  async function analytics(rng) {
+    const since = new Date(rng.start).toISOString();
+    const until = new Date(rng.end).toISOString();
+    const days = Math.round((rng.end - rng.start) / 86400000) || 1;
+    const convs = await q(supabase.from('support_conversations').select('id, status, created_at, escalated_at, escalation_reason, first_human_response_at, resolved_at, csat').gte('created_at', since).lt('created_at', until).limit(10000));
     const gaps = await q(supabase.from('support_kb_gaps').select('question, count').eq('status', 'open').order('count', { ascending: false }).limit(10));
     const perDay = {};
     for (const c of convs) perDay[c.created_at.slice(0, 10)] = (perDay[c.created_at.slice(0, 10)] || 0) + 1;
@@ -354,6 +398,7 @@ function router() {
     const rated = convs.filter((c) => c.csat !== null && c.csat !== undefined);
     return {
       days,
+      range: { from: since, to: until, tz: rng.tz, preset: rng.preset },
       totalConversations: convs.length,
       perDay: Object.entries(perDay).sort().map(([day, count]) => ({ day, count })),
       aiOnlyPct: convs.length ? Math.round((aiOnly / convs.length) * 100) : null,
@@ -368,20 +413,24 @@ function router() {
   }
   r.get('/analytics', h(async (req, res) => {
     if (!canSeeAnalytics(req)) return res.status(403).json({ error: 'Not allowed for your role' });
-    res.json({ ...(await analytics(Math.min(365, Math.max(1, Number(req.query.days) || 30)))), canExport: canExport(req) });
+    let rng;
+    try { rng = rangeOf(req.query); } catch (e) { return res.status(400).json({ error: e.message }); }
+    res.json({ ...(await analytics(rng)), canExport: canExport(req) });
   }));
   r.get('/analytics-export', h(async (req, res) => {
     if (!canExport(req)) return res.status(403).json({ error: 'Only admins can export analytics' });
-    const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    const rows = await q(supabase.from('support_conversations').select('id, status, priority, topic, escalation_reason, created_at, escalated_at, first_human_response_at, resolved_at, csat').gte('created_at', since).order('created_at').limit(10000));
+    let rng;
+    try { rng = rangeOf(req.query); } catch (e) { return res.status(400).json({ error: e.message }); }
+    const days = Math.round((rng.end - rng.start) / 86400000) || 1;
+    const since = new Date(rng.start).toISOString();
+    const rows = await q(supabase.from('support_conversations').select('id, status, priority, topic, escalation_reason, created_at, escalated_at, first_human_response_at, resolved_at, csat').gte('created_at', since).lt('created_at', new Date(rng.end).toISOString()).order('created_at').limit(10000));
     const cols = ['id', 'status', 'priority', 'topic', 'escalation_reason', 'created_at', 'escalated_at', 'first_human_response_at', 'resolved_at', 'csat'];
     // A leading = + - @ would run as a formula when the CSV is opened in a
     // spreadsheet, and some of this text comes from players.
     const esc = (v) => `"${String(v ?? '').replace(/^[=+\-@\t\r]/, "'$&").replace(/"/g, '""')}"`;
     await log(req, 'support_analytics_export', 'support', null, { days, rows: rows.length });
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="support-${days}d.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="support-${since.slice(0, 10)}_${new Date(rng.end).toISOString().slice(0, 10)}.csv"`);
     res.send([cols.join(','), ...rows.map((row) => cols.map((c) => esc(row[c])).join(','))].join('\n'));
   }));
 

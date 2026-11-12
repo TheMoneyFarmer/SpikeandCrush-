@@ -1284,27 +1284,83 @@ async function getPlayerTradeStats(playerId) {
 
 // ---- trades ---------------------------------------------------------------
 
-async function recordTrade({ matchId, playerId, symbol, direction, lots, entryPrice }) {
+// Admin records (migration 20261112090000_admin_records.sql) add ticket,
+// SL/TP, close reason and data-time columns to trades. Until that migration
+// has run, writes keep the old shape so no trade is ever lost to a missing
+// column. detectRecordsSchema() runs once at start-up.
+let recordsSchema = false;
+async function detectRecordsSchema() {
+  if (!isConfigured) return false;
+  const [t, e] = await Promise.all([
+    supabase.from('trades').select('ticket, close_reason, data_open_s').limit(1),
+    supabase.from('match_events').select('id').limit(1),
+  ]);
+  recordsSchema = !t.error && !e.error;
+  return recordsSchema;
+}
+function hasRecordsSchema() {
+  return recordsSchema;
+}
+
+async function recordTrade({ matchId, playerId, symbol, direction, lots, entryPrice, stopLoss, takeProfit, positionRef, dataOpenS, comment }) {
   assertConfigured();
+  const row = { match_id: matchId, player_id: playerId, symbol, direction, lots, entry_price: entryPrice };
+  if (recordsSchema) {
+    Object.assign(row, {
+      stop_loss: stopLoss ?? null,
+      take_profit: takeProfit ?? null,
+      position_ref: positionRef || null,
+      data_open_s: dataOpenS ?? null,
+      comment: comment || null,
+    });
+  }
   const { data, error } = await supabase
     .from('trades')
-    .insert({ match_id: matchId, player_id: playerId, symbol, direction, lots, entry_price: entryPrice })
+    .insert(row)
     .select()
     .single();
   if (error) throw error;
   return data;
 }
 
-async function closeTrade(tradeId, { exitPrice, pnl }) {
+async function closeTrade(tradeId, { exitPrice, pnl, closeReason, stopLoss, takeProfit, dataCloseS, comment }) {
   assertConfigured();
+  const fields = { exit_price: exitPrice, pnl, closed_at: new Date().toISOString() };
+  if (recordsSchema) {
+    if (closeReason !== undefined) fields.close_reason = closeReason;
+    if (stopLoss !== undefined) fields.stop_loss = stopLoss;
+    if (takeProfit !== undefined) fields.take_profit = takeProfit;
+    if (dataCloseS !== undefined) fields.data_close_s = dataCloseS;
+    if (comment) fields.comment = comment;
+  }
   const { data, error } = await supabase
     .from('trades')
-    .update({ exit_price: exitPrice, pnl, closed_at: new Date().toISOString() })
+    .update(fields)
     .eq('id', tradeId)
     .select()
     .single();
   if (error) throw error;
   return data;
+}
+
+// SL/TP edits on an open trade row (the history keeps the last values; the
+// full before/after trail is in match_events).
+async function updateTradeLevels(tradeId, { stopLoss, takeProfit }) {
+  if (!recordsSchema) return null;
+  const fields = {};
+  if (stopLoss !== undefined) fields.stop_loss = stopLoss;
+  if (takeProfit !== undefined) fields.take_profit = takeProfit;
+  if (!Object.keys(fields).length) return null;
+  const { error } = await supabase.from('trades').update(fields).eq('id', tradeId);
+  if (error) throw error;
+  return true;
+}
+
+async function insertMatchEvents(rows) {
+  assertConfigured();
+  if (!rows.length) return;
+  const { error } = await supabase.from('match_events').insert(rows);
+  if (error) throw error;
 }
 
 // ---- sabotage_events --------------------------------------------------------
@@ -2582,21 +2638,11 @@ async function getSponsorReportToken(tokenHash) {
 }
 
 // Aggregate counts only, per placement per day, for a sponsor's report.
+// Includes placements since deleted (server/sponsorLifecycle.js keeps their
+// stats in sponsor_stats_archive).
 async function sponsorStats(sponsorId, fromDay, toDay) {
   assertConfigured();
-  const { data: placements, error } = await supabase.from('sponsor_placements').select('id, slot, targets').eq('sponsor_id', sponsorId);
-  if (error) throw error;
-  const ids = (placements || []).map((p) => p.id);
-  if (!ids.length) return { placements: [], days: [] };
-  const { data: days, error: e2 } = await supabase
-    .from('sponsor_stats_daily')
-    .select('placement_id, day, impressions, unique_viewers, clicks, entries, outbound_clicks')
-    .in('placement_id', ids)
-    .gte('day', fromDay)
-    .lte('day', toDay)
-    .order('day');
-  if (e2) throw e2;
-  return { placements, days: days || [] };
+  return require('./sponsorLifecycle').loadSponsorStats(supabase, sponsorId, fromDay, toDay);
 }
 
 // The service client, for modules that own their own tables (server/listings.js).
@@ -2607,6 +2653,12 @@ function client() {
 
 module.exports = {
   client,
+  // Read-only record loaders (server/records.js) take a client directly.
+  getClient: client,
+  detectRecordsSchema,
+  hasRecordsSchema,
+  updateTradeLevels,
+  insertMatchEvents,
   listCompTemplates,
   getCompTemplate,
   updateCompTemplate,

@@ -28,7 +28,7 @@ function sanitizeMatchSettings(rows) {
   return out;
 }
 
-function createInternalAdminRouter({ gameEngine, compEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }) {
+function createInternalAdminRouter({ gameEngine, compEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer, isOnline = () => false }) {
   const router = express.Router();
   router.use(requireBridgeSecret);
 
@@ -58,6 +58,18 @@ function createInternalAdminRouter({ gameEngine, compEngine, io, db, instruments
       nodeVersion: process.version,
       dbConfigured: db.isConfigured,
     });
+  });
+
+  // Which of these players have the site open right now (competition rows on
+  // the admin Live matches page). Ids in, ids out - nothing else.
+  router.post('/online', (req, res) => {
+    const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.slice(0, 20000) : [];
+    res.json({ online: ids.filter((id) => typeof id === 'string' && isOnline(id)) });
+  });
+
+  // Event-log queue health (admin System page).
+  router.get('/records-health', (req, res) => {
+    res.json({ schema: Boolean(db.hasRecordsSchema && db.hasRecordsSchema()), log: gameEngine.matchLogStats ? gameEngine.matchLogStats() : null });
   });
 
   router.post('/matches/:id/force-end', async (req, res) => {

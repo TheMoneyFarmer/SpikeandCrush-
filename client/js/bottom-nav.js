@@ -16,6 +16,7 @@
     { key: 'index', label: 'Home', href: '/play', icon: 'home' },
     { key: 'leaderboard', label: 'Ranks', href: '/leaderboard', icon: 'ranks' },
     { key: 'play', raised: true },
+    { key: 'discover', label: 'Discover', href: '/play?discover=1', icon: 'search', discover: true },
     { key: 'competitions', label: 'Compete', href: '/competitions', icon: 'flag' },
     { key: 'profile', label: 'Me', href: '/profile', avatar: true },
   ];
@@ -39,7 +40,7 @@
     const active = tab.key === activePage;
     const iconHtml = tab.avatar ? `<div class="tab-icon" id="tab-avatar" aria-hidden="true"></div>` : `<div class="tab-icon">${ic(tab.icon)}</div>`;
     return `
-      <a href="${tab.href}" class="tab-item ${active ? 'active' : ''}" data-tab="${tab.key}" ${active ? 'aria-current="page"' : ''}>
+      <a href="${tab.href}" class="tab-item ${active ? 'active' : ''}" data-tab="${tab.key}" ${active ? 'aria-current="page"' : ''}${tab.discover ? ' data-discover-toggle aria-controls="twDiscover" aria-expanded="false"' : ''}>
         ${iconHtml}
         <span class="tab-label">${tab.label}</span>
       </a>

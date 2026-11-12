@@ -285,7 +285,10 @@ app.use('/api', requireAdmin);
 // Support agents (role 'support') may use the support inbox and nothing else.
 const supportAgentGuard = (req, res, next) => {
   const supportReadsSponsors = req.method === 'GET' && ((req.path.startsWith('/sponsors') && !req.path.startsWith('/sponsors/leads')) || (req.path.startsWith('/listings') && !/\/secrets$/.test(req.path)));
-  if (req.admin && req.admin.role === 'support' && !supportReadsSponsors && !(req.baseUrl === '/api' && (req.path.startsWith('/support') || req.path.startsWith('/admins/change-password')))) {
+  // A ticket linked to an account number lets the agent read that history.
+  const supportReadsAccount = req.method === 'GET' && req.path.startsWith('/records/account/');
+  const ownPrefs = req.path === '/prefs' || req.path.startsWith('/prefs/');
+  if (req.admin && req.admin.role === 'support' && !supportReadsSponsors && !supportReadsAccount && !ownPrefs && !(req.baseUrl === '/api' && (req.path.startsWith('/support') || req.path.startsWith('/admins/change-password')))) {
     return res.status(403).json({ error: 'Support agents can only use the Support section' });
   }
   next();
@@ -294,6 +297,8 @@ app.use('/api', supportAgentGuard);
 app.use('/api/dashboard', require('./routes/dashboard')());
 app.use('/api/players', require('./routes/players')());
 app.use('/api/matches', require('./routes/matches')());
+app.use('/api/records', require('./routes/records')());
+app.use('/api/prefs', require('./routes/prefs')());
 app.use('/api/tournaments', require('./routes/tournaments')());
 // Spec path for the test creator is /admin/api/comps/test - same router.
 app.use('/api/competitions', require('./routes/competitions')());
@@ -344,12 +349,25 @@ async function pollAndBroadcast() {
     const state = await internal.getLiveState();
     io.emit('admin:active_matches', state.activeMatches);
     io.emit('admin:player_count', { websocketConnections: state.websocketConnections });
+    // Every live match incl. competitions, only while someone is watching.
+    if (io.engine.clientsCount > 0) io.emit('admin:live_rows', await require('./routes/matches').buildLiveRows());
   } catch (e) {
     // Game server unreachable - stay quiet, the dashboard's own polling fetch
     // will surface "gameServerReachable: false" on its next refresh.
   }
 }
 setInterval(pollAndBroadcast, 5000);
+
+// Sponsor placement lifecycle: hourly state moves + end-date reminders
+// (server/sponsorLifecycle.js). Idempotent, so a restart or a second admin
+// instance never sends a reminder twice. Off until the records migration ran.
+if (isConfigured) {
+  const sponsorTick = () => require('./routes/sponsors').runLifecycleNow().catch((e) => {
+    if (!/lifecycle|archived_at|sponsor_reminders|does not exist/.test(e.message || '')) console.warn('[sponsors] lifecycle run failed:', e.message);
+  });
+  setTimeout(sponsorTick, 30 * 1000).unref();
+  setInterval(sponsorTick, 60 * 60 * 1000).unref();
+}
 
 server.listen(ADMIN_PORT, () => {
   console.log(`Spike & Crush admin panel listening on http://localhost:${ADMIN_PORT}`);

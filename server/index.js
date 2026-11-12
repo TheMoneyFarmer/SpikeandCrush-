@@ -483,7 +483,14 @@ app.get('/wallet', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'wallet.html
 app.get('/cards', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'cards.html')));
 app.get('/challenge/:code', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'challenge.html')));
 app.get('/rank', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'rank.html')));
-app.get('/discover', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'discover.html')));
+// Discover is a panel in the lobby now; old links open it there.
+app.get('/discover', (req, res) => {
+  // Keeps any query (a sponsor preview token) on the way.
+  const q = new URLSearchParams(req.query);
+  q.set('discover', '1');
+  res.redirect(302, `/play?${q}`);
+});
+app.get('/my-accounts', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'my-accounts.html')));
 app.get('/settings', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'settings.html')));
 app.get('/help', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'help.html')));
 app.get('/terms', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'terms.html')));
@@ -622,7 +629,7 @@ app.use('/api', apiLimiter);
 // Internal-only bridge for the separate admin panel (port 3003) - secret +
 // localhost-gated inside the router itself, see server/internalAdmin.js.
 const { createInternalAdminRouter } = require('./internalAdmin');
-app.use('/internal/admin', createInternalAdminRouter({ gameEngine, compEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer }));
+app.use('/internal/admin', createInternalAdminRouter({ gameEngine, compEngine, io, db, instrumentsRegistry, sabotage, TIERS, recentErrors, notifyPlayer, isOnline: (id) => playerSockets.has(id) }));
 // Fire gameplay admin (market curation, Fire monitor, progression, rank split,
 // Discover) on the same secret-gated bridge.
 const fireAdmin = require('./fireAdmin');
@@ -2208,8 +2215,18 @@ app.get('/api/discover', requireDb, authenticate, async (req, res) => {
   }
 });
 
+// The caller's own open waiting room (Discover panel: "invite into my room").
+app.get('/api/discover/me', requireDb, authenticate, (req, res) => {
+  const pres = presence.getPresence(req.tokenPlayer.id);
+  const room = pres.status === 'in_lobby' && pres.lobbyId ? gameEngine.getMatch(pres.lobbyId) : null;
+  if (!room || room.status !== 'waiting' || !room.players[req.tokenPlayer.id]) return res.json({ room: null });
+  res.json({ room: { matchId: room.id, mode: room.mode, label: room.config.label || room.mode, players: Object.keys(room.players).length, entryCoins: room.config.entryCoins || 0, roomCode: room.mode === 'private' ? room.roomCode : null } });
+});
+
 // Invite to match from Discover: into the inviter's waiting lobby if they're
 // in one, otherwise a new Private War room; same invite rules as the lobby.
+// (For a public mode the panel first joins that mode's lobby through
+// /api/match/create, which charges the entry fee, then invites into it.)
 app.post('/api/discover/invite', requireDb, authenticate, async (req, res) => {
   if (discoverOff(res)) return;
   try {
@@ -2252,6 +2269,76 @@ app.post('/api/discover/join', requireDb, authenticate, async (req, res) => {
   } catch (e) {
     console.error('[discover join]', e);
     res.status(500).json({ error: 'Could not join' });
+  }
+});
+
+// ---- my match accounts (read-only MT5-style history, own accounts only) ----
+const records = require('./records');
+const statementPdf = require('./statementPdf');
+const statementLimiter = friendsHub.createWindowLimiter({ max: 10, windowMs: 60 * 60 * 1000 });
+
+async function myAccountOr404(req, res) {
+  if (!/^\d{8}$/.test(String(req.params.n))) { res.status(404).json({ error: 'Account not found' }); return null; }
+  const acct = await records.loadAccount(db.getClient(), req.params.n).catch(() => null);
+  // Someone else's account answers exactly like a missing one.
+  if (!acct || !acct.player || acct.player.id !== req.tokenPlayer.id) { res.status(404).json({ error: 'Account not found' }); return null; }
+  return acct;
+}
+
+app.get('/api/records/mine', requireDb, authenticate, async (req, res) => {
+  try {
+    res.json({ accounts: await records.listAccounts(db.getClient(), req.tokenPlayer.id, { limit: 100 }) });
+  } catch (e) {
+    res.json({ accounts: [] });
+  }
+});
+
+app.get('/api/records/mine/:n', requireDb, authenticate, async (req, res) => {
+  try {
+    const acct = await myAccountOr404(req, res);
+    if (!acct) return;
+    // Opponents' ids stay server-side; the player sees handles only.
+    const ids = [...new Set((acct.events || []).map((e) => e.payload && e.payload.attackerId).filter(Boolean))];
+    const names = ids.length ? new Map((await db.getPlayersForFriendsPanel(ids).catch(() => [])).map((p) => [p.id, p.username])) : new Map();
+    res.json({
+      kind: acct.kind,
+      accountNumber: acct.accountNumber,
+      handle: acct.player.username,
+      match: acct.match ? { id: acct.match.id, mode: acct.match.mode, roomCode: acct.match.room_code, startTime: acct.match.start_time, endTime: acct.match.end_time } : null,
+      competition: acct.competition ? { id: acct.competition.id, title: acct.competition.title, startsAt: acct.competition.starts_at, endsAt: acct.competition.ends_at } : null,
+      finalRank: acct.finalRank,
+      trades: acct.trades.map(({ positionRef, ...t }) => t),
+      summary: acct.summary,
+      curve: acct.curve,
+      modifications: records.modificationLog(acct.events, (id) => names.get(id)).map(({ positionRef, ...m }) => m),
+    });
+  } catch (e) {
+    console.error('[records mine]', e);
+    res.status(500).json({ error: 'Could not load this account' });
+  }
+});
+
+app.get('/api/records/mine/:n/trades.csv', requireDb, authenticate, async (req, res) => {
+  const acct = await myAccountOr404(req, res);
+  if (!acct) return;
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="account-${acct.accountNumber}.csv"`);
+  res.send(records.tradesCsv(acct.trades));
+});
+
+app.get('/api/records/mine/:n/statement.pdf', requireDb, authenticate, async (req, res) => {
+  try {
+    if (!statementLimiter(req.tokenPlayer.id)) return res.status(429).json({ error: 'Too many statements in an hour. Try again later.' });
+    const acct = await myAccountOr404(req, res);
+    if (!acct) return;
+    const { pdf, sha256 } = await statementPdf.issueStatement(db.getClient(), acct, 'player');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="statement-${acct.accountNumber}.pdf"`);
+    res.setHeader('X-Statement-Sha256', sha256);
+    res.send(pdf);
+  } catch (e) {
+    console.error('[records statement]', e);
+    res.status(500).json({ error: 'Could not create the statement' });
   }
 });
 
@@ -4147,7 +4234,7 @@ io.on('connection', (socket) => {
 
       const inviterSockets = playerSockets.get(invite.fromPlayerId);
       if (inviterSockets) {
-        for (const sid of inviterSockets) io.to(sid).emit('lobby:invite_accepted', { inviteId, playerId: player.id, username: player.username });
+        for (const sid of inviterSockets) io.to(sid).emit('lobby:invite_accepted', { inviteId, playerId: player.id, username: player.username, matchId: match.id });
       }
       ack?.({ success: true, matchId: match.id });
     } catch (e) {
@@ -4242,6 +4329,16 @@ server.listen(PORT, () => {
   console.log(`Spike & Crush server listening on http://localhost:${PORT}`);
   compEngine.start();
   startRetention(db);
+  // Admin records: new trade columns and the event log switch on only once
+  // their migration has run (checked again every 10 minutes until it has).
+  const checkRecords = () => db.detectRecordsSchema()
+    .then((ok) => { console.log(`[records] admin records ${ok ? 'on' : 'off (migration 20261112090000 not run yet)'}`); return ok; })
+    .catch(() => false);
+  checkRecords().then((ok) => {
+    if (ok) return;
+    const t = setInterval(() => checkRecords().then((on) => on && clearInterval(t)), 10 * 60 * 1000);
+    t.unref();
+  });
   setInterval(() => gameEngine.sweepIdleLobbies().catch((e) => console.warn('[lobbies] sweep failed:', e.message)), LOBBY_SWEEP_MS).unref();
   setInterval(() => matchRecovery.sweep(), MATCH_RECOVERY_SWEEP_MS).unref();
   matchRecovery.sweep();

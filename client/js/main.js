@@ -376,6 +376,8 @@ window.TW = window.TW || {};
     const identityAvatar = document.getElementById('twNavIdentityAvatar');
     const progressFill = document.getElementById('twNavProgressFill');
     if (coinWrap) coinWrap.classList.toggle('hidden', !player);
+    const discoverBtn = document.getElementById('twDiscoverBtn');
+    if (discoverBtn) discoverBtn.classList.toggle('hidden', !player);
     if (coinBalance) {
       const prev = Number(coinBalance.dataset.prevCoins || coinBalance.textContent);
       const next = player ? player.coins : '-';

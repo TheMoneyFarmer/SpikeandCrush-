@@ -74,6 +74,18 @@ html, body {
   color: var(--text-secondary);
 }
 
+/* This match's account number (a fresh 8-digit number per match). */
+.topbar-account {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .topbar-account { font-size: 10px; }
+}
+
 .instrument-tabs {
   display: flex;
   gap: 6px;

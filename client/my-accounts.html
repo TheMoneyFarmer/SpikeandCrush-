@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Match Accounts | Spike &amp; Crush</title>
+<meta name="description" content="Your match accounts: every trade, the account summary and a signed statement." />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#07090F" />
+<script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/icons/play.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/play-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/themes.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<link rel="stylesheet" href="/css/mobile.css">
+<link rel="stylesheet" href="/css/console.css" />
+<style>
+  body { background: #07090F; }
+  .ma-wrap { max-width: 1120px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; color: #E8ECF4; }
+  .ma-card { background: #0E1320; border: 1px solid #1D2638; border-radius: 14px; padding: 16px; min-width: 0; }
+  .ma-h { font: 700 22px Rajdhani, Inter, sans-serif; margin: 0 0 4px; }
+  .ma-h2 { font: 700 17px Rajdhani, Inter, sans-serif; margin: 0 0 10px; }
+  .ma-sub { color: #9AA4B8; font-size: 13px; }
+  .ma-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; justify-content: space-between; }
+  .ma-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ma-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 11px; border: 1px solid #232C40; background: #111724; color: #E8ECF4; font: 600 14px Inter, sans-serif; cursor: pointer; text-decoration: none; }
+  .ma-btn.gold { background: #F5B83D; color: #1A1405; border-color: #F5B83D; }
+  .ma-btn:focus-visible { outline: 2px solid #F5B83D; outline-offset: 2px; }
+  .ma-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ma-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .ma-table th { text-align: left; font-weight: 600; font-size: 11px; color: #9AA4B8; padding: 8px; border-bottom: 1px solid #1D2638; white-space: nowrap; }
+  .ma-table td { padding: 8px; border-bottom: 1px solid #1D2638; white-space: nowrap; }
+  .ma-table td.n, .ma-table th.n { text-align: right; }
+  .ma-table tr[data-n] { cursor: pointer; }
+  .ma-table tr[data-n]:hover { background: #111724; }
+  .ma-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .ma-grid div { background: #111724; border-radius: 10px; padding: 10px 12px; min-width: 0; }
+  .ma-grid span { display: block; font-size: 11px; color: #9AA4B8; margin-bottom: 3px; }
+  .ma-grid b { font: 700 17px Rajdhani, Inter, sans-serif; overflow-wrap: anywhere; }
+  .up { color: #2EE6A6; } .down { color: #FF4D5E; }
+  .ma-mono { font-family: ui-monospace, Menlo, monospace; }
+  .ma-dim { color: #9AA4B8; font-size: 11px; }
+  .ma-curve { width: 100%; height: 160px; display: block; }
+  .ma-empty { color: #9AA4B8; padding: 18px 0; text-align: center; }
+</style>
+</head>
+<body data-page="my-accounts">
+  <div id="twNav" data-active=""></div>
+  <main class="ma-wrap" id="maRoot"><div class="ma-card">Loading…</div></main>
+
+  <script src="/js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    TW.requireAuth();
+    const esc = (v) => TW.escapeHtml(v == null ? '' : String(v));
+    const num = (x, d = 2) => (x == null || !Number.isFinite(Number(x)) ? '-' : Number(x).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }));
+    const signed = (x) => (x == null ? '-' : `<span class="${x >= 0 ? 'up' : 'down'}">${x >= 0 ? '+' : ''}${num(x)}</span>`);
+    const when = (iso) => (iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-');
+    const MODES = { quick: 'Quick War', blitz: 'Blitz War', grand: 'Grand War', private: 'Private War', solo: 'Solo Ranked', tournament: 'Elimination', async: 'Async Daily Challenge' };
+    const root = document.getElementById('maRoot');
+
+    async function download(path, name) {
+      const res = await fetch(path, { headers: { Authorization: `Bearer ${TW.getToken()}` } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      Object.assign(document.createElement('a'), { href: url, download: name }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+
+    function curveSvg(curve) {
+      if (!curve || curve.length < 2) return '<p class="ma-empty">No equity curve stored for this account.</p>';
+      const ys = curve.map((p) => p.equity);
+      const lo = Math.min(...ys); const hi = Math.max(...ys); const span = hi - lo || 1;
+      const pts = curve.map((p, i) => `${((i / (curve.length - 1)) * 1000).toFixed(1)},${(150 - ((p.equity - lo) / span) * 140).toFixed(1)}`).join(' ');
+      return `<svg class="ma-curve" viewBox="0 0 1000 160" preserveAspectRatio="none" role="img" aria-label="Equity from ${num(ys[0])} to ${num(ys[ys.length - 1])}"><polyline points="${pts}" fill="none" stroke="${ys[ys.length - 1] >= ys[0] ? '#2EE6A6' : '#FF4D5E'}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+    }
+
+    async function showList() {
+      history.replaceState(null, '', '/my-accounts');
+      const { accounts } = await TW.api('/api/records/mine');
+      root.innerHTML = `<div class="ma-card"><h1 class="ma-h">Match accounts</h1>
+        <p class="ma-sub">Every match gives you a fresh account number. Open one for its full trade history, summary and a signed statement. Amounts are game capital, not money.</p>
+        <div class="ma-scroll"><table class="ma-table"><thead><tr><th>Account</th><th>Mode</th><th>Date</th><th class="n">Rank</th><th class="n">P&amp;L</th></tr></thead>
+        <tbody>${accounts.map((a) => `<tr data-n="${a.accountNumber}" tabindex="0"><td class="ma-mono">${a.accountNumber}</td><td>${esc(MODES[a.mode] || a.mode || a.kind)}</td><td>${when(a.date)}</td><td class="n">${a.rank ?? '-'}</td><td class="n">${signed(a.pnl)}</td></tr>`).join('') || '<tr><td colspan="5" class="ma-empty">Play a match and its account shows up here.</td></tr>'}</tbody></table></div></div>`;
+      root.querySelectorAll('tr[data-n]').forEach((tr) => {
+        tr.addEventListener('click', () => showAccount(tr.dataset.n));
+        tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') showAccount(tr.dataset.n); });
+      });
+    }
+
+    async function showAccount(n) {
+      history.replaceState(null, '', `/my-accounts?n=${n}`);
+      root.innerHTML = '<div class="ma-card">Loading…</div>';
+      let a;
+      try { a = await TW.api(`/api/records/mine/${encodeURIComponent(n)}`); } catch (e) { root.innerHTML = `<div class="ma-card">${esc(e.message)} <a class="ma-btn" href="/my-accounts">All accounts</a></div>`; return; }
+      const s = a.summary;
+      const title = a.match ? `${MODES[a.match.mode] || a.match.mode}` : (a.competition ? a.competition.title : '');
+      const cells = [
+        ['Starting capital', num(s.startingCapital)], ['Balance', num(s.balance)], ['Equity', num(s.equity)], ['Net profit', signed(s.netProfit)],
+        ['Margin level at close', s.marginLevel == null ? '-' : `${num(s.marginLevel, 1)}%`], ['Free margin', num(s.freeMargin)], ['Gross profit', num(s.grossProfit)], ['Gross loss', num(s.grossLoss)],
+        ['Profit factor', s.profitFactor == null ? '-' : num(s.profitFactor)], ['Max drawdown', s.maxDrawdown == null ? '-' : `${num(s.maxDrawdown)} (${num(s.maxDrawdownPct, 1)}%)`], ['Win rate', s.winRate == null ? '-' : `${num(s.winRate, 1)}%`], ['Trades (long / short)', `${s.trades} (${s.longTrades} / ${s.shortTrades})`],
+        ['Largest win', num(s.largestWin)], ['Largest loss', num(s.largestLoss)], ['Average hold', s.averageHoldSeconds == null ? '-' : `${s.averageHoldSeconds}s`], ['Cards received / played', `${s.cardsReceived ?? '-'} / ${s.cardsPlayed ?? '-'}`],
+      ];
+      root.innerHTML = `
+        <div class="ma-card ma-top">
+          <div><h1 class="ma-h">Account <span class="ma-mono">${a.accountNumber}</span></h1>
+            <div class="ma-sub">${esc(title)} · ${esc(a.handle)} · rank ${a.finalRank ?? '-'}</div></div>
+          <div class="ma-actions">
+            <a class="ma-btn" href="/my-accounts">All accounts</a>
+            <button class="ma-btn" type="button" id="csvBtn">Trades CSV</button>
+            <button class="ma-btn gold" type="button" id="pdfBtn">Statement PDF</button>
+          </div>
+        </div>
+        <div class="ma-card"><h2 class="ma-h2">Summary</h2><div class="ma-grid">${cells.map(([k, v]) => `<div><span>${esc(k)}</span><b>${v}</b></div>`).join('')}</div>
+          <p class="ma-dim" style="margin-top:8px">This game has no swap or commission; both are always 0.</p></div>
+        <div class="ma-card"><h2 class="ma-h2">Equity</h2>${curveSvg(a.curve)}</div>
+        <div class="ma-card"><h2 class="ma-h2">Trades</h2><div class="ma-scroll"><table class="ma-table"><thead><tr><th>Ticket</th><th>Open time</th><th>Type</th><th class="n">Volume</th><th>Symbol</th><th class="n">Price</th><th class="n">S / L</th><th class="n">T / P</th><th>Close time</th><th class="n">Price</th><th class="n">Swap</th><th class="n">Profit</th><th>Comment</th></tr></thead>
+          <tbody>${a.trades.map((t) => `<tr><td class="ma-mono">${t.ticket ? `#${t.ticket}` : '-'}</td><td>${when(t.openTime)}</td><td>${t.type}</td><td class="n">${t.volume}</td><td>${esc(t.symbol)}</td><td class="n">${t.openPrice}</td><td class="n">${t.sl ?? '-'}</td><td class="n">${t.tp ?? '-'}</td><td>${when(t.closeTime)}</td><td class="n">${t.closePrice ?? '-'}</td><td class="n">0</td><td class="n">${t.profit == null ? 'open' : signed(t.profit)}</td><td class="ma-dim">${esc(t.comment)}</td></tr>`).join('') || '<tr><td colspan="13" class="ma-empty">No trades in this match.</td></tr>'}</tbody></table></div></div>
+        <div class="ma-card"><h2 class="ma-h2">Stop loss and take profit changes</h2><div class="ma-scroll"><table class="ma-table"><thead><tr><th>Time</th><th>Symbol</th><th class="n">S / L</th><th class="n">T / P</th><th>Changed by</th></tr></thead>
+          <tbody>${a.modifications.map((m) => `<tr><td>${when(m.realAt)}</td><td>${esc(m.symbol)}</td><td class="n">${m.before ? m.before.sl ?? '-' : '-'} → ${m.after ? m.after.sl ?? '-' : '-'}</td><td class="n">${m.before ? m.before.tp ?? '-' : '-'} → ${m.after ? m.after.tp ?? '-' : '-'}</td><td>${esc(m.by === 'player' ? 'You' : m.by)}</td></tr>`).join('') || '<tr><td colspan="5" class="ma-empty">No changes.</td></tr>'}</tbody></table></div></div>`;
+      document.getElementById('csvBtn').addEventListener('click', () => download(`/api/records/mine/${a.accountNumber}/trades.csv`, `account-${a.accountNumber}.csv`).catch((e) => TW.toast ? TW.toast(e.message, 'error') : alert(e.message)));
+      document.getElementById('pdfBtn').addEventListener('click', () => download(`/api/records/mine/${a.accountNumber}/statement.pdf`, `statement-${a.accountNumber}.pdf`).catch((e) => TW.toast ? TW.toast(e.message, 'error') : alert(e.message)));
+    }
+
+    const n = new URLSearchParams(location.search).get('n');
+    (n && /^\d{8}$/.test(n) ? showAccount(n) : showList()).catch((e) => { root.innerHTML = `<div class="ma-card">${esc(e.message)}</div>`; });
+  </script>
+</body>
+</html>

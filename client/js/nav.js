@@ -80,6 +80,7 @@ window.TW = window.TW || {};
         <div class="cn-right">
           <a href="/wallet" id="headerCoinWrap" class="cn-coins hidden" aria-label="Coin balance">${ic('coin', 18)}<span id="headerCoinBalance">0</span></a>
           <button type="button" class="cn-icon" id="twNotifBtn" aria-label="Notifications">${ic('bell')}<span id="twNotifBadge" class="cn-dot hidden" aria-hidden="true"></span></button>
+          <a href="/play?discover=1" class="cn-icon hidden" id="twDiscoverBtn" data-discover-toggle aria-controls="twDiscover" aria-expanded="false" aria-label="Discover players" title="Discover players">${ic('search')}</a>
           <button type="button" class="cn-icon hidden" id="twFriendsToggleBtn" aria-label="Friends" aria-haspopup="dialog" aria-expanded="false" title="Friends">${ic('users')}<span id="twFriendsOnlineBadge" class="cn-badge hidden" aria-hidden="true"></span></button>
           <a href="/?login=required" id="headerAuthLink" class="cn-login hidden">Log in</a>
           <div class="cn-account hidden" id="twNavIdentity">

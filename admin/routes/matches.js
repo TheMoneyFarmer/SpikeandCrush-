@@ -59,9 +59,238 @@ async function computeMatchAnalytics() {
   };
 }
 
+// ---- every match, live and finished, of every kind -------------------------
+// War modes live in the game server's memory (internal bridge); competitions
+// run in the competition engine and live in the database. Both are merged
+// into one row shape here. Read-only.
+
+const MODE_LABELS = { quick: 'Quick War', blitz: 'Blitz War', grand: 'Grand War', private: 'Private War', solo: 'Solo Ranked', tournament: 'Elimination', async: 'Async Daily Challenge' };
+const NO_CARD_MODES = new Set(['async']);
+
+function warLiveRow(m) {
+  const players = m.players || [];
+  const humans = players.filter((p) => !p.isAI);
+  return {
+    kind: m.kind || m.mode,
+    family: 'war',
+    id: m.id,
+    name: m.modeLabel || MODE_LABELS[m.mode] || m.mode,
+    mode: m.mode,
+    status: m.status,
+    roomCode: m.roomCode,
+    ranked: Boolean(m.ranked),
+    startedAt: m.startedAt ? new Date(m.startedAt).toISOString() : null,
+    createdAt: m.createdAt ? new Date(m.createdAt).toISOString() : null,
+    remainingSeconds: m.remainingSeconds,
+    dataSeconds: m.dataSeconds,
+    dataTime: null,
+    instruments: m.instruments || [],
+    replaySpeed: m.replaySpeed || 1,
+    cardsOn: m.cardsOn !== undefined ? Boolean(m.cardsOn) : !NO_CARD_MODES.has(m.mode),
+    lateEntries: m.lateEntries || 0,
+    sponsor: null,
+    lobbyTier: m.lobbyTier || null,
+    players: {
+      total: players.length,
+      humans: humans.length,
+      computer: players.length - humans.length,
+      live: humans.filter((p) => p.online && !p.eliminated && !p.forfeited).length,
+      offline: humans.filter((p) => !p.online && !p.forfeited).length,
+      eliminated: players.filter((p) => p.eliminated || p.forfeited).length,
+    },
+    seats: players.map((p) => ({ id: p.id, handle: p.username, computer: Boolean(p.isAI), accountNumber: p.accountNumber || null, pnl: p.pnl, online: p.online, eliminated: Boolean(p.eliminated || p.forfeited) })),
+  };
+}
+
+let compLiveCache = { at: 0, rows: [] };
+async function liveCompetitionRows() {
+  if (!isConfigured) return [];
+  if (Date.now() - compLiveCache.at < 10000) return compLiveCache.rows;
+  const { data: comps, error } = await supabase
+    .from('competitions')
+    .select('id, title, template_key, status, instruments, starts_at, ends_at, replay_speed, last_tick_data_time, entry_fee_coins, is_test, sponsor:sponsors(name)')
+    .eq('status', 'active')
+    .order('starts_at', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  const rows = [];
+  for (const c of comps || []) {
+    const { data: accts } = await supabase.from('comp_accounts').select('player_id, status, account_number, equity, starting_capital, player:players(username)').eq('competition_id', c.id).order('equity', { ascending: false }).limit(5000);
+    const list = accts || [];
+    let online = new Set();
+    try {
+      online = new Set((await internal.onlineOf(list.map((a) => a.player_id))).online);
+    } catch (e) { /* game server unreachable: show live as unknown (0) */ }
+    const out = list.filter((a) => a.status === 'loss_limit').length;
+    rows.push({
+      kind: 'competition',
+      family: 'competition',
+      id: c.id,
+      name: c.title,
+      mode: c.template_key || 'competition',
+      status: 'active',
+      roomCode: null,
+      ranked: false,
+      startedAt: c.starts_at,
+      createdAt: c.starts_at,
+      remainingSeconds: Math.max(0, Math.round((Date.parse(c.ends_at) - Date.now()) / 1000)),
+      dataSeconds: null,
+      dataTime: c.last_tick_data_time,
+      instruments: c.instruments || [],
+      replaySpeed: Number(c.replay_speed) || 1,
+      cardsOn: false,
+      lateEntries: 0,
+      sponsor: c.sponsor ? c.sponsor.name : null,
+      isTest: Boolean(c.is_test),
+      players: {
+        total: list.length,
+        humans: list.length,
+        computer: 0,
+        live: list.filter((a) => online.has(a.player_id) && a.status !== 'loss_limit').length,
+        offline: list.filter((a) => !online.has(a.player_id) && a.status !== 'loss_limit').length,
+        eliminated: out,
+      },
+      seats: list.slice(0, 50).map((a) => ({ id: a.player_id, handle: a.player ? a.player.username : null, computer: false, accountNumber: a.account_number ? Number(a.account_number) : null, pnl: Math.round((Number(a.equity) - Number(a.starting_capital)) * 100) / 100, online: online.has(a.player_id), eliminated: a.status === 'loss_limit' })),
+    });
+  }
+  compLiveCache = { at: Date.now(), rows };
+  return rows;
+}
+
+async function buildLiveRows() {
+  const [state, comps] = await Promise.all([
+    internal.getLiveState().catch((e) => ({ error: e.message, activeMatches: [] })),
+    liveCompetitionRows().catch((e) => { console.warn('[admin live comps]', e.message); return []; }),
+  ]);
+  const order = { active: 0, resolving: 1, countdown: 2, waiting: 3 };
+  const rows = [...(state.activeMatches || []).map(warLiveRow), ...comps]
+    .sort((a, b) => (order[a.status] ?? 4) - (order[b.status] ?? 4) || String(b.startedAt || b.createdAt).localeCompare(String(a.startedAt || a.createdAt)));
+  return { rows, gameServer: state.error ? { reachable: false, error: state.error } : { reachable: true }, at: new Date().toISOString() };
+}
+
+// Handle or 8-digit account number -> the match/competition ids it appears in.
+async function idsForPlayerSearch(q) {
+  const out = { matchIds: null, compIds: null };
+  if (!q) return out;
+  if (/^\d{8}$/.test(q)) {
+    const [mp, ca] = await Promise.all([
+      supabase.from('match_players').select('match_id').eq('account_number', Number(q)),
+      supabase.from('comp_accounts').select('competition_id').eq('account_number', Number(q)),
+    ]);
+    out.matchIds = (mp.data || []).map((r) => r.match_id);
+    out.compIds = (ca.data || []).map((r) => r.competition_id);
+    return out;
+  }
+  // % and _ are literal in a handle ("rectest_1"), not wildcards.
+  const like = q.slice(0, 40).replace(/[\\%_]/g, (c) => `\\${c}`);
+  const { data: players } = await supabase.from('players').select('id').ilike('username', `%${like}%`).limit(50);
+  const ids = (players || []).map((p) => p.id);
+  if (!ids.length) return { matchIds: [], compIds: [] };
+  // Handles filter through a join (no long id lists in the URL).
+  out.playerIds = ids;
+  const ca = await supabase.from('comp_accounts').select('competition_id').in('player_id', ids).limit(2000);
+  out.compIds = [...new Set((ca.data || []).map((r) => r.competition_id))];
+  return out;
+}
+
+const HISTORY_PAGE = 50;
+const WAR_KINDS = ['quick', 'blitz', 'grand', 'private', 'solo', 'tournament', 'async'];
+
+// Finished (and voided) matches and ended competitions, newest first, keyset
+// paged by time (`before`), 50 a page. Filters: kind, status, instrument,
+// from/to, q (handle or account number).
+async function historyPage(query) {
+  const kind = String(query.kind || '');
+  const status = String(query.status || '');
+  const instrument = String(query.instrument || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const from = query.from && !Number.isNaN(Date.parse(query.from)) ? new Date(query.from).toISOString() : null;
+  const to = query.to && !Number.isNaN(Date.parse(query.to)) ? new Date(query.to).toISOString() : null;
+  const before = query.before && !Number.isNaN(Date.parse(query.before)) ? new Date(query.before).toISOString() : null;
+  const ids = await idsForPlayerSearch(String(query.q || '').trim());
+
+  const wantWars = !kind || kind === 'war' || WAR_KINDS.includes(kind);
+  const wantComps = !kind || kind === 'competition';
+  const timer = Date.now();
+
+  const wars = (async () => {
+    if (!wantWars || (ids.matchIds && !ids.matchIds.length)) return [];
+    let q = supabase.from('matches')
+      .select(`id, mode, status, room_code, instrument_1, instrument_2, instruments, start_time, end_time, created_at, winner:players!matches_winner_id_fkey(username)${ids.playerIds ? ', seat:match_players!inner(player_id)' : ''}`)
+      .order('created_at', { ascending: false })
+      .limit(HISTORY_PAGE + 1);
+    q = status ? q.eq('status', status) : q.in('status', ['finished', 'voided']);
+    if (WAR_KINDS.includes(kind)) q = q.eq('mode', kind);
+    if (before) q = q.lt('created_at', before);
+    if (from) q = q.gte('created_at', from);
+    if (to) q = q.lte('created_at', to);
+    if (instrument) q = q.or(`instruments.cs.["${instrument}"],instrument_1.eq.${instrument},instrument_2.eq.${instrument}`);
+    if (ids.matchIds) q = q.in('id', ids.matchIds.slice(0, 200));
+    if (ids.playerIds) q = q.in('seat.player_id', ids.playerIds);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []).map((m) => ({
+      kind: m.mode, family: 'war', id: m.id, name: MODE_LABELS[m.mode] || m.mode, mode: m.mode, status: m.status, roomCode: m.room_code,
+      startedAt: m.start_time, endedAt: m.end_time, at: m.created_at, instruments: matchInstruments(m),
+      winner: m.winner ? m.winner.username : null, cardsOn: !NO_CARD_MODES.has(m.mode), sponsor: null, lateEntries: 0,
+      durationSeconds: m.start_time && m.end_time ? Math.round((Date.parse(m.end_time) - Date.parse(m.start_time)) / 1000) : null,
+    }));
+  })();
+
+  const comps = (async () => {
+    if (!wantComps || (ids.compIds && !ids.compIds.length)) return [];
+    let q = supabase.from('competitions')
+      .select('id, title, template_key, status, instruments, starts_at, ends_at, settled_at, replay_speed, sponsor:sponsors(name)')
+      .order('starts_at', { ascending: false })
+      .limit(HISTORY_PAGE + 1);
+    q = status ? q.eq('status', status === 'finished' ? 'ended' : status === 'voided' ? 'void' : status) : q.in('status', ['ended', 'void']);
+    if (before) q = q.lt('starts_at', before);
+    if (from) q = q.gte('starts_at', from);
+    if (to) q = q.lte('starts_at', to);
+    if (instrument) q = q.contains('instruments', [instrument]);
+    if (ids.compIds) q = q.in('id', ids.compIds.slice(0, 1000));
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []).map((c) => ({
+      kind: 'competition', family: 'competition', id: c.id, name: c.title, mode: c.template_key || 'competition', status: c.status === 'ended' ? 'finished' : c.status === 'void' ? 'voided' : c.status,
+      startedAt: c.starts_at, endedAt: c.ends_at, at: c.starts_at, instruments: c.instruments || [], winner: null, cardsOn: false,
+      replaySpeed: Number(c.replay_speed) || 1, sponsor: c.sponsor ? c.sponsor.name : null, lateEntries: 0,
+      durationSeconds: Math.round((Date.parse(c.ends_at) - Date.parse(c.starts_at)) / 1000),
+    }));
+  })();
+
+  const merged = [...(await wars), ...(await comps)].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const items = merged.slice(0, HISTORY_PAGE);
+  const hasMore = merged.length > HISTORY_PAGE;
+
+  // Player counts and replay speed for this page only (<= 50 matches).
+  const warIds = items.filter((i) => i.family === 'war').map((i) => i.id);
+  const compIds = items.filter((i) => i.family === 'competition').map((i) => i.id);
+  const [mp, stats, ca] = await Promise.all([
+    warIds.length ? supabase.from('match_players').select('match_id, player:players(is_persona)').in('match_id', warIds) : { data: [] },
+    warIds.length ? supabase.from('match_market_stats').select('match_id, replay_speed').in('match_id', warIds) : { data: [] },
+    compIds.length ? supabase.from('comp_accounts').select('competition_id').in('competition_id', compIds) : { data: [] },
+  ]);
+  const count = {};
+  const humans = {};
+  for (const r of mp.data || []) {
+    count[r.match_id] = (count[r.match_id] || 0) + 1;
+    if (!(r.player && r.player.is_persona)) humans[r.match_id] = (humans[r.match_id] || 0) + 1;
+  }
+  for (const r of ca.data || []) count[r.competition_id] = (count[r.competition_id] || 0) + 1;
+  const speed = {};
+  for (const s of stats.data || []) speed[s.match_id] = Math.max(speed[s.match_id] || 1, Number(s.replay_speed) || 1);
+  for (const i of items) {
+    i.players = count[i.id] || 0;
+    i.humans = i.family === 'war' ? humans[i.id] || 0 : i.players;
+    if (i.family === 'war') i.replaySpeed = speed[i.id] || 1;
+  }
+  return { items, nextBefore: hasMore ? items[items.length - 1].at : null, pageSize: HISTORY_PAGE, serverMs: Date.now() - timer };
+}
+
 function router() {
   const r = express.Router();
 
+  // War matches only (kept for the Realtime page).
   r.get('/live', async (req, res) => {
     try {
       const state = await internal.getLiveState();
@@ -71,34 +300,22 @@ function router() {
     }
   });
 
+  // Every live match of every kind, competitions included.
+  r.get('/live/all', async (req, res) => {
+    try {
+      res.json(await buildLiveRows());
+    } catch (e) {
+      console.error('[admin live all]', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   r.get('/', async (req, res) => {
     if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
     try {
-      const { data, error } = await supabase
-        .from('matches')
-        .select('id, mode, status, room_code, instrument_1, instrument_2, instruments, start_time, end_time, created_at, winner_id, winner:players!matches_winner_id_fkey(username)')
-        .order('created_at', { ascending: false })
-        .limit(1000);
-      if (error) throw error;
-
-      const matchIds = data.map((m) => m.id);
-      const { data: mpRows } = await supabase.from('match_players').select('match_id, player_id, final_pnl').in('match_id', matchIds);
-      const countByMatch = {};
-      const prizeByMatch = {};
-      (mpRows || []).forEach((row) => {
-        countByMatch[row.match_id] = (countByMatch[row.match_id] || 0) + 1;
-        if (Number(row.final_pnl) > 0) prizeByMatch[row.match_id] = (prizeByMatch[row.match_id] || 0) + Number(row.final_pnl);
-      });
-
-      res.json(data.map((m) => ({
-        id: m.id, mode: m.mode, status: m.status, roomCode: m.room_code,
-        instruments: matchInstruments(m), startTime: m.start_time, endTime: m.end_time, createdAt: m.created_at,
-        winnerUsername: m.winner?.username || null,
-        playerCount: countByMatch[m.id] || 0,
-        durationSeconds: m.start_time && m.end_time ? Math.round((new Date(m.end_time) - new Date(m.start_time)) / 1000) : null,
-      })));
+      res.json(await historyPage(req.query));
     } catch (e) {
-      console.error('[admin matches list]', e);
+      console.error('[admin matches history]', e);
       res.status(500).json({ error: e.message });
     }
   });
@@ -228,3 +445,6 @@ function router() {
 
 module.exports = router;
 module.exports.computeMatchAnalytics = computeMatchAnalytics;
+module.exports.buildLiveRows = buildLiveRows;
+module.exports.historyPage = historyPage;
+module.exports.warLiveRow = warLiveRow;
