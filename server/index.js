@@ -4231,6 +4231,16 @@ server.listen(PORT, () => {
   console.log(`Spike & Crush server listening on http://localhost:${PORT}`);
   compEngine.start();
   startRetention(db);
+  // Admin records: new trade columns and the event log switch on only once
+  // their migration has run (checked again every 10 minutes until it has).
+  const checkRecords = () => db.detectRecordsSchema()
+    .then((ok) => { console.log(`[records] admin records ${ok ? 'on' : 'off (migration 20261112090000 not run yet)'}`); return ok; })
+    .catch(() => false);
+  checkRecords().then((ok) => {
+    if (ok) return;
+    const t = setInterval(() => checkRecords().then((on) => on && clearInterval(t)), 10 * 60 * 1000);
+    t.unref();
+  });
   setInterval(() => gameEngine.sweepIdleLobbies().catch((e) => console.warn('[lobbies] sweep failed:', e.message)), LOBBY_SWEEP_MS).unref();
   setInterval(() => matchRecovery.sweep(), MATCH_RECOVERY_SWEEP_MS).unref();
   matchRecovery.sweep();

@@ -16,6 +16,7 @@ const progression = require('./progression');
 const rankSplit = require('./rankSplit');
 const cosmetics = require('./cosmetics');
 const intrabar = require('./intrabar');
+const { createMatchLog, downsample } = require('./matchLog');
 
 // Replay speed for a short-mode match (data seconds per real second), from
 // server/config/gameFeel.js market.replaySpeed - never from MODE_DURATIONS.
@@ -397,6 +398,72 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     io.to(roomName(match.id)).emit('match:feed', entry);
   }
 
+  // ---- admin records: the match event log (server/matchLog.js) ----------
+  // Recording only: nothing here reads back into prices, P&L or ranking.
+  const matchLog = createMatchLog({ insert: (rows) => (db.isConfigured && db.hasRecordsSchema() ? db.insertMatchEvents(rows) : Promise.resolve()) });
+
+  // Market time since the start, in data seconds (real seconds x speed).
+  function dataSecondsAt(match, nowMs) {
+    if (!match.startedAt) return null;
+    const real = Math.max(0, Math.min(match.config.durationSeconds, (nowMs - match.startedAt) / 1000));
+    return real * (match.replaySpeed || 1);
+  }
+
+  function logEvent(match, kind, playerId, payload = {}, positionRef = null, nowMs = Date.now()) {
+    if (!db.isConfigured || !db.hasRecordsSchema()) return;
+    matchLog.record({ matchId: match.dbMatchId || match.id, playerId: playerId || null, kind, realAt: nowMs, dataS: dataSecondsAt(match, nowMs), positionRef, payload });
+  }
+
+  // Kept off the enumerable fields: positions are sent to the player as-is.
+  function setTradePromise(position, promise) {
+    Object.defineProperty(position, 'dbPromise', { value: promise, enumerable: false, writable: true, configurable: true });
+  }
+
+  // The trade row id once its insert lands; a close that arrives first waits
+  // for it instead of being lost.
+  function withTradeRow(position, fn) {
+    const p = position.dbId ? Promise.resolve(position.dbId) : position.dbPromise;
+    if (!p) return;
+    p.then((id) => (id ? fn(id) : null)).catch((e) => console.warn('[gameEngine] trade record update failed:', e.message));
+  }
+
+  // One SL/TP modification: before, after and who caused it (the player, a
+  // card with its attacker, or the system). No-op when nothing changed.
+  function recordLevelChange(match, player, position, before, cause) {
+    const after = { sl: position.stopLoss ?? null, tp: position.takeProfit ?? null };
+    if (after.sl === before.sl && after.tp === before.tp) return;
+    logEvent(match, 'sltp', player.id, { symbol: position.symbol, before, after, ...cause }, position.id);
+    if (db.isConfigured) withTradeRow(position, (id) => db.updateTradeLevels(id, { stopLoss: after.sl, takeProfit: after.tp }));
+  }
+
+  // The seat's match account number (issued by the database on insert):
+  // kept on the player and pushed to them for the match and result screens.
+  function noteAccountNumber(match, player, row) {
+    if (!row || !row.account_number) return;
+    player.accountNumber = Number(row.account_number);
+    logEvent(match, 'join', player.id, { accountNumber: player.accountNumber });
+    emitToPlayer(match, player.id, 'account:number', { matchId: match.id, accountNumber: player.accountNumber });
+  }
+
+  // Account figures at the moment the match ends, before the final closes:
+  // what an MT5 summary reads at close (margin, free margin, margin level,
+  // floating P&L). Recording only.
+  function closingSnapshot(match, player, nowMs) {
+    const elapsed = getElapsedSeconds(match, nowMs);
+    const m = marginStats(match, player, elapsed, nowMs);
+    const r2 = (x) => (x == null || !Number.isFinite(x) ? null : Math.round(x * 100) / 100);
+    return {
+      balance: r2(player.balance), equity: r2(m.equity), margin: r2(m.used), freeMargin: r2(m.equity - m.used),
+      marginLevel: r2(m.level), floatingPnl: r2(m.equity - player.balance), openPositions: player.positions.length,
+    };
+  }
+
+  const CLOSE_COMMENTS = {
+    stop_loss: 'SL hit', take_profit: 'TP hit', stop_out: 'margin call', sabotage: 'force close by card',
+    elimination: 'elimination', match_end: 'match end', left_match: 'left match', admin_kick: 'removed by admin',
+    disconnect: 'disconnect', loss_limit: 'loss limit',
+  };
+
   function emitToPlayer(match, playerId, event, payload) {
     const p = match.players[playerId];
     if (p && p.socketId) io.to(p.socketId).emit(event, payload);
@@ -419,6 +486,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       tier: p.tier,
       ready: p.ready,
       balance: isSelf ? p.balance : undefined,
+      accountNumber: isSelf ? p.accountNumber || null : undefined,
       positions: isSelf ? p.positions : undefined,
       openPositions: p.positions.length,
       cardsPlayed: p.cardsPlayed,
@@ -973,6 +1041,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       p.spectator = true;
       p.eliminatedRound = round;
       p.equityAtCut = Math.round(p.balance * 100) / 100;
+      logEvent(match, 'elimination', p.id, { round, equity: p.equityAtCut });
       emitToPlayer(match, p.id, 'elim:out', { round, equity: p.equityAtCut });
     }
     for (const p of aliveIn(match)) missionProgress(match, p, { type: 'cut_survived', inDangerAtCut: dangerIds.has(p.id) });
@@ -1098,7 +1167,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     match.playerOrder.push(playerInfo.id);
 
     if (db.isConfigured && match.dbMatchId) {
-      db.addMatchPlayer({ matchId: match.dbMatchId, playerId: playerInfo.id }).catch(() => {});
+      db.addMatchPlayer({ matchId: match.dbMatchId, playerId: playerInfo.id })
+        .then((row) => noteAccountNumber(match, player, row))
+        .catch(() => {});
     }
 
     pushFeed(match, `${player.username} joined the war`);
@@ -1141,7 +1212,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       match.players[player.id] = player;
       match.playerOrder.push(player.id);
       if (db.isConfigured && match.dbMatchId) {
-        db.addMatchPlayer({ matchId: match.dbMatchId, playerId: player.id }).catch(() => {});
+        db.addMatchPlayer({ matchId: match.dbMatchId, playerId: player.id })
+          .then((row) => noteAccountNumber(match, player, row))
+          .catch(() => {});
       }
       pushFeed(match, `${player.username} joined the war`);
       emitToAll(match, 'player:joined', { player: publicPlayer(player, false) });
@@ -1245,6 +1318,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (match.status === 'resolving' || match.status === 'finished' || match.status === 'voided' || match.status === 'active') return;
     match.status = 'active';
     match.startedAt = Date.now();
+    logEvent(match, 'start', null, { mode: match.mode, instruments: match.instruments, replaySpeed: match.replaySpeed || 1, marketSeed: match.marketSeed ?? null, players: Object.keys(match.players).length }, null, match.startedAt);
 
     // Private War's 1-coin hosting fee: charged to the room creator only,
     // only now that the match has actually started - not at room creation,
@@ -1328,6 +1402,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   function logCard(match, entry, elapsedSeconds) {
     match.cardLog.push({ t: elapsedSeconds, at: Date.now(), ...entry });
     if (match.cardLog.length > 2000) match.cardLog.shift();
+    // The same entry, kept: attacker, target, card and amounts.
+    logEvent(match, 'card', entry.attacker || null, entry);
   }
 
   function emitCardsUpdate(match, player, extra = {}) {
@@ -1362,6 +1438,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       player.missionCoins = paidSoFar + coins;
       player.missionsCompleted = (player.missionsCompleted || 0) + 1;
       mission.coins = coins;
+      logEvent(match, 'mission', player.id, { mission: mission.id, label: mission.label || null, coins });
       emitToPlayer(match, player.id, 'missions:complete', { mission, coins });
       if (coins > 0 && db.isConfigured && !player.isAI) {
         (async () => {
@@ -1593,12 +1670,22 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     });
 
     if (db.isConfigured && match.dbMatchId) {
-      db.recordTrade({ matchId: match.dbMatchId, playerId: player.id, symbol, direction, lots: position.lots, entryPrice })
+      setTradePromise(position, db.recordTrade({
+        matchId: match.dbMatchId, playerId: player.id, symbol, direction, lots: position.lots, entryPrice,
+        stopLoss: sl, takeProfit: tp, positionRef: position.id, dataOpenS: dataSecondsAt(match, nowMs),
+        comment: slip ? 'slippage storm' : null,
+      })
         .then((row) => {
           position.dbId = row.id;
+          position.ticket = row.ticket || null;
+          return row.id;
         })
-        .catch((e) => console.warn('[gameEngine] recordTrade failed:', e.message));
+        .catch((e) => {
+          console.warn('[gameEngine] recordTrade failed:', e.message);
+          return null;
+        }));
     }
+    logEvent(match, 'order_open', player.id, { symbol, side: direction, lots: position.lots, price: entryPrice, sl, tp, slippage: slip || 0 }, position.id, nowMs);
 
     pushFeed(match, `${player.username} opened ${direction} ${position.lots} ${symbol} @ ${entryPrice}`, {
       type: 'trade_open',
@@ -1678,9 +1765,14 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       streak: player.streak,
     });
 
-    if (db.isConfigured && position.dbId) {
-      db.closeTrade(position.dbId, { exitPrice, pnl }).catch((e) => console.warn('[gameEngine] closeTrade failed:', e.message));
+    if (db.isConfigured) {
+      const closeFields = {
+        exitPrice, pnl, closeReason: reason, stopLoss: position.stopLoss ?? null, takeProfit: position.takeProfit ?? null,
+        dataCloseS: dataSecondsAt(match, nowMs), comment: CLOSE_COMMENTS[reason] || null,
+      };
+      withTradeRow(position, (id) => db.closeTrade(id, closeFields));
     }
+    logEvent(match, 'close', player.id, { symbol: position.symbol, side: position.direction, lots: position.lots, openPrice: position.entryPrice, price: exitPrice, pnl, reason }, position.id, nowMs);
 
     pushFeed(match, `${player.username} closed ${position.symbol} ${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`, {
       type: reason === 'stop_loss' ? 'sl_hit' : reason === 'take_profit' ? 'tp_hit' : 'trade_close',
@@ -1729,6 +1821,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (pnl < player.worstTrade) player.worstTrade = pnl;
 
     if (db.isConfigured && match.dbMatchId) {
+      const dataNow = dataSecondsAt(match, nowMs);
       db.recordTrade({
         matchId: match.dbMatchId,
         playerId: player.id,
@@ -1736,10 +1829,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         direction: position.direction,
         lots: closedLots,
         entryPrice: position.entryPrice,
+        stopLoss: position.stopLoss ?? null,
+        takeProfit: position.takeProfit ?? null,
+        positionRef: position.id,
+        dataOpenS: dataSecondsAt(match, position.openedAt),
+        comment: `partial close ${pct}%`,
       })
-        .then((row) => db.closeTrade(row.id, { exitPrice, pnl }))
+        .then((row) => db.closeTrade(row.id, { exitPrice, pnl, closeReason: 'partial', dataCloseS: dataNow, comment: `partial close ${pct}%` }))
         .catch((e) => console.warn('[gameEngine] partial close record failed:', e.message));
     }
+    logEvent(match, 'close', player.id, { symbol: position.symbol, side: position.direction, lots: closedLots, remainingLots, openPrice: position.entryPrice, price: exitPrice, pnl, reason: 'partial', pct }, position.id, nowMs);
 
     pushFeed(
       match,
@@ -1774,6 +1873,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // treating "omitted" the same as "explicitly cleared" would wipe out the
     // other line (e.g. dragging SL would silently delete the TP) every time.
     // An explicit null (or '') still means "clear this field".
+    const before = { sl: position.stopLoss ?? null, tp: position.takeProfit ?? null };
     if (stopLoss !== undefined) {
       const sl = stopLoss === null || stopLoss === '' ? null : Number(stopLoss);
       if (sl !== null && (!Number.isFinite(sl) || sl <= 0)) return { success: false, error: 'Invalid stop loss price' };
@@ -1784,6 +1884,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       if (tp !== null && (!Number.isFinite(tp) || tp <= 0)) return { success: false, error: 'Invalid take profit price' };
       position.takeProfit = tp;
     }
+    recordLevelChange(match, player, position, before, { by: 'player' });
     emitToPlayer(match, player.id, 'trade:executed', { position, modified: true });
     return { success: true, position };
   }
@@ -1866,10 +1967,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       const exit = biggest.direction === 'BUY' ? px.bid : px.ask;
       const dec = instruments.getInstrument(biggest.symbol).decimals;
       const before = biggest.stopLoss;
+      const levelsBefore = { sl: biggest.stopLoss ?? null, tp: biggest.takeProfit ?? null };
       const dist = before ? Math.abs(exit - before) : instruments.getSpread(biggest.symbol) * sabotage.CARD_AMOUNTS.stopYankNewSpreads / sabotage.CARD_AMOUNTS.stopYankShare;
       const newDist = Math.max(instruments.getSpread(biggest.symbol), dist * sabotage.CARD_AMOUNTS.stopYankShare);
       biggest.stopLoss = Number((biggest.direction === 'BUY' ? exit - newDist : exit + newDist).toFixed(dec));
       result.amounts = { positionId: biggest.id, stopBefore: before, stopAfter: biggest.stopLoss };
+      recordLevelChange(match, target, biggest, levelsBefore, { by: 'card', card: cardType, attackerId: playerId });
       emitToPlayer(match, target.id, 'trade:executed', { position: biggest, modified: true, stopYanked: true });
     }
     if (result.tpSnipTarget) {
@@ -1877,7 +1980,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       for (const pos of target.positions) {
         if (pos.takeProfit) {
           snipped.push({ positionId: pos.id, takeProfit: pos.takeProfit });
+          const levelsBefore = { sl: pos.stopLoss ?? null, tp: pos.takeProfit };
           pos.takeProfit = null;
+          recordLevelChange(match, target, pos, levelsBefore, { by: 'card', card: cardType, attackerId: playerId });
           emitToPlayer(match, target.id, 'trade:executed', { position: pos, modified: true, tpSnipped: true });
         }
       }
@@ -1983,13 +2088,15 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       };
       target.positions.push(position);
       if (db.isConfigured && match.dbMatchId) {
-        db
-          .recordTrade({ matchId: match.dbMatchId, playerId: target.id, symbol, direction, lots: position.lots, entryPrice })
+        setTradePromise(position, db
+          .recordTrade({ matchId: match.dbMatchId, playerId: target.id, symbol, direction, lots: position.lots, entryPrice, positionRef: position.id, dataOpenS: dataSecondsAt(match, nowMs), comment: `opened by card ${cardType}` })
           .then((row) => {
             position.dbId = row.id;
+            return row.id;
           })
-          .catch(() => {});
+          .catch(() => null));
       }
+      logEvent(match, 'order_open', target.id, { symbol, side: direction, lots: position.lots, price: entryPrice, sl: null, tp: null, byCard: cardType, attackerId: playerId }, position.id, nowMs);
       emitToPlayer(match, target.id, 'trade:executed', { position, ghostTrade: true });
     }
 
@@ -2008,7 +2115,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         }
       }
       if (best) {
+        const levelsBefore = { sl: best.stopLoss ?? null, tp: best.takeProfit ?? null };
         best.stopLoss = best.entryPrice;
+        recordLevelChange(match, target, best, levelsBefore, { by: 'card', card: cardType, attackerId: playerId });
         emitToPlayer(match, target.id, 'trade:executed', { position: best, stopSniped: true });
       }
     }
@@ -2293,6 +2402,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       const windowLossPct = (player.riskWindowStartEquity - equity) / STARTING_CAPITAL;
       if (windowLossPct >= SOFT_LOSS_PCT) {
         player.softLocked = true;
+        logEvent(match, 'loss_limit', player.id, { equity: Math.round(equity * 100) / 100 }, null, nowMs);
         pushFeed(match, `${player.username} hit the 2-minute loss limit - trading locked until the next window`, {
           type: 'margin_warning',
           timestamp: elapsedSeconds,
@@ -2390,6 +2500,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     for (const ev of cardRules.spikeTick(match, dataSeconds)) {
       if (ev.event === 'spike:alert') match.lastSpikeAlertAt = nowMs;
       emitToAll(match, ev.event, ev.payload);
+      logEvent(match, ev.event === 'spike:alert' ? 'spike_alert' : 'spike_result', null, ev.payload, null, nowMs);
       // Grand: once the last scheduled event has landed, the "survive the
       // events" mission checks who is still above their starting equity.
       if (ev.event === 'spike:result' && ev.payload.kind === 'event' && match.spikePlan.filter((x) => x.kind === 'event').every((x) => x.resolved)) {
@@ -2623,11 +2734,15 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     clearInterval(match.timers.tickInterval);
     clearInterval(match.timers.leaderboardInterval);
 
+    const endNow = Date.now();
+    const closing = {};
+    for (const player of Object.values(match.players)) closing[player.id] = closingSnapshot(match, player, endNow);
     for (const player of Object.values(match.players)) {
       for (const pos of player.positions.slice()) closeTrade(match.id, player.id, pos.id, 'match_end');
     }
 
     const results = computeMatchResults(Object.values(match.players), match.mode, match.config);
+    logEvent(match, 'end', null, { standings: results.map((r) => ({ playerId: r.playerId, rank: r.rank, pnl: r.pnl })) }, null, endNow);
 
     const ratingField = match.config.ratingKey || 'war_rating';
     for (const r of results) {
@@ -2679,6 +2794,25 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
             // Separate, best-effort: why the match ended (support answers).
             // Never allowed to block results or prize coins below.
             db.updateMatchPlayer(match.dbMatchId, r.playerId, { end_reason: p && p.eliminated ? 'loss_limit' : 'completed' }).catch(() => {});
+            // Admin records: closing figures and the equity curve (best-effort).
+            if (db.hasRecordsSchema() && p) {
+              const curve = downsample((match.pnlSnapshots[p.id] || []).map((s) => ({ t: s.second, equity: Math.round((STARTING_CAPITAL + s.pnl) * 100) / 100 })), 300);
+              const summary = {
+                ...closing[p.id],
+                startingCapital: STARTING_CAPITAL,
+                finalBalance: Math.round(p.balance * 100) / 100,
+                cardsReceived: p.cardsEarned || 0,
+                cardsPlayed: p.cardsPlayed || 0,
+                missionsCompleted: p.missionsCompleted || 0,
+                heat: p.heat || 0,
+                bestStreak: p.bestStreak || 0,
+                eliminatedRound: p.eliminatedRound || null,
+                offlineSeconds: Math.round((p.offlineMs || 0) / 1000),
+                replaySpeed: match.replaySpeed || 1,
+                lateEntry: false,
+              };
+              db.updateMatchPlayer(match.dbMatchId, r.playerId, { summary, equity_curve: curve }).catch(() => {});
+            }
           }
           if (r.coinsAwarded > 0) {
             await db.creditCoins(r.playerId, r.coinsAwarded, { type: 'prize_won', matchId: match.dbMatchId, idempotencyKey: `prize:${match.id}:${r.playerId}` });
@@ -3097,8 +3231,10 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const entry = { announced: false, announceTimer: null, timer: null };
     // Moving between pages drops the socket for a moment. Only tell the room
     // once it has lasted long enough to be a real connection loss.
+    player.offlineSince = Date.now();
     entry.announceTimer = setTimeout(() => {
       entry.announced = true;
+      logEvent(match, 'disconnect', playerId, { graceSeconds: (RECONNECT_GRACE_MS - DISCONNECT_NOTICE_DELAY_MS) / 1000 }, null, player.offlineSince);
       const graceSeconds = (RECONNECT_GRACE_MS - DISCONNECT_NOTICE_DELAY_MS) / 1000;
       pushFeed(match, `${player.username} lost connection - ${graceSeconds}s to reconnect`, { type: 'system' });
       emitToAll(match, 'match:player_disconnected', { playerId, username: player.username, graceSeconds });
@@ -3125,6 +3261,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     clearTimeout(entry.timer);
     clearTimeout(entry.announceTimer);
     disconnectTimers.delete(key);
+    const m = matches.get(matchId);
+    const pl = m && m.players[playerId];
+    if (pl) {
+      if (entry.announced && pl.offlineSince) {
+        const offlineMs = Date.now() - pl.offlineSince;
+        pl.offlineMs = (pl.offlineMs || 0) + offlineMs;
+        logEvent(m, 'reconnect', playerId, { offlineSeconds: Math.round(offlineMs / 1000) });
+      }
+      pl.offlineSince = null;
+    }
     return entry.announced;
   }
 
@@ -3231,26 +3377,52 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   // Everything below is only ever called from the internal, secret-protected
   // admin routes - never reachable from a player's own socket/HTTP session.
 
+  // Which family a match belongs to, for the admin lists: a user-made
+  // tournament round and a ghost challenge reuse other modes' keys.
+  function matchKind(match) {
+    if (match.config.tournamentId) return 'friend_tournament';
+    if (match.config.challenge) return 'challenge';
+    return match.mode;
+  }
+
+  // Every match this process holds that hasn't finished: lobbies, countdowns,
+  // live matches and ones being resolved right now. Read-only.
   function listActiveMatches() {
     const out = [];
+    const nowMs = Date.now();
     for (const match of matches.values()) {
-      if (match.status !== 'active' && match.status !== 'countdown' && match.status !== 'waiting') continue;
-      const elapsedSeconds = match.startedAt ? getElapsedSeconds(match, Date.now()) : 0;
+      if (!['waiting', 'countdown', 'active', 'resolving'].includes(match.status)) continue;
+      const elapsedSeconds = match.startedAt ? getElapsedSeconds(match, nowMs) : 0;
       const remaining = match.status === 'active' ? Math.max(0, match.config.durationSeconds - elapsedSeconds) : null;
+      const players = Object.values(match.players);
       out.push({
         id: match.id,
+        kind: matchKind(match),
         mode: match.mode,
         modeLabel: match.config.label,
         status: match.status,
         roomCode: match.roomCode,
         instruments: match.instruments,
         entryCoins: match.config.entryCoins,
+        ranked: Boolean(match.config.ranked),
         createdAt: match.createdAt,
+        startedAt: match.startedAt || null,
+        durationSeconds: match.config.durationSeconds,
         remainingSeconds: remaining,
-        players: Object.values(match.players).map((p) => ({
+        dataSeconds: dataSecondsAt(match, nowMs),
+        replaySpeed: match.replaySpeed || 1,
+        cardsOn: Boolean(match.rules && match.rules.cards ? match.rules.cards.enabled : match.config.cardsPerPlayer),
+        lateEntries: 0, // the game has no late-entry rule
+        lobbyTier: match.lobbyTier || null,
+        tournamentId: match.config.tournamentId || null,
+        players: players.map((p) => ({
           id: p.id,
           username: p.username,
           isAI: p.isAI,
+          accountNumber: p.accountNumber || null,
+          online: p.isAI ? true : Boolean(p.socketId) || Boolean(isPlayerOnSite?.(p.id)),
+          eliminated: Boolean(p.eliminated || p.spectator),
+          forfeited: Boolean(p.forfeited),
           pnl: Math.round((p.balance - STARTING_CAPITAL) * 100) / 100,
         })),
       });
@@ -3426,6 +3598,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
     clearDisconnectGrace(matchId, playerId);
     player.forfeited = true;
+    logEvent(match, 'leave', playerId, { reason: endReason });
     for (const pos of player.positions.slice()) closeTrade(matchId, playerId, pos.id, 'left_match');
 
     const totalPlayers = match.playerOrder.length; // original full roster, doesn't shrink as players leave
@@ -3587,6 +3760,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       const match = matches.get(matchId);
       return match ? match.cardLog.slice() : null;
     },
+    // ---- admin records ----
+    matchLogStats: () => matchLog.stats(),
+    flushMatchLog: () => matchLog.flush(),
   };
 }
 
