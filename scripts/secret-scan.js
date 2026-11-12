@@ -35,6 +35,7 @@ const ALLOW = [
   ['anthropic', /^test\//, 'fake key in a redaction test'],
   ['jwt', /^test\//, 'fake token in a redaction test'],
   ['assigned_secret', /^test\//, 'fixed test secrets for unit tests'],
+  ['env_fallback', /^test\//, 'planted fake in the scanner\'s own test'],
   ['assigned_secret', /^scripts\/(load-test|admin-records|fire)\//, 'local test fixtures'],
   // Old master admin password fallback, removed 2026-11-08 (audit U1b). It stays
   // in history; the owner must have rotated MASTER_ADMIN_PASSWORD on Railway.
