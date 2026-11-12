@@ -483,7 +483,13 @@ app.get('/wallet', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'wallet.html
 app.get('/cards', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'cards.html')));
 app.get('/challenge/:code', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'challenge.html')));
 app.get('/rank', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'rank.html')));
-app.get('/discover', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'discover.html')));
+// Discover is a panel in the lobby now; old links open it there.
+app.get('/discover', (req, res) => {
+  // Keeps any query (a sponsor preview token) on the way.
+  const q = new URLSearchParams(req.query);
+  q.set('discover', '1');
+  res.redirect(302, `/play?${q}`);
+});
 app.get('/my-accounts', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'my-accounts.html')));
 app.get('/settings', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'settings.html')));
 app.get('/help', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'help.html')));
@@ -2199,8 +2205,18 @@ app.get('/api/discover', requireDb, authenticate, async (req, res) => {
   }
 });
 
+// The caller's own open waiting room (Discover panel: "invite into my room").
+app.get('/api/discover/me', requireDb, authenticate, (req, res) => {
+  const pres = presence.getPresence(req.tokenPlayer.id);
+  const room = pres.status === 'in_lobby' && pres.lobbyId ? gameEngine.getMatch(pres.lobbyId) : null;
+  if (!room || room.status !== 'waiting' || !room.players[req.tokenPlayer.id]) return res.json({ room: null });
+  res.json({ room: { matchId: room.id, mode: room.mode, label: room.config.label || room.mode, players: Object.keys(room.players).length, entryCoins: room.config.entryCoins || 0, roomCode: room.mode === 'private' ? room.roomCode : null } });
+});
+
 // Invite to match from Discover: into the inviter's waiting lobby if they're
 // in one, otherwise a new Private War room; same invite rules as the lobby.
+// (For a public mode the panel first joins that mode's lobby through
+// /api/match/create, which charges the entry fee, then invites into it.)
 app.post('/api/discover/invite', requireDb, authenticate, async (req, res) => {
   if (discoverOff(res)) return;
   try {
@@ -4207,7 +4223,7 @@ io.on('connection', (socket) => {
 
       const inviterSockets = playerSockets.get(invite.fromPlayerId);
       if (inviterSockets) {
-        for (const sid of inviterSockets) io.to(sid).emit('lobby:invite_accepted', { inviteId, playerId: player.id, username: player.username });
+        for (const sid of inviterSockets) io.to(sid).emit('lobby:invite_accepted', { inviteId, playerId: player.id, username: player.username, matchId: match.id });
       }
       ack?.({ success: true, matchId: match.id });
     } catch (e) {

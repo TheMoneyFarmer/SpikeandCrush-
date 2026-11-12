@@ -537,7 +537,7 @@ TW.FriendsPanel = (function () {
     panel.innerHTML = `
       <header class="twf-head">
         <h2>Friends</h2>
-        <a class="twf-discover" href="/discover" title="Players live now, suggestions and open lobbies">${icon('users', 16)}<span>Discover</span></a>
+        <a class="twf-discover" href="/play?discover=1" data-discover-toggle title="Players live now, suggestions and open lobbies">${icon('users', 16)}<span>Discover</span></a>
         <button type="button" class="twf-close" id="twfClose" aria-label="Close friends">${icon('close', 20)}</button>
       </header>
       <div class="twf-tabs" role="tablist">

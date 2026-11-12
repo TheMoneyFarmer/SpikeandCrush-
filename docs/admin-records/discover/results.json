@@ -1,0 +1,252 @@
+[
+  {
+    "name": "1440x900 mode cards not covered",
+    "pass": true,
+    "detail": "7 visible"
+  },
+  {
+    "name": "1440x900 Play reachable",
+    "pass": true,
+    "detail": "[{\"id\":\"modeQuickBtn\",\"overlap\":false,\"hitSelf\":true}]"
+  },
+  {
+    "name": "1440x900 no sideways page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "1440x900 closes and frees the space",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "1024x768 mode cards not covered",
+    "pass": true,
+    "detail": "7 visible"
+  },
+  {
+    "name": "1024x768 Play reachable",
+    "pass": true,
+    "detail": "[{\"id\":\"modeQuickBtn\",\"overlap\":false,\"hitSelf\":true}]"
+  },
+  {
+    "name": "1024x768 no sideways page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "1024x768 closes and frees the space",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "768x1024 mode cards not covered",
+    "pass": true,
+    "detail": "0 visible"
+  },
+  {
+    "name": "768x1024 Play reachable",
+    "pass": true,
+    "detail": "[{\"id\":\"tabPlayBtn\",\"overlap\":false,\"hitSelf\":true}]"
+  },
+  {
+    "name": "768x1024 no sideways page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "768x1024 closes and frees the space",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "768x1024 Play sheet opens with Discover out of the way",
+    "pass": true,
+    "detail": "7 cards"
+  },
+  {
+    "name": "360x780 mode cards not covered",
+    "pass": true,
+    "detail": "0 visible"
+  },
+  {
+    "name": "360x780 Play reachable",
+    "pass": true,
+    "detail": "[{\"id\":\"tabPlayBtn\",\"overlap\":false,\"hitSelf\":true}]"
+  },
+  {
+    "name": "360x780 no sideways page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "360x780 closes and frees the space",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "360x780 Play sheet opens with Discover out of the way",
+    "pass": true,
+    "detail": "7 cards"
+  },
+  {
+    "name": "390x844 mode cards not covered",
+    "pass": true,
+    "detail": "0 visible"
+  },
+  {
+    "name": "390x844 Play reachable",
+    "pass": true,
+    "detail": "[{\"id\":\"tabPlayBtn\",\"overlap\":false,\"hitSelf\":true}]"
+  },
+  {
+    "name": "390x844 no sideways page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "390x844 closes and frees the space",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "390x844 Play sheet opens with Discover out of the way",
+    "pass": true,
+    "detail": "7 cards"
+  },
+  {
+    "name": "430x932 mode cards not covered",
+    "pass": true,
+    "detail": "0 visible"
+  },
+  {
+    "name": "430x932 Play reachable",
+    "pass": true,
+    "detail": "[{\"id\":\"tabPlayBtn\",\"overlap\":false,\"hitSelf\":true}]"
+  },
+  {
+    "name": "430x932 no sideways page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "430x932 closes and frees the space",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "430x932 Play sheet opens with Discover out of the way",
+    "pass": true,
+    "detail": "7 cards"
+  },
+  {
+    "name": "780x360 mode cards not covered",
+    "pass": true,
+    "detail": "7 visible"
+  },
+  {
+    "name": "780x360 Play reachable",
+    "pass": true,
+    "detail": "[{\"id\":\"modeQuickBtn\",\"overlap\":false,\"hitSelf\":true}]"
+  },
+  {
+    "name": "780x360 no sideways page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "780x360 mode sheet and Discover side by side",
+    "pass": true,
+    "detail": "7 cards"
+  },
+  {
+    "name": "780x360 closes and frees the space",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "844x390 mode cards not covered",
+    "pass": true,
+    "detail": "7 visible"
+  },
+  {
+    "name": "844x390 Play reachable",
+    "pass": true,
+    "detail": "[{\"id\":\"modeQuickBtn\",\"overlap\":false,\"hitSelf\":true}]"
+  },
+  {
+    "name": "844x390 no sideways page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "844x390 mode sheet and Discover side by side",
+    "pass": true,
+    "detail": "7 cards"
+  },
+  {
+    "name": "844x390 closes and frees the space",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "932x430 mode cards not covered",
+    "pass": true,
+    "detail": "7 visible"
+  },
+  {
+    "name": "932x430 Play reachable",
+    "pass": true,
+    "detail": "[{\"id\":\"modeQuickBtn\",\"overlap\":false,\"hitSelf\":true}]"
+  },
+  {
+    "name": "932x430 no sideways page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "932x430 mode sheet and Discover side by side",
+    "pass": true,
+    "detail": "7 cards"
+  },
+  {
+    "name": "932x430 closes and frees the space",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "panel keeps tab and search when reopened",
+    "pass": true,
+    "detail": "{\"tab\":\"suggested\",\"q\":\"rec\"}"
+  },
+  {
+    "name": "panel keeps its tab across a page load",
+    "pass": true,
+    "detail": "suggested"
+  },
+  {
+    "name": "no page errors in the lobby",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "the two test players are not friends",
+    "pass": true,
+    "detail": "false"
+  },
+  {
+    "name": "no location fields in Discover responses",
+    "pass": true,
+    "detail": "880 bytes checked"
+  },
+  {
+    "name": "invite sent from the panel without leaving the lobby",
+    "pass": true,
+    "detail": "http://localhost:3070/play?discover=1"
+  },
+  {
+    "name": "both players land in the same waiting room",
+    "pass": true,
+    "detail": "3a5bc4a5-b07a-4e00-8583-231112684861 / 3a5bc4a5-b07a-4e00-8583-231112684861"
+  }
+]
