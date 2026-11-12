@@ -16,6 +16,7 @@ window.Admin = window.Admin || {};
       { key: 'matches-live', label: 'Live Matches', href: '/matches.html?tab=live' },
       { key: 'matches-history', label: 'Match History', href: '/matches.html?tab=history' },
       { key: 'matches-flagged', label: 'Flagged Matches', href: '/matches.html?tab=flagged' },
+      { key: 'matches-accounts', label: 'Account Lookup', href: '/account.html' },
     ]},
     { group: 'Tournaments', icon: 'trophy', items: [
       { key: 'tournaments-active', label: 'Active Tournaments', href: '/tournaments.html?tab=active' },

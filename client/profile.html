@@ -198,7 +198,7 @@
     </div>
 
     <div class="panel" style="margin-top:20px;">
-      <h3>Recent Matches</h3>
+      <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">Recent Matches <a class="btn btn-outline" id="myAccountsLink" href="/my-accounts" hidden style="font-size:12px;padding:4px 10px">Match accounts and statements</a></h3>
       <div style="overflow-x: auto;">
         <table class="hist">
           <thead><tr><th>Date</th><th>Instruments</th><th>Rank</th><th>P&amp;L</th><th>Rating</th><th>Trades</th></tr></thead>
@@ -255,6 +255,7 @@
 
         document.getElementById('editProfileSection').classList.toggle('hidden', !isOwnProfile);
         document.getElementById('buyCoinsSection').classList.toggle('hidden', !isOwnProfile);
+        document.getElementById('myAccountsLink').hidden = !isOwnProfile;
 
         const avatarImg = document.getElementById('profileAvatarImg');
         const avatarInitial = document.getElementById('profileAvatar');

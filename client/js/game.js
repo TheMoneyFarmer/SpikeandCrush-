@@ -37,6 +37,17 @@ window.TW = window.TW || {};
   }
 
   let lastState = null;
+  // This match's account number (issued when the seat is saved).
+  let myAccountNumber = null;
+  function showAccountNumber(n) {
+    if (!n) return;
+    myAccountNumber = Number(n);
+    const el = document.getElementById('topbarAccount');
+    if (el) {
+      el.textContent = `Account ${myAccountNumber}`;
+      el.hidden = false;
+    }
+  }
   let lastPrices = {};
   let activeInstrument = 'EURUSD';
   let selectedLot = 1.0;
@@ -1164,6 +1175,7 @@ window.TW = window.TW || {};
           <div class="ea-stat"><span class="ea-lbl">Coins won</span><b class="ea-gold">${me.coinsAwarded ? `+${me.coinsAwarded} coins` : '0 coins'}</b><div data-slot="result_screen" data-target="mode:${esc(lastState?.mode || '')}" data-variant="line" hidden></div></div>
           <div class="ea-stat"><span class="ea-lbl">Best trade</span><b class="mono ${me.bestTrade >= 0 ? 'text-buy' : 'text-sell'}">${money(me.bestTrade || 0)}</b></div>
           <div class="ea-stat"><span class="ea-lbl">Trades · Cards played</span><b>${me.tradesMade} · ${me.cardsPlayed}</b></div>
+          ${myAccountNumber ? `<div class="ea-stat"><span class="ea-lbl">Account</span><b class="mono"><a href="/my-accounts?n=${myAccountNumber}" style="color:inherit">${myAccountNumber}</a></b><div class="ea-lbl">Full trade history and statement</div></div>` : ''}
         </div>
         <div data-slot="result_screen" data-target="mode:${esc(lastState?.mode || '')}" hidden></div>
         ${tierChanged ? `<div class="ea-rankup">${ic('trophy', 16)} Rank up: you are now ${esc(me.newTier)}</div>` : ''}
@@ -1507,8 +1519,12 @@ window.TW = window.TW || {};
   });
 
   let ghostRequested = false;
+  socket.on('account:number', (d) => { if (d && (!d.matchId || d.matchId === matchId)) showAccountNumber(d.accountNumber); });
+
   socket.on('match:state', (state) => {
     lastState = state;
+    const selfSeat = (state.players || []).find((p) => p.id === state.you);
+    if (selfSeat && selfSeat.accountNumber) showAccountNumber(selfSeat.accountNumber);
     const modeEl = document.getElementById('topbarMode');
     if (modeEl) modeEl.textContent = state.modeLabel || '';
     // the one sponsor element allowed during play: a 24px chip by the mode name

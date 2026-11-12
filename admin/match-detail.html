@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Match record — Spike & Crush Admin</title>
+<link rel="icon" href="/icons/admin.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/admin-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
+<link rel="stylesheet" href="css/admin-records.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="matches-history"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content" id="detail"><div class="empty-state">Loading…</div></div>
+    </main>
+  </div>
+
+  <script src="js/time-ago.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Match record');
+    const esc = (v) => Admin.escapeHtml(v == null ? '' : String(v));
+    const num = (x, d = 2) => (x == null || !Number.isFinite(Number(x)) ? '—' : Number(x).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }));
+    const signed = (x) => (x == null ? '—' : `<span class="${x >= 0 ? 'text-success' : 'text-danger'}">${x >= 0 ? '+' : ''}${num(x)}</span>`);
+    const when = (iso) => (iso ? new Date(iso).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—');
+    const dur = (s) => (s == null ? '—' : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`);
+    const params = new URLSearchParams(location.search);
+    const root = document.getElementById('detail');
+    const READONLY = '<span class="rec-readonly"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Read only: nothing on this page changes the match</span>';
+    const KIND = { quick: 'Quick War', blitz: 'Blitz War', grand: 'Grand War', private: 'Private War', solo: 'Solo Ranked', tournament: 'Elimination', async: 'Async Daily Challenge' };
+    const COLORS = ['#6cb2ff', '#1fd38a', '#f5b83d', '#ff4d6a', '#a78bfa', '#2dd4bf', '#fb923c', '#e879f9'];
+
+    function flagsHtml(flags) {
+      return (flags || []).map((f) => `<div class="rec-flag"><b>${esc(f.target_type)} ${esc(f.target_id)}</b> · ${esc(f.created_by)} · ${when(f.created_at)}${f.resolved_at ? ' · resolved' : ''}<div>${esc(f.note)}</div></div>`).join('') || '<p class="rec-note">No flags.</p>';
+    }
+
+    function flagForm(targetType, targetId, extra) {
+      return `<form class="rec-toolbar" id="flagForm" data-type="${esc(targetType)}" data-id="${esc(targetId)}" data-extra='${esc(JSON.stringify(extra))}'>
+        <div class="field grow"><label for="flagNote">Flag this ${esc(targetType)} for a dispute (logged)</label><input id="flagNote" maxlength="2000" placeholder="What needs checking, and why" required /></div>
+        <button class="btn btn-sm" type="submit">Add flag</button></form>`;
+    }
+    function bindFlagForm(reload) {
+      const f = document.getElementById('flagForm');
+      if (!f) return;
+      f.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          await Admin.api('/records/flags', { method: 'POST', body: { targetType: f.dataset.type, targetId: f.dataset.id, note: document.getElementById('flagNote').value, ...JSON.parse(f.dataset.extra || '{}') } });
+          Admin.toast('Flag added', 'success');
+          reload();
+        } catch (err) { Admin.toast(err.message, 'danger'); }
+      });
+    }
+
+    // ---- war match ----------------------------------------------------------
+    async function loadMatch(id) {
+      const d = await Admin.api(`/records/match/${encodeURIComponent(id)}`);
+      const m = d.match;
+      const start = m.startTime || m.createdAt;
+      const handles = new Map(d.standings.map((s) => [s.playerId, s.handle]));
+      root.innerHTML = `
+        <div class="rec-head">
+          <div><h2>${esc(KIND[m.mode] || m.mode)} <span class="text-secondary mono">${esc(m.roomCode || '')}</span></h2>
+          <div class="rec-note"><a href="/matches.html?tab=history">Match history</a> · ${READONLY}</div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn btn-sm" href="/api/records/match/${encodeURIComponent(m.id)}/timeline.csv">Export timeline CSV</a>
+            <a class="btn btn-sm" href="/api/records/match/${encodeURIComponent(m.id)}/timeline.json">Export JSON</a>
+          </div>
+        </div>
+        <div class="rec-meta">
+          <div><span>Status</span><b>${esc(m.status)}</b></div>
+          <div><span>Instruments</span><b>${esc(m.instruments.join(', '))}</b></div>
+          <div><span>Market speed</span><b>x${esc(m.replaySpeed)}</b></div>
+          <div><span>Market seed</span><b class="mono">${esc(m.marketSeed ?? '—')}</b></div>
+          <div><span>Data window (start offsets)</span><b class="mono">${m.market.length ? m.market.map((x) => `${esc(x.symbol)} ${x.curated ? `@${esc(x.startOffset)}` : 'raw'}`).join(', ') : '—'}</b></div>
+          <div><span>Started (real)</span><b>${when(m.startTime)}</b></div>
+          <div><span>Ended (real)</span><b>${when(m.endTime)}</b></div>
+          <div><span>Length real / market</span><b>${m.startTime && m.endTime ? `${dur((Date.parse(m.endTime) - Date.parse(m.startTime)) / 1000)} / ${dur(((Date.parse(m.endTime) - Date.parse(m.startTime)) / 1000) * m.replaySpeed)}` : '—'}</b></div>
+          <div><span>Card plays / reports</span><b>${d.timeline.filter((e) => e.kind === 'card').length} / ${d.reports.length}</b></div>
+        </div>
+
+        <div class="rec-section"><h3>Standings</h3><span class="rec-note">Click a player for their MT5-style account history</span></div>
+        <div class="rec-table-wrap"><table class="rec-table" id="standings"><thead><tr>
+          <th class="num">Rank</th><th>Player</th><th>Account</th><th>Tier</th><th class="num">Final equity</th><th class="num">P&amp;L</th><th class="num">Max DD</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Cards earned / played</th><th class="num">Missions</th><th class="num">Heat</th><th>Late entry</th><th class="num">Offline</th><th>Elim. round</th><th>End</th>
+        </tr></thead><tbody>${d.standings.map((s) => `<tr ${s.accountNumber ? `data-href="/account.html?n=${s.accountNumber}"` : 'class="nolink"'} tabindex="0">
+          <td class="num">${s.rank ?? '—'}</td><td>${esc(s.handle || 'unknown')}${s.computer ? ' <span class="rec-pill">computer</span>' : ''}</td>
+          <td class="mono">${s.accountNumber || '—'}</td><td>${esc(s.tier || '—')}</td>
+          <td class="num">${num(s.finalEquity)}</td><td class="num">${signed(s.pnl)}</td><td class="num">${num(s.maxDrawdown)}</td><td class="num">${s.trades}</td>
+          <td class="num">${s.winRate == null ? '—' : `${num(s.winRate, 1)}%`}</td><td class="num">${s.cardsEarned ?? '—'} / ${s.cardsPlayed ?? 0}</td>
+          <td class="num">${s.missions ?? '—'}</td><td class="num">${s.heat ?? '—'}</td><td>No</td><td class="num">${s.offlineSeconds ? `${s.offlineSeconds}s` : '—'}</td>
+          <td>${s.eliminatedRound ?? '—'}</td><td>${esc(s.endReason || '—')}</td></tr>`).join('') || '<tr class="nolink"><td colspan="16" class="empty-state">No players recorded.</td></tr>'}</tbody></table></div>
+
+        <div class="rec-section"><h3>Chart</h3><span class="grow"></span>
+          <div class="rec-toolbar" style="margin:0"><div class="field"><label for="chSym">Instrument</label><select id="chSym">${m.instruments.map((s) => `<option>${esc(s)}</option>`).join('')}</select></div>
+          <div class="field"><label for="chPlayer">Trades of</label><select id="chPlayer"><option value="">Everyone</option>${d.standings.map((s) => `<option value="${esc(s.playerId)}">${esc(s.handle)}</option>`).join('')}</select></div></div>
+        </div>
+        <div class="rec-chart"><canvas id="matchChart" aria-label="Price during the match with every trade marked"></canvas></div>
+        <p class="rec-note" id="chartNote"></p>
+
+        <div class="rec-section"><h3>Event timeline</h3><span class="rec-note">${d.timelineSource === 'event_log' ? `${d.timeline.length} events from the match log${d.timelineTruncated ? ' (first 5,000; export for all)' : ''}` : 'Rebuilt from trades and card plays (this match ended before the full event log existed)'}</span><span class="grow"></span>
+          <div class="rec-toolbar" style="margin:0"><div class="field"><label for="tlKind">Event</label><select id="tlKind"><option value="">All</option>${[...new Set(d.timeline.map((e) => e.kind))].map((k) => `<option>${esc(k)}</option>`).join('')}</select></div>
+          <div class="field"><label for="tlPlayer">Player</label><select id="tlPlayer"><option value="">Everyone</option>${d.standings.map((s) => `<option value="${esc(s.playerId)}">${esc(s.handle)}</option>`).join('')}</select></div></div>
+        </div>
+        <div class="rec-table-wrap" style="max-height:560px;overflow:auto"><table class="rec-table rec-timeline"><thead><tr><th>Real time</th><th class="num">Market time</th><th>Event</th><th>Player</th><th>What happened</th></tr></thead><tbody id="tlBody"></tbody></table></div>
+
+        <div class="rec-section"><h3>Dispute flags</h3></div>
+        ${flagsHtml(d.flags)}
+        ${flagForm('match', m.id, { matchId: m.id })}
+      `;
+      const tlBody = document.getElementById('tlBody');
+      const drawTimeline = () => {
+        const k = document.getElementById('tlKind').value;
+        const p = document.getElementById('tlPlayer').value;
+        const rows = d.timeline.filter((e) => (!k || e.kind === k) && (!p || e.playerId === p || (e.payload && (e.payload.target === p || e.payload.attacker === p))));
+        tlBody.innerHTML = rows.map((e) => `<tr class="nolink"><td class="time">${when(e.realAt)}</td><td class="num time">${e.dataS == null ? '—' : `+${dur(e.dataS)}`}</td><td><span class="rec-kind ${esc(e.kind)}">${esc(e.kind.replace('_', ' '))}</span></td><td>${esc(e.handle || '—')}</td><td class="wrap">${esc(e.text)}</td></tr>`).join('') || '<tr class="nolink"><td colspan="5" class="empty-state">No events.</td></tr>';
+      };
+      document.getElementById('tlKind').addEventListener('change', drawTimeline);
+      document.getElementById('tlPlayer').addEventListener('change', drawTimeline);
+      drawTimeline();
+      document.getElementById('standings').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-href]'); if (tr) location.href = tr.dataset.href; });
+      bindFlagForm(() => loadMatch(id));
+
+      // Chart: the prices players saw (from the replay) + every trade marked.
+      let chart = null;
+      let chartData = null;
+      try { chartData = await Admin.api(`/records/match/${encodeURIComponent(id)}/chart`); } catch (e) { chartData = null; }
+      const colorOf = new Map(d.standings.map((s, i) => [s.playerId, COLORS[i % COLORS.length]]));
+      const draw = () => {
+        const sym = document.getElementById('chSym').value;
+        const who = document.getElementById('chPlayer').value;
+        const note = document.getElementById('chartNote');
+        if (!chartData || !chartData.hasPrices || !chartData.prices[sym]) {
+          note.textContent = 'No stored prices for this match (replays are kept for 90 days).';
+          if (chart) chart.destroy();
+          return;
+        }
+        const trades = chartData.trades.filter((t) => t.symbol === sym && (!who || t.playerId === who));
+        const opens = trades.map((t) => ({ x: t.openT, y: t.openPrice, t, open: true }));
+        const closes = trades.filter((t) => t.closeT != null).map((t) => ({ x: t.closeT, y: t.closePrice, t, open: false }));
+        note.textContent = `${trades.length} trades on ${sym}. Filled triangles = opens (up buy, down sell), circles = closes. Time axis is real seconds from the start.`;
+        if (chart) chart.destroy();
+        chart = new Chart(document.getElementById('matchChart'), {
+          data: {
+            datasets: [
+              { type: 'line', label: sym, data: chartData.prices[sym].map(([x, y]) => ({ x, y })), borderColor: 'rgba(200,212,232,.7)', borderWidth: 1.2, pointRadius: 0, order: 3 },
+              { type: 'scatter', label: 'Opens', data: opens, pointStyle: 'triangle', rotation: opens.map((p) => (p.t.type === 'sell' ? 180 : 0)), pointRadius: 6, backgroundColor: opens.map((p) => colorOf.get(p.t.playerId) || '#fff'), order: 1 },
+              { type: 'scatter', label: 'Closes', data: closes, pointStyle: 'circle', pointRadius: 4, borderColor: closes.map((p) => colorOf.get(p.t.playerId) || '#fff'), backgroundColor: 'transparent', borderWidth: 2, order: 2 },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
+            scales: { x: { type: 'linear', title: { display: true, text: 'seconds', color: '#9aa4b8' }, ticks: { color: '#9aa4b8' }, grid: { color: 'rgba(160,182,222,.08)' } }, y: { ticks: { color: '#9aa4b8' }, grid: { color: 'rgba(160,182,222,.08)' } } },
+            plugins: {
+              legend: { labels: { color: '#c8d4e8' } },
+              tooltip: { callbacks: { label: (c) => (c.raw.t ? `${handles.get(c.raw.t.playerId) || 'player'} ${c.raw.open ? 'opened' : 'closed'} ${c.raw.t.type} ${c.raw.t.lots} @ ${c.raw.y}${c.raw.t.ticket ? ` #${c.raw.t.ticket}` : ''}${!c.raw.open && c.raw.t.pnl != null ? ` (${c.raw.t.pnl >= 0 ? '+' : ''}${c.raw.t.pnl})` : ''}` : `${c.raw.y}`) } },
+            },
+          },
+        });
+      };
+      document.getElementById('chSym').addEventListener('change', draw);
+      document.getElementById('chPlayer').addEventListener('change', draw);
+      draw();
+    }
+
+    // ---- competition --------------------------------------------------------
+    async function loadCompetition(id, page = 0) {
+      const d = await Admin.api(`/records/competition/${encodeURIComponent(id)}?page=${page}`);
+      const c = d.competition;
+      root.innerHTML = `
+        <div class="rec-head"><div><h2>${esc(c.title)}</h2><div class="rec-note"><a href="/matches.html?tab=history">Match history</a> · ${READONLY}</div></div></div>
+        <div class="rec-meta">
+          <div><span>Status</span><b>${esc(c.status)}${c.is_test ? ' (test)' : ''}</b></div>
+          <div><span>Instruments</span><b>${esc((c.instruments || []).join(', '))}</b></div>
+          <div><span>Market speed</span><b>x${esc(c.replay_speed || 1)}</b></div>
+          <div><span>Data window start</span><b>${when(c.data_window_start)}</b></div>
+          <div><span>Latest market time</span><b>${when(c.last_tick_data_time)}</b></div>
+          <div><span>Runs (real)</span><b>${when(c.starts_at)} to ${when(c.ends_at)}</b></div>
+          <div><span>Entrants</span><b>${d.total}</b></div>
+          <div><span>Sponsor</span><b>${esc(c.sponsorName || '—')}</b></div>
+          <div><span>Cards</span><b>Off (competitions are plain trading)</b></div>
+        </div>
+        <div class="rec-section"><h3>Standings</h3><span class="rec-note">50 a page · click a player for the account history</span></div>
+        <div class="rec-table-wrap"><table class="rec-table" id="standings"><thead><tr><th class="num">Rank</th><th>Player</th><th>Account</th><th>Tier</th><th class="num">Equity</th><th class="num">Balance</th><th class="num">P&amp;L</th><th class="num">Trades</th><th>Status</th><th class="num">Prize coins</th></tr></thead>
+        <tbody>${d.standings.map((s) => `<tr ${s.accountNumber ? `data-href="/account.html?n=${s.accountNumber}"` : 'class="nolink"'}><td class="num">${s.rank}</td><td>${esc(s.handle)}</td><td class="mono">${s.accountNumber || '—'}</td><td>${esc(s.tier || '—')}</td><td class="num">${num(s.equity)}</td><td class="num">${num(s.balance)}</td><td class="num">${signed(s.pnl)}</td><td class="num">${s.trades ?? 0}</td><td>${esc(s.status)}</td><td class="num">${s.prizeCoins ?? '—'}</td></tr>`).join('') || '<tr class="nolink"><td colspan="10" class="empty-state">No entrants.</td></tr>'}</tbody></table></div>
+        <div class="rec-pager"><button class="btn btn-sm" id="cPrev" ${page ? '' : 'disabled'}>Previous</button><span>Page ${page + 1} of ${Math.max(1, Math.ceil(d.total / 50))}</span><button class="btn btn-sm" id="cNext" ${(page + 1) * 50 < d.total ? '' : 'disabled'}>Next</button></div>
+        <div class="rec-section"><h3>Latest trades</h3><span class="rec-note">Most recent 200</span></div>
+        <div class="rec-table-wrap" style="max-height:420px;overflow:auto"><table class="rec-table"><thead><tr><th>Ticket</th><th>Player</th><th>Open time</th><th>Type</th><th class="num">Volume</th><th>Symbol</th><th class="num">Open</th><th class="num">S/L</th><th class="num">T/P</th><th>Close time</th><th class="num">Close</th><th class="num">Profit</th><th>Comment</th></tr></thead>
+        <tbody>${d.recentTrades.map((t) => `<tr class="nolink"><td class="mono">${t.ticket ? `#${t.ticket}` : '—'}</td><td>${esc(t.handle)}</td><td>${when(t.openTime)}</td><td>${t.type}</td><td class="num">${t.volume}</td><td>${esc(t.symbol)}</td><td class="num">${t.openPrice}</td><td class="num">${t.sl ?? '—'}</td><td class="num">${t.tp ?? '—'}</td><td>${when(t.closeTime)}</td><td class="num">${t.closePrice ?? '—'}</td><td class="num">${t.profit == null ? 'open' : signed(t.profit)}</td><td>${esc(t.comment)}</td></tr>`).join('') || '<tr class="nolink"><td colspan="13" class="empty-state">No trades yet.</td></tr>'}</tbody></table></div>
+        <div class="rec-section"><h3>Dispute flags</h3></div>
+        ${flagsHtml(d.flags)}
+        ${flagForm('competition', c.id, { competitionId: c.id })}
+      `;
+      document.getElementById('standings').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-href]'); if (tr) location.href = tr.dataset.href; });
+      document.getElementById('cPrev').addEventListener('click', () => loadCompetition(id, page - 1));
+      document.getElementById('cNext').addEventListener('click', () => loadCompetition(id, page + 1));
+      bindFlagForm(() => loadCompetition(id, page));
+    }
+
+    (async () => {
+      try {
+        if (params.get('competition')) await loadCompetition(params.get('competition'));
+        else if (params.get('id')) await loadMatch(params.get('id'));
+        else root.innerHTML = '<div class="empty-state">No match chosen. Open one from Live matches or Match history.</div>';
+      } catch (e) {
+        root.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

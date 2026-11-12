@@ -41,6 +41,23 @@
       const d = await Admin.api(`/players/${playerId}`);
       Admin.renderTopbar(`${d.profile.username}`);
       render(d);
+      loadAccounts();
+    }
+
+    // Every match account this player has held, with lifetime totals (read only).
+    async function loadAccounts() {
+      const rows = document.getElementById('acctRows');
+      const life = document.getElementById('acctLifetime');
+      if (!rows) return;
+      try {
+        const a = await Admin.api(`/records/player/${playerId}/accounts`);
+        const L = a.lifetime;
+        life.textContent = `${L.accounts} accounts · ${L.wins} first places · net ${L.netPnl ?? 0} · best ${L.bestPnl ?? '—'} · worst ${L.worstPnl ?? '—'}`;
+        rows.innerHTML = a.accounts.map((x) => `<tr class="clickable" onclick="location.href='account.html?n=${x.accountNumber}'"><td class="mono">${x.accountNumber}</td><td>${Admin.escapeHtml(x.mode || x.kind)}</td><td>${Admin.formatDate(x.date)}</td><td>${x.rank ?? '—'}</td><td class="${(x.pnl || 0) >= 0 ? 'text-success' : 'text-danger'}">${x.pnl == null ? '—' : x.pnl.toFixed(2)}</td></tr>`).join('') || '<tr><td colspan="5">No match accounts yet</td></tr>';
+      } catch (e) {
+        life.textContent = '';
+        rows.innerHTML = `<tr><td colspan="5">${Admin.escapeHtml(e.message)}</td></tr>`;
+      }
     }
 
     function render(d) {
@@ -102,7 +119,18 @@
               <div class="admin-table-wrap" style="max-height:300px;overflow-y:auto;">
                 <table class="admin-table">
                   <thead><tr><th>Date</th><th>Mode</th><th>Instruments</th><th>Rank</th><th>P&amp;L</th><th>Duration</th></tr></thead>
-                  <tbody>${d.matchHistory.map((m) => `<tr class="clickable" onclick="location.href='matches.html?open=${m.matchId}'"><td>${Admin.formatDate(m.startTime)}</td><td>${m.mode}</td><td>${(m.instruments || []).join('/')}</td><td>${m.rank ?? '—'}</td><td class="${m.pnl >= 0 ? 'text-success' : 'text-danger'}">${Admin.formatMoney(m.pnl)}</td><td>${m.durationSeconds ? fmtSecs(m.durationSeconds) : '—'}</td></tr>`).join('') || '<tr><td colspan="6">No matches yet</td></tr>'}</tbody>
+                  <tbody>${d.matchHistory.map((m) => `<tr class="clickable" onclick="location.href='match-detail.html?id=${m.matchId}'"><td>${Admin.formatDate(m.startTime)}</td><td>${m.mode}</td><td>${(m.instruments || []).join('/')}</td><td>${m.rank ?? '—'}</td><td class="${m.pnl >= 0 ? 'text-success' : 'text-danger'}">${Admin.formatMoney(m.pnl)}</td><td>${m.durationSeconds ? fmtSecs(m.durationSeconds) : '—'}</td></tr>`).join('') || '<tr><td colspan="6">No matches yet</td></tr>'}</tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-bottom:20px;">
+              <h3>Match accounts</h3>
+              <div id="acctLifetime" class="text-secondary" style="font-size:12px;margin-bottom:8px;">Loading…</div>
+              <div class="admin-table-wrap" style="max-height:300px;overflow-y:auto;">
+                <table class="admin-table">
+                  <thead><tr><th>Account</th><th>Mode / competition</th><th>Date</th><th>Rank</th><th>P&amp;L</th></tr></thead>
+                  <tbody id="acctRows"><tr><td colspan="5">Loading…</td></tr></tbody>
                 </table>
               </div>
             </div>

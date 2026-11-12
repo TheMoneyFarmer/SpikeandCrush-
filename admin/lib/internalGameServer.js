@@ -50,6 +50,8 @@ module.exports = {
   support: (path, body) => callInternal(`/internal/support${path}`, { method: body === undefined ? 'GET' : 'POST', body }),
   supportUpload,
   getLiveState: () => callInternal('/internal/admin/state'),
+  onlineOf: (ids) => callInternal('/internal/admin/online', { method: 'POST', body: { ids } }),
+  recordsHealth: () => callInternal('/internal/admin/records-health'),
   getConfig: () => callInternal('/internal/admin/config'),
   getErrors: () => callInternal('/internal/admin/errors'),
   forceEndMatch: (matchId) => callInternal(`/internal/admin/matches/${matchId}/force-end`, { method: 'POST' }),

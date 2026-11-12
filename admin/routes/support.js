@@ -207,6 +207,41 @@ function router() {
     });
   }));
 
+  // Link this conversation's ticket to one of the player's match account
+  // numbers, so the agent can open that account's history (read only).
+  r.get('/conversations/:id/accounts', h(async (req, res) => {
+    const conv = await q(supabase.from('support_conversations').select('user_id').eq('id', req.params.id).maybeSingle());
+    if (!conv) return res.status(404).json({ error: 'Not found' });
+    const tickets = await q(supabase.from('support_tickets').select('id, account_number').eq('conversation_id', req.params.id).order('created_at').limit(1));
+    let recent = [];
+    if (conv.user_id) {
+      const { data } = await supabase.from('match_players').select('account_number, final_rank, match:matches(mode, created_at)').eq('player_id', conv.user_id).not('account_number', 'is', null).limit(200);
+      recent = (data || []).filter((r) => r.match).sort((a, b) => String(b.match.created_at).localeCompare(String(a.match.created_at))).slice(0, 15)
+        .map((r) => ({ accountNumber: Number(r.account_number), mode: r.match.mode, date: r.match.created_at, rank: r.final_rank }));
+    }
+    res.json({ linked: tickets[0] && tickets[0].account_number ? Number(tickets[0].account_number) : null, hasTicket: Boolean(tickets[0]), recent });
+  }));
+  r.post('/conversations/:id/account', h(async (req, res) => {
+    const n = req.body && req.body.accountNumber != null && req.body.accountNumber !== '' ? Number(req.body.accountNumber) : null;
+    if (n !== null && !(Number.isInteger(n) && n >= 10000000 && n <= 99999999)) return res.status(400).json({ error: 'Account numbers have 8 digits' });
+    const conv = await q(supabase.from('support_conversations').select('user_id').eq('id', req.params.id).maybeSingle());
+    if (!conv) return res.status(404).json({ error: 'Not found' });
+    if (n !== null) {
+      const [mp, ca] = await Promise.all([
+        q(supabase.from('match_players').select('player_id').eq('account_number', n).maybeSingle()),
+        q(supabase.from('comp_accounts').select('player_id').eq('account_number', n).maybeSingle()),
+      ]);
+      const owner = (mp || ca || {}).player_id;
+      if (!owner) return res.status(404).json({ error: 'No account with that number' });
+      if (conv.user_id && owner !== conv.user_id) return res.status(400).json({ error: 'That account belongs to a different player' });
+    }
+    const tickets = await q(supabase.from('support_tickets').select('id').eq('conversation_id', req.params.id).order('created_at').limit(1));
+    if (!tickets[0]) return res.status(400).json({ error: 'This chat has no ticket yet. Escalate it to a ticket first.' });
+    await q(supabase.from('support_tickets').update({ account_number: n, updated_at: new Date().toISOString() }).eq('id', tickets[0].id));
+    await log(req, 'support_link_account', 'support_ticket', tickets[0].id, { accountNumber: n });
+    res.json({ linked: n });
+  }));
+
   // ---- actions (via the game server so the player's chat updates live) ---------
   const action = (name, path, bodyFn = () => ({})) =>
     h(async (req, res) => {

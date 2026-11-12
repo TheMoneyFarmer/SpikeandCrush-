@@ -2656,6 +2656,8 @@ async function sponsorStats(sponsorId, fromDay, toDay) {
 }
 
 module.exports = {
+  // Read-only record loaders (server/records.js) take a client directly.
+  getClient: () => supabase,
   detectRecordsSchema,
   hasRecordsSchema,
   updateTradeLevels,

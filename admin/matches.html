@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/admin-charts.css" />
 <link rel="stylesheet" href="css/admin-components.css" />
 <link rel="stylesheet" href="css/admin-console.css" />
+<link rel="stylesheet" href="css/admin-records.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
@@ -29,16 +30,38 @@
 
         <div class="admin-tab-panel" id="tab-live">
           <div class="adm-strip" id="liveStrip"></div>
-          <div class="match-grid adm-live-grid" id="liveMatchGrid"><div class="empty-state">Loading…</div></div>
+          <div class="rec-toolbar" id="liveFilters">
+            <div class="field"><label for="lvSearch">Search</label><input type="search" id="lvSearch" placeholder="Handle, account no., room" /></div>
+            <div class="field"><label for="lvKind">Kind</label><select id="lvKind"><option value="">All kinds</option></select></div>
+            <div class="field"><label for="lvStatus">Status</label><select id="lvStatus"><option value="">All</option><option value="active">Live</option><option value="countdown">Starting</option><option value="waiting">Waiting</option><option value="resolving">Finishing</option></select></div>
+            <div class="field"><label for="lvInstrument">Instrument</label><select id="lvInstrument"><option value="">All</option></select></div>
+            <div class="field"><label for="lvDate">Started on</label><input type="date" id="lvDate" /></div>
+            <span class="grow"></span>
+            <span class="rec-live-dot" id="lvState"><i></i><span>Live</span></span>
+            <button class="btn btn-sm" id="lvPause" type="button" aria-pressed="false">Pause</button>
+          </div>
+          <div class="rec-table-wrap"><table class="rec-table" id="liveTable">
+            <thead><tr><th>Kind</th><th>Mode / competition</th><th>Status</th><th>Started</th><th class="num">Time left</th><th>Data time</th><th>Players (live / offline / out)</th><th>Instruments</th><th class="num">Speed</th><th>Cards</th><th class="num">Late</th><th>Sponsor</th><th></th></tr></thead>
+            <tbody><tr class="nolink"><td colspan="13" class="empty-state">Loading…</td></tr></tbody>
+          </table></div>
+          <p class="rec-note">Every match in progress: all war modes (Solo, Async, Private and friend tournaments included) and every running competition. Click a row for the full record. Updates every 5 seconds.</p>
         </div>
 
         <div class="admin-tab-panel" id="tab-history">
-          <div class="admin-table-toolbar">
-            <input type="search" id="historySearch" placeholder="Search room code…" />
-            <select id="modeFilter"><option value="">All modes</option><option>quick</option><option>blitz</option><option>grand</option><option>private</option><option>solo</option><option>async</option><option>tournament</option></select>
-            <select id="statusFilterM"><option value="">All statuses</option><option>waiting</option><option>active</option><option>finished</option><option>voided</option></select>
+          <div class="rec-toolbar">
+            <div class="field"><label for="hsSearch">Player</label><input type="search" id="hsSearch" placeholder="Handle or account no." /></div>
+            <div class="field"><label for="hsKind">Kind</label><select id="hsKind"><option value="">All kinds</option><option value="war">All war modes</option><option value="quick">Quick War</option><option value="blitz">Blitz War</option><option value="grand">Grand War</option><option value="private">Private War</option><option value="solo">Solo Ranked</option><option value="tournament">Elimination</option><option value="async">Async</option><option value="competition">Competitions</option></select></div>
+            <div class="field"><label for="hsStatus">Status</label><select id="hsStatus"><option value="">Finished + voided</option><option value="finished">Finished</option><option value="voided">Voided</option></select></div>
+            <div class="field"><label for="hsInstrument">Instrument</label><input id="hsInstrument" placeholder="e.g. XAUUSD" size="9" /></div>
+            <div class="field"><label for="hsFrom">From</label><input type="date" id="hsFrom" /></div>
+            <div class="field"><label for="hsTo">To</label><input type="date" id="hsTo" /></div>
+            <button class="btn btn-sm btn-primary" id="hsApply" type="button">Apply</button>
           </div>
-          <div id="historyTableWrap"></div>
+          <div class="rec-table-wrap"><table class="rec-table" id="historyTable">
+            <thead><tr><th>Kind</th><th>Mode / competition</th><th>Status</th><th>Started</th><th>Ended</th><th class="num">Players</th><th>Instruments</th><th class="num">Speed</th><th>Cards</th><th>Winner</th><th>Sponsor</th></tr></thead>
+            <tbody><tr class="nolink"><td colspan="11" class="empty-state">Loading…</td></tr></tbody>
+          </table></div>
+          <div class="rec-pager"><span id="hsInfo"></span><button class="btn btn-sm" id="hsNewer" type="button" disabled>Newer</button><button class="btn btn-sm" id="hsOlder" type="button" disabled>Older</button></div>
         </div>
 
         <div class="admin-tab-panel" id="tab-analytics">
@@ -75,17 +98,119 @@
     Admin.renderNav();
     Admin.renderTopbar('Matches');
 
+    const esc = (v) => Admin.escapeHtml(v == null ? '' : String(v));
+    const KIND_LABELS = { quick: 'Quick', blitz: 'Blitz', grand: 'Grand', private: 'Private', solo: 'Solo', tournament: 'Elimination', async: 'Async', friend_tournament: 'Friend tournament', challenge: 'Ghost challenge', competition: 'Competition' };
+    const kindLabel = (k) => KIND_LABELS[k] || k;
+    const clock = (s) => (s == null ? '—' : `${Math.floor(s / 3600) ? `${Math.floor(s / 3600)}:` : ''}${String(Math.floor((s % 3600) / 60)).padStart(Math.floor(s / 3600) ? 2 : 1, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`);
+    const when = (iso) => (iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
+    const detailHref = (row) => (row.family === 'competition' ? `/match-detail.html?competition=${encodeURIComponent(row.id)}` : `/match-detail.html?id=${encodeURIComponent(row.id)}`);
+    const STATUS_LABEL = { active: 'Live', countdown: 'Starting', waiting: 'Waiting', resolving: 'Finishing', finished: 'Finished', voided: 'Voided' };
+
     function activateTab(name) {
       document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
       document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
-      if (name === 'history' && !historyTable) loadHistory();
+      if (name === 'history' && !historyLoaded) loadHistory();
       if (name === 'analytics') loadAnalytics();
       if (name === 'flagged') loadFlagged();
     }
-    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
-    activateTab(new URLSearchParams(location.search).get('tab') || 'live');
 
+    // ---- Live matches: every kind, filters, socket refresh with pause ----
+    let liveRows = [];
+    let livePaused = false;
+    let historyLoaded = false;
+    const lv = (id) => document.getElementById(id);
+
+    function liveMatches(row) {
+      const q = lv('lvSearch').value.trim().toLowerCase();
+      if (lv('lvKind').value && row.kind !== lv('lvKind').value) return false;
+      if (lv('lvStatus').value && row.status !== lv('lvStatus').value) return false;
+      if (lv('lvInstrument').value && !(row.instruments || []).includes(lv('lvInstrument').value)) return false;
+      if (lv('lvDate').value) {
+        const d = row.startedAt || row.createdAt;
+        if (!d || new Date(d).toLocaleDateString('en-CA') !== lv('lvDate').value) return false;
+      }
+      if (q) {
+        const hay = [row.name, row.roomCode, row.sponsor, ...(row.seats || []).flatMap((s) => [s.handle, s.accountNumber])].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    }
+
+    function fillSelect(sel, values, label) {
+      const cur = sel.value;
+      sel.innerHTML = `<option value="">${label}</option>${values.map((v) => `<option value="${esc(v)}">${esc(sel === lv('lvKind') ? kindLabel(v) : v)}</option>`).join('')}`;
+      if (values.includes(cur)) sel.value = cur;
+    }
+
+    function renderLive(payload) {
+      if (payload && payload.rows) liveRows = payload.rows;
+      const rows = liveRows;
+      const running = rows.filter((r) => r.status === 'active');
+      const humans = rows.reduce((a, r) => a + (r.players ? r.players.humans : 0), 0);
+      const live = rows.reduce((a, r) => a + (r.players ? r.players.live : 0), 0);
+      lv('liveStrip').innerHTML = [
+        ['Running', running.length], ['Competitions', rows.filter((r) => r.family === 'competition').length],
+        ['Lobbies waiting', rows.filter((r) => r.status === 'waiting').length], ['Players in them', humans], ['Online now', live],
+      ].map(([k, v]) => `<div class="adm-stat"><span>${k}</span><b class="mono">${v}</b></div>`).join('')
+        + (payload && payload.gameServer && !payload.gameServer.reachable ? '<div class="adm-stat"><span>Game server</span><b class="text-danger">unreachable</b></div>' : '');
+      fillSelect(lv('lvKind'), [...new Set(rows.map((r) => r.kind))].sort(), 'All kinds');
+      fillSelect(lv('lvInstrument'), [...new Set(rows.flatMap((r) => r.instruments || []))].sort(), 'All');
+      const shown = rows.filter(liveMatches);
+      const body = lv('liveTable').tBodies[0];
+      if (!shown.length) {
+        body.innerHTML = `<tr class="nolink"><td colspan="13"><div class="empty-state adm-empty"><b>${rows.length ? 'No match fits these filters' : 'No live matches right now'}</b></div></td></tr>`;
+        return;
+      }
+      body.innerHTML = shown.map((r) => `<tr data-href="${detailHref(r)}" tabindex="0">
+        <td><span class="rec-pill kind">${esc(kindLabel(r.kind))}</span>${r.ranked ? ' <span class="rec-pill">Ranked</span>' : ''}${r.isTest ? ' <span class="rec-pill">Test</span>' : ''}</td>
+        <td>${esc(r.name)}${r.roomCode ? ` <span class="text-secondary mono">${esc(r.roomCode)}</span>` : ''}</td>
+        <td><span class="rec-pill ${esc(r.status)}">${esc(STATUS_LABEL[r.status] || r.status)}</span></td>
+        <td>${when(r.startedAt || r.createdAt)}</td>
+        <td class="num mono">${clock(r.remainingSeconds)}</td>
+        <td class="mono">${r.dataTime ? when(r.dataTime) : r.dataSeconds != null ? `+${clock(Math.round(r.dataSeconds))}` : '—'}</td>
+        <td class="rec-seats"><b>${r.players.live}</b> <span>/ ${r.players.offline} / ${r.players.eliminated}</span> <span>(${r.players.total} seats${r.players.computer ? `, ${r.players.computer} computer` : ''})</span></td>
+        <td>${esc((r.instruments || []).join(', '))}</td>
+        <td class="num mono">x${r.replaySpeed}</td>
+        <td>${r.cardsOn ? 'On' : 'Off'}</td>
+        <td class="num">${r.lateEntries || 0}</td>
+        <td>${esc(r.sponsor || '—')}</td>
+        <td>${r.family === 'war' && r.status !== 'waiting' && r.status !== 'resolving' ? `<button class="btn btn-sm btn-danger" data-act="force-end" data-id="${esc(r.id)}">End now</button> ` : ''}${r.family === 'war' && r.status !== 'resolving' ? `<button class="btn btn-sm btn-danger" data-act="void" data-id="${esc(r.id)}">Void</button>` : ''}</td>
+      </tr>`).join('');
+    }
+
+    async function loadLive() {
+      try { renderLive(await Admin.api('/matches/live/all')); } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+    function setPaused(p) {
+      livePaused = p;
+      lv('lvPause').textContent = p ? 'Resume' : 'Pause';
+      lv('lvPause').setAttribute('aria-pressed', String(p));
+      lv('lvState').classList.toggle('paused', p);
+      lv('lvState').querySelector('span').textContent = p ? 'Paused' : 'Live';
+      if (!p) loadLive();
+    }
+    lv('lvPause').addEventListener('click', () => setPaused(!livePaused));
+    ['lvSearch', 'lvKind', 'lvStatus', 'lvInstrument', 'lvDate'].forEach((id) => lv(id).addEventListener(id === 'lvSearch' ? 'input' : 'change', () => renderLive()));
+    function rowClicks(table) {
+      table.addEventListener('click', (e) => {
+        const act = e.target.closest('[data-act]');
+        if (act) { e.stopPropagation(); actOnMatch(act.dataset.id, act.dataset.act); return; }
+        const tr = e.target.closest('tr[data-href]');
+        if (tr) location.href = tr.dataset.href;
+      });
+      table.addEventListener('keydown', (e) => {
+        const tr = e.target.closest('tr[data-href]');
+        if (tr && e.key === 'Enter') location.href = tr.dataset.href;
+      });
+    }
+    rowClicks(lv('liveTable'));
+    rowClicks(lv('historyTable'));
+
+    // Moderation stays on Live matches only (it existed before this page
+    // became the full record); the record pages themselves change nothing.
     async function actOnMatch(id, action) {
+      const label = action === 'void' ? 'Void this match and refund entry coins?' : 'End this match now and score it as it stands?';
+      if (!confirm(label)) return;
       try {
         await Admin.api(`/matches/${id}/${action}`, { method: 'POST' });
         Admin.toast(`Match ${action.replace('-', ' ')}`, 'success');
@@ -93,99 +218,53 @@
       } catch (e) { Admin.toast(e.message, 'danger'); }
     }
 
-    // Live wall (Mission Control, 2026-11-11): a strip of totals, then one card
-    // per match - status, clock, real vs computer seats, standings, actions.
-    const SPECTATE_ORIGIN = location.origin.includes('//admin.') ? location.origin.replace('//admin.', '//www.') : null;
-    const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-    function renderLiveGrid(matches) {
-      const grid = document.getElementById('liveMatchGrid');
-      const running = matches.filter((m) => m.status === 'active' || m.status === 'countdown');
-      const seats = running.flatMap((m) => m.players || []);
-      const real = seats.filter((p) => !p.isAI).length;
-      document.getElementById('liveStrip').innerHTML = [
-        ['Matches running', running.length], ['Lobbies waiting', matches.length - running.length],
-        ['Real players in matches', real], ['Computer seats', seats.length - real],
-      ].map(([k, v]) => `<div class="adm-stat"><span>${k}</span><b class="mono">${v}</b></div>`).join('');
-      if (!matches.length) { grid.innerHTML = '<div class="empty-state adm-empty"><b>No live matches right now</b><span>Matches show up here the moment a lobby starts. This view refreshes every 5 seconds.</span></div>'; return; }
-      const order = { active: 0, countdown: 1, waiting: 2 };
-      grid.innerHTML = matches.slice().sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3)).map((m) => {
-        const ps = (m.players || []).slice().sort((a, b) => b.pnl - a.pnl);
-        const r = ps.filter((p) => !p.isAI).length;
-        const status = m.status === 'active' ? 'Live' : m.status === 'countdown' ? 'Starting' : 'Waiting';
-        return `<div class="match-card adm-mcard ${m.status}">
-          <div class="adm-mhead"><b>${Admin.escapeHtml(m.modeLabel || m.mode)}</b><span class="adm-mstatus ${m.status}">${status}</span><span class="mono adm-mclock">${m.remainingSeconds != null ? clock(m.remainingSeconds) : ''}</span></div>
-          <div class="adm-msub">${Admin.escapeHtml((m.instruments || []).join(' · '))} · Room <span class="mono">${Admin.escapeHtml(m.roomCode || '')}</span></div>
-          <div class="adm-seats" title="${r} real, ${ps.length - r} computer">${ps.length ? `<i style="flex:${r || 0.0001};background:#3987e5"></i><i style="flex:${ps.length - r || 0.0001};background:rgba(200,212,232,.35)"></i>` : ''}</div>
-          <div class="adm-msub">${r} real · ${ps.length - r} computer</div>
-          <ol class="adm-mplayers">${ps.slice(0, 4).map((p) => `<li><span>${Admin.escapeHtml(p.username)}${p.isAI ? ' <em>computer</em>' : ''}</span><span class="mono ${p.pnl >= 0 ? 'text-success' : 'text-danger'}">${p.pnl >= 0 ? '+' : '-'}$${Math.abs(p.pnl).toFixed(0)}</span></li>`).join('')}${ps.length > 4 ? `<li class="adm-more">+${ps.length - 4} more</li>` : ''}</ol>
-          <div class="match-card-actions">
-            ${SPECTATE_ORIGIN && m.status !== 'waiting' && m.mode !== 'private' ? `<a class="btn btn-sm" href="${SPECTATE_ORIGIN}/spectate.html?matchId=${encodeURIComponent(m.id)}" target="_blank" rel="noopener">Watch</a>` : ''}
-            ${m.status !== 'waiting' ? `<button class="btn btn-sm btn-danger" onclick="actOnMatch('${m.id}','force-end')">End now</button>` : ''}
-            <button class="btn btn-sm btn-danger" onclick="actOnMatch('${m.id}','void')">Void</button>
-          </div>
-        </div>`;
-      }).join('');
-    }
-    async function loadLive() {
-      try { renderLiveGrid(await (await fetch('/api/matches/live', { credentials: 'include' })).json()); }
-      catch (e) { Admin.toast(e.message, 'danger'); }
-    }
     loadLive();
-    setInterval(() => { if (document.getElementById('tab-live').classList.contains('active')) loadLive(); }, 5000);
+    if (Admin.socket) Admin.socket.on('admin:live_rows', (payload) => { if (!livePaused) renderLive(payload); });
+    // Fallback when the socket is down: poll, still honouring Pause.
+    setInterval(() => { if (!livePaused && (!Admin.socket || !Admin.socket.connected) && lv('tab-live').classList.contains('active')) loadLive(); }, 5000);
 
-    let historyTable = null;
-    async function loadHistory() {
+    // ---- Match history: keyset pages of 50 ----
+    let hsStack = [];
+    let hsBefore = null;
+    let hsNext = null;
+    async function loadHistory(before = null) {
+      historyLoaded = true;
+      const params = new URLSearchParams();
+      const put = (k, v) => { if (v) params.set(k, v); };
+      put('q', lv('hsSearch').value.trim());
+      put('kind', lv('hsKind').value);
+      put('status', lv('hsStatus').value);
+      put('instrument', lv('hsInstrument').value.trim());
+      if (lv('hsFrom').value) params.set('from', new Date(`${lv('hsFrom').value}T00:00:00`).toISOString());
+      if (lv('hsTo').value) params.set('to', new Date(`${lv('hsTo').value}T23:59:59.999`).toISOString());
+      put('before', before);
+      const body = lv('historyTable').tBodies[0];
       try {
-        const rows = await Admin.api('/matches');
-        const container = document.getElementById('historyTableWrap');
-        historyTable = Admin.createTable({
-          container, rows, rowKey: 'id', searchFields: ['roomCode'],
-          onRowClick: (row) => openMatchDetail(row.id),
-          columns: [
-            { key: 'roomCode', label: 'Room' },
-            { key: 'mode', label: 'Mode' },
-            { key: 'status', label: 'Status', render: (r) => `<span class="badge ${r.status === 'finished' ? 'badge-online' : r.status === 'voided' ? 'badge-banned' : 'badge-in-match'}">${r.status}</span>` },
-            { key: 'playerCount', label: 'Players' },
-            { key: 'instruments', label: 'Instruments', render: (r) => (r.instruments || []).join('/') },
-            { key: 'winnerUsername', label: 'Winner', render: (r) => r.winnerUsername || '—' },
-            { key: 'durationSeconds', label: 'Duration', render: (r) => r.durationSeconds ? `${Math.floor(r.durationSeconds / 60)}m ${r.durationSeconds % 60}s` : '—' },
-            { key: 'createdAt', label: 'Created', render: (r) => Admin.formatDate(r.createdAt) },
-          ],
-        });
-        document.getElementById('historySearch').addEventListener('input', (e) => historyTable.setSearch(e.target.value));
-        document.getElementById('modeFilter').addEventListener('change', (e) => historyTable.setFilter('mode', e.target.value));
-        document.getElementById('statusFilterM').addEventListener('change', (e) => historyTable.setFilter('status', e.target.value));
-
-        const openId = new URLSearchParams(location.search).get('open');
-        if (openId) openMatchDetail(openId);
+        const d = await Admin.api(`/matches?${params}`);
+        hsBefore = before;
+        hsNext = d.nextBefore;
+        lv('hsOlder').disabled = !hsNext;
+        lv('hsNewer').disabled = !hsStack.length;
+        lv('hsInfo').textContent = `${d.items.length} shown · ${d.serverMs} ms`;
+        body.innerHTML = d.items.length ? d.items.map((r) => `<tr data-href="${detailHref(r)}" tabindex="0">
+          <td><span class="rec-pill kind">${esc(kindLabel(r.kind))}</span></td>
+          <td>${esc(r.name)}${r.roomCode ? ` <span class="text-secondary mono">${esc(r.roomCode)}</span>` : ''}</td>
+          <td><span class="rec-pill ${esc(r.status)}">${esc(STATUS_LABEL[r.status] || r.status)}</span></td>
+          <td>${when(r.startedAt || r.at)}</td><td>${when(r.endedAt)}</td>
+          <td class="num">${r.players}${r.family === 'war' && r.players !== r.humans ? ` <span class="text-secondary">(${r.humans} real)</span>` : ''}</td>
+          <td>${esc((r.instruments || []).join(', '))}</td><td class="num mono">x${r.replaySpeed || 1}</td>
+          <td>${r.cardsOn ? 'On' : 'Off'}</td><td>${esc(r.winner || '—')}</td><td>${esc(r.sponsor || '—')}</td>
+        </tr>`).join('') : '<tr class="nolink"><td colspan="11"><div class="empty-state">No matches fit these filters.</div></td></tr>';
+        if (new URLSearchParams(location.search).get('open')) location.href = `/match-detail.html?id=${encodeURIComponent(new URLSearchParams(location.search).get('open'))}`;
       } catch (e) { Admin.toast(e.message, 'danger'); }
     }
+    lv('hsApply').addEventListener('click', () => { hsStack = []; loadHistory(); });
+    lv('hsSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') { hsStack = []; loadHistory(); } });
+    lv('hsOlder').addEventListener('click', () => { hsStack.push(hsBefore); loadHistory(hsNext); });
+    lv('hsNewer').addEventListener('click', () => loadHistory(hsStack.pop() || null));
 
-    async function openMatchDetail(id) {
-      try {
-        const d = await Admin.api(`/matches/${id}`);
-        const backdrop = document.createElement('div');
-        backdrop.className = 'admin-modal-backdrop';
-        backdrop.innerHTML = `
-          <div class="admin-modal" style="max-width:640px;">
-            <h3>Match ${d.match.room_code} — ${d.match.mode}</h3>
-            <div class="text-secondary" style="font-size:12px;margin-bottom:12px;">${d.match.instruments.join(' / ')} · ${d.match.status} · ${Admin.formatDate(d.match.created_at)}</div>
-            <h4 style="font-size:13px;">Players</h4>
-            <table class="admin-table"><thead><tr><th>Player</th><th>Rank</th><th>P&amp;L</th><th>Trades</th><th>Cards</th></tr></thead>
-            <tbody>${d.players.map((p) => `<tr><td>${Admin.escapeHtml(p.player?.username || 'AI')}</td><td>${p.final_rank ?? '—'}</td><td class="${p.final_pnl >= 0 ? 'text-success' : 'text-danger'}">${Admin.formatMoney(p.final_pnl)}</td><td>${p.trades_made}</td><td>${p.cards_played}</td></tr>`).join('')}</tbody></table>
-            <h4 style="font-size:13px;margin-top:14px;">Sabotage Events (${d.sabotageEvents.length})</h4>
-            <div style="max-height:120px;overflow-y:auto;font-size:12px;">${d.sabotageEvents.map((s) => `<div>${Admin.escapeHtml(s.player?.username)} → ${s.card_type} → ${Admin.escapeHtml(s.target?.username || 'market')}</div>`).join('') || 'None'}</div>
-            <div class="admin-modal-actions">
-              ${d.match.status === 'active' ? `<button class="btn btn-danger" onclick="actOnMatch('${d.match.id}','force-end')">Force End</button><button class="btn btn-danger" onclick="actOnMatch('${d.match.id}','void')">Void</button>` : ''}
-              <button class="btn" id="closeMatchModal">Close</button>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(backdrop);
-        backdrop.querySelector('#closeMatchModal').addEventListener('click', () => backdrop.remove());
-        backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
-      } catch (e) { Admin.toast(e.message, 'danger'); }
-    }
+
+    function openMatchDetail(id) { location.href = `/match-detail.html?id=${encodeURIComponent(id)}`; }
 
     let analyticsLoaded = false;
     async function loadAnalytics() {
@@ -224,6 +303,9 @@
         `;
       } catch (e) { Admin.toast(e.message, 'danger'); }
     }
+    // Last, so every tab's state above is initialised first.
+    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
+    activateTab(new URLSearchParams(location.search).get('tab') || 'live');
   </script>
 </body>
 </html>

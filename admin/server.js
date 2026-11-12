@@ -285,7 +285,9 @@ app.use('/api', requireAdmin);
 // Support agents (role 'support') may use the support inbox and nothing else.
 const supportAgentGuard = (req, res, next) => {
   const supportReadsSponsors = req.method === 'GET' && req.path.startsWith('/sponsors') && !req.path.startsWith('/sponsors/leads');
-  if (req.admin && req.admin.role === 'support' && !supportReadsSponsors && !(req.baseUrl === '/api' && (req.path.startsWith('/support') || req.path.startsWith('/admins/change-password')))) {
+  // A ticket linked to an account number lets the agent read that history.
+  const supportReadsAccount = req.method === 'GET' && req.path.startsWith('/records/account/');
+  if (req.admin && req.admin.role === 'support' && !supportReadsSponsors && !supportReadsAccount && !(req.baseUrl === '/api' && (req.path.startsWith('/support') || req.path.startsWith('/admins/change-password')))) {
     return res.status(403).json({ error: 'Support agents can only use the Support section' });
   }
   next();
@@ -294,6 +296,7 @@ app.use('/api', supportAgentGuard);
 app.use('/api/dashboard', require('./routes/dashboard')());
 app.use('/api/players', require('./routes/players')());
 app.use('/api/matches', require('./routes/matches')());
+app.use('/api/records', require('./routes/records')());
 app.use('/api/tournaments', require('./routes/tournaments')());
 // Spec path for the test creator is /admin/api/comps/test - same router.
 app.use('/api/competitions', require('./routes/competitions')());
@@ -343,6 +346,8 @@ async function pollAndBroadcast() {
     const state = await internal.getLiveState();
     io.emit('admin:active_matches', state.activeMatches);
     io.emit('admin:player_count', { websocketConnections: state.websocketConnections });
+    // Every live match incl. competitions, only while someone is watching.
+    if (io.engine.clientsCount > 0) io.emit('admin:live_rows', await require('./routes/matches').buildLiveRows());
   } catch (e) {
     // Game server unreachable - stay quiet, the dashboard's own polling fetch
     // will surface "gameServerReachable: false" on its next refresh.

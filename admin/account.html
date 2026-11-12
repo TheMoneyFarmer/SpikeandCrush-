@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Account history — Spike & Crush Admin</title>
+<link rel="icon" href="/icons/admin.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/admin-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
+<link rel="stylesheet" href="css/admin-records.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="matches-history"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+        <form class="rec-toolbar" id="findForm">
+          <div class="field"><label for="findN">Account number</label><input id="findN" inputmode="numeric" pattern="\d{8}" maxlength="8" placeholder="8 digits" /></div>
+          <button class="btn btn-sm" type="submit">Open</button>
+          <span class="grow"></span>
+          <div class="field"><label for="verifyFile">Check a statement PDF someone sent</label><input type="file" id="verifyFile" accept="application/pdf" /></div>
+        </form>
+        <div id="verifyOut"></div>
+        <div id="acct"><div class="empty-state">Enter an account number, or open one from a match.</div></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/time-ago.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script>
+    Admin.renderNav();
+    Admin.renderTopbar('Account history');
+    const esc = (v) => Admin.escapeHtml(v == null ? '' : String(v));
+    const num = (x, d = 2) => (x == null || !Number.isFinite(Number(x)) ? '—' : Number(x).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }));
+    const signed = (x) => (x == null ? '—' : `<span class="${x >= 0 ? 'text-success' : 'text-danger'}">${x >= 0 ? '+' : ''}${num(x)}</span>`);
+    const when = (iso) => (iso ? new Date(iso).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—');
+    const mt = (s) => (s == null ? '—' : `+${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`);
+    const root = document.getElementById('acct');
+    let curveChart = null;
+
+    async function load(n) {
+      history.replaceState(null, '', `?n=${n}`);
+      document.getElementById('findN').value = n;
+      root.innerHTML = '<div class="empty-state">Loading…</div>';
+      let a;
+      try { a = await Admin.api(`/records/account/${encodeURIComponent(n)}`); } catch (e) { root.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; return; }
+      const s = a.summary;
+      const where = a.kind === 'match'
+        ? `<a href="/match-detail.html?id=${encodeURIComponent(a.match.id)}">${esc(a.match.mode)} war ${esc(a.match.room_code || '')}</a>`
+        : `<a href="/match-detail.html?competition=${encodeURIComponent(a.competition.id)}">${esc(a.competition.title)}</a>`;
+      const cells = [
+        ['Starting capital', num(s.startingCapital)], ['Balance', num(s.balance)], ['Equity', num(s.equity)], ['Margin', num(s.margin)],
+        ['Free margin', num(s.freeMargin)], ['Margin level at close', s.marginLevel == null ? '—' : `${num(s.marginLevel, 1)}%`], ['Floating P&L at end', num(s.floatingPnl)], ['Net profit', signed(s.netProfit)],
+        ['Gross profit', num(s.grossProfit)], ['Gross loss', num(s.grossLoss)], ['Profit factor', s.profitFactor == null ? '—' : num(s.profitFactor)], ['Max drawdown', s.maxDrawdown == null ? '—' : `${num(s.maxDrawdown)} (${num(s.maxDrawdownPct, 1)}%)${s.maxDrawdownAt != null ? ` at ${typeof s.maxDrawdownAt === 'number' ? mt(s.maxDrawdownAt) : when(s.maxDrawdownAt)}` : ''}`],
+        ['Win rate', s.winRate == null ? '—' : `${num(s.winRate, 1)}%`], ['Average win / loss', `${num(s.averageWin)} / ${num(s.averageLoss)}`], ['Largest win / loss', `${num(s.largestWin)} / ${num(s.largestLoss)}`], ['Trades (long / short)', `${s.trades} (${s.longTrades} / ${s.shortTrades})${s.openTrades ? `, ${s.openTrades} open` : ''}`],
+        ['Average hold', s.averageHoldSeconds == null ? '—' : `${s.averageHoldSeconds}s`], ['Cards received / played', `${s.cardsReceived ?? '—'} / ${s.cardsPlayed ?? '—'}`], ['Commission / swap', '0 / 0 (none in this game)'], ['Late entry', 'No'],
+      ];
+      root.innerHTML = `
+        <div class="rec-head">
+          <div><h2>Account <span class="mono">${a.accountNumber}</span></h2>
+            <div class="rec-note">${esc(a.player ? a.player.username : 'unknown')}${a.player ? ` · <a href="/player-detail.html?id=${encodeURIComponent(a.player.id)}">player profile</a>` : ''} · ${where} · rank ${a.finalRank ?? '—'} · ${esc(a.endReason || '')}</div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn btn-sm" href="/api/records/account/${a.accountNumber}/trades.csv">Trades CSV (MT5 columns)</a>
+            <button class="btn btn-sm btn-primary" id="pdfBtn" type="button">PDF statement</button>
+          </div>
+        </div>
+        <div class="rec-section"><h3>Trades</h3><span class="rec-note">Game capital, not money. Times are real time; market time is shown under each.</span></div>
+        <div class="rec-table-wrap"><table class="rec-table"><thead><tr><th>Ticket</th><th>Open time</th><th>Type</th><th class="num">Volume</th><th>Symbol</th><th class="num">Price</th><th class="num">S / L</th><th class="num">T / P</th><th>Close time</th><th class="num">Price</th><th class="num">Commission</th><th class="num">Swap</th><th class="num">Profit</th><th>Deal</th><th>Comment</th></tr></thead>
+        <tbody>${a.trades.map((t) => `<tr class="nolink"><td class="mono">${t.ticket ? `#${t.ticket}` : '—'}</td><td>${when(t.openTime)}<div class="rec-note">${mt(t.dataOpenS)}</div></td><td>${t.type}</td><td class="num">${t.volume}</td><td>${esc(t.symbol)}</td><td class="num">${t.openPrice}</td><td class="num">${t.sl ?? '—'}</td><td class="num">${t.tp ?? '—'}</td><td>${when(t.closeTime)}<div class="rec-note">${mt(t.dataCloseS)}</div></td><td class="num">${t.closePrice ?? '—'}</td><td class="num">0</td><td class="num">0</td><td class="num">${t.profit == null ? 'open' : signed(t.profit)}</td><td class="mono">${t.deal ? `#${t.deal}` : '—'}</td><td class="wrap">${esc(t.comment)}</td></tr>`).join('') || '<tr class="nolink"><td colspan="15" class="empty-state">No trades.</td></tr>'}</tbody></table></div>
+
+        <div class="rec-section"><h3>Summary</h3></div>
+        <div class="rec-meta">${cells.map(([k, v]) => `<div><span>${esc(k)}</span><b>${v}</b></div>`).join('')}</div>
+
+        <div class="rec-section"><h3>Equity curve</h3></div>
+        <div class="rec-chart"><canvas id="curve" aria-label="Equity over the match"></canvas></div>
+
+        <div class="rec-section"><h3>Modification log</h3><span class="rec-note">Every SL and TP change, and who or what caused it</span></div>
+        <div class="rec-table-wrap"><table class="rec-table"><thead><tr><th>Real time</th><th>Market time</th><th>Symbol</th><th>Position</th><th>SL before → after</th><th>TP before → after</th><th>Caused by</th></tr></thead>
+        <tbody>${a.modifications.map((m) => `<tr class="nolink"><td>${when(m.realAt)}</td><td>${mt(m.dataS)}</td><td>${esc(m.symbol)}</td><td class="mono">${esc((m.positionRef || '').slice(0, 8))}</td><td class="num">${m.before ? m.before.sl ?? '—' : '—'} → ${m.after ? m.after.sl ?? '—' : '—'}</td><td class="num">${m.before ? m.before.tp ?? '—' : '—'} → ${m.after ? m.after.tp ?? '—' : '—'}</td><td>${esc(m.by)}</td></tr>`).join('') || '<tr class="nolink"><td colspan="7" class="empty-state">No SL or TP changes recorded.</td></tr>'}</tbody></table></div>
+
+        <div class="rec-section"><h3>Statements issued</h3></div>
+        <div class="rec-table-wrap"><table class="rec-table"><thead><tr><th>Issued</th><th>By</th><th>SHA-256</th></tr></thead><tbody>${(a.statements || []).map((x) => `<tr class="nolink"><td>${when(x.created_at)}</td><td>${esc(x.generated_by)}</td><td class="mono">${esc(x.sha256)}</td></tr>`).join('') || '<tr class="nolink"><td colspan="3" class="empty-state">None yet.</td></tr>'}</tbody></table></div>
+
+        <div class="rec-section"><h3>Dispute flags</h3></div>
+        ${(a.flags || []).map((f) => `<div class="rec-flag">${esc(f.created_by)} · ${when(f.created_at)}<div>${esc(f.note)}</div></div>`).join('') || '<p class="rec-note">No flags.</p>'}
+        <form class="rec-toolbar" id="flagForm"><div class="field grow"><label for="flagNote">Flag this account or a ticket (logged)</label><input id="flagNote" maxlength="2000" required placeholder="What needs checking" /></div>
+          <div class="field"><label for="flagTicket">Ticket (optional)</label><select id="flagTicket"><option value="">Whole account</option>${a.trades.filter((t) => t.ticket).map((t) => `<option value="${t.ticket}">#${t.ticket} ${esc(t.symbol)}</option>`).join('')}</select></div>
+          <button class="btn btn-sm" type="submit">Add flag</button></form>
+      `;
+      const curve = (a.curve && a.curve.length ? a.curve : null);
+      if (curveChart) curveChart.destroy();
+      if (curve) {
+        curveChart = new Chart(document.getElementById('curve'), {
+          type: 'line',
+          data: { labels: curve.map((p) => (typeof p.t === 'number' ? mt(p.t) : when(p.t))), datasets: [{ label: 'Equity', data: curve.map((p) => p.equity), borderColor: '#6cb2ff', backgroundColor: 'rgba(108,178,255,.12)', fill: true, pointRadius: 0, borderWidth: 1.5 }] },
+          options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#9aa4b8', maxTicksLimit: 8 }, grid: { display: false } }, y: { ticks: { color: '#9aa4b8' }, grid: { color: 'rgba(160,182,222,.08)' } } } },
+        });
+      } else {
+        document.getElementById('curve').parentElement.innerHTML = '<div class="empty-state">No equity curve stored for this account (recorded for matches played after the records update).</div>';
+      }
+      document.getElementById('pdfBtn').addEventListener('click', async () => {
+        try {
+          const res = await fetch(`/api/records/account/${a.accountNumber}/statement`, { method: 'POST', credentials: 'include' });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Failed (${res.status})`);
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const link = Object.assign(document.createElement('a'), { href: url, download: `statement-${a.accountNumber}.pdf` });
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+          Admin.toast('Statement issued and recorded', 'success');
+          load(a.accountNumber);
+        } catch (e) { Admin.toast(e.message, 'danger'); }
+      });
+      document.getElementById('flagForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const ticket = document.getElementById('flagTicket').value;
+        try {
+          await Admin.api('/records/flags', { method: 'POST', body: { targetType: ticket ? 'trade' : 'account', targetId: ticket || String(a.accountNumber), note: document.getElementById('flagNote').value, matchId: a.match ? a.match.id : null, competitionId: a.competition ? a.competition.id : null } });
+          Admin.toast('Flag added', 'success');
+          load(a.accountNumber);
+        } catch (err) { Admin.toast(err.message, 'danger'); }
+      });
+    }
+
+    document.getElementById('findForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const n = document.getElementById('findN').value.trim();
+      if (/^\d{8}$/.test(n)) load(n); else Admin.toast('Account numbers have 8 digits', 'danger');
+    });
+    document.getElementById('verifyFile').addEventListener('change', async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const out = document.getElementById('verifyOut');
+      try {
+        const res = await fetch('/api/records/statements/verify', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/pdf' }, body: f });
+        const v = await res.json();
+        if (!res.ok) throw new Error(v.error || 'Check failed');
+        out.innerHTML = v.genuine
+          ? `<div class="rec-flag" style="border-color:var(--success)">Genuine and unchanged: statement for account <a href="?n=${v.accountNumber}">${v.accountNumber}</a>, issued ${when(v.issuedAt)} by ${esc(v.generatedBy)}.</div>`
+          : `<div class="rec-flag" style="border-color:var(--danger)">Not a statement we issued, or the file was changed after it was issued (SHA-256 ${esc(v.sha256)}).</div>`;
+      } catch (err) { out.innerHTML = `<div class="rec-flag">${esc(err.message)}</div>`; }
+    });
+
+    const n = new URLSearchParams(location.search).get('n');
+    if (n && /^\d{8}$/.test(n)) load(n);
+  </script>
+</body>
+</html>
