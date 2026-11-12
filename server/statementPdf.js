@@ -163,7 +163,8 @@ function renderStatement(account, meta = {}) {
 }
 
 function statementSecret() {
-  return process.env.STATEMENT_SECRET || process.env.INTERNAL_ADMIN_SECRET || process.env.ADMIN_SECRET || '';
+  // Never an empty key (that would let anyone forge a statement signature).
+  return require('./envCheck').signingSecret('statements', 'STATEMENT_SECRET', 'INTERNAL_ADMIN_SECRET', 'ADMIN_SECRET');
 }
 
 function signStatement(pdf) {

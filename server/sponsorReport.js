@@ -8,6 +8,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { visitorIp } = require('./originLock'); // the real visitor, not Cloudflare's edge address
 
 const SLOT_LABELS = {
   lobby_strip: 'Lobby strip', competition_card: 'Competition card', prematch: 'Before the match', match_header_chip: 'Match header',
@@ -75,7 +76,7 @@ ${waiting.length ? `<div class="card"><div class="k">Players waiting for a compe
 
 function createSponsorReportRouter({ db }) {
   const r = express.Router();
-  const limiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+  const limiter = rateLimit({ keyGenerator: (req) => visitorIp(req), windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
   r.get('/sponsor-report/:token', limiter, async (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.set('X-Robots-Tag', 'noindex');

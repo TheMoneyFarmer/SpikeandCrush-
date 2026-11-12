@@ -10,6 +10,7 @@ const { createKb } = require('./kb');
 const { createToolRunner } = require('./tools');
 const { createAgent, SupportAiUnavailable } = require('./agent');
 const { createUploads } = require('./uploads');
+const { createSupportBudget } = require('./budget');
 const safety = require('./safety');
 const emails = require('./emails');
 const { NO_CASH } = require('./knowledge/articles');
@@ -28,6 +29,7 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
   const store = createStore(supabase);
   const kb = createKb(supabase);
   const uploads = createUploads(supabase);
+  const budget = createSupportBudget();
   const room = (id) => `conv:${id}`;
 
   let service; // forward ref for tool callbacks
@@ -274,9 +276,18 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
     }
 
     const ctx = { playerId: owner.playerId || null, guestHash: owner.guestHash || null, conversationId: conv.id, conversationStatus: conv.status, kbArticleIds: [], pendingEscalation: null, hasGuestEmail: Boolean(conv.guest_email) };
+    // Spend guard: over the hourly per-account or daily cap, a human takes it.
+    const ownerKey = owner.playerId ? `p:${owner.playerId}` : `g:${owner.guestHash || 'unknown'}`;
+    const allowed = budget.check(ownerKey);
+    if (!allowed.ok) {
+      await say(conv, 'ai', 'You have sent a lot of messages. A human agent will reply here.', { kind: 'budget', reason: allowed.reason });
+      await escalate(conv.id, { reason: allowed.reason === 'daily_spend' ? 'AI daily limit reached' : 'AI hourly limit reached for this player', summary: text.slice(0, 200), source: 'ai_budget' });
+      return { conversation: await store.getConversation(conv.id), userMessage: userMsg, limited: true };
+    }
     let result;
     try {
       result = await agent.reply({ ctx, history, latestUserText: pii.text, onDelta });
+      budget.record(ownerKey, result && result.meta && result.meta.usage);
       if (!result.text) throw new SupportAiUnavailable('empty reply');
     } catch (e) {
       // Trigger 5: model/API failure after the SDK's retry. Never an empty bubble.

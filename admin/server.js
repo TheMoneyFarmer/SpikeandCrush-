@@ -1,6 +1,8 @@
 'use strict';
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+// Fail fast in production on a missing or placeholder required variable (env.example).
+require('../server/envCheck').checkEnv('admin');
 
 const path = require('path');
 const express = require('express');
@@ -320,6 +322,16 @@ app.use('/api/listings', require('./routes/listings')());
 app.use((req, res) => {
   if (req.method === 'GET' && /\btext\/html\b/.test(req.headers.accept || '')) return res.status(404).sendFile(path.join(__dirname, '404.html'));
   return res.status(404).send('Not found');
+});
+
+// Errors never show a stack trace or file path (checklist item 11). Bad JSON
+// bodies get a plain 400; anything else is logged here and answered 500.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const status = err.status || err.statusCode || 500;
+  if (status < 500) return res.status(status).json({ error: err.type === 'entity.parse.failed' ? 'The request body is not valid JSON' : 'Bad request' });
+  console.error('[admin] unhandled error on', req.method, req.path, '-', err.message);
+  res.status(500).json({ error: 'Something went wrong. Please try again.' });
 });
 
 // ---- live socket relay --------------------------------------------------------

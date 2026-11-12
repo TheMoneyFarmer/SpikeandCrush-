@@ -1,6 +1,8 @@
 'use strict';
 
 require('dotenv').config();
+// Fail fast in production on a missing or placeholder required variable (env.example).
+require('./envCheck').checkEnv('game');
 
 const fs = require('fs');
 const path = require('path');
@@ -3907,6 +3909,8 @@ app.get('/api/referrals/me', requireDb, authenticate, async (req, res) => {
 // Dev-only top-up so testing the game doesn't need real coins. Off in
 // production. Grants a fixed amount per call, never a client-supplied number.
 const DEV_COIN_GRANT_AMOUNT = 1000;
+// Not even registered in production (checklist item 11: no test routes live).
+if (process.env.NODE_ENV !== 'production') {
 app.post('/api/dev/add-coins', requireDb, authenticate, async (req, res) => {
   // Prod sets ALLOWED_ORIGIN to lock down CORS; dev leaves it unset. Either signal closes this.
   if (process.env.NODE_ENV === 'production' || allowedOrigins.length > 0) {
@@ -3921,7 +3925,8 @@ app.post('/api/dev/add-coins', requireDb, authenticate, async (req, res) => {
     console.error('[dev/add-coins]', e);
     res.status(500).json({ error: 'Could not grant coins' });
   }
-});
+});}
+
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 

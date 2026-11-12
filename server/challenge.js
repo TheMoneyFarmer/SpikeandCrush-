@@ -11,7 +11,9 @@
 const crypto = require('crypto');
 const gameFeel = require('./config/gameFeel');
 
-const secret = () => process.env.CHALLENGE_SECRET || process.env.JWT_SECRET || 'dev-only-challenge-secret';
+const { signingSecret } = require('./envCheck');
+// Never a fixed string from the source: see envCheck.signingSecret.
+const secret = () => signingSecret('challenge-links', 'CHALLENGE_SECRET', 'JWT_SECRET');
 const b64 = (buf) => Buffer.from(buf).toString('base64url');
 const sign = (data) => crypto.createHmac('sha256', secret()).update(data).digest('base64url').slice(0, 32);
 

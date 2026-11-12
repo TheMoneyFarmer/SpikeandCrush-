@@ -1,7 +1,7 @@
 {
   "name": "spikecrush",
   "version": "1.0.0",
-  "description": "Spike & Crush — The competitive trading game. Up. Then not.",
+  "description": "Spike & Crush \u2014 The competitive trading game. Up. Then not.",
   "main": "server/index.js",
   "type": "commonjs",
   "scripts": {
@@ -12,7 +12,10 @@
     "generate-data": "node data/dataProcessor.js",
     "data:fetch": "node scripts/fetch-market-data.js",
     "test": "node --test test/*.test.js",
-    "test:tours": "node scripts/tour-check.js"
+    "test:tours": "node scripts/tour-check.js",
+    "test:secrets": "node scripts/secret-scan.js",
+    "test:prod": "node scripts/prod-check.js",
+    "hooks": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

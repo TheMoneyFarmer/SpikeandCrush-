@@ -1,0 +1,4 @@
+#!/bin/sh
+# Blocks a commit that adds a secret (scripts/secret-scan.js). Installed by
+# `npm run hooks` (sets core.hooksPath to .githooks).
+exec node scripts/secret-scan.js --staged

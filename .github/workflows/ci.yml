@@ -13,6 +13,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for the secret scan
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -25,3 +27,7 @@ jobs:
         run: node scripts/check-alt.js
       - name: Dependency audit (fails on high or critical)
         run: npm audit --omit=dev --audit-level=high
+      - name: Secret scan (whole git history)
+        run: node scripts/secret-scan.js
+      - name: Production build check (no source maps, debug, dev routes, secret fallbacks)
+        run: node scripts/prod-check.js

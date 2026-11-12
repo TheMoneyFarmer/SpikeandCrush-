@@ -11,6 +11,7 @@ const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { visitorIp } = require('./originLock'); // the real visitor, not Cloudflare's edge address
 const compStates = require('./competitionStates');
 const liveFeed = require('./liveFeed');
 const secrets = require('./listingSecrets');
@@ -143,9 +144,9 @@ async function seedListings(supabase, seed, { now = Date.now() } = {}) {
 
 function createListingsRouter({ db, authenticate, optionalViewerId, sendEmail, clientDir, siteUrl }) {
   const r = express.Router();
-  const readLimiter = rateLimit({ windowMs: 60000, max: 120, standardHeaders: true, legacyHeaders: false });
-  const writeLimiter = rateLimit({ windowMs: 60000, max: 30, standardHeaders: true, legacyHeaders: false });
-  const goLimiter = rateLimit({ windowMs: 60000, max: 60, standardHeaders: true, legacyHeaders: false });
+  const readLimiter = rateLimit({ keyGenerator: (req) => visitorIp(req), windowMs: 60000, max: 120, standardHeaders: true, legacyHeaders: false });
+  const writeLimiter = rateLimit({ keyGenerator: (req) => visitorIp(req), windowMs: 60000, max: 30, standardHeaders: true, legacyHeaders: false });
+  const goLimiter = rateLimit({ keyGenerator: (req) => visitorIp(req), windowMs: 60000, max: 60, standardHeaders: true, legacyHeaders: false });
   const sb = () => db.client();
   let cache = { at: 0, rows: null };
 

@@ -8,6 +8,7 @@
 const path = require('path');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { visitorIp } = require('./originLock'); // the real visitor, not Cloudflare's edge address
 const compStates = require('./competitionStates');
 const liveFeed = require('./liveFeed');
 const { waitlistConfirmEmail } = require('./compEmails');
@@ -21,7 +22,7 @@ const COUNT_CACHE_MS = 30000;
 
 function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEmail, clientDir, siteUrl, sponsorNameFor }) {
   const r = express.Router();
-  const limiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+  const limiter = rateLimit({ keyGenerator: (req) => visitorIp(req), windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
   let counts = { at: 0, value: {} };
 
   async function waitlistCounts() {

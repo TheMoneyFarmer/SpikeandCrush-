@@ -16,6 +16,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { visitorIp } = require('./originLock'); // the real visitor, not Cloudflare's edge address
 const { effectiveTier } = require('./listings');
 
 const SLOTS = {
@@ -323,9 +324,9 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
   // ---- routes ---------------------------------------------------------------------------
   function router() {
     const r = express.Router();
-    const readLimiter = rateLimit({ windowMs: 60 * 1000, max: 240, standardHeaders: true, legacyHeaders: false });
-    const seenLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
-    const goLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
+    const readLimiter = rateLimit({ keyGenerator: (req) => visitorIp(req), windowMs: 60 * 1000, max: 240, standardHeaders: true, legacyHeaders: false });
+    const seenLimiter = rateLimit({ keyGenerator: (req) => visitorIp(req), windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
+    const goLimiter = rateLimit({ keyGenerator: (req) => visitorIp(req), windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
 
     // GET /api/slots?want=slot:target,slot:target[&preview=token]
     r.get('/api/slots', readLimiter, async (req, res) => {
