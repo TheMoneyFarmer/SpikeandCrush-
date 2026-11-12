@@ -145,10 +145,13 @@ async function totalsFor(sb, placementIds) {
 
 // The hourly job. Returns what it did (also used by the tests and the admin
 // "run now" button). sendEmail({to, subject, html, idempotencyKey}).
-async function runLifecycle(sb, { now = Date.now(), sendEmail, slotName = (s) => s, adminUrl = '', siteUrl = 'https://www.spikeandcrush.com', log = () => {} } = {}) {
+async function runLifecycle(sb, { now = Date.now(), sendEmail, slotName = (s) => s, adminUrl = '', siteUrl = 'https://www.spikeandcrush.com', log = () => {}, onlyPlacementIds = null } = {}) {
   const cfg = await readConfig(sb);
   const report = { moved: [], expired: [], reminders: [], skipped: 0, digest: false };
-  const rows = await must(sb.from('sponsor_placements').select('id, sponsor_id, slot, targets, status, starts_at, ends_at, lifecycle, archived_at, remind_contact, sponsor:sponsors(name, contact_email, remind_contact, status)'));
+  let q = sb.from('sponsor_placements').select('id, sponsor_id, slot, targets, status, starts_at, ends_at, lifecycle, archived_at, remind_contact, sponsor:sponsors(name, contact_email, remind_contact, status)');
+  // Tests run the job on their own rows only.
+  if (onlyPlacementIds) q = q.in('id', onlyPlacementIds);
+  const rows = await must(q);
 
   // 1. lifecycle column (and status 'ended' once expired)
   for (const p of rows || []) {

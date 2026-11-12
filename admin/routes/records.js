@@ -364,7 +364,7 @@ function router() {
         const found = await records.findAccount(supabase, q).catch(() => null);
         return res.json({ accounts: found ? [{ accountNumber: Number(q), kind: found.kind, matchId: found.row.match_id || null, competitionId: found.row.competition_id || null, playerId: found.row.player_id }] : [], players: [] });
       }
-      const players = await must(supabase.from('players').select('id, username').ilike('username', `%${q.replace(/[%_]/g, '')}%`).limit(20));
+      const players = await must(supabase.from('players').select('id, username').ilike('username', `%${q.slice(0, 40).replace(/[\\%_]/g, (c) => `\\${c}`)}%`).limit(20));
       res.json({ accounts: [], players: players || [] });
     } catch (e) {
       res.status(500).json({ error: e.message });

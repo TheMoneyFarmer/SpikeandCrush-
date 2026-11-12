@@ -181,14 +181,14 @@ async function idsForPlayerSearch(q) {
     out.compIds = (ca.data || []).map((r) => r.competition_id);
     return out;
   }
-  const { data: players } = await supabase.from('players').select('id').ilike('username', `%${q.replace(/[%_,()]/g, '')}%`).limit(50);
+  // % and _ are literal in a handle ("rectest_1"), not wildcards.
+  const like = q.slice(0, 40).replace(/[\\%_]/g, (c) => `\\${c}`);
+  const { data: players } = await supabase.from('players').select('id').ilike('username', `%${like}%`).limit(50);
   const ids = (players || []).map((p) => p.id);
   if (!ids.length) return { matchIds: [], compIds: [] };
-  const [mp, ca] = await Promise.all([
-    supabase.from('match_players').select('match_id').in('player_id', ids).limit(2000),
-    supabase.from('comp_accounts').select('competition_id').in('player_id', ids).limit(2000),
-  ]);
-  out.matchIds = [...new Set((mp.data || []).map((r) => r.match_id))];
+  // Handles filter through a join (no long id lists in the URL).
+  out.playerIds = ids;
+  const ca = await supabase.from('comp_accounts').select('competition_id').in('player_id', ids).limit(2000);
   out.compIds = [...new Set((ca.data || []).map((r) => r.competition_id))];
   return out;
 }
@@ -215,7 +215,7 @@ async function historyPage(query) {
   const wars = (async () => {
     if (!wantWars || (ids.matchIds && !ids.matchIds.length)) return [];
     let q = supabase.from('matches')
-      .select('id, mode, status, room_code, instrument_1, instrument_2, instruments, start_time, end_time, created_at, winner:players!matches_winner_id_fkey(username)')
+      .select(`id, mode, status, room_code, instrument_1, instrument_2, instruments, start_time, end_time, created_at, winner:players!matches_winner_id_fkey(username)${ids.playerIds ? ', seat:match_players!inner(player_id)' : ''}`)
       .order('created_at', { ascending: false })
       .limit(HISTORY_PAGE + 1);
     q = status ? q.eq('status', status) : q.in('status', ['finished', 'voided']);
@@ -224,7 +224,8 @@ async function historyPage(query) {
     if (from) q = q.gte('created_at', from);
     if (to) q = q.lte('created_at', to);
     if (instrument) q = q.or(`instruments.cs.["${instrument}"],instrument_1.eq.${instrument},instrument_2.eq.${instrument}`);
-    if (ids.matchIds) q = q.in('id', ids.matchIds.slice(0, 1000));
+    if (ids.matchIds) q = q.in('id', ids.matchIds.slice(0, 200));
+    if (ids.playerIds) q = q.in('seat.player_id', ids.playerIds);
     const { data, error } = await q;
     if (error) throw error;
     return (data || []).map((m) => ({
