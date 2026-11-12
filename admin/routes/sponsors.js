@@ -8,7 +8,9 @@
 const express = require('express');
 const multer = require('multer');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
-const { logAdminAction, logAdminActivity, clientIp } = require('../lib/auth');
+const { audit } = require('../lib/audit');
+const { sendEmail } = require('../lib/email');
+const lifecycle = require('../../server/sponsorLifecycle');
 const { MAX_LOGO_BYTES, validateLogo, isHttpUrl } = require('../lib/logoValidation');
 const crypto = require('crypto');
 const { SLOTS, SLOT_NAMES, signPreview } = require('../../server/sponsorSlots');
@@ -38,13 +40,24 @@ function requireEditor(req, res, next) {
   next();
 }
 
-async function audit(req, actionType, targetType, targetId, details = {}) {
-  const ip = clientIp(req);
-  await Promise.all([
-    logAdminAction({ adminUsername: req.admin.username, actionType, targetType, targetId, details, ip }),
-    logAdminActivity({ adminId: req.admin.id || null, adminEmail: req.admin.email || req.admin.username, action: actionType, targetTable: targetType, targetId, details, ip }),
-  ]);
+function requireSuper(req, res, next) {
+  if (!req.admin || req.admin.role !== 'super_admin') return res.status(403).json({ error: 'Only a super admin can delete' });
+  next();
 }
+
+// Before the records migration has run there is no remind_contact column:
+// save everything else rather than failing the whole edit.
+async function withoutMissingRemind(fields, write) {
+  const out = await write(fields);
+  if (out.error && /remind_contact/.test(out.error.message || '') && 'remind_contact' in fields) {
+    const { remind_contact, ...rest } = fields;
+    return write(rest);
+  }
+  return out;
+}
+
+// Typed confirmation: the sponsor's exact name (case and outer spaces ignored).
+const nameMatches = (typed, name) => String(typed || '').trim().toLowerCase() === String(name || '').trim().toLowerCase() && String(name || '').trim() !== '';
 
 // "Acme Markets!" -> "acme-markets": the slug fixes itself instead of refusing.
 function slugify(v) {
@@ -109,6 +122,8 @@ function sponsorFields(body, { partial }) {
     if (e && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return { error: 'Contact email is not valid' };
     fields.contact_email = e || null;
   }
+  // Also email the sponsor's contact 10 days / 2 days before and on expiry.
+  if (b.remindContact !== undefined) fields.remind_contact = b.remindContact === true;
   return { fields };
 }
 
@@ -218,6 +233,19 @@ async function settleSlug(fields, excludeId) {
   return 'Could not find a free slug. Type one in the Slug box.';
 }
 
+// The hourly lifecycle job (states + reminder emails), also run on demand.
+const ADMIN_URL = () => String(process.env.ADMIN_URL || 'https://admin.spikeandcrush.com').replace(/\/$/, '');
+function runLifecycleNow(opts = {}) {
+  return lifecycle.runLifecycle(supabase, {
+    sendEmail,
+    slotName: (s) => SLOT_TITLES[s] || (SLOTS[s] && SLOTS[s].label) || s,
+    adminUrl: ADMIN_URL(),
+    siteUrl: SITE(),
+    log: (m) => console.log(m),
+    ...opts,
+  });
+}
+
 function router() {
   const r = express.Router();
 
@@ -237,14 +265,9 @@ function router() {
     },
   };
 
-  async function statsFor(sponsorId, fromDay, toDay) {
-    const { data: placements, error } = await supabase.from('sponsor_placements').select('id, slot, targets, status, starts_at, ends_at').eq('sponsor_id', sponsorId);
-    if (error) throw error;
-    const ids = (placements || []).map((p) => p.id);
-    if (!ids.length) return { placements: [], days: [] };
-    const { data: days, error: e2 } = await supabase.from('sponsor_stats_daily').select('placement_id, day, impressions, unique_viewers, clicks, entries, outbound_clicks').in('placement_id', ids).gte('day', fromDay).lte('day', toDay).order('day');
-    if (e2) throw e2;
-    return { placements, days: days || [] };
+  // Includes placements since deleted (their stats live on in the archive).
+  function statsFor(sponsorId, fromDay, toDay) {
+    return lifecycle.loadSponsorStats(supabase, sponsorId, fromDay, toDay);
   }
 
   // Overlap rules: one presenting sponsor per competition at a time (blocking);
@@ -453,14 +476,284 @@ function router() {
     }
   });
 
-  r.delete('/placements/:pid', requireEditor, async (req, res) => {
+  // ---- lifecycle: archive, delete, extend, duplicate, reminders -------------------
+  // Archive hides a placement from lists and the calendar and stops it
+  // serving; stats and audit stay. Delete is super_admin only, for expired or
+  // archived placements, with the sponsor's name typed to confirm; its stats
+  // are copied to sponsor_stats_archive first so reports keep them.
+
+  async function loadPlacement(pid) {
+    const { data, error } = await supabase.from('sponsor_placements').select('*, sponsor:sponsors(id, name)').eq('id', pid).maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  async function archivePlacement(req, p) {
+    const now = new Date().toISOString();
+    const patch = { archived_at: now, lifecycle: 'archived', status: p.status === 'draft' ? 'draft' : 'ended', active: false, updated_at: now };
+    const { error } = await supabase.from('sponsor_placements').update(patch).eq('id', p.id);
+    if (error) throw error;
+    await audit(req, 'sponsor_placement_archive', 'sponsor_placements', p.id, { sponsor: p.sponsor && p.sponsor.name, slot: p.slot, endsAt: p.ends_at });
+  }
+
+  // Returns null when allowed, else the reason.
+  function deleteBlock(p, confirmName) {
+    const lc = lifecycle.lifecycleFor(p);
+    if (!['expired', 'archived'].includes(lc)) return `Only expired or archived placements can be deleted (this one is ${lc}). Archive it or wait for it to end.`;
+    if (!nameMatches(confirmName, p.sponsor && p.sponsor.name)) return `Type the sponsor name "${(p.sponsor && p.sponsor.name) || ''}" to confirm`;
+    return null;
+  }
+
+  async function deletePlacement(req, p) {
+    const { data: stats, error: e1 } = await supabase.from('sponsor_stats_daily').select('*').eq('placement_id', p.id);
+    if (e1) throw e1;
+    if (stats && stats.length) {
+      const rows = stats.map((s) => ({ placement_id: p.id, sponsor_id: p.sponsor_id, slot: p.slot, targets: p.targets, day: s.day, impressions: s.impressions || 0, unique_viewers: s.unique_viewers || 0, clicks: s.clicks || 0, entries: s.entries || 0, outbound_clicks: s.outbound_clicks || 0 }));
+      const { error: e2 } = await supabase.from('sponsor_stats_archive').upsert(rows, { onConflict: 'placement_id,day' });
+      if (e2) throw e2;
+    }
+    const { error } = await supabase.from('sponsor_placements').delete().eq('id', p.id);
+    if (error) throw error;
+    await audit(req, 'sponsor_placement_delete', 'sponsor_placements', p.id, { sponsor: p.sponsor && p.sponsor.name, slot: p.slot, startsAt: p.starts_at, endsAt: p.ends_at, statsDaysKept: (stats || []).length });
+  }
+
+  r.post('/placements/:pid/archive', requireEditor, async (req, res) => {
     if (!UUID_RE.test(req.params.pid)) return res.status(404).json({ error: 'Placement not found' });
     try {
-      const { data, error } = await supabase.from('sponsor_placements').delete().eq('id', req.params.pid).select('id, sponsor_id, placement, target_id').maybeSingle();
-      if (error) throw error;
-      if (!data) return res.status(404).json({ error: 'Placement not found' });
-      await audit(req, 'sponsor_placement_remove', 'sponsor_placements', data.id, data);
+      const p = await loadPlacement(req.params.pid);
+      if (!p) return res.status(404).json({ error: 'Placement not found' });
+      if (p.archived_at) return res.json({ success: true, already: true });
+      await archivePlacement(req, p);
       res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.post('/placements/:pid/unarchive', requireEditor, async (req, res) => {
+    if (!UUID_RE.test(req.params.pid)) return res.status(404).json({ error: 'Placement not found' });
+    try {
+      const p = await loadPlacement(req.params.pid);
+      if (!p) return res.status(404).json({ error: 'Placement not found' });
+      const now = new Date().toISOString();
+      const { error } = await supabase.from('sponsor_placements').update({ archived_at: null, lifecycle: lifecycle.lifecycleFor({ ...p, archived_at: null }), updated_at: now }).eq('id', p.id);
+      if (error) throw error;
+      await audit(req, 'sponsor_placement_unarchive', 'sponsor_placements', p.id, {});
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.delete('/placements/:pid', requireSuper, async (req, res) => {
+    if (!UUID_RE.test(req.params.pid)) return res.status(404).json({ error: 'Placement not found' });
+    try {
+      const p = await loadPlacement(req.params.pid);
+      if (!p) return res.status(404).json({ error: 'Placement not found' });
+      const block = deleteBlock(p, req.body && req.body.confirmName);
+      if (block) return res.status(400).json({ error: block });
+      await deletePlacement(req, p);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Bulk archive (editors) or delete (super_admin, same rules per row).
+  r.post('/placements/bulk', requireEditor, async (req, res) => {
+    const { action, ids, confirmName } = req.body || {};
+    const list = Array.isArray(ids) ? ids.filter((x) => UUID_RE.test(String(x))).slice(0, 200) : [];
+    if (!['archive', 'delete'].includes(action) || !list.length) return res.status(400).json({ error: 'Choose archive or delete and at least one placement' });
+    if (action === 'delete' && req.admin.role !== 'super_admin') return res.status(403).json({ error: 'Only a super admin can delete' });
+    const done = [];
+    const refused = [];
+    try {
+      for (const id of list) {
+        const p = await loadPlacement(id);
+        if (!p) { refused.push({ id, reason: 'not found' }); continue; }
+        if (action === 'archive') {
+          if (!p.archived_at) await archivePlacement(req, p);
+          done.push(id);
+          continue;
+        }
+        // One typed name confirms a bulk delete, so every row must belong to it.
+        const block = deleteBlock(p, confirmName);
+        if (block) { refused.push({ id, reason: block }); continue; }
+        await deletePlacement(req, p);
+        done.push(id);
+      }
+      res.json({ done, refused });
+    } catch (e) {
+      res.status(500).json({ error: e.message, done, refused });
+    }
+  });
+
+  // Extend the end date in one click (logged).
+  r.post('/placements/:pid/extend', requireEditor, async (req, res) => {
+    if (!UUID_RE.test(req.params.pid)) return res.status(404).json({ error: 'Placement not found' });
+    try {
+      const p = await loadPlacement(req.params.pid);
+      if (!p) return res.status(404).json({ error: 'Placement not found' });
+      const days = Number(req.body && req.body.days);
+      const endsAt = req.body && req.body.endsAt ? new Date(req.body.endsAt) : Number.isFinite(days) && days > 0 && days <= 366 ? new Date(Math.max(Date.parse(p.ends_at || Date.now()), Date.now()) + days * 86400000) : null;
+      if (!endsAt || Number.isNaN(endsAt.getTime())) return res.status(400).json({ error: 'Give a new end date or a number of days (1-366)' });
+      if (p.starts_at && endsAt <= new Date(p.starts_at)) return res.status(400).json({ error: 'The new end must be after the start' });
+      const next = { ...p, ends_at: endsAt.toISOString(), archived_at: null };
+      const check = await overlapCheck(next, p.id);
+      if (check.blocking) return res.status(409).json({ error: check.blocking, overlaps: check.overlaps });
+      const lc = lifecycle.lifecycleFor(next);
+      const patch = { ends_at: next.ends_at, archived_at: null, lifecycle: lc, updated_at: new Date().toISOString() };
+      // An expired placement that is extended goes back to serving.
+      if (p.status === 'ended' && lc !== 'expired') { patch.status = 'active'; patch.active = true; }
+      const { data, error } = await supabase.from('sponsor_placements').update(patch).eq('id', p.id).select().single();
+      if (error) throw error;
+      await audit(req, 'sponsor_placement_extend', 'sponsor_placements', p.id, { from: p.ends_at, to: next.ends_at });
+      res.json({ placement: data, warnings: check.warnings });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Renew as a new scheduled placement (same slot, target and creative).
+  r.post('/placements/:pid/duplicate', requireEditor, async (req, res) => {
+    if (!UUID_RE.test(req.params.pid)) return res.status(404).json({ error: 'Placement not found' });
+    try {
+      const p = await loadPlacement(req.params.pid);
+      if (!p) return res.status(404).json({ error: 'Placement not found' });
+      const length = p.starts_at && p.ends_at ? Date.parse(p.ends_at) - Date.parse(p.starts_at) : 30 * 86400000;
+      const startsAt = req.body && req.body.startsAt ? new Date(req.body.startsAt) : new Date(Math.max(Date.now(), Date.parse(p.ends_at || Date.now())));
+      const endsAt = req.body && req.body.endsAt ? new Date(req.body.endsAt) : new Date(startsAt.getTime() + length);
+      if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) return res.status(400).json({ error: 'Invalid dates' });
+      const row = {
+        sponsor_id: p.sponsor_id, placement: p.placement, target_id: p.target_id, sort_order: p.sort_order, slot: p.slot, targets: p.targets, weight: p.weight,
+        creative: p.creative, tagline: p.tagline, cta_text: p.cta_text, cta_url: p.cta_url, remind_contact: p.remind_contact || false,
+        starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), status: 'active', active: true, created_by: req.admin.username,
+      };
+      row.lifecycle = lifecycle.lifecycleFor(row);
+      const check = await overlapCheck(row, p.id);
+      if (check.blocking) return res.status(409).json({ error: check.blocking, overlaps: check.overlaps });
+      const { data, error } = await supabase.from('sponsor_placements').insert(row).select().single();
+      if (error) throw error;
+      await audit(req, 'sponsor_placement_duplicate', 'sponsor_placements', data.id, { from: p.id, startsAt: row.starts_at, endsAt: row.ends_at });
+      res.json({ placement: data, warnings: check.warnings });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.get('/placements/:pid/reminders', async (req, res) => {
+    if (!UUID_RE.test(req.params.pid)) return res.status(404).json({ error: 'Placement not found' });
+    try {
+      const { data, error } = await supabase.from('sponsor_reminders').select('*').eq('placement_id', req.params.pid).order('sent_at');
+      if (error) throw error;
+      res.json({ reminders: data || [] });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Reminder settings (admin address, digest, contact emails on/off).
+  r.get('/reminders/settings', async (req, res) => {
+    res.json(await lifecycle.readConfig(supabase));
+  });
+  r.put('/reminders/settings', requireEditor, async (req, res) => {
+    const b = req.body || {};
+    const cur = await lifecycle.readConfig(supabase);
+    const next = { ...cur };
+    if (b.enabled !== undefined) next.enabled = b.enabled === true;
+    if (b.digest !== undefined) next.digest = b.digest === true;
+    if (b.adminEmail !== undefined) {
+      const em = String(b.adminEmail).trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return res.status(400).json({ error: 'Enter a valid email address' });
+      next.adminEmail = em;
+    }
+    if (b.maxEmailsPerRun !== undefined) next.maxEmailsPerRun = Math.min(200, Math.max(1, Math.trunc(Number(b.maxEmailsPerRun) || 40)));
+    try {
+      const { error } = await supabase.from('app_settings').upsert({ key: 'sponsors.reminders', value: next, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw error;
+      await audit(req, 'sponsor_reminder_settings', 'app_settings', 'sponsors.reminders', next);
+      res.json(next);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Run the hourly job now (states + reminders). Same idempotency as the timer.
+  r.post('/lifecycle/run', requireEditor, async (req, res) => {
+    try {
+      const report = await runLifecycleNow();
+      await audit(req, 'sponsor_lifecycle_run', 'sponsor_placements', null, { moved: report.moved.length, reminders: report.reminders.length });
+      res.json(report);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Dashboard: how many placements need a look.
+  r.get('/lifecycle/summary', async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('sponsor_placements').select('id, starts_at, ends_at, archived_at, status');
+      if (error) throw error;
+      const counts = { scheduled: 0, active: 0, expiring: 0, expired: 0, archived: 0 };
+      for (const p of data || []) counts[lifecycle.lifecycleFor(p)]++;
+      res.json(counts);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Sponsor archive: only when nothing is live or scheduled. Delete: super
+  // admin, typed name, and no placement rows left at all.
+  r.post('/:id/archive', requireEditor, async (req, res) => {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Sponsor not found' });
+    try {
+      const { data: s, error } = await supabase.from('sponsors').select('id, name, sponsor_placements(id, starts_at, ends_at, archived_at, status)').eq('id', req.params.id).maybeSingle();
+      if (error) throw error;
+      if (!s) return res.status(404).json({ error: 'Sponsor not found' });
+      const live = (s.sponsor_placements || []).filter((p) => ['scheduled', 'active', 'expiring'].includes(lifecycle.lifecycleFor(p)) && !['draft', 'paused'].includes(p.status));
+      if (live.length) return res.status(400).json({ error: `${s.name} still has ${live.length} live or scheduled placement${live.length === 1 ? '' : 's'}. Archive or end those first.` });
+      const now = new Date().toISOString();
+      const { error: e2 } = await supabase.from('sponsors').update({ archived_at: now, status: 'ended', updated_at: now }).eq('id', s.id);
+      if (e2) throw e2;
+      await audit(req, 'sponsor_archive', 'sponsors', s.id, { name: s.name });
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.post('/:id/unarchive', requireEditor, async (req, res) => {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Sponsor not found' });
+    try {
+      const { data, error } = await supabase.from('sponsors').update({ archived_at: null, updated_at: new Date().toISOString() }).eq('id', req.params.id).select('id, name').maybeSingle();
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: 'Sponsor not found' });
+      await audit(req, 'sponsor_unarchive', 'sponsors', data.id, { name: data.name });
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.delete('/:id', requireSuper, async (req, res) => {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Sponsor not found' });
+    try {
+      const { data: s, error } = await supabase.from('sponsors').select('id, name, logo_url, logo_dark_url').eq('id', req.params.id).maybeSingle();
+      if (error) throw error;
+      if (!s) return res.status(404).json({ error: 'Sponsor not found' });
+      if (!nameMatches(req.body && req.body.confirmName, s.name)) return res.status(400).json({ error: `Type the sponsor name "${s.name}" to confirm` });
+      const { count, error: e1 } = await supabase.from('sponsor_placements').select('id', { count: 'exact', head: true }).eq('sponsor_id', s.id);
+      if (e1) throw e1;
+      if (count) return res.status(400).json({ error: `${s.name} still has ${count} placement${count === 1 ? '' : 's'}. Delete or archive those first; a sponsor with placements can't be deleted.` });
+      const { count: comps } = await supabase.from('competitions').select('id', { count: 'exact', head: true }).eq('sponsor_id', s.id);
+      if (comps) return res.status(400).json({ error: `${s.name} is linked to ${comps} competition${comps === 1 ? '' : 's'}. Archive the sponsor instead so those records stay intact.` });
+      // Logos come out of storage (only files in our own bucket).
+      const files = [s.logo_url, s.logo_dark_url].filter(Boolean).map((u) => { const m = String(u).match(new RegExp(`/${LOGO_BUCKET}/(.+)$`)); return m ? decodeURIComponent(m[1].split('?')[0]) : null; }).filter(Boolean);
+      if (files.length) await supabase.storage.from(LOGO_BUCKET).remove(files).catch(() => {});
+      const { error: e2 } = await supabase.from('sponsors').delete().eq('id', s.id);
+      if (e2) throw e2;
+      await audit(req, 'sponsor_delete', 'sponsors', s.id, { name: s.name, logosRemoved: files.length });
+      res.json({ success: true, logosRemoved: files.length });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -496,13 +789,30 @@ function router() {
       (clicks || []).forEach((c) => { clickCount[c.sponsor_id] = (clickCount[c.sponsor_id] || 0) + 1; });
       const imprCount = {};
       (impr || []).forEach((i) => { imprCount[i.sponsor_id] = (imprCount[i.sponsor_id] || 0) + i.count; });
+      // Lifecycle per placement (from the dates; the hourly job stores the same
+      // value) and the list view: current (default, archived hidden),
+      // expired, inactive or archived.
+      const cfg = await lifecycle.readConfig(supabase).catch(() => lifecycle.DEFAULTS);
+      const now = Date.now();
+      const view = ['expired', 'inactive', 'archived', 'all'].includes(req.query.view) ? req.query.view : 'current';
+      const LIVE = ['scheduled', 'active', 'expiring'];
+      let list = sponsors.map((s) => {
+        const clicksN = clickCount[s.id] || 0;
+        const imprN = imprCount[s.id] || 0;
+        const placements = (s.sponsor_placements || []).map((p) => ({ ...p, lifecycle: lifecycle.lifecycleFor(p, now, cfg) }));
+        // Inactive: nothing can serve (sponsor not active, or no live/scheduled placement).
+        const inactive = s.status !== 'active' || !placements.some((p) => LIVE.includes(p.lifecycle) && p.status !== 'draft' && p.status !== 'paused');
+        return { ...s, placements, sponsor_placements: undefined, inactive, archived: Boolean(s.archived_at), clicks: clicksN, impressions: imprN, ctr: imprN ? Math.round((clicksN / imprN) * 10000) / 100 : 0 };
+      });
+      if (view === 'current') list = list.filter((s) => !s.archived).map((s) => ({ ...s, placements: s.placements.filter((p) => p.lifecycle !== 'archived') }));
+      if (view === 'expired') list = list.map((s) => ({ ...s, placements: s.placements.filter((p) => p.lifecycle === 'expired') })).filter((s) => s.placements.length);
+      if (view === 'inactive') list = list.filter((s) => s.inactive && !s.archived);
+      if (view === 'archived') list = list.map((s) => ({ ...s, placements: s.archived ? s.placements : s.placements.filter((p) => p.lifecycle === 'archived') })).filter((s) => s.archived || s.placements.length);
       res.json({
-        sponsors: sponsors.map((s) => {
-          const clicksN = clickCount[s.id] || 0;
-          const imprN = imprCount[s.id] || 0;
-          return { ...s, placements: s.sponsor_placements || [], sponsor_placements: undefined, clicks: clicksN, impressions: imprN, ctr: imprN ? Math.round((clicksN / imprN) * 10000) / 100 : 0 };
-        }),
+        sponsors: list,
+        view,
         canEdit: ['super_admin', 'admin'].includes(req.admin.role),
+        canDelete: req.admin.role === 'super_admin',
         modes: MODES,
       });
     } catch (e) {
@@ -516,7 +826,7 @@ function router() {
     try {
       const taken = await settleSlug(fields, null);
       if (taken) return res.status(400).json({ error: taken });
-      const { data, error } = await supabase.from('sponsors').insert({ ...fields, created_by: req.admin.email || req.admin.username }).select().single();
+      const { data, error } = await withoutMissingRemind(fields, (f) => supabase.from('sponsors').insert({ ...f, created_by: req.admin.email || req.admin.username }).select().single());
       if (error) throw error;
       await audit(req, 'sponsor_create', 'sponsors', data.id, { name: data.name, status: data.status, tier: data.tier });
       res.json({ sponsor: data });
@@ -533,7 +843,7 @@ function router() {
     try {
       const taken = await settleSlug(fields, req.params.id);
       if (taken) return res.status(400).json({ error: taken });
-      const { data, error } = await supabase.from('sponsors').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().maybeSingle();
+      const { data, error } = await withoutMissingRemind(fields, (f) => supabase.from('sponsors').update({ ...f, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().maybeSingle());
       if (error) throw error;
       if (!data) return res.status(404).json({ error: 'Sponsor not found' });
       await audit(req, 'sponsor_update', 'sponsors', data.id, { name: data.name, ...fields });
@@ -702,3 +1012,4 @@ module.exports.placementFields = placementFields;
 module.exports.previewPath = previewPath;
 module.exports.slugify = slugify;
 module.exports.sponsorFields = sponsorFields;
+module.exports.runLifecycleNow = runLifecycleNow;

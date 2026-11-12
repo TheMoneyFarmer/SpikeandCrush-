@@ -59,14 +59,18 @@
           <div class="sp-switch" id="spSwitch">Loading…</div>
           <div class="panel">
             <div class="sp-toolbar">
+              <div class="field"><label for="fView">Show</label><select id="fView"><option value="current">Current</option><option value="expired">Expired placements</option><option value="inactive">Inactive sponsors</option><option value="archived">Archived</option><option value="all">Everything</option></select></div>
               <div class="field"><label for="fStatus">Status</label><select id="fStatus"><option value="">All</option><option>draft</option><option>active</option><option>paused</option><option>ended</option></select></div>
               <div class="field"><label for="fTier">Tier</label><select id="fTier"><option value="">All</option><option>platinum</option><option>gold</option><option>silver</option><option>partner</option></select></div>
               <div class="field"><label for="fFrom">Stats from</label><input type="date" id="fFrom" /></div>
               <div class="field"><label for="fTo">to</label><input type="date" id="fTo" /></div>
               <button class="btn" id="applyFilters">Apply</button>
               <span style="flex:1"></span>
+              <button class="btn editor-only" id="reminderSettingsBtn" type="button">Reminder emails</button>
+              <button class="btn editor-only" id="runLifecycleBtn" type="button" title="Move placements to their current state and send any reminders due">Run check now</button>
               <button class="btn btn-primary editor-only" id="newSponsorBtn">New sponsor</button>
             </div>
+            <div id="lifecycleCounts" class="muted" style="margin:0 0 10px"></div>
             <div id="sponsorTable">Loading…</div>
           </div>
 
@@ -103,6 +107,8 @@
     let sponsors = [];
     let modes = [];
     let canEdit = false;
+    let canDelete = false;
+    let currentView = 'current';
     let activeId = null;
     let competitions = [];
 
@@ -125,7 +131,7 @@
     // ---- sponsors list ----
     async function loadSponsors() {
       const qs = new URLSearchParams();
-      ['fStatus:status', 'fTier:tier', 'fFrom:from', 'fTo:to'].forEach((pair) => {
+      ['fView:view', 'fStatus:status', 'fTier:tier', 'fFrom:from', 'fTo:to'].forEach((pair) => {
         const [id, key] = pair.split(':');
         const v = document.getElementById(id).value;
         if (v) qs.set(key, v);
@@ -135,7 +141,10 @@
         sponsors = data.sponsors;
         modes = data.modes;
         canEdit = data.canEdit;
+        canDelete = Boolean(data.canDelete);
+        currentView = data.view || 'current';
         renderSponsors();
+        loadCounts();
         applyRole();
       } catch (e) {
         document.getElementById('sponsorTable').innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
@@ -151,7 +160,62 @@
       return { global_strip: 'Global strip', hero: 'Hero' }[p.placement] || p.placement;
     }
 
+    const LC_LABEL = { scheduled: 'Scheduled', active: 'Active', expiring: 'Expiring', expired: 'Expired', archived: 'Archived' };
+    const lcPill = (lc) => `<span class="status-pill lc-${esc(lc || '')}">${esc(LC_LABEL[lc] || lc || '')}</span>`;
+
+    async function loadCounts() {
+      try {
+        const c = await Admin.api('/sponsors/lifecycle/summary');
+        document.getElementById('lifecycleCounts').innerHTML = `Placements: ${c.scheduled} scheduled · ${c.active} active · <b>${c.expiring}</b> expiring within 10 days · <b>${c.expired}</b> expired · ${c.archived} archived${c.expired ? ' · <a href="#" id="reviewExpired">Review expired</a>' : ''}`;
+        document.getElementById('reviewExpired')?.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('fView').value = 'expired'; loadSponsors(); });
+      } catch (e) { document.getElementById('lifecycleCounts').textContent = ''; }
+    }
+
+    // Expired / archived views list placements, with bulk archive and delete.
+    function renderPlacementList() {
+      const rows = sponsors.flatMap((s) => s.placements.map((p) => ({ ...p, sponsorName: s.name, sponsorId: s.id })));
+      document.getElementById('sponsorTable').innerHTML = `
+        <div class="sp-bulk editor-only" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="bulkAll" /> Select all</label>
+          <span class="muted" id="bulkCount">0 selected</span>
+          <button class="btn btn-sm" id="bulkArchive" type="button">Archive selected</button>
+          ${canDelete ? '<button class="btn btn-sm btn-danger" id="bulkDelete" type="button">Delete selected</button>' : ''}
+        </div>
+        <div class="admin-table-wrap"><table class="admin-table">
+          <thead><tr><th></th><th>Sponsor</th><th>Slot</th><th>Target</th><th>State</th><th>Dates</th><th></th></tr></thead>
+          <tbody>${rows.map((p) => `<tr>
+            <td><input type="checkbox" class="bulk-pick" value="${p.id}" data-sponsor="${esc(p.sponsorName)}" aria-label="Select ${esc(p.sponsorName)} ${esc(slotName(p.slot))}" /></td>
+            <td>${esc(p.sponsorName)}</td><td>${esc(slotName(p.slot))}</td><td class="muted">${esc(p.targets || 'all')}</td><td>${lcPill(p.lifecycle)}</td>
+            <td class="muted">${p.starts_at ? Admin.formatDate(p.starts_at) : 'any time'} → ${p.ends_at ? Admin.formatDate(p.ends_at) : 'open'}</td>
+            <td><button class="btn btn-sm" data-open-sponsor="${p.sponsorId}" type="button">Open</button></td></tr>`).join('') || `<tr><td colspan="7">${currentView === 'expired' ? 'No expired placements left to review' : 'Nothing archived'}</td></tr>`}</tbody>
+        </table></div>`;
+      const picks = () => [...document.querySelectorAll('.bulk-pick:checked')];
+      const count = () => { document.getElementById('bulkCount').textContent = `${picks().length} selected`; };
+      document.querySelectorAll('.bulk-pick').forEach((c) => c.addEventListener('change', count));
+      document.getElementById('bulkAll')?.addEventListener('change', (e) => { document.querySelectorAll('.bulk-pick').forEach((c) => { c.checked = e.target.checked; }); count(); });
+      document.querySelectorAll('[data-open-sponsor]').forEach((b) => b.addEventListener('click', () => openSponsor(b.dataset.openSponsor)));
+      document.getElementById('bulkArchive')?.addEventListener('click', () => bulk('archive', picks()));
+      document.getElementById('bulkDelete')?.addEventListener('click', () => bulk('delete', picks()));
+    }
+
+    async function bulk(action, picked) {
+      if (!picked.length) return Admin.toast('Select at least one placement', 'warning');
+      let confirmName = null;
+      if (action === 'delete') {
+        const names = [...new Set(picked.map((c) => c.dataset.sponsor))];
+        if (names.length > 1) return Admin.toast('Delete one sponsor\'s placements at a time (the typed name confirms them)', 'warning');
+        confirmName = window.prompt(`Delete ${picked.length} placement${picked.length === 1 ? '' : 's'} of ${names[0]}? Stats are kept for reports. Type the sponsor name to confirm:`);
+        if (confirmName === null) return;
+      }
+      try {
+        const r = await Admin.api('/sponsors/placements/bulk', { method: 'POST', body: { action, ids: picked.map((c) => c.value), confirmName } });
+        Admin.toast(`${r.done.length} ${action === 'delete' ? 'deleted' : 'archived'}${r.refused.length ? `, ${r.refused.length} refused: ${r.refused[0].reason}` : ''}`, r.refused.length ? 'warning' : 'success');
+        loadSponsors();
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
     function renderSponsors() {
+      if (currentView === 'expired' || currentView === 'archived') return renderPlacementList();
       document.getElementById('sponsorTable').innerHTML = `
         <div class="admin-table-wrap"><table class="admin-table">
           <thead><tr><th>Logo</th><th>Name</th><th>Tier</th><th>Status</th><th>Dates</th><th>Placements</th><th>Impressions</th><th>Clicks</th><th>CTR</th></tr></thead>
@@ -160,7 +224,7 @@
               <td>${s.logo_url ? `<img class="sp-logo" src="${esc(s.logo_url)}" alt="${esc(s.name)}">` : '<span class="muted">none</span>'}</td>
               <td>${esc(s.name)}</td>
               <td>${esc(s.tier)}</td>
-              <td><span class="status-pill">${esc(s.status)}</span></td>
+              <td><span class="status-pill">${esc(s.status)}</span>${s.archived ? ' <span class="status-pill">archived</span>' : s.inactive ? ' <span class="status-pill">inactive</span>' : ''}</td>
               <td class="muted">${s.starts_at ? Admin.formatDate(s.starts_at) : 'any'} → ${s.ends_at ? Admin.formatDate(s.ends_at) : 'open'}</td>
               <td class="muted">${s.placements.filter((p) => (p.status || (p.active ? 'active' : '')) === 'active').map((p) => slotName(p.slot)).map(esc).join(', ') || 'none'}</td>
               <td>${Admin.formatNumber(s.impressions)}</td>
@@ -198,6 +262,7 @@
           <div class="field"><label for="eCName">Contact name</label><input class="edit-field" id="eCName" value="${esc(s.contact_name || '')}" /></div>
           <div class="field"><label for="eCEmail">Contact email</label><input class="edit-field" id="eCEmail" value="${esc(s.contact_email || '')}" /></div>
         </div>
+        <label class="field" style="display:flex;gap:8px;align-items:center"><input class="edit-field" type="checkbox" id="eRemind" ${s.remind_contact ? 'checked' : ''} /> Email the contact 10 days and 2 days before a placement ends, and when it ends</label>
         <div class="field-row">
           <div class="field"><label for="eTier">Tier</label><select class="edit-field" id="eTier">${['platinum', 'gold', 'silver', 'partner'].map((t) => `<option ${t === s.tier ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
           <div class="field"><label for="eStatus">Status</label><select class="edit-field" id="eStatus">${['draft', 'active', 'paused', 'ended'].map((t) => `<option ${t === s.status ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
@@ -207,7 +272,9 @@
           <div class="field"><label for="eEnd">Ends</label><input class="edit-field" type="datetime-local" id="eEnd" value="${toLocalInput(s.ends_at)}" /></div>
         </div>
         <div class="field"><label for="eNotes">Notes</label><textarea class="edit-field" id="eNotes">${esc(s.notes || '')}</textarea></div>
-        <div class="editor-only"><button class="btn btn-primary" id="saveSponsor">${isNew ? 'Create sponsor' : 'Save changes'}</button></div>
+        <div class="editor-only" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" id="saveSponsor">${isNew ? 'Create sponsor' : 'Save changes'}</button>
+          ${isNew ? '' : s.archived ? '<button class="btn" id="unarchiveSponsor" type="button">Unarchive</button>' : `<button class="btn" id="archiveSponsor" type="button" ${s.inactive ? '' : 'disabled title="Only sponsors with no live or scheduled placements can be archived"'}>Archive sponsor</button>`}
+          ${!isNew && canDelete ? `<button class="btn btn-danger" id="deleteSponsor" type="button" ${s.placements.length ? 'disabled title="Delete or archive its placements first"' : ''}>Delete sponsor</button>` : ''}</div>
         ${isNew ? '' : `
           <h4 style="margin-top:20px;">Logos</h4>
           <p class="muted">PNG, SVG or WebP, 1 MB max, stored in our own storage only. SVGs are cleaned of scripts and event handlers. The dark-background logo is used on the navy site and share images.</p>
@@ -230,6 +297,21 @@
         return;
       }
       document.getElementById('uploadLogo')?.addEventListener('click', () => uploadLogo(id));
+      document.getElementById('archiveSponsor')?.addEventListener('click', () => sponsorAction(id, 'archive'));
+      document.getElementById('unarchiveSponsor')?.addEventListener('click', () => sponsorAction(id, 'unarchive'));
+      document.getElementById('deleteSponsor')?.addEventListener('click', async () => {
+        const typed = window.prompt(`Delete ${s.name} for good? Its logos are removed from storage. Type the sponsor name to confirm:`);
+        if (typed === null) return;
+        try {
+          await Admin.api(`/sponsors/${id}`, { method: 'DELETE', body: { confirmName: typed } });
+          Admin.toast('Sponsor deleted', 'success');
+          document.getElementById('editPanel').classList.add('hidden');
+          document.getElementById('analyticsPanel').classList.add('hidden');
+          activeId = null;
+          loadSponsors();
+        } catch (e) { Admin.toast(e.message, 'danger'); }
+      });
+      panel.querySelectorAll('[data-lc]').forEach((b) => b.addEventListener('click', () => placementAction(b.dataset.lc, b.dataset.pid, s)));
       document.getElementById('newPlacement')?.addEventListener('click', () => openPlacement(id, null));
       panel.querySelectorAll('[data-del-placement]').forEach((b) => b.addEventListener('click', () => removePlacement(b.dataset.delPlacement)));
       panel.querySelectorAll('[data-edit-placement]').forEach((b) => b.addEventListener('click', () => openPlacement(id, s.placements.find((p) => p.id === b.dataset.editPlacement))));
@@ -255,6 +337,7 @@
         utmCampaign: document.getElementById('eUtmC').value,
         contactName: document.getElementById('eCName').value,
         contactEmail: document.getElementById('eCEmail').value,
+        remindContact: document.getElementById('eRemind').checked,
       };
       try {
         const r = await Admin.api(id ? `/sponsors/${id}` : '/sponsors', { method: id ? 'PUT' : 'POST', body });
@@ -285,12 +368,16 @@
     function placementCard(p) {
       const live = p.status === 'active' && (!p.starts_at || new Date(p.starts_at) <= new Date()) && (!p.ends_at || new Date(p.ends_at) > new Date());
       return `<div class="sp-pl">
-        <div class="sp-pl-head"><b>${esc(slotName(p.slot))}</b><span class="status-pill">${esc(p.status || (p.active ? 'active' : 'paused'))}${live ? ' · live now' : ''}</span>
+        <div class="sp-pl-head"><b>${esc(slotName(p.slot))}</b>${lcPill(p.lifecycle)}<span class="status-pill">${esc(p.status || (p.active ? 'active' : 'paused'))}${live ? ' · live now' : ''}</span>
           <span class="muted">${esc(p.targets || 'all')} · weight ${p.weight || 1}</span>
           <span style="flex:1"></span>
           <button class="btn btn-sm" data-preview-placement="${p.id}">Preview</button>
           <button class="btn btn-sm editor-only" data-edit-placement="${p.id}">Edit</button>
-          <button class="btn btn-sm editor-only" data-del-placement="${p.id}">Remove</button></div>
+          <button class="btn btn-sm editor-only" data-lc="extend" data-pid="${p.id}">Extend</button>
+          <button class="btn btn-sm editor-only" data-lc="duplicate" data-pid="${p.id}">Renew</button>
+          ${p.lifecycle === 'archived' ? `<button class="btn btn-sm editor-only" data-lc="unarchive" data-pid="${p.id}">Unarchive</button>` : `<button class="btn btn-sm editor-only" data-lc="archive" data-pid="${p.id}">Archive</button>`}
+          ${canDelete && ['expired', 'archived'].includes(p.lifecycle) ? `<button class="btn btn-sm btn-danger" data-lc="delete" data-pid="${p.id}">Delete</button>` : ''}
+          <button class="btn btn-sm" data-lc="reminders" data-pid="${p.id}">Reminders</button></div>
         <div class="muted">${p.starts_at ? Admin.formatDate(p.starts_at) : 'any time'} to ${p.ends_at ? Admin.formatDate(p.ends_at) : 'open'} · ${esc(p.creative || 'logo_tagline')}${p.tagline ? ` · "${esc(p.tagline)}"` : ''}${p.cta_text ? ` · button "${esc(p.cta_text)}"` : ''}</div>
       </div>`;
     }
@@ -376,6 +463,71 @@
         if (tab && !tab.closed) tab.close();
         Admin.toast(e.message, 'danger');
       }
+    }
+
+    async function sponsorAction(id, action) {
+      try {
+        await Admin.api(`/sponsors/${id}/${action}`, { method: 'POST' });
+        Admin.toast(action === 'archive' ? 'Sponsor archived' : 'Sponsor unarchived', 'success');
+        await loadSponsors();
+        if (sponsors.some((x) => x.id === id)) openSponsor(id); else document.getElementById('editPanel').classList.add('hidden');
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    async function placementAction(kind, pid, s) {
+      const p = s.placements.find((x) => x.id === pid) || {};
+      try {
+        if (kind === 'extend') {
+          const days = window.prompt('Extend by how many days?', '30');
+          if (days === null) return;
+          await Admin.api(`/sponsors/placements/${pid}/extend`, { method: 'POST', body: { days: Number(days) } });
+          Admin.toast('Placement extended', 'success');
+        } else if (kind === 'duplicate') {
+          const r = await Admin.api(`/sponsors/placements/${pid}/duplicate`, { method: 'POST', body: {} });
+          Admin.toast(`Renewed: new placement from ${Admin.formatDate(r.placement.starts_at)}`, 'success');
+        } else if (kind === 'archive' || kind === 'unarchive') {
+          await Admin.api(`/sponsors/placements/${pid}/${kind}`, { method: 'POST' });
+          Admin.toast(kind === 'archive' ? 'Placement archived' : 'Placement unarchived', 'success');
+        } else if (kind === 'delete') {
+          const typed = window.prompt(`Delete this ${slotName(p.slot)} placement? Its stats stay in the reports. Type the sponsor name "${s.name}" to confirm:`);
+          if (typed === null) return;
+          await Admin.api(`/sponsors/placements/${pid}`, { method: 'DELETE', body: { confirmName: typed } });
+          Admin.toast('Placement deleted (stats kept)', 'success');
+        } else if (kind === 'reminders') {
+          const r = await Admin.api(`/sponsors/placements/${pid}/reminders`);
+          const labels = { d10: '10 days before', d2: '2 days before', d0: 'on the day it ended' };
+          window.alert(r.reminders.length ? r.reminders.map((x) => `${labels[x.milestone] || x.milestone}: sent ${new Date(x.sent_at).toLocaleString()} to ${(x.recipients || []).join(', ')}${x.digest ? ' (in the daily digest)' : ''}`).join('\n') : 'No reminders sent for this placement yet.');
+          return;
+        }
+        await loadSponsors();
+        openSponsor(activeId);
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    }
+
+    async function openReminderSettings() {
+      try {
+        const c = await Admin.api('/sponsors/reminders/settings');
+        const backdrop = document.createElement('div');
+        backdrop.className = 'admin-modal-backdrop';
+        backdrop.innerHTML = `<div class="admin-modal" style="max-width:480px" role="dialog" aria-label="Reminder emails">
+          <h3>Reminder emails</h3>
+          <p class="muted">Sent 10 days and 2 days before a placement ends and on the day it ends, once per placement per milestone.</p>
+          <label class="field" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="rmOn" ${c.enabled ? 'checked' : ''}/> Send reminders</label>
+          <div class="field"><label for="rmTo">Admin address</label><input id="rmTo" value="${esc(c.adminEmail)}" /></div>
+          <label class="field" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="rmDigest" ${c.digest ? 'checked' : ''}/> Group the admin reminders into one digest per run</label>
+          <div class="field"><label for="rmMax">Most emails per hourly run</label><input id="rmMax" type="number" min="1" max="200" value="${esc(c.maxEmailsPerRun)}" /></div>
+          <p class="muted">Sponsor contacts are emailed only when "Email the contact" is ticked on that sponsor.</p>
+          <div class="admin-modal-actions"><button class="btn" id="rmCancel">Cancel</button><button class="btn btn-primary" id="rmSave">Save</button></div></div>`;
+        document.body.appendChild(backdrop);
+        backdrop.querySelector('#rmCancel').addEventListener('click', () => backdrop.remove());
+        backdrop.querySelector('#rmSave').addEventListener('click', async () => {
+          try {
+            await Admin.api('/sponsors/reminders/settings', { method: 'PUT', body: { enabled: backdrop.querySelector('#rmOn').checked, adminEmail: backdrop.querySelector('#rmTo').value, digest: backdrop.querySelector('#rmDigest').checked, maxEmailsPerRun: Number(backdrop.querySelector('#rmMax').value) } });
+            Admin.toast('Reminder settings saved', 'success');
+            backdrop.remove();
+          } catch (e) { Admin.toast(e.message, 'danger'); }
+        });
+      } catch (e) { Admin.toast(e.message, 'danger'); }
     }
 
     async function removePlacement(pid) {
@@ -569,11 +721,30 @@
     }
 
     document.getElementById('applyFilters').addEventListener('click', loadSponsors);
+    document.getElementById('fView').addEventListener('change', loadSponsors);
+    document.getElementById('reminderSettingsBtn').addEventListener('click', openReminderSettings);
+    document.getElementById('runLifecycleBtn').addEventListener('click', async () => {
+      try {
+        const r = await Admin.api('/sponsors/lifecycle/run', { method: 'POST' });
+        Admin.toast(`${r.moved.length} placement${r.moved.length === 1 ? '' : 's'} moved, ${r.reminders.length} reminder${r.reminders.length === 1 ? '' : 's'} sent`, 'success');
+        loadSponsors();
+      } catch (e) { Admin.toast(e.message, 'danger'); }
+    });
     document.getElementById('newSponsorBtn').addEventListener('click', () => openSponsor(null));
 
     const initialTab = new URLSearchParams(location.search).get('tab') || 'sponsors';
     // Competitions feed the placement target picker.
-    Admin.api('/sponsors/lobby-settings').then((s) => { competitions = s.competitions; }).catch(() => {}).finally(() => loadSwitch().finally(loadSponsors));
+    // ?view=expired (dashboard "Review expired") and ?placement=<id> (the
+    // "Extend or renew" link in reminder emails) open the right place.
+    const qp = new URLSearchParams(location.search);
+    if (['expired', 'inactive', 'archived', 'all'].includes(qp.get('view'))) document.getElementById('fView').value = qp.get('view');
+    if (qp.get('placement')) document.getElementById('fView').value = 'all';
+    Admin.api('/sponsors/lobby-settings').then((s) => { competitions = s.competitions; }).catch(() => {}).finally(() => loadSwitch().finally(async () => {
+      await loadSponsors();
+      const pid = qp.get('placement');
+      const owner = pid && sponsors.find((x) => x.placements.some((p) => p.id === pid));
+      if (owner) openSponsor(owner.id);
+    }));
     showTab(['sponsors', 'leads', 'lobby'].includes(initialTab) ? initialTab : 'sponsors');
   </script>
 </body>

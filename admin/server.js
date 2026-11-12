@@ -355,6 +355,17 @@ async function pollAndBroadcast() {
 }
 setInterval(pollAndBroadcast, 5000);
 
+// Sponsor placement lifecycle: hourly state moves + end-date reminders
+// (server/sponsorLifecycle.js). Idempotent, so a restart or a second admin
+// instance never sends a reminder twice. Off until the records migration ran.
+if (isConfigured) {
+  const sponsorTick = () => require('./routes/sponsors').runLifecycleNow().catch((e) => {
+    if (!/lifecycle|archived_at|sponsor_reminders|does not exist/.test(e.message || '')) console.warn('[sponsors] lifecycle run failed:', e.message);
+  });
+  setTimeout(sponsorTick, 30 * 1000).unref();
+  setInterval(sponsorTick, 60 * 60 * 1000).unref();
+}
+
 server.listen(ADMIN_PORT, () => {
   console.log(`Spike & Crush admin panel listening on http://localhost:${ADMIN_PORT}`);
   console.log(`[admin] Supabase ${isConfigured ? 'connected' : 'NOT configured'} - data endpoints ${isConfigured ? 'live' : 'will 503'}`);

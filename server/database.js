@@ -2638,21 +2638,11 @@ async function getSponsorReportToken(tokenHash) {
 }
 
 // Aggregate counts only, per placement per day, for a sponsor's report.
+// Includes placements since deleted (server/sponsorLifecycle.js keeps their
+// stats in sponsor_stats_archive).
 async function sponsorStats(sponsorId, fromDay, toDay) {
   assertConfigured();
-  const { data: placements, error } = await supabase.from('sponsor_placements').select('id, slot, targets').eq('sponsor_id', sponsorId);
-  if (error) throw error;
-  const ids = (placements || []).map((p) => p.id);
-  if (!ids.length) return { placements: [], days: [] };
-  const { data: days, error: e2 } = await supabase
-    .from('sponsor_stats_daily')
-    .select('placement_id, day, impressions, unique_viewers, clicks, entries, outbound_clicks')
-    .in('placement_id', ids)
-    .gte('day', fromDay)
-    .lte('day', toDay)
-    .order('day');
-  if (e2) throw e2;
-  return { placements, days: days || [] };
+  return require('./sponsorLifecycle').loadSponsorStats(supabase, sponsorId, fromDay, toDay);
 }
 
 module.exports = {
