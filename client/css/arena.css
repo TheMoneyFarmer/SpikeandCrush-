@@ -270,6 +270,10 @@ body.arena .pretrade-sltp-row input { min-height: 34px; width: 74px; flex: 0 0 a
 body.arena .pretrade-sltp-row .lot-chip { min-height: 30px; padding: 0 9px; font-size: 12px; }
 body.arena .sltp-header { margin-bottom: 6px; }
 body.arena .sltp-header .lot-chip { min-height: 28px; }
+/* Pips, Price and Drag stay on one line beside the label */
+body.arena .sltp-header #sltpModeToggle { flex: 0 0 auto; flex-wrap: nowrap; gap: 4px; }
+body.arena .sltp-header #sltpModeToggle .lot-chip { padding: 0 8px; font-size: 12px; }
+body.arena .sltp-header > span { flex-shrink: 0; }
 body.arena .positions-block { flex: 1 1 auto; min-height: 96px; display: flex; flex-direction: column; }
 body.arena .positions-list { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; padding-right: 2px; }
 body.arena .account-summary { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 8px; padding: 10px 12px; border-radius: 10px; background: var(--c-deep); margin: 0; }

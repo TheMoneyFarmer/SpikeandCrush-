@@ -483,6 +483,13 @@ html, body {
   margin-bottom: 6px;
 }
 
+/* Pips, Price and Drag always stay together on one line; in a narrow panel
+   the label goes above them instead */
+.sltp-header { flex-wrap: wrap; row-gap: 6px; }
+.sltp-header > span { flex: 1 0 auto; white-space: nowrap; }
+.sltp-header #sltpModeToggle { flex: 0 0 auto; flex-wrap: nowrap; gap: 4px; }
+.sltp-header #sltpModeToggle .lot-chip { padding: 4px 8px; font-size: 12px; }
+
 .pretrade-sltp-row {
   display: flex;
   align-items: center;
