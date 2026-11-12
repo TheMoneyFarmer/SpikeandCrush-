@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/admin-components.css" />
 <link rel="stylesheet" href="css/admin-support.css" />
 <link rel="stylesheet" href="css/admin-console.css" />
+<link rel="stylesheet" href="css/admin-records.css" />
 </head>
 <body>
   <div class="admin-shell">
@@ -19,7 +20,7 @@
       <div class="admin-topbar" id="adminTopbar"></div>
       <div class="admin-content">
         <div class="admin-table-toolbar">
-          <select id="aDays" aria-label="Period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select>
+          <span id="aRange"></span>
           <span class="sup-spacer"></span>
           <a class="btn btn-outline" id="aExport" hidden>Export CSV</a>
         </div>
@@ -31,6 +32,7 @@
   <script src="js/admin-api.js"></script>
   <script src="js/admin-auth.js"></script>
   <script src="js/admin-nav.js"></script>
+  <script src="js/date-range.js"></script>
   <script>
   (function () {
     Admin.renderNav();
@@ -39,12 +41,13 @@
     const $ = (id) => document.getElementById(id);
     const fmt = (v, unit = '') => (v === null || v === undefined ? '—' : `${v}${unit}`);
     const mins = (m) => (m === null || m === undefined ? '—' : m < 120 ? `${m} min` : `${Math.round(m / 60)} h`);
+    let range = null;
     async function load() {
-      const days = $('aDays').value;
       try {
-        const d = await Admin.api(`/support/analytics?days=${days}`);
+        if (!range) range = await Admin.DateRange.mount($('aRange'), { defaultPreset: '30d', onChange: () => load() });
+        const d = await Admin.api(`/support/analytics?${range.query()}`);
         $('aExport').hidden = !d.canExport;
-        $('aExport').href = `/api/support/analytics-export?days=${days}`;
+        $('aExport').href = `/api/support/analytics-export?${range.query()}`;
         const max = Math.max(1, ...d.perDay.map((p) => p.count));
         $('aBody').innerHTML = `
           <div class="kpi-grid">
@@ -66,7 +69,6 @@
         $('aBody').innerHTML = `<div class="sup-empty">${esc(e.message)}</div>`;
       }
     }
-    $('aDays').addEventListener('change', load);
     load();
   })();
   </script>

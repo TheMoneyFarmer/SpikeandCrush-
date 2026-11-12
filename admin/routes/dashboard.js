@@ -3,6 +3,7 @@
 const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const internal = require('../lib/internalGameServer');
+const { resolveRange, bucketIndex } = require('../../server/dateRange');
 
 // Past Battle Pass price, for revenue history. Nothing is on sale now.
 const BATTLE_PASS_PRICE_USD = 4.99;
@@ -67,45 +68,61 @@ function router() {
   r.get('/insights', async (req, res) => {
     if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
     try {
-      const days = [1, 7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 7;
+      // Range: preset or custom from/to, in the admin's time zone (server/dateRange.js).
+      const rng = resolveRange(req.query);
+      const compare = rng.prevStart != null;
       const modeFilter = Object.keys(MODE_GROUP).concat('other').includes(req.query.mode) ? req.query.mode : 'all';
-      const hourly = days === 1;
+      const hourly = rng.unit === 'hour';
       const now = Date.now();
-      const spanMs = days * 86400000;
-      const start = new Date(now - spanMs);
-      const prevStart = new Date(now - 2 * spanMs);
+      const start = new Date(rng.start);
+      const end = new Date(rng.end);
+      const prevStart = new Date(compare ? rng.prevStart : rng.start);
+      const days = Math.round((rng.end - rng.start) / 86400000) || 1;
       const cohortStart = new Date(now - 42 * 86400000); // six signup weeks for retention
+      const t0 = Date.now();
 
       const modeOf = (m) => MODE_GROUP[m] || 'other';
       const wantMode = (m) => modeFilter === 'all' || modeOf(m) === modeFilter;
 
       const [personas, matches, logins, signups, cohortPlayers, coinTx, invitesPaid, supportOpen, reportsOpen, circulation, live, purchases, passes] = await Promise.all([
         fetchAll(() => supabase.from('players').select('id').eq('is_persona', true)),
-        fetchAll(() => supabase.from('matches').select('id, mode, status, created_at, players:match_players(player_id)').gte('created_at', prevStart.toISOString()).order('created_at')),
-        fetchAll(() => supabase.from('login_events').select('player_id, created_at').gte('created_at', cohortStart < prevStart ? cohortStart.toISOString() : prevStart.toISOString())),
-        fetchAll(() => supabase.from('players').select('id, created_at').eq('is_persona', false).gte('created_at', prevStart.toISOString())),
+        fetchAll(() => supabase.from('matches').select('id, mode, status, created_at, players:match_players(player_id)').gte('created_at', prevStart.toISOString()).lt('created_at', end.toISOString()).order('created_at')),
+        fetchAll(() => supabase.from('login_events').select('player_id, created_at').gte('created_at', cohortStart < prevStart ? cohortStart.toISOString() : prevStart.toISOString()).lt('created_at', end.toISOString())),
+        fetchAll(() => supabase.from('players').select('id, created_at').eq('is_persona', false).gte('created_at', prevStart.toISOString()).lt('created_at', end.toISOString())),
         fetchAll(() => supabase.from('players').select('id, created_at').eq('is_persona', false).gte('created_at', cohortStart.toISOString())),
-        fetchAll(() => supabase.from('coin_transactions').select('type, amount, created_at, player_id').gte('created_at', start.toISOString())),
-        fetchAll(() => supabase.from('player_referrals').select('id, paid_at').eq('status', 'paid').gte('paid_at', prevStart.toISOString())),
+        fetchAll(() => supabase.from('coin_transactions').select('type, amount, created_at, player_id').gte('created_at', prevStart.toISOString()).lt('created_at', end.toISOString())),
+        fetchAll(() => supabase.from('player_referrals').select('id, paid_at').eq('status', 'paid').gte('paid_at', prevStart.toISOString()).lt('paid_at', end.toISOString())),
         supabase.from('support_conversations').select('id', { count: 'exact', head: true }).eq('status', 'waiting_human'),
         supabase.from('player_reports').select('id', { count: 'exact', head: true }).eq('status', 'open'),
         fetchAll(() => supabase.from('players').select('coins').eq('is_persona', false)),
         internal.getLiveState().catch(() => null),
-        fetchAll(() => supabase.from('coin_purchases').select('amount_usd, created_at').eq('status', 'completed').gte('created_at', prevStart.toISOString())),
-        fetchAll(() => supabase.from('battle_pass_subscriptions').select('is_premium, started_at').eq('is_premium', true).gte('started_at', prevStart.toISOString())),
+        fetchAll(() => supabase.from('coin_purchases').select('amount_usd, package_coins, created_at').eq('status', 'completed').gte('created_at', prevStart.toISOString()).lt('created_at', end.toISOString())),
+        fetchAll(() => supabase.from('battle_pass_subscriptions').select('is_premium, started_at').eq('is_premium', true).gte('started_at', prevStart.toISOString()).lt('started_at', end.toISOString())),
       ]);
+      // Counted widgets (head-only counts, indexed on time): this period and the one before.
+      const span = (table, col, extra) => Promise.all([
+        extra(supabase.from(table).select('*', { count: 'exact', head: true }).gte(col, start.toISOString()).lt(col, end.toISOString())),
+        compare ? extra(supabase.from(table).select('*', { count: 'exact', head: true }).gte(col, prevStart.toISOString()).lt(col, start.toISOString())) : { count: null },
+      ]).then(([a, b]) => ({ value: a.count || 0, prev: compare ? b.count || 0 : null }));
+      const same = (q) => q;
+      const dayOf = (d) => d.toISOString().slice(0, 10);
+      const [tradesK, waitlistK, supportK, friendReqK, sponsorDays] = await Promise.all([
+        span('trades', 'opened_at', same),
+        span('competition_waitlist', 'created_at', same).catch(() => ({ value: null, prev: null })),
+        span('support_conversations', 'created_at', same),
+        span('friendships', 'created_at', same),
+        fetchAll(() => supabase.from('sponsor_stats_daily').select('day, impressions, clicks').gte('day', dayOf(prevStart)).lt('day', dayOf(end))).catch(() => []),
+      ]);
+      // Sponsor counts are stored per day (UTC dates): days that start in the range.
+      const sponsorSum = (from, to) => sponsorDays.filter((d) => d.day >= dayOf(from) && d.day < dayOf(to)).reduce((a, d) => ({ impressions: a.impressions + (d.impressions || 0), clicks: a.clicks + (d.clicks || 0) }), { impressions: 0, clicks: 0 });
       const isPersona = new Set(personas.map((p) => p.id));
 
-      // buckets: hours for "today", days otherwise
-      const bucketMs = hourly ? 3600000 : 86400000;
-      const nBuckets = hourly ? 24 : days;
-      const bucketOf = (ts) => {
-        const i = Math.floor((new Date(ts).getTime() - start.getTime()) / bucketMs);
-        return i >= 0 && i < nBuckets ? i : -1;
-      };
-      const labels = Array.from({ length: nBuckets }, (_, i) => new Date(start.getTime() + i * bucketMs).toISOString());
-      const inCur = (ts) => new Date(ts) >= start;
-      const inPrev = (ts) => { const d = new Date(ts); return d >= prevStart && d < start; };
+      // buckets: local hours, days, weeks or months for the span (dateRange.js)
+      const nBuckets = rng.buckets.length;
+      const bucketOf = (ts) => bucketIndex(rng.buckets, new Date(ts).getTime());
+      const labels = rng.buckets.map((b) => b.label);
+      const inCur = (ts) => { const d = new Date(ts); return d >= start && d < end; };
+      const inPrev = (ts) => { if (!compare) return false; const d = new Date(ts); return d >= prevStart && d < start; };
 
       // matches, seats, players who played
       const mm = matches.filter((m) => wantMode(m.mode) && m.status !== 'cancelled' && m.status !== 'void');
@@ -174,8 +191,12 @@ function router() {
 
       // coin flows in the period (real players only)
       const flows = {};
+      let coinsSpentCur = 0, coinsSpentPrev = 0, coinsEarnedCur = 0, coinsEarnedPrev = 0;
       for (const t of coinTx) {
         if (isPersona.has(t.player_id)) continue;
+        if (COIN_OUT[t.type]) { if (inCur(t.created_at)) coinsSpentCur += Math.abs(t.amount); else if (inPrev(t.created_at)) coinsSpentPrev += Math.abs(t.amount); }
+        if (COIN_IN[t.type]) { if (inCur(t.created_at)) coinsEarnedCur += Math.abs(t.amount); else if (inPrev(t.created_at)) coinsEarnedPrev += Math.abs(t.amount); }
+        if (!inCur(t.created_at)) continue;
         const name = COIN_IN[t.type] || COIN_OUT[t.type];
         if (!name) continue;
         flows[name] = flows[name] || { name, dir: COIN_IN[t.type] ? 'in' : 'out', coins: 0 };
@@ -185,9 +206,10 @@ function router() {
       // revenue: completed coin purchases plus premium passes (at the price they sold for)
       const revCoins = Array(nBuckets).fill(0);
       const revPass = Array(nBuckets).fill(0);
-      let revCur = 0, revPrev = 0;
+      let revCur = 0, revPrev = 0, boughtCur = 0, boughtPrev = 0;
       for (const p of purchases) {
         const v = Number(p.amount_usd) || 0;
+        if (inCur(p.created_at)) boughtCur += Number(p.package_coins) || 0; else if (inPrev(p.created_at)) boughtPrev += Number(p.package_coins) || 0;
         if (inCur(p.created_at)) { revCur += v; const b = bucketOf(p.created_at); if (b >= 0) revCoins[b] += v; } else if (inPrev(p.created_at)) revPrev += v;
       }
       for (const p of passes) {
@@ -200,14 +222,22 @@ function router() {
       const running = lm.filter((m) => m.status === 'active' || m.status === 'countdown');
       const liveSeats = running.flatMap((m) => m.players || []);
       res.json({
-        range: { days, mode: modeFilter, hourly, labels },
+        range: { days, mode: modeFilter, hourly, labels, preset: rng.preset, tz: rng.tz, unit: rng.unit, from: start.toISOString(), to: end.toISOString(), prevFrom: compare ? prevStart.toISOString() : null, prevTo: compare ? start.toISOString() : null, compare, serverMs: Date.now() - t0 },
         kpis: {
-          activePlayers: { value: activeCur.size, prev: activePrev.size, series: activeSets.map((s) => s.size) },
-          signups: { value: signupsCur, prev: signupsPrev, series: signupSeries },
-          matches: { value: matchesCur, prev: matchesPrev, series: matchSeries },
-          realSeatsPct: { value: pct(seatsReal, seatsComp), prev: pct(seatsRealPrev, seatsCompPrev) },
-          invitesPaid: { value: invitesCur, prev: invitesPrev },
-          revenue: { value: cents(revCur), prev: cents(revPrev), series: revCoins.map((v, i) => cents(v + revPass[i])) },
+          activePlayers: { value: activeCur.size, prev: compare ? activePrev.size : null, series: activeSets.map((s) => s.size) },
+          signups: { value: signupsCur, prev: compare ? signupsPrev : null, series: signupSeries },
+          matches: { value: matchesCur, prev: compare ? matchesPrev : null, series: matchSeries },
+          realSeatsPct: { value: pct(seatsReal, seatsComp), prev: compare ? pct(seatsRealPrev, seatsCompPrev) : null },
+          invitesPaid: { value: invitesCur, prev: compare ? invitesPrev : null },
+          revenue: { value: cents(revCur), prev: compare ? cents(revPrev) : null, series: revCoins.map((v, i) => cents(v + revPass[i])) },
+          trades: tradesK,
+          coinsBought: { value: boughtCur, prev: compare ? boughtPrev : null },
+          coinsSpent: { value: coinsSpentCur, prev: compare ? coinsSpentPrev : null },
+          coinsEarned: { value: coinsEarnedCur, prev: compare ? coinsEarnedPrev : null },
+          sponsorImpressions: (() => { const c = sponsorSum(start, end); const p = compare ? sponsorSum(prevStart, start) : null; return { value: c.impressions, prev: p ? p.impressions : null, clicks: c.clicks, prevClicks: p ? p.clicks : null }; })(),
+          waitlistJoins: waitlistK,
+          supportChats: supportK,
+          friendRequests: friendReqK,
           supportWaiting: { value: supportOpen.count || 0 },
           reportsOpen: { value: reportsOpen.count || 0 },
         },
@@ -227,6 +257,7 @@ function router() {
         } : null,
       });
     } catch (e) {
+      if (e.status === 400) return res.status(400).json({ error: e.message });
       console.error('[admin dashboard insights]', e);
       res.status(500).json({ error: e.message });
     }

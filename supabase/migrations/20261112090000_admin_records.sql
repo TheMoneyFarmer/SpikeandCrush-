@@ -291,3 +291,13 @@ create table if not exists public.admin_prefs (
   updated_at timestamptz not null default now()
 );
 alter table public.admin_prefs enable row level security;
+
+-- ---- date-range reports: time indexes for the dashboard widgets -----------------
+create index if not exists trades_opened_at_idx on public.trades (opened_at);
+create index if not exists login_events_created_at_idx on public.login_events (created_at);
+create index if not exists players_created_at_idx on public.players (created_at);
+create index if not exists coin_purchases_created_at_idx on public.coin_purchases (created_at);
+create index if not exists competition_waitlist_created_at_idx on public.competition_waitlist (created_at);
+create index if not exists support_conversations_created_at_idx on public.support_conversations (created_at);
+create index if not exists friendships_created_at_idx on public.friendships (created_at);
+create index if not exists sponsor_stats_daily_day_idx on public.sponsor_stats_daily (day);

@@ -57,3 +57,12 @@
   .rec-toolbar .field { flex: 1 1 140px; }
   .rec-chart { height: 260px; }
 }
+
+/* Shared report date range control (js/date-range.js) */
+.dr { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dr-custom { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dr-custom[hidden] { display: none; }
+.dr-custom input { min-height: 34px; background: var(--card); color: var(--text); border: 1px solid var(--border-2); border-radius: 8px; padding: 4px 8px; font: inherit; font-size: 12px; color-scheme: dark; }
+.dr-dash { font-size: 12px; color: var(--text-secondary); }
+.dr-compare { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--text-secondary); }
+.dr-tz { font-size: 11px; color: var(--text-secondary); font-family: var(--mono); }

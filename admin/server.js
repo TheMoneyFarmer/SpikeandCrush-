@@ -287,7 +287,8 @@ const supportAgentGuard = (req, res, next) => {
   const supportReadsSponsors = req.method === 'GET' && req.path.startsWith('/sponsors') && !req.path.startsWith('/sponsors/leads');
   // A ticket linked to an account number lets the agent read that history.
   const supportReadsAccount = req.method === 'GET' && req.path.startsWith('/records/account/');
-  if (req.admin && req.admin.role === 'support' && !supportReadsSponsors && !supportReadsAccount && !(req.baseUrl === '/api' && (req.path.startsWith('/support') || req.path.startsWith('/admins/change-password')))) {
+  const ownPrefs = req.path === '/prefs' || req.path.startsWith('/prefs/');
+  if (req.admin && req.admin.role === 'support' && !supportReadsSponsors && !supportReadsAccount && !ownPrefs && !(req.baseUrl === '/api' && (req.path.startsWith('/support') || req.path.startsWith('/admins/change-password')))) {
     return res.status(403).json({ error: 'Support agents can only use the Support section' });
   }
   next();
@@ -297,6 +298,7 @@ app.use('/api/dashboard', require('./routes/dashboard')());
 app.use('/api/players', require('./routes/players')());
 app.use('/api/matches', require('./routes/matches')());
 app.use('/api/records', require('./routes/records')());
+app.use('/api/prefs', require('./routes/prefs')());
 app.use('/api/tournaments', require('./routes/tournaments')());
 // Spec path for the test creator is /admin/api/comps/test - same router.
 app.use('/api/competitions', require('./routes/competitions')());

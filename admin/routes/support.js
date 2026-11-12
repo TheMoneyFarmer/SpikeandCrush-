@@ -369,9 +369,18 @@ function router() {
   }));
 
   // ---- analytics ------------------------------------------------------------------------
-  async function analytics(days) {
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    const convs = await q(supabase.from('support_conversations').select('id, status, created_at, escalated_at, escalation_reason, first_human_response_at, resolved_at, csat').gte('created_at', since).limit(10000));
+  // Range: ?preset/from/to/tz (server/dateRange.js); old ?days= still works.
+  function rangeOf(query) {
+    const { resolveRange } = require('../../server/dateRange');
+    const rq = { ...query };
+    if (!rq.preset && !rq.from && !rq.days) rq.days = '30';
+    return resolveRange(rq);
+  }
+  async function analytics(rng) {
+    const since = new Date(rng.start).toISOString();
+    const until = new Date(rng.end).toISOString();
+    const days = Math.round((rng.end - rng.start) / 86400000) || 1;
+    const convs = await q(supabase.from('support_conversations').select('id, status, created_at, escalated_at, escalation_reason, first_human_response_at, resolved_at, csat').gte('created_at', since).lt('created_at', until).limit(10000));
     const gaps = await q(supabase.from('support_kb_gaps').select('question, count').eq('status', 'open').order('count', { ascending: false }).limit(10));
     const perDay = {};
     for (const c of convs) perDay[c.created_at.slice(0, 10)] = (perDay[c.created_at.slice(0, 10)] || 0) + 1;
@@ -389,6 +398,7 @@ function router() {
     const rated = convs.filter((c) => c.csat !== null && c.csat !== undefined);
     return {
       days,
+      range: { from: since, to: until, tz: rng.tz, preset: rng.preset },
       totalConversations: convs.length,
       perDay: Object.entries(perDay).sort().map(([day, count]) => ({ day, count })),
       aiOnlyPct: convs.length ? Math.round((aiOnly / convs.length) * 100) : null,
@@ -403,20 +413,24 @@ function router() {
   }
   r.get('/analytics', h(async (req, res) => {
     if (!canSeeAnalytics(req)) return res.status(403).json({ error: 'Not allowed for your role' });
-    res.json({ ...(await analytics(Math.min(365, Math.max(1, Number(req.query.days) || 30)))), canExport: canExport(req) });
+    let rng;
+    try { rng = rangeOf(req.query); } catch (e) { return res.status(400).json({ error: e.message }); }
+    res.json({ ...(await analytics(rng)), canExport: canExport(req) });
   }));
   r.get('/analytics-export', h(async (req, res) => {
     if (!canExport(req)) return res.status(403).json({ error: 'Only admins can export analytics' });
-    const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    const rows = await q(supabase.from('support_conversations').select('id, status, priority, topic, escalation_reason, created_at, escalated_at, first_human_response_at, resolved_at, csat').gte('created_at', since).order('created_at').limit(10000));
+    let rng;
+    try { rng = rangeOf(req.query); } catch (e) { return res.status(400).json({ error: e.message }); }
+    const days = Math.round((rng.end - rng.start) / 86400000) || 1;
+    const since = new Date(rng.start).toISOString();
+    const rows = await q(supabase.from('support_conversations').select('id, status, priority, topic, escalation_reason, created_at, escalated_at, first_human_response_at, resolved_at, csat').gte('created_at', since).lt('created_at', new Date(rng.end).toISOString()).order('created_at').limit(10000));
     const cols = ['id', 'status', 'priority', 'topic', 'escalation_reason', 'created_at', 'escalated_at', 'first_human_response_at', 'resolved_at', 'csat'];
     // A leading = + - @ would run as a formula when the CSV is opened in a
     // spreadsheet, and some of this text comes from players.
     const esc = (v) => `"${String(v ?? '').replace(/^[=+\-@\t\r]/, "'$&").replace(/"/g, '""')}"`;
     await log(req, 'support_analytics_export', 'support', null, { days, rows: rows.length });
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="support-${days}d.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="support-${since.slice(0, 10)}_${new Date(rng.end).toISOString().slice(0, 10)}.csv"`);
     res.send([cols.join(','), ...rows.map((row) => cols.map((c) => esc(row[c])).join(','))].join('\n'));
   }));
 
