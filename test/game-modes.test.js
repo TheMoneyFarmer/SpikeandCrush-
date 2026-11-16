@@ -134,7 +134,8 @@ test('walkthrough: every tour anchor exists in the page sources; overrides edit 
   const read = (f) => fs.readFileSync(path.join(__dirname, '..', 'client', f), 'utf8');
   const sources = {
     lobby: read('index.html') + read('js/mode-lobby.js'),
-    game: read('game.html'),
+    // the phone landscape layout builds its own anchors (js/phone-land.js)
+    game: read('game.html') + read('js/phone-land.js'),
     results: read('js/game.js'),
   };
   const cfg = tours.get();

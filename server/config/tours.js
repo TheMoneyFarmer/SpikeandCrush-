@@ -55,6 +55,23 @@ const DEFAULTS = {
         { anchor: 'standings', title: 'Standings', body: 'Highest equity when the clock hits zero wins. Good luck.' },
       ],
     },
+    // The same first match on a phone in landscape (client/js/phone-land.js):
+    // runs instead of firstMatch there; finishing either counts for both.
+    firstMatchPhone: {
+      version: 1,
+      page: 'game',
+      label: 'First match on a phone (landscape)',
+      modes: ['solo'],
+      steps: [
+        { anchor: 'rail-chart', title: 'Five tabs', body: 'Assets, Chart, Play, Trade and Arena sit down the left. You start on the chart.' },
+        { anchor: 'buy-sell', title: 'One tap trades', body: 'BUY if you think the price goes up, SELL if you think it goes down. One tap fills at market. You can ask to confirm first in Settings.' },
+        { anchor: 'lot-chips', title: 'Lot size', body: 'Pick the size before you tap. Bigger lots move faster both ways. Hold a chip for every size.' },
+        { anchor: 'rail-play', title: 'The order ticket', body: 'The gold button opens the full ticket: instrument, lot, stop loss and take profit.' },
+        { anchor: 'spike-strip', title: 'Spike alerts', body: 'Alerts, missions and the crown show in this row. It never covers the chart.' },
+        { anchor: 'rail-trade', title: 'Your trades', body: 'Open positions and the live standings. Close a trade or set its stop loss here.' },
+        { anchor: 'rail-arena', title: 'Cards', body: 'Win trades in a row to earn cards, then use them on the leader. Highest equity at the bell wins.' },
+      ],
+    },
     postMatch: {
       version: 1,
       page: 'results',

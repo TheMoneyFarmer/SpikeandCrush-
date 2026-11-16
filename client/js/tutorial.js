@@ -289,7 +289,13 @@ window.TW = window.TW || {};
   async function forMatch(state) {
     const data = await load();
     if (!data || !state) return false;
-    if (due(data, 'firstMatch')) return run('firstMatch', data);
+    if (due(data, 'firstMatch')) {
+      // Phone in landscape: the same tour, pointing at the rail and the order rail.
+      if (window.TW && TW.PhoneLand && TW.PhoneLand.isOn() && data.tours.firstMatchPhone) {
+        return run('firstMatchPhone', data, { onDone: () => record('firstMatch', 'completed', null) });
+      }
+      return run('firstMatch', data);
+    }
     const id = `mode_${state.mode}`;
     if (data.tours[id] && due(data, id)) return run(id, data);
     return false;
