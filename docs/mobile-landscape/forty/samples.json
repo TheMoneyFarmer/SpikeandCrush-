@@ -1,0 +1,167 @@
+{
+  "samples": [
+    {
+      "t": 5,
+      "Documents": 1,
+      "JSEventListeners": 266,
+      "Nodes": 6869,
+      "JSHeapUsedSize": 16769740
+    },
+    {
+      "t": 36,
+      "Documents": 1,
+      "JSEventListeners": 263,
+      "Nodes": 4896,
+      "JSHeapUsedSize": 10482492
+    },
+    {
+      "t": 66,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 4158,
+      "JSHeapUsedSize": 10517944
+    },
+    {
+      "t": 96,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 4164,
+      "JSHeapUsedSize": 10666300
+    },
+    {
+      "t": 126,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 10380,
+      "JSHeapUsedSize": 21721204
+    },
+    {
+      "t": 156,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 4459,
+      "JSHeapUsedSize": 10482960
+    },
+    {
+      "t": 186,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 10084,
+      "JSHeapUsedSize": 21167640
+    },
+    {
+      "t": 216,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 22063,
+      "JSHeapUsedSize": 32987324
+    },
+    {
+      "t": 246,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 9610,
+      "JSHeapUsedSize": 20588116
+    },
+    {
+      "t": 277,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 21663,
+      "JSHeapUsedSize": 33194016
+    },
+    {
+      "t": 307,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 10501,
+      "JSHeapUsedSize": 20817744
+    },
+    {
+      "t": 337,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 21976,
+      "JSHeapUsedSize": 33400956
+    },
+    {
+      "t": 367,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 10375,
+      "JSHeapUsedSize": 21958984
+    },
+    {
+      "t": 397,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 22862,
+      "JSHeapUsedSize": 33843948
+    },
+    {
+      "t": 427,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 9298,
+      "JSHeapUsedSize": 22083024
+    },
+    {
+      "t": 457,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 22841,
+      "JSHeapUsedSize": 33908432
+    },
+    {
+      "t": 487,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 8555,
+      "JSHeapUsedSize": 21195592
+    },
+    {
+      "t": 518,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 22589,
+      "JSHeapUsedSize": 33910000
+    },
+    {
+      "t": 548,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 4195,
+      "JSHeapUsedSize": 12450404
+    },
+    {
+      "t": 578,
+      "Documents": 1,
+      "JSEventListeners": 267,
+      "Nodes": 5821,
+      "JSHeapUsedSize": 14068480
+    }
+  ],
+  "fps0": {
+    "fps": 60,
+    "worstFrameMs": 17
+  },
+  "fps1": {
+    "fps": 60,
+    "worstFrameMs": 33
+  },
+  "stats": {
+    "opens": 1735,
+    "closes": 1672,
+    "modifies": 408,
+    "cards": 177
+  },
+  "seen": {
+    "lbRows": 40,
+    "crown": true,
+    "missions": true,
+    "spike": false,
+    "frozen": true,
+    "positions": 1,
+    "arenaCards": 0
+  }
+}

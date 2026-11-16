@@ -1,0 +1,47 @@
+[
+  {
+    "name": "40 players seated in one Private War",
+    "pass": true,
+    "detail": "40 seats"
+  },
+  {
+    "name": "standings show all 40 players",
+    "pass": true,
+    "detail": "40 rows"
+  },
+  {
+    "name": "crown, missions and positions updated on the tabs",
+    "pass": true,
+    "detail": "{\"lbRows\":40,\"crown\":true,\"missions\":true,\"spike\":false,\"frozen\":true,\"positions\":1,\"arenaCards\":0}"
+  },
+  {
+    "name": "bots really played: opens, closes, SL/TP changes, card plays",
+    "pass": true,
+    "detail": "{\"opens\":1735,\"closes\":1672,\"modifies\":408,\"cards\":177}"
+  },
+  {
+    "name": "no listener growth over 10 min",
+    "pass": true,
+    "detail": "JS event listeners 263 -> 267"
+  },
+  {
+    "name": "DOM size stays flat",
+    "pass": true,
+    "detail": "nodes 4896 -> 5821"
+  },
+  {
+    "name": "JS heap stays flat",
+    "pass": true,
+    "detail": "heap 10.5 MB -> 14.1 MB"
+  },
+  {
+    "name": "frame rate on a 4x throttled CPU stays smooth",
+    "pass": true,
+    "detail": "start {\"fps\":60,\"worstFrameMs\":17}, end {\"fps\":60,\"worstFrameMs\":33}"
+  },
+  {
+    "name": "no page errors",
+    "pass": true,
+    "detail": ""
+  }
+]

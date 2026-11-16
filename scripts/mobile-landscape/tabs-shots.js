@@ -38,6 +38,13 @@ const SIZES = (process.env.SIZES || '640x360,736x414,844x390,932x430,1024x500').
     await page.screenshot({ path: path.join(OUT, `ticket-${w}x${h}.png`) });
     await page.evaluate(() => TW.PhoneLand.setTicket(false));
   }
+  // upright phone: the "Turn your phone" card
+  for (const [w, h] of (process.env.PORTRAIT || '390x844,430x932').split(',').map((s) => s.split('x').map(Number))) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate(() => TW.PhoneLand._evaluate && TW.PhoneLand._evaluate());
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: path.join(OUT, `portrait-${w}x${h}.png`) });
+  }
   console.log(errors.length ? `page errors: ${errors.join(' | ')}` : 'no page errors');
   await ph.leave(page, matchId);
   await browser.close();
