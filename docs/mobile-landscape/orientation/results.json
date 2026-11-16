@@ -1,0 +1,57 @@
+[
+  {
+    "name": "Android: nothing is requested before a tap",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "name": "Android: first tap requests fullscreen and the landscape lock",
+    "pass": true,
+    "detail": "[\"requestFullscreen\",\"lock:landscape\"]"
+  },
+  {
+    "name": "Android: after the lock the landscape screen shows",
+    "pass": true,
+    "detail": "{\"mode\":\"locked-landscape\",\"on\":true,\"turnCard\":false}"
+  },
+  {
+    "name": "Android: leaving unlocks the orientation and exits fullscreen",
+    "pass": true,
+    "detail": "[\"requestFullscreen\",\"lock:landscape\",\"unlock\",\"exitFullscreen\"]"
+  },
+  {
+    "name": "iOS: lock refused silently, fallback shown",
+    "pass": true,
+    "detail": "{\"lock\":\"refused: NotSupportedError\",\"mode\":\"turn-card\"}"
+  },
+  {
+    "name": "iOS: turning the phone shows the landscape screen",
+    "pass": true,
+    "detail": "{\"mode\":\"landscape\",\"turn\":false}"
+  },
+  {
+    "name": "\"Play upright this time\" falls back to the portrait layout",
+    "pass": true,
+    "detail": "{\"pl\":false,\"tabs\":\"flex\"}"
+  },
+  {
+    "name": "chart under CSS rotation: crosshair lands under the finger",
+    "pass": false,
+    "detail": "expected (120,80), library saw {\"x\":509,\"y\":119}"
+  },
+  {
+    "name": "control, unrotated: crosshair lands under the finger",
+    "pass": true,
+    "detail": "{\"x\":120,\"y\":80}"
+  },
+  {
+    "name": "setting off: the portrait layout stays",
+    "pass": true,
+    "detail": "{\"pl\":false,\"tabs\":\"flex\"}"
+  },
+  {
+    "name": "desktop: no phone layout and no fullscreen or lock requests",
+    "pass": true,
+    "detail": "{\"pl\":false,\"calls\":[],\"arena\":true}"
+  }
+]

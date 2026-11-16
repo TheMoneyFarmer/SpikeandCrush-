@@ -17,6 +17,13 @@ const rankSplit = require('./rankSplit');
 const cosmetics = require('./cosmetics');
 const intrabar = require('./intrabar');
 const { createMatchLog, downsample } = require('./matchLog');
+const curated = require('./curated');
+// Activity levels change only when playlists are rebuilt: read once a minute.
+let activityCache = { at: 0, levels: {} };
+function curatedActivity() {
+  if (Date.now() - activityCache.at > 60000) activityCache = { at: Date.now(), levels: curated.activityLevels() };
+  return activityCache.levels;
+}
 
 // Replay speed for a short-mode match (data seconds per real second), from
 // server/config/gameFeel.js market.replaySpeed - never from MODE_DURATIONS.
@@ -538,6 +545,11 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       spikeAlerts: f.spikeAlerts.enabled,
       crown: f.crown.enabled,
       ghostChallenge: f.ghostChallenge.enabled,
+      // Phone landscape screen: this mode's lot chips and each instrument's
+      // activity level for the Assets tab dot.
+      lotChips: (f.phone && (f.phone.lotChips[match && match.mode] || f.phone.lotChips.default)) || [0.1, 0.5, 1, 5],
+      allLots: (f.phone && f.phone.allLots) || [0.01, 0.1, 0.5, 1, 5, 10],
+      activity: match ? Object.fromEntries((match.instruments || []).map((s) => [s, curatedActivity()[s] || 'quiet'])) : {},
     };
   }
 
@@ -1678,6 +1690,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         .then((row) => {
           position.dbId = row.id;
           position.ticket = row.ticket || null;
+          // The ticket number exists only now: send the position again so
+          // the player's screen can show it (modified = no "executed" toast).
+          if (position.ticket && player.positions.includes(position)) emitToPlayer(match, player.id, 'trade:executed', { position, modified: true });
           return row.id;
         })
         .catch((e) => {

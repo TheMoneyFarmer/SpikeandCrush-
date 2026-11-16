@@ -231,6 +231,10 @@ TW.Chart = (function () {
       handleScale: { pinch: true, axisPressedMouseMove: !isMobile },
       autoSize: true,
     });
+    // Test hook only (?pltest=1): where the library thinks the pointer is, so
+    // a test can check the crosshair lands where the finger is (e.g. under a
+    // rotated layout). Never on in normal play.
+    if (/[?&]pltest=1\b/.test(location.search)) chart.subscribeCrosshairMove((p) => { window.__plCrosshair = p && p.point ? { x: p.point.x, y: p.point.y } : null; });
     series = chart.addCandlestickSeries({
       // The price scale always includes the Drag-mode lines, so they never
       // sit off-screen where they can't be seen or grabbed.

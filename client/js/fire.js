@@ -292,5 +292,8 @@ TW.Fire = (function () {
     });
   }
 
-  return { setYou, setChallenge, setLobbyTier, setIdleText, setGhost, setElapsed, setLeaderboard, setMissions, missionComplete, spikeAlert, spikeResult, cutWarning, renderResults, drawIdle };
+  // Read-only, for the phone layout's Arena tab.
+  const getMissions = () => missions.slice();
+  const getRows = () => rows.slice();
+  return { getMissions, getRows, setYou, setChallenge, setLobbyTier, setIdleText, setGhost, setElapsed, setLeaderboard, setMissions, missionComplete, spikeAlert, spikeResult, cutWarning, renderResults, drawIdle };
 })();

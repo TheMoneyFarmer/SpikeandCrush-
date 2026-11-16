@@ -335,6 +335,11 @@ TW.Sabotage = (function () {
 
   // The picker opens inside the cards panel, in place of the tray, so the
   // chart stays visible. The chosen card sits beside it and can be spun.
+  // A player chosen before the card (tapping their standings row on the
+  // phone layout): highlighted and listed first when the picker opens.
+  let preselect = null;
+  function setPreselect(id) { preselect = id || null; }
+
   function openSheet(d) {
     document.getElementById('targetSheet')?.remove(); // switching cards: keep pendingCard
     const panel = document.querySelector('.sabotage-panel');
@@ -399,10 +404,10 @@ TW.Sabotage = (function () {
     const others = () => rows.filter((r) => r.id !== you);
     const draw = () => {
       const q = (search.value || '').trim().toLowerCase();
-      const shown = others().filter((r) => !q || r.username.toLowerCase().includes(q)).slice(0, 200);
+      const shown = others().filter((r) => !q || r.username.toLowerCase().includes(q)).sort((a, b) => (b.id === preselect) - (a.id === preselect)).slice(0, 200);
       list.innerHTML = shown.length ? shown.map((r) => {
         const why = blockedReason(r);
-        return `<button type="button" class="fs-row${why ? ' blocked' : ''}" data-id="${r.id}" ${why ? 'aria-disabled="true"' : ''}>
+        return `<button type="button" class="fs-row${why ? ' blocked' : ''}${r.id === preselect ? ' preselected' : ''}" data-id="${r.id}" ${why ? 'aria-disabled="true"' : ''}>
           <span class="fs-rank">#${r.rank}</span>
           <span class="fs-name">${r.crown ? `<span class="fs-crown">${icon('crown', 13)}</span>` : ''}${TW.escapeHtml(r.username)}<span class="fs-tier">${TW.escapeHtml(r.tier || '')}${r.level ? ` · L${r.level}` : ''}</span></span>
           <span class="fs-eq ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(r.equity ?? 10000 + r.pnl)}</span>
@@ -507,5 +512,5 @@ TW.Sabotage = (function () {
     TW.showMatchNotification('Reversal incoming');
   }
 
-  return { render, update, setLeaderboard, showIncoming, showImmune, showReversalWarning, closeSheet, cardHtml, makeSpinnable };
+  return { render, update, setLeaderboard, showIncoming, showImmune, showReversalWarning, closeSheet, cardHtml, makeSpinnable, setPreselect };
 })();

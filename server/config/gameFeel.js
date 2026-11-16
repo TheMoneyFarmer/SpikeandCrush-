@@ -149,6 +149,15 @@ const DEFAULTS = {
     suggestionCacheSeconds: 60,
     weights: { friendsOfFriends: 3, similarRank: 2, sameModes: 1.5, similarHours: 1, playedTogether: 2, proximity: 0.5 },
   },
+
+  // ---- phone landscape game screen (client/js/phone-land.js) ----------------
+  // Lot chips on the right rail, per mode (default for the rest). A long press
+  // opens the full list (allLots) plus a custom field. Display only: the
+  // server still validates every lot.
+  phone: {
+    lotChips: { default: [0.1, 0.5, 1, 5], blitz: [0.1, 0.5, 1, 2] },
+    allLots: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
+  },
 };
 
 let overrides = {};

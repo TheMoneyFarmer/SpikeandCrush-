@@ -1554,6 +1554,19 @@ app.patch('/api/player/settings', requireDb, authenticate, async (req, res) => {
       // showOnline/allowFriends/allowInvites flags are kept in step.
       const PRIVACY_KEYS = ['appearOffline', 'statusVisibility', 'activityVisibility', 'showInDiscover', 'requestsFrom', 'invitesFrom', 'allowJoinFromDiscover'];
       const rest = Object.fromEntries(Object.entries(settings).filter(([k]) => !PRIVACY_KEYS.includes(k)));
+      // Phone game settings: known keys and types only.
+      if ('phone' in rest) {
+        const p = rest.phone && typeof rest.phone === 'object' ? rest.phone : {};
+        const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 && Number(v) <= 100000 ? Math.round(Number(v) * 10) / 10 : d);
+        rest.phone = {
+          rotate: p.rotate !== false,
+          confirmTrades: p.confirmTrades === true,
+          defaultSlTp: p.defaultSlTp === true,
+          slPips: num(p.slPips, 20),
+          tpPips: num(p.tpPips, 40),
+          haptics: p.haptics !== false,
+        };
+      }
       updates.settings = { ...player.settings, ...rest, ...discover.sanitizePrivacyPatch(settings) };
     }
     if (country !== undefined) updates.country = country;

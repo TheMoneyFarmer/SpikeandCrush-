@@ -332,6 +332,7 @@ window.TW = window.TW || {};
           <span class="info">
             <span class="pos-what"><b>${pos.lots}</b> ${pos.symbol}</span>
             <span class="pos-at text-secondary">@ ${pos.entryPrice}<span class="pos-sltp" data-sltp-text>${sltpText()}</span></span>
+            <span class="pos-meta mono" data-meta></span>
           </span>
         </button>
         <div class="pnl" data-pnl>${TW.formatMoney(0)}</div>
@@ -509,7 +510,7 @@ window.TW = window.TW || {};
       let entry = positionRowElements.get(pos.id);
       if (!entry) {
         const row = buildPositionRow(pos);
-        entry = { row, pnlEl: row.querySelector('[data-pnl]') };
+        entry = { row, pnlEl: row.querySelector('[data-pnl]'), metaEl: row.querySelector('[data-meta]') };
         positionRowElements.set(pos.id, entry);
         list.appendChild(entry.row);
       }
@@ -521,6 +522,11 @@ window.TW = window.TW || {};
         pnl = liveClosePnl(pos.direction, pos.lots, pos.entryPrice, exit, pos.symbol);
       }
       entry.pnlEl.textContent = TW.formatMoney(pnl);
+      // Ticket (once the server has issued it) and time held.
+      if (entry.metaEl) {
+        const held = pos.openedAt ? Math.max(0, Math.floor((Date.now() - pos.openedAt) / 1000)) : null;
+        entry.metaEl.textContent = `${pos.ticket ? `#${pos.ticket}` : ''}${pos.ticket && held !== null ? ' · ' : ''}${held !== null ? formatClock(held) : ''}`;
+      }
       entry.pnlEl.classList.remove('pnl-update');
       void entry.pnlEl.offsetWidth;
       entry.pnlEl.className = 'pnl pnl-update ' + (pnl >= 0 ? 'text-buy' : 'text-sell');
@@ -1553,6 +1559,8 @@ window.TW = window.TW || {};
       ghostRequested = true;
       TW.api(`/api/match/${encodeURIComponent(matchId)}/ghost`).then((r) => { if (r && TW.Fire) TW.Fire.setGhost(r.ghost, r.personal); }).catch(() => {});
     }
+    // Mode settings for other layouts (phone lot chips, instrument activity).
+    if (state.fire) TW.FireConfig = state.fire;
     if (TW.Fire) {
       TW.Fire.setYou(state.you);
       TW.Fire.setChallenge(state.challenge);
@@ -1757,6 +1765,58 @@ window.TW = window.TW || {};
   });
 
   document.getElementById('leaveMatchBtn')?.addEventListener('click', () => confirmLeaveMatch());
+
+  // ---- read-only view + actions for other layouts (js/phone-land.js) ------
+  // Everything here reads the state this file already keeps, and every action
+  // goes through the same socket events the desktop buttons use; the server
+  // validates and fills. Nothing new is computed for trading.
+  TW.Game = {
+    state() {
+      return {
+        matchId,
+        mode: lastState ? lastState.mode : null,
+        modeLabel: lastState ? lastState.modeLabel : '',
+        instruments: (lastState && lastState.instruments) || [],
+        active: activeInstrument,
+        lot: selectedLot,
+        prices: lastPrices,
+        positions: myAccount.positions.slice(),
+        balance: myAccount.balance,
+        equity: computeEquity(),
+        you: lastState ? lastState.you : null,
+        maxPositions: lastState && lastState.rules ? lastState.rules.maxPositions : null,
+        accountNumber: myAccountNumber,
+        ended: matchEnded,
+      };
+    },
+    // Same as clicking BUY/SELL on the ticket (lot, SL/TP and drag levels included).
+    placeTrade: (direction) => placeTrade(direction),
+    setLot(v) {
+      const n = Number(v);
+      if (!(n > 0)) return;
+      const chip = [...document.querySelectorAll('#lotSelector .lot-chip[data-lot]')].find((c) => Number(c.dataset.lot) === n);
+      if (chip) { chip.click(); return; }
+      const input = document.getElementById('customLotInput');
+      input.value = String(n);
+      input.dispatchEvent(new Event('input'));
+    },
+    setInstrument(sym) {
+      const tab = [...document.querySelectorAll('#instrumentTabs .instrument-tab')].find((b) => b.textContent === sym);
+      if (tab) tab.click();
+    },
+    closePosition: (id) => TW.emitAck('trade:close', { positionId: id }),
+    modifyPosition: (id, levels) => TW.emitAck('trade:modify', { positionId: id, ...levels }),
+    formatClock,
+  };
+  const announce = (type, detail) => window.dispatchEvent(new CustomEvent('tw:game', { detail: { type, ...detail } }));
+  socket.on('price:update', (d) => announce('prices', { timeRemaining: d.timeRemaining }));
+  socket.on('match:state', () => announce('state'));
+  socket.on('trade:executed', (d) => announce('positions', { executed: d }));
+  socket.on('trade:closed', (d) => announce('positions', { closed: d }));
+  socket.on('trade:partial_closed', () => announce('positions'));
+  socket.on('leaderboard:update', (d) => announce('leaderboard', { rows: d.rows, blurred: d.blurred }));
+  socket.on('missions:update', (d) => announce('missions', { missions: d.missions }));
+  socket.on('match:end', () => announce('end'));
 
   setupLotSelector();
   setupTimeframeSelector();

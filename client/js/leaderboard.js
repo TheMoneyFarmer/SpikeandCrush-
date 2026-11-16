@@ -30,11 +30,18 @@ TW.Leaderboard = (function () {
       prevRanks.set(row.id, row.rank);
 
       if (row.out) tr.classList.add('row-out');
+      if (row.crown) tr.classList.add('crown-row');
+      tr.dataset.id = row.id;
+      // Status tags for the phone layout (css/phone-land.css shows them only there).
+      const st = row.status || [];
+      const tags = [row.crown ? 'CROWN' : '', st.includes('shield') ? 'SHIELD' : '', st.includes('frozen') || st.includes('freeze') ? 'FROZEN' : '', st.includes('offline') ? 'OFFLINE' : '', row.danger ? 'DANGER' : '']
+        .filter(Boolean).map((t) => `<span class="pl-tag tag-${t.toLowerCase()}">${t}</span>`).join('') || (row.tier ? `<span class="pl-tag tag-rank">${TW.escapeHtml(String(row.tier).toUpperCase())}</span>` : '');
       tr.innerHTML = `
         <td class="${rankClass}">${row.rank}</td>
-        <td>${TW.renderUsername(row)}${badge}</td>
+        <td>${TW.renderUsername(row)}${badge}<span class="pl-tags">${tags}</span></td>
         <td class="${pnlClass} mono">${TW.formatMoney(row.pnl)}</td>
         <td>${row.tradesMade}</td>
+        <td class="pl-eqcell mono">${TW.formatMoney(row.equity ?? 10000 + row.pnl)}</td>
       `;
       tbody.appendChild(tr);
     });

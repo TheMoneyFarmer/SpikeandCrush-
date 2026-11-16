@@ -148,5 +148,17 @@ function movesBetween(symbol, from, count, topPercent) {
   return out;
 }
 
+// Hot / warm / quiet per kept instrument, by the curation activity score
+// (top third hot, middle warm, bottom quiet). Display only (Assets tab dot).
+function activityLevels() {
+  const c = load();
+  if (!c || !c.instruments) return {};
+  const entries = Object.entries(c.instruments).filter(([, v]) => v && Number.isFinite(v.score)).sort((a, b) => b[1].score - a[1].score);
+  const out = {};
+  entries.forEach(([sym], i) => { out[sym] = i < entries.length / 3 ? 'hot' : i < (2 * entries.length) / 3 ? 'warm' : 'quiet'; });
+  return out;
+}
+
 module.exports = {
+  activityLevels,
   movesBetween, load, setDir, getDir, isActive, getPlaylist, isEnabled, enabledSymbols, pickStart, isValidStart, barsAt, spikesBetween, durationKey };
