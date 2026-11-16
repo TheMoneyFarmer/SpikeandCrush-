@@ -45,7 +45,7 @@ const minutes = (seconds) => {
 const coins = (n) => (n === 0 ? 'free' : `${n} coin${n === 1 ? '' : 's'}`);
 const sign = (n) => (n > 0 ? `+${n}` : String(n));
 
-const MODE_ORDER = ['quick', 'blitz', 'grand', 'tournament', 'solo', 'async', 'private'];
+const MODE_ORDER = ['quick', 'blitz', 'grand', 'tournament', 'stocks', 'futures', 'solo', 'async', 'private'];
 // Mode identity (server/config/modeIdentity.js): name, cards and how you win.
 const MI = (k) => modeIdentity.identity(k);
 const modeName = (k) => MI(k).displayName;

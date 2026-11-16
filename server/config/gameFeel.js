@@ -30,7 +30,7 @@ const DEFAULTS = {
     // the guarantee. Competitions always 1.
     // Blitz 2x: one 5-second chart candle every 2.5 real seconds (72 per match,
     // Action Engine target 60+). Measured: docs/engine/README.md.
-    replaySpeed: { quick: 1, blitz: 2, grand: 1, private: 1, solo: 1, tournament: 1, async: 1 },
+    replaySpeed: { quick: 1, blitz: 2, grand: 1, private: 1, solo: 1, tournament: 1, async: 1, stocks: 1, futures: 1 },
     maxReplaySpeed: 5,
     // Action Engine delivery: price messages per real second (and price steps
     // per data second). 1 = the old once-a-second chart. Every price read

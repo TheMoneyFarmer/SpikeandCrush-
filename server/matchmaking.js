@@ -97,4 +97,12 @@ function joinByRoomCode(gameEngine, roomCode, playerInfo) {
   return { success: true, matchId: match.id, roomCode: match.roomCode };
 }
 
-module.exports = { quickPlay, eliminationPlay, blitzPlay, grandPlay, soloPlay, asyncPlay, createPrivateWar, joinByRoomCode };
+// Bell Rush (stocks only) and The Pit (futures only): public lobbies like Quick.
+function stocksPlay(gameEngine, playerInfo) {
+  return joinOpenLobby(gameEngine, 'stocks', playerInfo);
+}
+function futuresPlay(gameEngine, playerInfo) {
+  return joinOpenLobby(gameEngine, 'futures', playerInfo);
+}
+
+module.exports = { quickPlay, eliminationPlay, blitzPlay, grandPlay, stocksPlay, futuresPlay, soloPlay, asyncPlay, createPrivateWar, joinByRoomCode };

@@ -117,6 +117,21 @@ const MATCH_MODES = {
     instrumentCount: 2, cardsPerPlayer: 3, entryCoins: 0, ranked: true, ratingKey: 'solo_rating',
     fillMethod: 'ai_only', aiOpponents: 3,
   },
+  // Bell Rush (stocks only) and The Pit (futures only): ranked public modes
+  // like Quick. Their lengths reuse existing values (600 and 900 seconds);
+  // no existing mode's duration changes.
+  stocks: {
+    label: 'Bell Rush', idealPlayers: 4, minPlayers: 2, maxPlayers: null,
+    lobbyTimeoutMs: 45000, countdownSeconds: 5, durationSeconds: 600,
+    instrumentCount: 8, cardsPerPlayer: 3, entryCoins: 10, ranked: true, ratingKey: 'war_rating',
+    fillMethod: 'ai',
+  },
+  futures: {
+    label: 'The Pit', idealPlayers: 4, minPlayers: 2, maxPlayers: null,
+    lobbyTimeoutMs: 45000, countdownSeconds: 5, durationSeconds: 900,
+    instrumentCount: 6, cardsPerPlayer: 3, entryCoins: 10, ranked: true, ratingKey: 'war_rating',
+    fillMethod: 'ai',
+  },
   // Public Elimination mode (display name from server/config/modeIdentity.js).
   // Bracket rounds of user-made tournaments reuse this key with their own
   // overrides (2 players, no fill, no fee) - see index.js.
@@ -792,12 +807,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // A pinned list (Solo favourites, tournament/async sets, ghost challenges)
     // only keeps instruments that are still playable; an empty result falls
     // back to a fresh draw so a disabled instrument can never be traded.
-    const pinned = (opts.instrumentList || []).filter((s) => instruments.isPlayable(s, mode));
+    const pinned = (opts.instrumentList || []).filter((s) => instruments.isPlayable(s, mode) && rules.instrumentClasses.includes(instruments.getInstrument(s).category));
     const matchInstruments = pinned.length
       ? pinned
       : dailySeed
-        ? instruments.selectDailyInstruments(dailySeed, modeConfig.instrumentCount, mode)
-        : instruments.selectMatchInstruments(modeConfig.instrumentCount, mode, { ...(rules.instrumentPool === 'top' ? { topN: rules.instrumentPoolSize || 6 } : {}), dataSeconds: modeConfig.durationSeconds * marketReplaySpeed(mode) });
+        ? instruments.selectDailyInstruments(dailySeed, modeConfig.instrumentCount, mode, rules.instrumentClasses)
+        : instruments.selectMatchInstruments(modeConfig.instrumentCount, mode, { ...(rules.instrumentPool === 'top' ? { topN: rules.instrumentPoolSize || 6 } : {}), dataSeconds: modeConfig.durationSeconds * marketReplaySpeed(mode), classes: rules.instrumentClasses });
 
     const liveMinutes = Math.ceil((opts.configOverrides?.durationSeconds ?? modeConfig.durationSeconds) / 60);
     // Every match gets one market seed shared by all its players (a ghost

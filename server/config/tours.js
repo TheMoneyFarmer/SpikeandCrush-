@@ -102,6 +102,26 @@ const DEFAULTS = {
         { anchor: 'standings', title: 'Half-time', body: 'At minute 10 the half-time card shows the top five. The Steady Hand badge goes to the top-three finisher with the smallest dip from their peak.' },
       ],
     },
+    mode_stocks: {
+      version: 1,
+      page: 'game',
+      label: 'Bell Rush intro',
+      modes: ['stocks'],
+      steps: [
+        { anchor: 'instruments', title: 'Stocks only', body: 'Bell Rush is stocks only: about 8 US stocks, replayed from their busiest minutes. Pick your battlefield here.' },
+        { anchor: 'chart', title: 'Simulated replay', body: 'These are real historical stock prices, replayed with dates hidden. Not live prices.' },
+      ],
+    },
+    mode_futures: {
+      version: 1,
+      page: 'game',
+      label: 'The Pit intro',
+      modes: ['futures'],
+      steps: [
+        { anchor: 'instruments', title: 'Futures only', body: 'The Pit is futures only: indices, oil, gas, metals, bonds and softs. Big contracts, big swings.' },
+        { anchor: 'chart', title: 'Simulated futures', body: 'Real historical futures prices, replayed with the usual lot maths. No real contracts or delivery.' },
+      ],
+    },
     mode_tournament: {
       version: 1,
       page: 'game',

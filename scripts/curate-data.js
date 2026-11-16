@@ -26,6 +26,15 @@ const args = process.argv.slice(2);
 const argOf = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const OUT = path.resolve(ROOT, argOf('--out', 'data/curated'));
 const REPORT = path.resolve(ROOT, argOf('--report', 'docs/fire/curation.md'));
+// Separate runs for mode-specific classes (Bell Rush stocks, The Pit futures):
+//   --only stocks,futures   measure only these categories
+//   --keep-all              keep every instrument with clean data (the Action
+//                           Engine then decides which windows are busy enough)
+// The default run (no flags) skips those classes so it never changes the
+// existing ranking.
+const ONLY = argOf('--only', null) ? argOf('--only', '').split(',').map((x) => x.trim()) : null;
+const KEEP_ALL = args.includes('--keep-all');
+const MODE_ONLY_CLASSES = ['futures'];
 
 const instruments = require('../server/instruments');
 const feel = require('../server/config/gameFeel').get();
@@ -465,6 +474,10 @@ function main() {
   const data = {};
   for (const sym of Object.keys(instruments.INSTRUMENTS)) {
     const cfg = instruments.INSTRUMENTS[sym];
+    if (ONLY && !ONLY.includes(cfg.category)) continue;
+    // Default run: the original instruments only (new mode-only symbols are
+    // curated in their own run, so the main ranking stays as it was).
+    if (!ONLY && (MODE_ONLY_CLASSES.includes(cfg.category) || cfg.simulated)) continue;
     const bars = loadM1(sym);
     if (!bars || bars.length < 500) {
       stats.push({ sym, category: cfg.category, cls: CLASS_OF(cfg.category), score: 0, missing: true, note: 'no real 1-minute data (synthetic fallback in game today)' });
@@ -474,7 +487,9 @@ function main() {
     stats.push(measure(sym, cfg, bars));
   }
   const real = stats.filter((s) => !s.missing);
-  const { ranked, cut, gap, kept, forced } = rankAndCut(real);
+  const ranking = rankAndCut(real);
+  if (KEEP_ALL) ranking.kept = new Set(real.map((x) => x.sym));
+  const { ranked, cut, gap, kept, forced } = ranking;
 
   fs.mkdirSync(OUT, { recursive: true });
   const catalog = {

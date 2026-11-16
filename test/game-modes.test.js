@@ -22,23 +22,27 @@ test('money maths and match lengths are the same as before the modes work', () =
   // Hashes of the frozen tables: a change here means GAME_RULES or
   // MODE_DURATIONS were edited, which this work must never do.
   const h = (o) => crypto.createHash('sha256').update(JSON.stringify(o)).digest('hex').slice(0, 16);
-  assert.deepStrictEqual(MODE_DURATIONS, { quick: 600, blitz: 180, grand: 1200, private: 600, solo: 600, tournament: 900, async: 600 });
+  // Bell Rush (stocks) and The Pit (futures) were ADDED on 2026-11-16 with
+  // existing lengths (600 and 900); every original key keeps its value.
+  const original = { quick: 600, blitz: 180, grand: 1200, private: 600, solo: 600, tournament: 900, async: 600 };
+  assert.deepStrictEqual(MODE_DURATIONS, { ...original, stocks: 600, futures: 900 });
+  const originalOnly = Object.fromEntries(Object.keys(original).map((k) => [k, MODE_DURATIONS[k]]));
   assert.deepStrictEqual(PRIZE_SHARE_BY_RANK, { 1: 0.5, 2: 0.25, 3: 0.15, 4: 0.1 });
-  // Hashes taken from main (the live code) before this branch.
+  // Hashes taken from main (the live code) before these branches.
   assert.strictEqual(h(GAME_RULES), '834020fe29d39fea');
-  assert.strictEqual(h(MODE_DURATIONS), '94932b0a9bd7a4fe');
+  assert.strictEqual(h(originalOnly), '94932b0a9bd7a4fe');
 });
 
 test('mode catalog: every mode has identity, best for, how you win and card slots', () => {
   const cat = modeIdentity.publicCatalog();
-  assert.deepStrictEqual(cat.map((m) => m.key).sort(), ['async', 'blitz', 'grand', 'private', 'quick', 'solo', 'tournament']);
+  assert.deepStrictEqual(cat.map((m) => m.key).sort(), ['async', 'blitz', 'futures', 'grand', 'private', 'quick', 'solo', 'stocks', 'tournament']);
   for (const m of cat) {
     for (const k of ['displayName', 'identity', 'bestFor', 'winShort', 'special', 'banner']) assert.ok(m[k], `${m.key}.${k}`);
     assert.ok(Number.isInteger(m.cardSlots), m.key);
   }
   const by = Object.fromEntries(cat.map((m) => [m.key, m]));
   // Every mode with cards deals 5 at the start (owner decision 2026-11-11).
-  for (const k of ['quick', 'blitz', 'grand', 'tournament', 'solo', 'private']) assert.strictEqual(by[k].startingHand, 5, k);
+  for (const k of ['quick', 'blitz', 'grand', 'tournament', 'solo', 'private', 'stocks', 'futures']) assert.strictEqual(by[k].startingHand, 5, k);
   assert.strictEqual(by.tournament.displayName, 'Elimination');
   assert.strictEqual(by.solo.displayName, 'Solo Ranked');
   assert.strictEqual(by.solo.sabotage, true);

@@ -76,7 +76,7 @@ TW.ModeLobby = (function () {
   }
 
   function shortName(m) {
-    return { quick: 'Quick', blitz: 'Blitz', grand: 'Grand', tournament: 'Elimination', solo: 'Solo', async: 'Daily', private: 'Private' }[m.key] || m.displayName;
+    return { quick: 'Quick', blitz: 'Blitz', grand: 'Grand', tournament: 'Elimination', stocks: 'Bell Rush', futures: 'The Pit', solo: 'Solo', async: 'Daily', private: 'Private' }[m.key] || m.displayName;
   }
 
   function addCompareButton() {
@@ -138,7 +138,7 @@ TW.ModeLobby = (function () {
   async function openPrivateSheet(onCreate) {
     if (!catalog.length) await load();
     const m = byKey('private') || {};
-    const o = m.hostOptions || { deckLevel: ['basic', 'mid', 'full'], startingHand: [0, 1, 2, 3, 4], flavor: ['quick', 'blitz'] };
+    const o = m.hostOptions || { deckLevel: ['basic', 'mid', 'full'], startingHand: [0, 1, 2, 3, 4], flavor: ['quick', 'blitz', 'stocks', 'futures'] };
     const opt = (list, labels) => list.map((v) => `<option value="${esc(v)}">${esc(labels[v] ?? v)}</option>`).join('');
     const { box, close } = sheet('Host a Private War', `
       <form class="msh-form" id="privateHostForm">
@@ -146,7 +146,7 @@ TW.ModeLobby = (function () {
         <label class="msh-row"><span>Deck level</span><select name="deckLevel">${opt(o.deckLevel, { basic: 'Basic cards only', mid: 'Basic and mid', full: 'Full deck' })}</select></label>
         <label class="msh-row"><span>Starting hand</span><select name="startingHand">${opt(o.startingHand, { 0: 'Mode default', 1: '1 card', 2: '2 cards', 3: '3 cards', 4: '4 cards', 5: '5 cards' })}</select></label>
         <label class="msh-row"><span>Elimination cuts</span><select name="eliminationCuts"><option value="false">Off</option><option value="true">On: bottom 20% out every 3 min (4+ players)</option></select></label>
-        <label class="msh-row"><span>Card style</span><select name="flavor">${opt(o.flavor, { quick: 'Quick War', blitz: 'Blitz (fast refill, no heavy cards)' })}</select></label>
+        <label class="msh-row"><span>Room type</span><select name="flavor">${opt(o.flavor, { quick: 'Quick War', blitz: 'Blitz (fast refill, no heavy cards)', stocks: 'Bell Rush (stocks only)', futures: 'The Pit (futures only)' })}</select></label>
         <p class="msh-note">Hosting costs 1 coin, charged only when the match starts. Friends you invite play free. Everyone sees these rules before the start.</p>
         <button type="submit" class="msh-primary">Create room</button>
       </form>`);

@@ -36,6 +36,10 @@ const DEFAULTS = {
     // 2026-11-11), capped only by how many cards the player has unlocked.
     cards: { enabled: true, handSize: 5, startCount: 5, allowedTiers: ['basic', 'mid', 'heavy'], streakRewards: { 1: 1, 2: 1, 3: 2 }, refillAtStreak: 5, perWinAfterRefill: 1, startingHand: null, sabotage: true },
     instrumentPool: 'all',
+    // Instrument classes this mode may draw from. Stocks live only in Bell
+    // Rush and futures only in The Pit (owner decision 2026-11-16).
+    instrumentClasses: ['forex', 'metals', 'indices', 'commodities', 'crypto'],
+    accent: null,
     spikeAlerts: { enabled: true, minGapSeconds: 60 },
     events: { minutes: [] },
     checkpointMinute: null,
@@ -145,9 +149,43 @@ const DEFAULTS = {
       deckLevel: ['basic', 'mid', 'full'],
       startingHand: [0, 1, 2, 3, 4, 5],
       eliminationCuts: [false, true],
-      flavor: ['quick', 'blitz'],
+      flavor: ['quick', 'blitz', 'stocks', 'futures'],
     },
     preStartBanner: 'Private War: house rules set by the host.',
+  },
+  // Stocks only. Historical replay of US stocks (simulated), busiest minutes only.
+  stocks: {
+    displayName: 'Bell Rush',
+    icon: 'bell',
+    accent: '#F5B83D',
+    identity: 'Open bell. Fast money. US stocks only, on their busiest minutes.',
+    bestFor: 'Stock pickers who like a fast tape',
+    winCondition: 'Highest equity wins',
+    winShort: 'Highest equity wins',
+    special: 'Stocks only (simulated, historical replay): about 8 stocks a match, opening-bell style surges',
+    instrumentClasses: ['stocks'],
+    instrumentPool: 'all',
+    spikeAlerts: { enabled: true, minGapSeconds: 45 },
+    missions: ['hold_60', 'two_wins', 'play_card', 'spike_entry', 'streak_3', 'tp_hit'],
+    resultHighlights: ['bestStreak', 'heat'],
+    preStartBanner: 'Bell Rush: 10 minutes, stocks only, 5 cards, highest equity wins.',
+  },
+  // Futures only. Historical replay of futures prices (simulated CFD maths).
+  futures: {
+    displayName: 'The Pit',
+    icon: 'pit',
+    accent: '#2EE6A6',
+    identity: 'Where the big contracts move. Futures only: indices, energy, metals, rates and softs.',
+    bestFor: 'Big swings and heavy contracts',
+    winCondition: 'Highest equity wins',
+    winShort: 'Highest equity wins',
+    special: 'Futures only (simulated, historical replay): about 6 contracts a match',
+    instrumentClasses: ['futures'],
+    instrumentPool: 'all',
+    spikeAlerts: { enabled: true, minGapSeconds: 60 },
+    missions: ['hold_60', 'two_wins', 'play_card', 'spike_entry', 'streak_3', 'tp_hit'],
+    resultHighlights: ['bestStreak', 'heat'],
+    preStartBanner: 'The Pit: 15 minutes, futures only, 5 cards, highest equity wins.',
   },
 };
 
@@ -225,7 +263,7 @@ function rulesFor(mode, host = null) {
   const f = gameFeel.get();
   let id = identity(mode);
   if (mode === 'private' && host) {
-    const flavor = identity(host.flavor === 'blitz' ? 'blitz' : 'quick');
+    const flavor = identity(['blitz', 'stocks', 'futures'].includes(host.flavor) ? host.flavor : 'quick');
     id = {
       ...id,
       cards: {
@@ -242,6 +280,7 @@ function rulesFor(mode, host = null) {
       spikeAlerts: flavor.spikeAlerts,
       instrumentPool: flavor.instrumentPool,
       instrumentPoolSize: flavor.instrumentPoolSize,
+      instrumentClasses: flavor.instrumentClasses,
       resultHighlights: host.eliminationCuts ? ['roundsSurvived', 'bestStreak'] : flavor.resultHighlights,
       host,
     };
@@ -272,6 +311,8 @@ function rulesFor(mode, host = null) {
     progression: f.progression,
     instrumentPool: id.instrumentPool || 'all',
     instrumentPoolSize: id.instrumentPoolSize || null,
+    instrumentClasses: id.instrumentClasses || ['forex', 'metals', 'indices', 'commodities', 'crypto'],
+    accent: id.accent || null,
     events: id.events || { minutes: [] },
     checkpointMinute: id.checkpointMinute ?? null,
     steadyHandBadge: Boolean(id.steadyHandBadge),
@@ -286,7 +327,7 @@ function publicCatalog() {
   return Object.keys(DEFAULTS)
     .map((key) => {
       const id = identity(key);
-      return { key, enabled: id.enabled !== false, displayName: id.displayName, icon: id.icon, identity: id.identity, bestFor: id.bestFor, winCondition: id.winCondition, winShort: id.winShort, special: id.special, cardSlots: id.cards && id.cards.enabled === false ? 0 : (id.cards && id.cards.handSize) || 4, sabotage: !(id.cards && id.cards.sabotage === false), startingHand: (id.cards && id.cards.startingHand && id.cards.startingHand.count) || (id.cards && id.cards.enabled === false ? 0 : (id.cards && (id.cards.startCount || id.cards.handSize)) || 5), cutsEveryMinutes: id.elimination && id.elimination.enabled !== false ? id.elimination.everyMinutes : null, events: id.events ? id.events.minutes : null, hostOptions: id.hostOptions || null, banner: id.preStartBanner };
+      return { key, enabled: id.enabled !== false, displayName: id.displayName, icon: id.icon, identity: id.identity, bestFor: id.bestFor, winCondition: id.winCondition, winShort: id.winShort, special: id.special, cardSlots: id.cards && id.cards.enabled === false ? 0 : (id.cards && id.cards.handSize) || 4, sabotage: !(id.cards && id.cards.sabotage === false), startingHand: (id.cards && id.cards.startingHand && id.cards.startingHand.count) || (id.cards && id.cards.enabled === false ? 0 : (id.cards && (id.cards.startCount || id.cards.handSize)) || 5), cutsEveryMinutes: id.elimination && id.elimination.enabled !== false ? id.elimination.everyMinutes : null, events: id.events ? id.events.minutes : null, hostOptions: id.hostOptions || null, banner: id.preStartBanner, accent: id.accent || null, instrumentClasses: id.instrumentClasses || null, simulated: (id.instrumentClasses || []).some((c) => c === 'stocks' || c === 'futures') };
     });
 }
 

@@ -1226,6 +1226,8 @@ const MATCHMAKING_BY_MODE = {
   tournament: (playerInfo) => matchmaking.eliminationPlay(gameEngine, playerInfo),
   blitz: (playerInfo) => matchmaking.blitzPlay(gameEngine, playerInfo),
   grand: (playerInfo) => matchmaking.grandPlay(gameEngine, playerInfo),
+  stocks: (playerInfo) => matchmaking.stocksPlay(gameEngine, playerInfo),
+  futures: (playerInfo) => matchmaking.futuresPlay(gameEngine, playerInfo),
   solo: (playerInfo, body) => matchmaking.soloPlay(gameEngine, playerInfo, body?.instruments),
   async: (playerInfo) => matchmaking.asyncPlay(gameEngine, playerInfo),
   private: (playerInfo, body) => matchmaking.createPrivateWar(gameEngine, playerInfo, body?.hostOptions),
@@ -1266,6 +1268,7 @@ app.post('/api/match/create', deployDrain.blockNewMatches, opsMonitor.blockNewMa
     if (gameEngine.isInLiveMatch(player.id)) return res.status(409).json({ error: LIVE_MATCH_BUSY_ERROR });
     const mode = MATCHMAKING_BY_MODE[req.body?.mode] ? req.body.mode : 'private';
     if (modeIdentity.identity(mode).enabled === false) return res.status(403).json({ error: 'This mode is switched off right now. Try another mode.' });
+    if (!modeDataReady(mode)) return res.status(403).json({ error: 'This mode is not open yet. Try another mode.' });
     const modeConfig = gameEngine.MATCH_MODES[mode];
     const entryCoins = modeConfig ? modeConfig.entryCoins : 0;
 
@@ -2176,7 +2179,7 @@ app.get('/api/discover', requireDb, authenticate, async (req, res) => {
 
     if (section === 'rooms') {
       // Public lobbies still open to join (closed once a short game starts).
-      const rooms = ['quick', 'blitz', 'grand']
+      const rooms = ['quick', 'blitz', 'grand', 'stocks', 'futures']
         .flatMap((mode) => gameEngine.listWaitingMatchesByMode(mode))
         .filter((m) => m.status === 'waiting' && !gameEngine.isFull(m))
         .filter((m) => !Object.keys(m.players).some((id) => blocks.has(id)))
@@ -2286,7 +2289,7 @@ app.post('/api/discover/join', requireDb, authenticate, async (req, res) => {
   try {
     const { lobbyId } = req.body || {};
     const match = gameEngine.getMatch(lobbyId);
-    if (!match || match.status !== 'waiting' || !['quick', 'blitz', 'grand'].includes(match.mode)) return res.status(400).json({ error: 'That room is no longer open' });
+    if (!match || match.status !== 'waiting' || !['quick', 'blitz', 'grand', 'stocks', 'futures'].includes(match.mode)) return res.status(400).json({ error: 'That room is no longer open' });
     const blocks = await db.listBlockRelationIds(req.tokenPlayer.id);
     if (Object.keys(match.players).some((id) => blocks.has(id))) return res.status(400).json({ error: 'That room is no longer open' });
     const result = await joinLobbyWithEntryFee(match, req.tokenPlayer.id);
@@ -3700,9 +3703,22 @@ app.use(
 // Public mode catalog for the lobby cards, Compare modes sheet and How to
 // play: identity, best for, win condition, card slots and live seats, with
 // the real length and entry from MATCH_MODES (never redefined here).
+// Data health gate: a mode is only offered when enough of its instruments
+// have busy windows for its match length (Bell Rush and The Pit open
+// automatically once their data is in; every other mode is always ready).
+function modeDataReady(mode) {
+  const mm = gameEngine.MATCH_MODES[mode];
+  if (!mm || mode === 'private') return true;
+  const classes = modeIdentity.rulesFor(mode).instrumentClasses;
+  if (!classes.some((c) => c === 'stocks' || c === 'futures')) return true;
+  const speed = Math.max(1, Number((require('./config/gameFeel').get().market.replaySpeed || {})[mode]) || 1);
+  const ready = instrumentsRegistry.playableSymbols(mode).filter((s) => classes.includes(instrumentsRegistry.getInstrument(s).category) && instrumentsRegistry.actionWindowCount(s, mm.durationSeconds * speed) > 0);
+  return ready.length >= Math.min(mm.instrumentCount, 4);
+}
+
 app.get('/api/modes/catalog', cacheJson(10000), (req, res) => {
   const counts = gameEngine.getModeCounts();
-  const modes = modeIdentity.publicCatalog().map((m) => {
+  const modes = modeIdentity.publicCatalog().filter((m) => modeDataReady(m.key)).map((m) => {
     const mm = gameEngine.MATCH_MODES[m.key] || {};
     return { ...m, durationSeconds: mm.durationSeconds || null, entryCoins: mm.entryCoins || 0, minPlayers: m.key === 'tournament' ? modeIdentity.identity('tournament').elimination.minPlayersToStart : mm.minPlayers || 1, live: counts[m.key] || 0 };
   });

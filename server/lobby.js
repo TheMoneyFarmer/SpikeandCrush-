@@ -23,7 +23,7 @@ const WANTS = ['competition', 'prize', 'both'];
 const TIER_INTEREST = ['featured', 'plus', 'standard', 'not_sure'];
 const TYPE_LABEL = { prop_firm: 'Prop firm', broker: 'Broker', sponsor: 'Sponsor' };
 const WANT_LABEL = { competition: 'A competition', prize: 'A prize sponsorship', both: 'Both' };
-const LOBBY_MODES = ['quick', 'blitz', 'grand', 'solo', 'async', 'private', 'tournament'];
+const LOBBY_MODES = ['quick', 'blitz', 'grand', 'stocks', 'futures', 'solo', 'async', 'private', 'tournament'];
 
 // Daily-rotating salt so an ip_hash can't be joined across days. The secret
 // comes from the environment; without one a random per-process value is
