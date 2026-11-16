@@ -67,6 +67,8 @@ async function cleanup() {
     for (const t of ['coin_transactions', 'notifications', 'xp_events', 'player_progress', 'player_card_unlocks', 'login_events', 'player_presence']) {
       await admin.from(t).delete().in('player_id', ids);
     }
+    // support chats would be left with no owner (owner check), so they go first; messages cascade
+    await admin.from('support_conversations').delete().in('user_id', ids);
     await admin.from('friendships').delete().in('requester_id', ids);
     await admin.from('friendships').delete().in('addressee_id', ids);
     const { error: delErr } = await admin.from('players').delete().in('id', ids);
