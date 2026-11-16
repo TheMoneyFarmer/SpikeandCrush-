@@ -118,8 +118,10 @@ insert into public.listing_tiers (key, name, rank, perks) values
   ('standard', 'Standard', 3, 'A listing in its tab, in the order you joined.')
 on conflict (key) do nothing;
 alter table public.listing_tiers enable row level security;
+-- No public read policy: only the servers read tiers (prices stay private).
+-- An earlier version created listing_tiers_read here; re-running it reopened
+-- the leak closed by 20261112130000_close_public_sponsor_reads.sql.
 drop policy if exists listing_tiers_read on public.listing_tiers;
-create policy listing_tiers_read on public.listing_tiers for select to anon, authenticated using (true);
 
 -- Saved listings (the heart), per account.
 create table if not exists public.listing_saves (
