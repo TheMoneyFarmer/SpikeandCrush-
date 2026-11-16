@@ -301,3 +301,38 @@ body.pl #twToast, body.pl .tw-match-notifications { display: none !important; } 
 .pl-band .sc-slot span { display: none; }
 body.pl .pl-cardscol #cardSlots.card-tray { grid-template-columns: repeat(2, 84px) !important; grid-auto-rows: 116px; width: auto !important; }
 body.pl .pl-cardscol .sabotage-panel { grid-template-columns: 184px minmax(0, 1fr) !important; }
+
+/* 44px hit areas (test 7): a 44px tools row holding 36px chips, and band
+   cards at 44x56 (the 40x52 in the brief is under the 44px minimum). */
+.pl-chartcol { grid-template-rows: 44px minmax(0, 1fr) 62px !important; }
+body.pl #timeframeSelector button { height: 36px !important; min-height: 36px; }
+body.pl #timeframeSelector button::after { inset: -4px -1px !important; }
+.pl-tf { padding: 4px 0; overflow-y: visible; }
+.pl-band .sc-card, .pl-band .sc-slot { width: 44px !important; height: 56px !important; min-width: 44px; }
+.pl-band { padding: 2px 6px; }
+body.pl #timeframeSelector button { min-width: 44px !important; }
+.pl-lots { grid-template-columns: repeat(3, 1fr) !important; }
+.pl-lot { min-width: 44px; }
+.pl-tf { height: 44px; display: flex; align-items: center; overflow-x: auto; overflow-y: hidden; padding: 0; }
+body.pl .position-row .pos-close { min-height: 44px !important; height: 44px; }
+body.pl .position-row .position-sltp-row input, body.pl .position-row .position-sltp-row .btn { min-height: 44px !important; }
+/* a tighter rail so Close all stays above the home bar at 360-390px tall */
+.pl-order { gap: 4px; padding-top: 4px; }
+.pl-timerslot .topbar-timer { font-size: 24px; line-height: 1; }
+.pl-tiles div { padding: 2px 6px; }
+.pl-tiles b { font-size: 11px; }
+.pl-pnl b { font-size: 13px; }
+.pl-lot { height: 34px; }
+.pl-lot::after { inset: -5px -1px; }
+.pl-buy, .pl-sell { height: 52px; }
+.pl-foot { min-height: 44px; }
+body.pl #timeframeSelector { overflow: visible !important; height: 44px; align-items: center; }
+/* ticket controls: 44px tall; the small "?" help buttons get a 44px hit area */
+body.pl #plTicket button:not(.help-btn), body.pl #plTicket input { min-height: 44px !important; }
+body.pl #plTicket .lot-chip, body.pl #plTicket .instrument-tab { min-width: 44px; }
+body.pl #plTicket .help-btn { position: relative; }
+body.pl #plTicket .help-btn::after { content: ''; position: absolute; inset: -14px; }
+.pl-buy, .pl-sell { height: 56px; }
+body.pl #timeframeSelector button::after { inset: -5px -1px !important; }
+body.pl #plTicket .help-btn { padding: 14px !important; margin: -14px !important; box-sizing: content-box !important; background-clip: content-box; }
+body.pl #plTicket .lot-step-btn { min-width: 44px !important; }

@@ -1,0 +1,107 @@
+[
+  {
+    "name": "640x360: nothing over the chart (plain / spike alert / ticket open)",
+    "pass": true,
+    "detail": "chart 376x192, with ticket 196x192"
+  },
+  {
+    "name": "640x360: no page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "736x414: nothing over the chart (plain / spike alert / ticket open)",
+    "pass": true,
+    "detail": "chart 472x246, with ticket 292x246"
+  },
+  {
+    "name": "736x414: no page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "844x390: nothing over the chart (plain / spike alert / ticket open)",
+    "pass": true,
+    "detail": "chart 580x222, with ticket 200x222"
+  },
+  {
+    "name": "844x390: no page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "932x430: nothing over the chart (plain / spike alert / ticket open)",
+    "pass": true,
+    "detail": "chart 668x262, with ticket 288x262"
+  },
+  {
+    "name": "932x430: no page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "1024x500: nothing over the chart (plain / spike alert / ticket open)",
+    "pass": true,
+    "detail": "chart 760x332, with ticket 380x332"
+  },
+  {
+    "name": "1024x500: no page scroll",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "one tap on BUY fills at market with the selected lot (no confirm step)",
+    "pass": true,
+    "detail": "{\"before\":1,\"n\":2,\"lots\":0.5,\"dir\":\"BUY\",\"toast\":\"BUY 0.5 XAUUSD filled\"}"
+  },
+  {
+    "name": "haptic tap on fill",
+    "pass": true,
+    "detail": "[15]"
+  },
+  {
+    "name": "fill message shows in the tools row",
+    "pass": true,
+    "detail": "BUY 0.5 XAUUSD filled"
+  },
+  {
+    "name": "fill message never over the chart or its price",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "server ignores a forged price (fills at its own quote)",
+    "pass": true,
+    "detail": "{\"ask\":4061.41,\"fakeFill\":4061.41,\"huge\":false,\"hugeErr\":\"Not enough free margin. You can open up to 0.94 lots of XAUUSD right now\",\"bad\":false,\"sym\":false}"
+  },
+  {
+    "name": "server rejects a forged lot and symbol",
+    "pass": true,
+    "detail": "Not enough free margin. You can open up to 0.94 lots of XAUUSD right now"
+  },
+  {
+    "name": "confirmation on: SELL asks first, Cancel places nothing, card is not over the chart",
+    "pass": true,
+    "detail": "3 -> 3"
+  },
+  {
+    "name": "confirmation on: Place order fills",
+    "pass": true,
+    "detail": "3 -> 4"
+  },
+  {
+    "name": "every interactive element has a 44px hit area",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "safe areas (DevTools insets 47px sides, 21px bottom): no control under the notch or home bar",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "no page errors",
+    "pass": true,
+    "detail": ""
+  }
+]
