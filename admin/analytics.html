@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="css/admin-components.css" />
 <link rel="stylesheet" href="css/admin-console.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<link rel="stylesheet" href="css/admin-records.css" />
 </head>
 <body>
   <div class="admin-shell">
@@ -26,6 +27,7 @@
           <button class="admin-tab" data-tab="revenue">Revenue Analytics</button>
           <button class="admin-tab" data-tab="retention">Retention Analytics</button>
           <button class="admin-tab" data-tab="geo">Geographic Analytics</button>
+          <button class="admin-tab" data-tab="pwa">App installs</button>
         </div>
 
         <div class="admin-tab-panel" id="tab-players">
@@ -57,6 +59,12 @@
           <div class="kpi-grid" id="retentionKpis"></div>
         </div>
 
+        <div class="admin-tab-panel" id="tab-pwa">
+          <div class="admin-table-toolbar"><span id="pwaRange"></span></div>
+          <div class="kpi-grid" id="pwaKpis"></div>
+          <div class="panel"><h3 style="margin-top:0">By platform</h3><div id="pwaTable"></div>
+          <p class="text-secondary" style="font-size:12px">Counts only, no player ids. Installs are counted on Android (the browser tells us); iPhone installs show up as installed sessions.</p></div>
+        </div>
         <div class="admin-tab-panel" id="tab-geo">
           <div id="geoTableWrap"><div class="empty-state">Loading…</div></div>
         </div>
@@ -70,6 +78,7 @@
   <script src="js/admin-auth.js"></script>
   <script src="js/admin-nav.js"></script>
   <script src="js/admin-charts.js"></script>
+  <script src="js/date-range.js"></script>
   <script>
     Admin.renderNav();
     Admin.renderTopbar('Analytics');
@@ -82,7 +91,19 @@
     }
     document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
 
+    let pwaRange = null;
     const loaders = {
+      pwa: async () => {
+        if (!pwaRange) pwaRange = await Admin.DateRange.mount(document.getElementById('pwaRange'), { defaultPreset: '30d', onChange: () => loaders.pwa() });
+        const d = await Admin.api(`/analytics/pwa?${pwaRange.query()}`);
+        if (!d.ready) { document.getElementById('pwaKpis').innerHTML = '<div class="empty-state">No data yet: run supabase/migrations/20261116090000_pwa_events.sql.</div>'; document.getElementById('pwaTable').innerHTML = ''; return; }
+        const t = d.totals || {};
+        const k = (label, v) => `<div class="kpi-card"><div class="kpi-label">${label}</div><div class="kpi-value">${v ?? 0}</div></div>`;
+        document.getElementById('pwaKpis').innerHTML = k('Installs (Android)', t.installed) + k('Installed sessions', t.standalone_session) + k('Install card shown', t.prompt_shown) + k('Dismissed', t.prompt_dismissed) + k("Don't show again", t.prompt_never) + k('Matches played installed', d.installedMatchShare == null ? '-' : `${d.installedMatchShare}%`);
+        const kinds = ['prompt_shown', 'prompt_dismissed', 'prompt_never', 'install_click', 'installed', 'standalone_session', 'match_installed', 'match_browser', 'lock_failed_nudge'];
+        const rows = Object.entries(d.byPlatform || {});
+        document.getElementById('pwaTable').innerHTML = rows.length ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Platform</th>${kinds.map((x) => `<th>${x.replace(/_/g, ' ')}</th>`).join('')}</tr></thead><tbody>${rows.map(([p, v]) => `<tr><td>${Admin.escapeHtml(p)}</td>${kinds.map((x) => `<td>${v[x] || 0}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<div class="empty-state">No install events in this range.</div>';
+      },
       players: async () => {
         const d = await Admin.api('/analytics/players');
         document.getElementById('playerKpis').innerHTML = `

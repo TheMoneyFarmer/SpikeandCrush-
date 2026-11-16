@@ -1,0 +1,77 @@
+[
+  {
+    "name": "Android: lobby banner shows",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "Android: our card shows \"Install app\" and it opens the browser prompt",
+    "pass": true,
+    "detail": "prompt() called 1x"
+  },
+  {
+    "name": "Android: no page errors",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "banner stops after three dismissals",
+    "pass": true,
+    "detail": "dismissed 3x"
+  },
+  {
+    "name": "result screen: card after this phone's 1st and 3rd match only",
+    "pass": true,
+    "detail": "[true,false,true,false]"
+  },
+  {
+    "name": "\"Don't show again\" stops the banner and the result-screen card",
+    "pass": true,
+    "detail": "{\"banner\":false,\"card\":false}"
+  },
+  {
+    "name": "start URL /play?source=pwa opens the lobby",
+    "pass": true,
+    "detail": "http://localhost:3070/play?source=pwa"
+  },
+  {
+    "name": "iPhone Safari: card shows Share > Add to Home Screen > Add, no install button",
+    "pass": true,
+    "detail": " Play as an appFullscreen, landscape and a faster start. Tap Share (the square with the arrow) in the Safari bar. Scroll down and tap Add to"
+  },
+  {
+    "name": "iOS 17 Chrome: wording fits the iOS version",
+    "pass": true,
+    "detail": " Play as an appFullscreen, landscape and a faster start. Tap Share in this browser.Tap Add to Home Screen, then Add. Don"
+  },
+  {
+    "name": "iOS 15 Chrome: wording fits the iOS version",
+    "pass": true,
+    "detail": " Play as an appFullscreen, landscape and a faster start. Open spikeandcrush.com in Safari. This browser can't add it to "
+  },
+  {
+    "name": "installed (standalone): no banner, no card",
+    "pass": true,
+    "detail": "{\"banner\":false,\"card\":false,\"after\":false}"
+  },
+  {
+    "name": "desktop: nothing shows, no service worker",
+    "pass": true,
+    "detail": "{\"banner\":false,\"card\":false,\"sw\":\"none\"}"
+  },
+  {
+    "name": "manifest: installable fields and icons present (Lighthouse 12 dropped its PWA audit, so these are checked directly)",
+    "pass": true,
+    "detail": "{\"name\":true,\"short_name\":true,\"start_url\":true,\"display\":true,\"orientation\":true,\"colours\":true,\"icon192\":true,\"icon512\":true,\"maskable\":true,\"scope\":true}"
+  },
+  {
+    "name": "service worker controls the page and caches static files only (no API, socket, price or page responses)",
+    "pass": true,
+    "detail": "70 cached: /icons/icon-192.png, /icons/icon-512.png, /js/device.js, /css/main.css, /css/themes.css, /css/tutorial.css..."
+  },
+  {
+    "name": "service worker is versioned per deploy",
+    "pass": true,
+    "detail": "179482218870"
+  }
+]

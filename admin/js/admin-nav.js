@@ -52,6 +52,7 @@ window.Admin = window.Admin || {};
       { key: 'an-revenue', label: 'Revenue Analytics', href: '/analytics.html?tab=revenue' },
       { key: 'an-retention', label: 'Retention Analytics', href: '/analytics.html?tab=retention' },
       { key: 'an-geo', label: 'Geographic Analytics', href: '/analytics.html?tab=geo' },
+      { key: 'an-pwa', label: 'App Installs', href: '/analytics.html?tab=pwa' },
     ]},
     { group: 'Game Config', icon: 'sliders', items: [
       { key: 'cfg-match', label: 'Match Settings', href: '/game-config.html?tab=match' },

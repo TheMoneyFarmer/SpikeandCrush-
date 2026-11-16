@@ -46,6 +46,7 @@
   <link rel="stylesheet" href="/css/lobby-console.css" />
   <link rel="stylesheet" href="/css/mode-lobby.css" />
   <link rel="stylesheet" href="/css/discover-panel.css" />
+  <link rel="stylesheet" href="/css/install-app.css" />
 <script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="index" class="lb-page">
@@ -59,6 +60,7 @@
     </div>
 
     <div id="twAnnouncementBanner"></div>
+    <div id="iaBannerSlot"></div>
 
     <!-- Mobile: profile row -->
     <section class="lb-mprofile" id="lbMProfile" aria-label="Your profile"></section>
@@ -184,6 +186,8 @@
   <script src="js/support-widget.js"></script>
   <script src="/js/orientation.js"></script>
   <script src="/js/bottom-nav.js"></script>
+  <script src="/js/install-app.js"></script>
+  <script>document.addEventListener('DOMContentLoaded', () => { if (window.TW && TW.Install && TW.isLoggedIn && TW.isLoggedIn()) TW.Install.banner(document.getElementById('iaBannerSlot')); });</script>
   <script src="/js/hero-chart.js"></script>
 </body>
 </html>

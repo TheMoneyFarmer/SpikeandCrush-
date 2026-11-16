@@ -191,6 +191,37 @@ function router() {
     }
   });
 
+  // Install-the-app report (client/js/install-app.js counts): installs,
+  // installed sessions, prompts shown/dismissed per platform, and matches
+  // played installed vs in the browser, for the chosen date range.
+  r.get('/pwa', async (req, res) => {
+    if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
+    let rng;
+    try { rng = require('../../server/dateRange').resolveRange(req.query); } catch (e) { return res.status(e.status || 400).json({ error: e.message }); }
+    const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const { data, error } = await supabase.from('pwa_events_daily').select('day, kind, platform, count').gte('day', day(rng.start)).lt('day', day(rng.end + 86399999)).limit(10000);
+    if (error) {
+      if (/pwa_events_daily|does not exist|schema cache/.test(error.message || '')) return res.json({ ready: false, range: { from: new Date(rng.start).toISOString(), to: new Date(rng.end).toISOString() } });
+      return res.status(500).json({ error: error.message });
+    }
+    const byKind = {};
+    const byPlatform = {};
+    for (const r0 of data || []) {
+      byKind[r0.kind] = (byKind[r0.kind] || 0) + r0.count;
+      byPlatform[r0.platform] = byPlatform[r0.platform] || {};
+      byPlatform[r0.platform][r0.kind] = (byPlatform[r0.platform][r0.kind] || 0) + r0.count;
+    }
+    const mi = byKind.match_installed || 0;
+    const mb = byKind.match_browser || 0;
+    res.json({
+      ready: true,
+      range: { from: new Date(rng.start).toISOString(), to: new Date(rng.end).toISOString(), tz: rng.tz },
+      totals: byKind,
+      byPlatform,
+      installedMatchShare: mi + mb ? Math.round((mi / (mi + mb)) * 1000) / 10 : null,
+    });
+  });
+
   return r;
 }
 

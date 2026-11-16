@@ -1197,6 +1197,12 @@ window.TW = window.TW || {};
     `;
     document.body.appendChild(overlay);
     if (TW.Fire) TW.Fire.renderResults(overlay, me, payload);
+    // Phones: the install card after this phone's 1st and 3rd match, and a
+    // one-line nudge when the landscape lock was refused (iPhone browsers).
+    if (TW.Install) {
+      const o = TW.PhoneLand ? TW.PhoneLand.orientation() : {};
+      TW.Install.afterMatch(overlay.querySelector('.ea-side') || overlay, { lockFailed: Boolean(o.lock && String(o.lock).startsWith('refused')) });
+    }
     // Walkthrough: what the results screen shows, after the first match.
     if (me && TW.Tours) setTimeout(() => TW.Tours.forResults(), 3200);
     if (me && me.rank === 1 && window.TW && TW.Lottie) TW.Lottie.play('win');
@@ -1808,6 +1814,7 @@ window.TW = window.TW || {};
     modifyPosition: (id, levels) => TW.emitAck('trade:modify', { positionId: id, ...levels }),
     formatClock,
   };
+  if (TW.Install) TW.Install.noteMatch(matchId);
   const announce = (type, detail) => window.dispatchEvent(new CustomEvent('tw:game', { detail: { type, ...detail } }));
   socket.on('price:update', (d) => announce('prices', { timeRemaining: d.timeRemaining }));
   socket.on('match:state', () => announce('state'));

@@ -474,6 +474,17 @@ app.use('/uploads', (req, res, next) => (/\.(png|jpe?g|gif|webp)$/i.test(req.pat
 // Short browser cache (assets aren't fingerprinted yet) + ETag revalidation.
 app.use(seo.noindexHeader);
 app.get('/sitemap.xml', seo.createSitemap(db));
+// Service worker, stamped with this deploy's version so a deploy replaces it
+// (client/sw.js caches static files only). Never cached by the browser itself.
+const SW_VERSION = String(process.env.RAILWAY_GIT_COMMIT_SHA || Date.now()).slice(0, 12);
+const swSource = (() => { try { return fs.readFileSync(path.join(__dirname, '..', 'client', 'sw.js'), 'utf8'); } catch (e) { return null; } })();
+app.get('/sw.js', (req, res) => {
+  if (!swSource) return res.status(404).end();
+  res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.send(swSource.split('__SW_VERSION__').join(SW_VERSION));
+});
 app.use(express.static(path.join(__dirname, '..', 'client'), { index: false, maxAge: '5m', dotfiles: 'ignore' }));
 
 // Clean URL routes for the new pages (kept alongside the original .html
@@ -2360,6 +2371,26 @@ app.get('/api/records/mine/:n/statement.pdf', requireDb, authenticate, async (re
 app.get('/api/settings/privacy', requireDb, authenticate, async (req, res) => {
   const player = await db.getPlayerById(req.tokenPlayer.id);
   res.json(discover.privacy(player && player.settings));
+});
+
+// ---- install-the-app analytics (client/js/install-app.js) -------------------
+// Counts only: event + platform per day, no player id. Known values only,
+// a small per-visitor budget, and a quiet no-op until the table exists.
+const PWA_KINDS = new Set(['prompt_shown', 'prompt_dismissed', 'prompt_never', 'install_click', 'installed', 'standalone_session', 'match_installed', 'match_browser', 'lock_failed_nudge']);
+const PWA_PLATFORMS = new Set(['ios_safari', 'ios_other', 'android_chrome', 'android_other', 'samsung', 'desktop', 'other']);
+const pwaLimiter = friendsHub.createWindowLimiter({ max: 60, windowMs: 60 * 60 * 1000 });
+app.post('/api/pwa/event', async (req, res) => {
+  const { kind, platform } = req.body || {};
+  if (!PWA_KINDS.has(kind) || !PWA_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Unknown event' });
+  if (!pwaLimiter(visitorIp(req))) return res.status(429).json({ error: 'Too many events' });
+  if (!db.isConfigured) return res.json({ ok: true });
+  try {
+    const { error } = await db.client().rpc('pwa_event_bump', { p_day: new Date().toISOString().slice(0, 10), p_kind: kind, p_platform: platform });
+    if (error && !/pwa_event_bump|does not exist|schema cache/.test(error.message || '')) throw error;
+    res.json({ ok: true });
+  } catch (e) {
+    res.json({ ok: false });
+  }
 });
 
 // Block (the existing friends block) and Report (the existing moderation queue).

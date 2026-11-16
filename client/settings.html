@@ -118,6 +118,7 @@
   .cs-item-name { font-size: 13px; color: var(--text-primary); }
 </style>
   <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/install-app.css" />
 <script src="/js/analytics.js" defer></script>
 </head>
 <body data-page="settings">
@@ -306,6 +307,30 @@
           <div class="meta"><div>Allow match invites from anyone</div><div class="note">When off, only your friends can invite you to a match.</div></div>
           <label class="switch"><input type="checkbox" id="prAllowInvites" checked /><span class="slider-toggle"></span></label>
         </div>
+        <h3 style="margin-top:20px;" id="phone">Playing on your phone</h3>
+        <div class="toggle-row">
+          <div class="meta"><div>Rotate game to landscape</div><div class="note">Matches on a phone play sideways, with five tabs down the left.</div></div>
+          <label class="switch"><input type="checkbox" id="phRotate" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Confirm one-click trades</div><div class="note">BUY and SELL on the phone fill at once. Turn this on to confirm each one first.</div></div>
+          <label class="switch"><input type="checkbox" id="phConfirm" /><span class="slider-toggle"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Default stop loss and take profit</div><div class="note">Filled in for you on the phone's order ticket, in pips.</div></div>
+          <label class="switch"><input type="checkbox" id="phSlTp" /><span class="slider-toggle"></span></label>
+        </div>
+        <div class="toggle-row" id="phSlTpValues">
+          <div class="meta"><div>SL and TP in pips</div></div>
+          <span style="display:flex;gap:8px;align-items:center"><label>SL <input type="number" id="phSl" min="1" step="1" style="width:70px;min-height:44px" /></label><label>TP <input type="number" id="phTp" min="1" step="1" style="width:70px;min-height:44px" /></label></span>
+        </div>
+        <div class="toggle-row">
+          <div class="meta"><div>Haptics</div><div class="note">A short buzz when a trade fills (phones that support it).</div></div>
+          <label class="switch"><input type="checkbox" id="phHaptics" checked /><span class="slider-toggle"></span></label>
+        </div>
+        <h4 style="margin:16px 0 8px;" id="install">Install on your phone</h4>
+        <p class="note" style="margin:0 0 8px;">The installed app opens fullscreen, keeps landscape on Android and starts faster.</p>
+        <div id="phInstall"></div>
         <h3 style="margin-top:20px;" id="privacy">Discover</h3>
         <div class="toggle-row">
           <div class="meta"><div>Who can see my status</div><div class="note">Online, in a match, away. Anyone not allowed sees you as offline.</div></div>
@@ -403,6 +428,8 @@
   <script src="js/help-tooltips.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/main.js"></script>
+  <script src="js/phone-prefs.js"></script>
+  <script src="js/install-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
   <script src="js/auth.js"></script>
     <script src="/socket.io/socket.io.js"></script>
@@ -922,5 +949,21 @@
   <script src="js/support-widget.js"></script>
   <script src="/js/orientation.js"></script>
   <script src="/js/bottom-nav.js"></script>
+<script>
+  // Phone settings (js/phone-prefs.js): saved on the account and in this browser.
+  (function () {
+    if (!window.TW || !TW.PhonePrefs) return;
+    const $ = (id) => document.getElementById(id);
+    const p = TW.PhonePrefs.get();
+    $('phRotate').checked = p.rotate; $('phConfirm').checked = p.confirmTrades; $('phSlTp').checked = p.defaultSlTp;
+    $('phSl').value = p.slPips; $('phTp').value = p.tpPips; $('phHaptics').checked = p.haptics;
+    const vals = () => { $('phSlTpValues').style.display = $('phSlTp').checked ? '' : 'none'; };
+    vals();
+    const save = () => { vals(); TW.PhonePrefs.set({ rotate: $('phRotate').checked, confirmTrades: $('phConfirm').checked, defaultSlTp: $('phSlTp').checked, slPips: Number($('phSl').value), tpPips: Number($('phTp').value), haptics: $('phHaptics').checked }).then(() => TW.toast && TW.toast('Saved', 'success')); };
+    ['phRotate', 'phConfirm', 'phSlTp', 'phHaptics'].forEach((id) => $(id).addEventListener('change', save));
+    ['phSl', 'phTp'].forEach((id) => $(id).addEventListener('change', save));
+    if (TW.Install) TW.Install.renderSettings($('phInstall'));
+  })();
+</script>
 </body>
 </html>

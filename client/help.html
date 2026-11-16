@@ -63,6 +63,7 @@
   .no-results { display: none; text-align: center; padding: 40px; color: var(--text-secondary); }
 </style>
   <link rel="stylesheet" href="/css/console.css" />
+  <link rel="stylesheet" href="/css/install-app.css" />
 <script src="/js/analytics.js" defer></script>
   <style>
     .help-glossary { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 8px 0 0; }
@@ -138,6 +139,23 @@
           <p>At a <strong>100%</strong> margin level you get a margin call: a warning, and no new trades until it recovers. At <strong>50%</strong> you are stopped out: your biggest losing position is closed, then the next, until the level recovers. You keep trading with what is left. You can hold up to 10 positions at once.</p>
           <h3>The 2-Minute Lock</h3>
           <p>One more brake: lose 20% of your starting capital within a 2-minute window and new trades pause until the next window starts. In matches only.</p>
+        </section>
+
+        <section class="help-section" id="phone">
+          <h2>Playing on your phone</h2>
+          <p>On a phone, a match plays sideways. Turn your phone and the game fills the screen. On Android (and in the installed app) the screen stays in landscape for the whole match. On an iPhone browser, turn the phone yourself; if you hold it upright the game asks you to turn it.</p>
+          <p>The five tabs down the left side:</p>
+          <ul>
+            <li><b>Assets</b>: every instrument in this match with its price and spread. A green dot means it is busy right now. BUY and SELL on each row use your lot size.</li>
+            <li><b>Chart</b>: the chart, with BUY and SELL on the right. One tap fills at market with the lot you picked.</li>
+            <li><b>Play</b>: the gold button opens the order ticket: instrument, lot size, stop loss and take profit.</li>
+            <li><b>Trade</b>: your open positions (change SL and TP or close them) and the live standings.</li>
+            <li><b>Arena</b>: your cards, who to play them on, your missions and the crown.</li>
+          </ul>
+          <p><b>One-click trading:</b> BUY and SELL on the phone fill straight away. To confirm every trade first, turn on <b>Confirm one-click trades</b> in <a href="/settings#phone">Settings</a>. You can also switch off landscape there.</p>
+          <h3 id="install">Install on your phone</h3>
+          <p>Add Spike &amp; Crush to your home screen and open it from there: it opens fullscreen with no browser bars, keeps landscape on Android, and starts faster.</p>
+          <div id="helpInstall"></div>
         </section>
 
         <section class="help-section" id="game-modes">
@@ -310,6 +328,8 @@
   <script src="js/nav.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/main.js"></script>
+  <script src="js/install-app.js"></script>
+  <script>document.addEventListener('DOMContentLoaded', () => { if (window.TW && TW.Install) TW.Install.renderSettings(document.getElementById('helpInstall')); });</script>
   <script src="js/help-tooltips.js"></script>
   <script>
     // Built from the live deck (/api/cards/catalog), never a hand-kept copy.
