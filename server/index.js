@@ -4327,6 +4327,14 @@ io.on('connection', (socket) => {
     discoverWatching.set(socket.id, next);
   });
   // Away = the app is open but hidden; back to online when it's visible again.
+  // Engine health: a client that went more than 3 s without a price says so.
+  socket.on('engine:gap', ({ matchId, gapMs } = {}) => {
+    const pid = socket.data.player?.id;
+    const gap = Number(gapMs);
+    if (!pid || typeof matchId !== 'string' || matchId.length > 64 || !(gap > 3000) || gap > 3600000) return;
+    require('./engineHealth').recordClientGap(pid, matchId, gap);
+  });
+
   socket.on('presence:heartbeat', ({ visible } = {}) => {
     const id = socket.data.player && socket.data.player.id;
     if (!id) return;

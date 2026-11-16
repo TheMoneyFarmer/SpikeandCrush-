@@ -67,6 +67,14 @@ function router() {
     }
   });
 
+  r.get('/engine-health', async (req, res) => {
+    try {
+      res.json(await internal.getEngineHealth());
+    } catch (e) {
+      res.status(502).json({ error: `Game server unreachable: ${e.message}` });
+    }
+  });
+
   r.get('/database', async (req, res) => {
     if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
     try {

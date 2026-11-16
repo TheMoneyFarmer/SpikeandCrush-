@@ -28,8 +28,16 @@ const DEFAULTS = {
     // Replay speed per mode (data seconds per real second). Chosen from the
     // measured table in docs/fire/replay-speed.md: the lowest speed that meets
     // the guarantee. Competitions always 1.
-    replaySpeed: { quick: 1, blitz: 1, grand: 1, private: 1, solo: 1, tournament: 1, async: 1 },
+    // Blitz 2x: one 5-second chart candle every 2.5 real seconds (72 per match,
+    // Action Engine target 60+). Measured: docs/engine/README.md.
+    replaySpeed: { quick: 1, blitz: 2, grand: 1, private: 1, solo: 1, tournament: 1, async: 1 },
     maxReplaySpeed: 5,
+    // Action Engine delivery: price messages per real second (and price steps
+    // per data second). 1 = the old once-a-second chart. Every price read
+    // (chart, fills, stops, equity) uses the same step, so P&L maths is unchanged.
+    deliveryHz: 4,
+    // Floor checked by scripts/motion-report.js: price changes per second.
+    minChangesPerSecond: 4,
     // No-flat guarantee (seconds-level). A price may stay unchanged at most
     // this many consecutive seconds inside a curated match window.
     flatLimitSeconds: 3,

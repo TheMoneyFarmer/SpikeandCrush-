@@ -44,6 +44,10 @@ function createInternalAdminRouter({ gameEngine, compEngine, io, db, instruments
     });
   });
 
+  // Engine health card: price-step lateness, event-loop delay, memory,
+  // clients that missed more than 3 s of prices (server/engineHealth.js).
+  router.get('/engine-health', (req, res) => res.json(require('./engineHealth').snapshot()));
+
   router.get('/errors', (req, res) => {
     res.json(recentErrors.slice(-200).reverse());
   });

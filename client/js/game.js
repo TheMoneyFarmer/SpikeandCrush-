@@ -1600,6 +1600,12 @@ window.TW = window.TW || {};
   });
 
   let lastCountdownSecond = null;
+  // Server clock and stall watchdog state (Action Engine / freeze fix).
+  let serverOffsetMs = null;
+  let matchEndsAtMs = null;
+  let lastPriceAt = null;
+  let heavyRenderAt = 0;
+  let lastForcedReconnectAt = 0;
   socket.on('price:update', (data) => {
     if (dragLevels) setTimeout(() => dragLevels.tick(), 0);
     if (matchStartedAtMs === null) matchStartedAtMs = Date.now() - data.elapsedSeconds * 1000;
@@ -1617,25 +1623,82 @@ window.TW = window.TW || {};
       speedBadge.textContent = `MARKET x${speed}`;
     }
     renderQuotes();
-    renderTopbar();
-    renderPositions();
-    renderAccountSummary();
+    // Prices arrive several times a second; the heavier panels redraw at most
+    // twice a second (they hold P&L, which the quotes above already show live).
+    const nowMs = Date.now();
+    if (nowMs - heavyRenderAt >= 500) {
+      heavyRenderAt = nowMs;
+      renderTopbar();
+      renderPositions();
+      renderAccountSummary();
+    }
 
+    // Server clock: the countdown is endsAt minus the estimated server time,
+    // never a local counter, so it keeps the right time through pauses.
+    // Tell the server when this client went more than 3 s without a price
+    // (Engine health card), measured here where the gap is actually felt.
+    if (lastPriceAt !== null && nowMs - lastPriceAt > 3000 && !document.hidden) socket.emit('engine:gap', { matchId, gapMs: nowMs - lastPriceAt });
+    lastPriceAt = nowMs;
+    hideStallStrip();
+    if (Number.isFinite(data.serverTime) && Number.isFinite(data.endsAt)) {
+      const sample = data.serverTime - nowMs;
+      // Smooth, but take a lower (less delayed) sample at once.
+      serverOffsetMs = serverOffsetMs === null || sample < serverOffsetMs ? sample : serverOffsetMs * 0.9 + sample * 0.1;
+      matchEndsAtMs = data.endsAt;
+    }
+    renderClock(serverRemaining(data.timeRemaining));
+  });
+
+  // Countdown from server time, plus the stall watchdog: no price for 2 s
+  // shows a slim "Reconnecting" strip (in the top bar, never over the chart);
+  // 8 s forces a clean reconnect, which re-joins and resyncs (the 'connect'
+  // handler above). Runs 4 times a second; the clock never restarts.
+  function serverRemaining(fallback) {
+    if (matchEndsAtMs === null || serverOffsetMs === null) return fallback;
+    return Math.max(0, Math.ceil((matchEndsAtMs - (Date.now() + serverOffsetMs)) / 1000));
+  }
+  function renderClock(timeRemaining) {
+    if (matchEnded || !Number.isFinite(timeRemaining)) return;
     const timerEl = document.getElementById('topbarTimer');
-    timerEl.textContent = formatClock(data.timeRemaining);
+    timerEl.textContent = formatClock(timeRemaining);
     const ring = document.getElementById('timerRing');
     const total = (lastState && lastState.durationSeconds) || 0;
-    if (ring && total > 0) ring.style.setProperty('--ring', Math.max(0, Math.min(1, data.timeRemaining / total)).toFixed(4));
+    if (ring && total > 0) ring.style.setProperty('--ring', Math.max(0, Math.min(1, timeRemaining / total)).toFixed(4));
     const wasLow = timerEl.classList.contains('low');
-    timerEl.classList.toggle('low', data.timeRemaining <= 60);
-    timerEl.classList.toggle('critical', data.timeRemaining <= 10 && data.timeRemaining > 0);
-    if (!wasLow && data.timeRemaining <= 60 && data.timeRemaining > 0) TW.Sound.play('oneMinuteWarning');
-
-    if (data.timeRemaining <= 10 && data.timeRemaining >= 1 && data.timeRemaining !== lastCountdownSecond) {
-      TW.Sound.play('countdown');
+    timerEl.classList.toggle('low', timeRemaining <= 60);
+    timerEl.classList.toggle('critical', timeRemaining <= 10 && timeRemaining > 0);
+    if (!wasLow && timeRemaining <= 60 && timeRemaining > 0) TW.Sound.play('oneMinuteWarning');
+    if (timeRemaining <= 10 && timeRemaining >= 1 && timeRemaining !== lastCountdownSecond) TW.Sound.play('countdown');
+    lastCountdownSecond = timeRemaining;
+  }
+  function showStallStrip() {
+    let el = document.getElementById('stallStrip');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'stallStrip';
+      el.className = 'stall-strip';
+      el.setAttribute('role', 'status');
+      el.textContent = 'Reconnecting...';
+      const bar = document.querySelector('.game-topbar') || document.body;
+      bar.appendChild(el);
     }
-    lastCountdownSecond = data.timeRemaining;
-  });
+    el.hidden = false;
+  }
+  function hideStallStrip() {
+    const el = document.getElementById('stallStrip');
+    if (el) el.hidden = true;
+  }
+  setInterval(() => {
+    if (matchEnded || lastPriceAt === null) return;
+    renderClock(serverRemaining(null));
+    const silent = Date.now() - lastPriceAt;
+    if (silent > 2000 && serverRemaining(1) > 0) showStallStrip();
+    if (silent > 8000 && !document.hidden && Date.now() - lastForcedReconnectAt > 8000) {
+      lastForcedReconnectAt = Date.now();
+      socket.disconnect();
+      socket.connect();
+    }
+  }, 250);
 
   socket.on('trade:executed', (data) => {
     if (!data.modified) TW.toast(data.mirrored ? 'A position was mirrored onto your account!' : 'Trade executed', 'info');
@@ -1748,6 +1811,14 @@ window.TW = window.TW || {};
     if (mine) {
       TW.toast(`🤝 Shared ${ordinal(mine.rank)} at ${TW.formatMoney(mine.pnl)} - split ${mine.splitFrom}% ÷ ${mine.splitCount}`, 'info');
     }
+  });
+  // The clock hit 0: the server is saving results. Say so at once instead of
+  // leaving a frozen 0:00 on screen until match:end arrives.
+  socket.on('match:resolving', () => {
+    if (matchEnded) return;
+    const timerEl = document.getElementById('topbarTimer');
+    if (timerEl) timerEl.textContent = formatClock(0);
+    TW.toast("Time's up. Counting results...", 'info');
   });
   socket.on('match:end', (payload) => {
     if (!matchEnded) {

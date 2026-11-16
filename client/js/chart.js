@@ -365,8 +365,39 @@ TW.Chart = (function () {
 
   function pushTick(symbol, elapsedSeconds, mid) {
     if (!rawTicks[symbol]) rawTicks[symbol] = [];
-    rawTicks[symbol].push({ t: elapsedSeconds, mid });
-    if (symbol === activeSymbol && !ghosted) refreshActiveSeries();
+    const list = rawTicks[symbol];
+    const prevMid = list.length ? list[list.length - 1].mid : null;
+    list.push({ t: elapsedSeconds, mid });
+    if (symbol !== activeSymbol || ghosted) return;
+    // Fast path for live ticks: change only the forming candle (or add the
+    // next one) instead of rebuilding and redrawing every candle, which at
+    // several prices a second was heavy on phones. Anything unusual (an older
+    // tick, no candles yet) falls back to the full rebuild.
+    const last = lastCandles[lastCandles.length - 1];
+    if (!series || !last || elapsedSeconds < 0 || (prevMid !== null && list[list.length - 2].t > elapsedSeconds)) {
+      refreshActiveSeries();
+      return;
+    }
+    const off = alignOffsets[symbol] || 0;
+    const bucket = Math.floor((elapsedSeconds + off) / timeframeSeconds);
+    const movement = prevMid === null ? 0 : Math.abs(mid - prevMid);
+    let candle;
+    if (bucket === last.bucket) {
+      candle = last;
+      candle.high = Math.max(candle.high, mid);
+      candle.low = Math.min(candle.low, mid);
+      candle.close = mid;
+      candle.tickVolume += movement;
+      candle.isPreMatch = false;
+    } else if (bucket > last.bucket) {
+      candle = { bucket, time: bucket * timeframeSeconds - off, open: mid, high: mid, low: mid, close: mid, tickVolume: movement, isPreMatch: false };
+      lastCandles.push(candle);
+    } else {
+      refreshActiveSeries();
+      return;
+    }
+    series.update({ time: candle.time, open: candle.open, high: candle.high, low: candle.low, close: candle.close });
+    candleUpdateSubscribers.forEach((fn) => fn(lastCandles));
   }
 
   // Seeds dimmed historical candles ahead of any live ticks: 2 hours of ticks,

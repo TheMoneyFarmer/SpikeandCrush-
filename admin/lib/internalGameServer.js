@@ -54,6 +54,7 @@ module.exports = {
   recordsHealth: () => callInternal('/internal/admin/records-health'),
   getConfig: () => callInternal('/internal/admin/config'),
   getErrors: () => callInternal('/internal/admin/errors'),
+  getEngineHealth: () => callInternal('/internal/admin/engine-health'),
   forceEndMatch: (matchId) => callInternal(`/internal/admin/matches/${matchId}/force-end`, { method: 'POST' }),
   voidMatch: (matchId) => callInternal(`/internal/admin/matches/${matchId}/void`, { method: 'POST' }),
   kickPlayer: (matchId, playerId) =>

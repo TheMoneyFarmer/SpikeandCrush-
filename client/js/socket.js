@@ -17,7 +17,10 @@ window.TW = window.TW || {};
     const token = TW.getToken();
     if (!token) return null;
     if (TW.socket) TW.socket.disconnect();
-    TW.socket = io({ auth: { token } });
+    // auth as a function: every reconnect sends the CURRENT login token. A
+    // fixed { token } kept the one from page load, which expires after an
+    // hour, so a dropped connection after that could never reconnect.
+    TW.socket = io({ auth: (cb) => cb({ token: TW.getToken() || token }) });
     // Presence: "Away" while the app is hidden, "Online" again when it's
     // visible (Discover). One listener per page, re-sent on every reconnect.
     const beat = () => TW.socket && TW.socket.connected && TW.socket.emit('presence:heartbeat', { visible: document.visibilityState !== 'hidden' });

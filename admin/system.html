@@ -56,6 +56,10 @@
         </div>
 
         <div class="admin-tab-panel" id="tab-errors">
+          <div class="panel" style="margin-bottom:16px;">
+            <h3>Engine health <span id="engineHealthState" class="text-secondary" style="font-size:12px;"></span></h3>
+            <div id="engineHealthBody" class="text-secondary" style="font-size:12px;">Loading…</div>
+          </div>
           <div class="admin-table-toolbar">
             <button class="btn btn-sm" id="refreshErrorsBtn">Refresh</button>
           </div>
@@ -171,6 +175,19 @@
         } catch (e) { Admin.toast(e.message, 'danger'); }
       },
       errors: async () => {
+        try {
+          const h = await Admin.api('/system/engine-health');
+          const st = document.getElementById('engineHealthState');
+          st.textContent = h.state === 'red' ? 'RED' : 'OK';
+          st.style.color = h.state === 'red' ? 'var(--crush, #FF4D5E)' : 'var(--spike, #2EE6A6)';
+          document.getElementById('engineHealthBody').innerHTML = `
+            Last ${h.windowMinutes} minutes: ${h.priceSteps} price steps across ${h.activeMatches} matches.<br/>
+            Price step lateness p95 <strong>${h.stepLateP95Ms} ms</strong> (red above ${h.redLagMs} ms), worst ${h.stepLateMaxMs} ms. Step work p95 ${h.stepTookP95Ms} ms.<br/>
+            Event loop delay p99 ${h.eventLoopP99Ms} ms, max ${h.eventLoopMaxMs} ms. Memory ${h.heapMb} MB heap, ${h.rssMb} MB total.<br/>
+            Clients that missed more than 3 s of prices: <strong>${h.clientGaps.length}</strong>${h.clientGaps.length ? ' — ' + h.clientGaps.map((g) => `${Admin.escapeHtml(Admin.formatDate(g.at))} match ${Admin.escapeHtml(String(g.matchId).slice(0, 8))} ${(g.gapMs / 1000).toFixed(1)} s`).join('; ') : ''}`;
+        } catch (e) {
+          document.getElementById('engineHealthBody').textContent = e.message;
+        }
         try {
           const rows = await Admin.api('/system/errors');
           document.getElementById('errorsTableWrap').innerHTML = rows.length ? `

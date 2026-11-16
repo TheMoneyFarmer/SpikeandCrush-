@@ -18,6 +18,8 @@ const cosmetics = require('./cosmetics');
 const intrabar = require('./intrabar');
 const { createMatchLog, downsample } = require('./matchLog');
 const curated = require('./curated');
+const engineHealth = require('./engineHealth');
+const { performance } = require('perf_hooks');
 // Activity levels change only when playlists are rebuilt: read once a minute.
 let activityCache = { at: 0, levels: {} };
 function curatedActivity() {
@@ -620,15 +622,29 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   // deliberately NOT exempted here since the spec calls for it to still
   // move a shared price for everyone; the caster's edge is a private
   // warning before it starts, handled in playSabotageCard/sabotage.js.
+  // Action Engine price clock: the price step (deliveryHz per second) for a
+  // read at nowMs, kept inside the caller's whole second so every read in one
+  // step - chart, fills, stops, equity - sees the same price.
+  function deliveryHz() {
+    return Math.max(1, Math.min(10, Math.floor(Number((gameFeel.get().market || {}).deliveryHz) || 1)));
+  }
+  function priceTime(match, elapsedSeconds, nowMs) {
+    const hz = deliveryHz();
+    if (hz <= 1 || !match.startedAt || !Number.isFinite(nowMs)) return elapsedSeconds;
+    const precise = Math.floor(((nowMs - match.startedAt) / 1000) * hz) / hz;
+    return Math.max(elapsedSeconds, Math.min(elapsedSeconds + 1 - 1 / hz, precise));
+  }
+
   function getEffectivePrice(match, symbol, elapsedSeconds, nowMs, viewerId = null) {
     // time_warp: everyone except the caster reads prices from 3 seconds in
     // the past for the effect's duration - getCurrentPrice already clamps
     // an out-of-range index to 0, so this is safe even early in a match.
     const immune = (casterId) => marketImmune(match, viewerId, casterId, nowMs);
     const timeWarpActive = nowMs < match.marketEffects.timeWarpUntil && !immune(match.marketEffects.timeWarpCasterId);
-    const effectiveElapsed = timeWarpActive ? elapsedSeconds - 3 : elapsedSeconds;
+    const t = priceTime(match, elapsedSeconds, nowMs);
+    const effectiveElapsed = timeWarpActive ? Math.max(0, t - 3) : t;
 
-    const raw = instruments.getCurrentPrice(match.id, symbol, effectiveElapsed);
+    const raw = instruments.getPriceAt(match.id, symbol, effectiveElapsed);
     let mid = raw.mid;
 
     // createMarketEffects() only seeds EURUSD/XAUUSD entries (its hardcoded,
@@ -781,7 +797,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       ? pinned
       : dailySeed
         ? instruments.selectDailyInstruments(dailySeed, modeConfig.instrumentCount, mode)
-        : instruments.selectMatchInstruments(modeConfig.instrumentCount, mode, rules.instrumentPool === 'top' ? { topN: rules.instrumentPoolSize || 6 } : {});
+        : instruments.selectMatchInstruments(modeConfig.instrumentCount, mode, { ...(rules.instrumentPool === 'top' ? { topN: rules.instrumentPoolSize || 6 } : {}), dataSeconds: modeConfig.durationSeconds * marketReplaySpeed(mode) });
 
     const liveMinutes = Math.ceil((opts.configOverrides?.durationSeconds ?? modeConfig.durationSeconds) / 60);
     // Every match gets one market seed shared by all its players (a ghost
@@ -1371,6 +1387,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       if (!p.isAI) updatePresence?.(p.id, { status: 'in_match', matchId: match.id, lobbyId: null, mode: match.config.label || match.mode });
     }
 
+    startPriceLoop(match);
     match.timers.tickInterval = setInterval(() => {
       try {
         tick(match);
@@ -2008,7 +2025,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       const elapsedSeconds = getElapsedSeconds(match, nowMs);
       match.marketEffects.volatilitySurgeBaseline = {};
       for (const symbol of match.instruments) {
-        match.marketEffects.volatilitySurgeBaseline[symbol] = instruments.getCurrentPrice(match.id, symbol, elapsedSeconds).mid;
+        match.marketEffects.volatilitySurgeBaseline[symbol] = instruments.getPriceAt(match.id, symbol, priceTime(match, elapsedSeconds, Date.now())).mid;
       }
     }
 
@@ -2016,7 +2033,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       const elapsedSeconds = getElapsedSeconds(match, nowMs);
       match.marketEffects.deadCalmBaseline = {};
       for (const symbol of match.instruments) {
-        match.marketEffects.deadCalmBaseline[symbol] = instruments.getCurrentPrice(match.id, symbol, elapsedSeconds).mid;
+        match.marketEffects.deadCalmBaseline[symbol] = instruments.getPriceAt(match.id, symbol, priceTime(match, elapsedSeconds, Date.now())).mid;
       }
     }
 
@@ -2433,21 +2450,21 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
   // ---- tick / leaderboard / end -------------------------------------------
 
-  function tick(match) {
-    const nowMs = Date.now();
-    const elapsedSeconds = getElapsedSeconds(match, nowMs);
-
-    for (const p of Object.values(match.players)) {
-      if (p.isAI) runAI(match, p, elapsedSeconds, nowMs);
-    }
-
+  // Sends the current price step to the room (and corrected prices to anyone a
+  // market card exempts). Every price message carries the server clock (seq,
+  // serverTime, endsAt) so the client counts down from server time.
+  function emitPrices(match, elapsedSeconds, nowMs) {
     const prices = {};
     for (const symbol of match.instruments) prices[symbol] = getEffectivePrice(match, symbol, elapsedSeconds, nowMs);
     // marketSpeed/dataSeconds: the chart builds candles on market time (so 1m
     // candles stay the real base bars at any replay speed) and shows the
     // honest "MARKET xN" badge when the speed is above 1.
     const marketSpeed = match.replaySpeed || 1;
-    const dataSeconds = elapsedSeconds * marketSpeed;
+    // Fractional market time for the chart (the price step), whole seconds
+    // stay as before for everything else.
+    const dataSeconds = priceTime(match, elapsedSeconds, nowMs) * marketSpeed;
+    match.priceSeq = (match.priceSeq || 0) + 1;
+    const clock = { seq: match.priceSeq, serverTime: nowMs, endsAt: match.startedAt + match.config.durationSeconds * 1000 };
     emitToAll(match, 'price:update', {
       matchId: match.id,
       elapsedSeconds,
@@ -2455,6 +2472,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       marketSpeed,
       timeRemaining: match.config.durationSeconds - elapsedSeconds,
       prices,
+      ...clock,
     });
 
     // Market-wide cards (volatility_surge, spread_spike) exempt whoever cast
@@ -2504,9 +2522,54 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           marketSpeed,
           timeRemaining: match.config.durationSeconds - elapsedSeconds,
           prices: correctedPrices,
+          ...clock,
         });
       }
     }
+
+  }
+
+  // Price loop: deliveryHz messages a second, scheduled from the match start
+  // (no drift: each step is aimed at start + n * period). If a step runs late
+  // it skips ahead instead of queueing up, and slow steps are counted for the
+  // Engine health card. Stops and take-profits are checked on every step so
+  // they trigger on the same price the chart shows.
+  function startPriceLoop(match) {
+    const hz = deliveryHz();
+    if (hz <= 1) return;
+    const period = 1000 / hz;
+    const t0 = match.startedAt;
+    let n = 0;
+    const step = () => {
+      if (match.status !== 'active') return;
+      const nowMs = Date.now();
+      const elapsedSeconds = getElapsedSeconds(match, nowMs);
+      const began = performance.now();
+      try {
+        emitPrices(match, elapsedSeconds, nowMs);
+        checkStopLossTakeProfit(match, elapsedSeconds, nowMs);
+      } catch (e) {
+        console.error('[gameEngine] price step threw for match', match.id, e);
+      }
+      engineHealth.recordStep(match.id, nowMs - (t0 + n * period), performance.now() - began);
+      n = Math.max(n + 1, Math.ceil((Date.now() - t0) / period));
+      match.timers.priceTimeout = setTimeout(step, Math.max(0, t0 + n * period - Date.now()));
+    };
+    match.timers.priceTimeout = setTimeout(step, 0);
+  }
+
+  function tick(match) {
+    const nowMs = Date.now();
+    const elapsedSeconds = getElapsedSeconds(match, nowMs);
+
+    for (const p of Object.values(match.players)) {
+      if (p.isAI) runAI(match, p, elapsedSeconds, nowMs);
+    }
+
+    // Prices: sent deliveryHz times a second by the price loop (startPriceLoop);
+    // at 1 per second the tick sends them as before.
+    if (deliveryHz() <= 1) emitPrices(match, elapsedSeconds, nowMs);
+    const dataSeconds = elapsedSeconds * (match.replaySpeed || 1);
 
     checkStopLossTakeProfit(match, elapsedSeconds, nowMs);
     for (const p of Object.values(match.players)) checkRiskLimits(match, p, elapsedSeconds, nowMs);
@@ -2748,6 +2811,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     clearInterval(match.timers.countdownInterval); // force-ended during the countdown
     clearInterval(match.timers.tickInterval);
     clearInterval(match.timers.leaderboardInterval);
+    clearTimeout(match.timers.priceTimeout);
 
     const endNow = Date.now();
     const closing = {};
@@ -2758,9 +2822,15 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
     const results = computeMatchResults(Object.values(match.players), match.mode, match.config);
     logEvent(match, 'end', null, { standings: results.map((r) => ({ playerId: r.playerId, rank: r.rank, pnl: r.pnl })) }, null, endNow);
+    // The clock just hit 0: say so right away (saving below takes a moment),
+    // so the screen never sits on a frozen 0:00 with nothing happening.
+    emitToAll(match, 'match:resolving', { matchId: match.id, standings: results.map((r) => ({ username: r.username, rank: r.rank, pnl: r.pnl })) });
 
     const ratingField = match.config.ratingKey || 'war_rating';
-    for (const r of results) {
+    // One player's saves never wait on another's (was one after another: a
+    // full room took ~20 s while the screen sat on 0:00). Each player's own
+    // steps still run in order, with the same idempotency keys as before.
+    await Promise.all(results.map(async (r) => {
       const p = match.players[r.playerId];
       p.warRating = r.newRating;
       if (ratingField === 'war_rating') p.tier = tierForRating(r.newRating);
@@ -2858,13 +2928,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           console.warn('[gameEngine] failed to persist match result for', r.username, e.message);
         }
       }
-    }
+    }));
 
     // Invite rewards. Separate and best-effort: never allowed to affect results.
     if (db.isConfigured && match.dbMatchId) {
       const everyone = Object.values(match.players);
-      for (const p of everyone) {
-        if (!referralRules.qualifiesForInviteReward(everyone, p.id)) continue;
+      await Promise.all(everyone.map(async (p) => {
+        if (!referralRules.qualifiesForInviteReward(everyone, p.id)) return;
         try {
           const paid = await db.payPlayerReferral(p.id, match.dbMatchId, referralRules.INVITE_REWARD_COINS, referralRules.INVITE_MAX_PAID);
           if (paid && paid.paid) {
@@ -2873,7 +2943,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         } catch (e) {
           console.warn('[gameEngine] invite reward failed for', p.username, e.message);
         }
-      }
+      }));
     }
 
     if (db.isConfigured && match.dbMatchId) {
@@ -2937,13 +3007,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         cardsEarned: p.cardsEarned || 0,
         missions: (p.missions || []).map((m) => ({ id: m.id, label: m.label, done: m.done, coins: m.coins || 0 })),
       };
-      if (r.isAI || !gameFeel.get().progression.enabled) continue;
+    }
+    await Promise.all(results.map(async (r) => {
+      const p = match.players[r.playerId];
+      if (!p || r.isAI || !gameFeel.get().progression.enabled) return;
       try {
         r.fire.progress = await awardMatchXp(match, p, r);
       } catch (e) {
         console.warn('[progression] XP award failed for', r.username, e.message);
       }
-    }
+    }));
 
     match.status = 'finished';
 
@@ -3468,6 +3541,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     clearInterval(match.timers.tickInterval);
     clearInterval(match.timers.leaderboardInterval);
     clearTimeout(match.timers.lobbyTimeout);
+    clearTimeout(match.timers.priceTimeout);
 
     for (const player of Object.values(match.players)) {
       if (player.isAI) continue;
@@ -3532,6 +3606,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       clearInterval(match.timers.tickInterval);
       clearInterval(match.timers.leaderboardInterval);
       clearTimeout(match.timers.lobbyTimeout);
+      clearTimeout(match.timers.priceTimeout);
       match.status = 'voided';
       if (db.isConfigured && match.dbMatchId) db.updateMatch(match.dbMatchId, { status: 'voided', end_time: new Date().toISOString() }).catch(() => {});
       instruments.releaseMatchWindows(match.id);

@@ -3,6 +3,10 @@
 const csvLoader = require('./csvLoader');
 const curated = require('./curated');
 const intrabar = require('./intrabar');
+const actionEngine = require('./actionEngine');
+const gameFeel = require('./config/gameFeel');
+// Price steps per data second (Action Engine delivery; 1 = the old engine).
+const deliverySteps = () => Math.max(1, Math.min(10, Math.floor(Number((gameFeel.get().market || {}).deliveryHz) || 1)));
 
 // dataFile is a substring match against the actual filenames in
 // data/historical/ (which carry long date-stamped names) - see csvLoader.findFile.
@@ -157,8 +161,23 @@ function isPlayable(symbol, mode = null) {
 
 // opts.topN: only the N most active playable instruments (curation ranking) -
 // Blitz plays the busiest markets only (server/config/modeIdentity.js).
+// Action Engine: how many busy windows an instrument has for a match of
+// `dataSeconds` market seconds (0 = not offered at that length). Instruments
+// without curated data keep the old behaviour (not scored).
+function actionWindowCount(symbol, dataSeconds) {
+  if (!actionEngine.cfg().enabled || !curated.isActive()) return Infinity;
+  const pl = curated.getPlaylist(symbol);
+  if (!pl) return Infinity;
+  const key = curated.durationKey(pl, dataSeconds);
+  if (!key) return 0;
+  return actionEngine.scoreWindows(symbol, Math.ceil(dataSeconds / 60), pl.validStarts[key] || [], curated.barsAt).length;
+}
+
 function selectMatchInstruments(count = 5, mode = null, opts = {}) {
   let all = playableSymbols(mode);
+  // Never lower the bar: an instrument without busy windows for this match
+  // length is simply not offered.
+  if (opts.dataSeconds) all = all.filter((sym) => actionWindowCount(sym, opts.dataSeconds) > 0);
   if (opts.topN) {
     const cat = curated.load();
     const rank = new Map(((cat && cat.ranking) || []).map((r) => [r.sym, r.rank]));
@@ -305,39 +324,74 @@ function assignCuratedWindow(matchId, symbol, seed, liveMinutes, opts) {
   const speed = Math.max(1, Math.floor(Number(opts.speed) || 1));
   const seedStr = String(seed || matchId);
   const durationSeconds = liveMinutes * 60;
-  let start = Number.isInteger(opts.startIndex) ? opts.startIndex : null;
-  if (start === null) start = curated.pickStart(symbol, durationSeconds * speed, seededRandom(`${seedStr}:${symbol}:start`));
-  if (start === null) return null;
   const dataMinutes = Math.ceil(liveMinutes * speed);
-  const preBars = curated.barsAt(symbol, start - PRE_MATCH_MINUTES, PRE_MATCH_MINUTES);
-  const liveBars = curated.barsAt(symbol, start, dataMinutes);
-  const ticksOf = (bars) => {
-    const mids = new Float64Array(bars.length * TICKS_PER_MINUTE);
-    let i = 0;
-    for (const bar of bars) {
-      const path = intrabar.barPath(bar, TICKS_PER_MINUTE, cfg.decimals, seedStr, `${symbol}:${bar.index}`);
-      for (let k = 0; k < path.length; k++) mids[i++] = path[k];
-    }
-    return mids;
-  };
-  const preMids = ticksOf(preBars);
-  const preBase = preMids.length ? preMids[0] : 0;
-  const preOffsets = new Float32Array(preMids.length);
-  for (let i = 0; i < preMids.length; i++) preOffsets[i] = preMids[i] - preBase;
   const pl = curated.getPlaylist(symbol);
-  return {
-    symbol,
-    spread: cfg.spread,
-    decimals: cfg.decimals,
-    preBase,
-    preOffsets,
-    live: ticksOf(liveBars),
-    anchor: null,
-    curated: { start, seed: seedStr, speed, loopLength: pl.bars.length, srcTime: pl.srcTimes[start] },
-    speed,
-    lastIndex: -1,
-    lastTick: null,
+  const ae = actionEngine.cfg();
+  const useAE = ae.enabled && opts.actionEngine !== false;
+  // Anti-memorisation (Action Engine): price scale and mirror flip from the
+  // seed and symbol, so a replay with the same seed and start is identical.
+  const shape = useAE ? actionEngine.transformFor(seededRandom(`${seedStr}:${symbol}:shape`)) : { scale: 1, flip: false };
+
+  const build = (start) => {
+    const preBars = curated.barsAt(symbol, start - PRE_MATCH_MINUTES, PRE_MATCH_MINUTES);
+    const liveBars = curated.barsAt(symbol, start, dataMinutes);
+    const ref = liveBars.length ? liveBars[0].open : 0;
+    const T = (v) => (shape.flip ? 2 * ref - v : v) * shape.scale;
+    const shaped = (b) => {
+      if (shape.scale === 1 && !shape.flip) return b;
+      const a = T(b.high);
+      const z = T(b.low);
+      return { open: T(b.open), high: Math.max(a, z), low: Math.min(a, z), close: T(b.close), index: b.index };
+    };
+    const ticksOf = (bars) => {
+      const mids = new Float64Array(bars.length * TICKS_PER_MINUTE);
+      let i = 0;
+      for (const bar of bars) {
+        const path = intrabar.barPath(shaped(bar), TICKS_PER_MINUTE, cfg.decimals, seedStr, `${symbol}:${bar.index}`);
+        for (let k = 0; k < path.length; k++) mids[i++] = path[k];
+      }
+      return mids;
+    };
+    const preMids = ticksOf(preBars);
+    const preBase = preMids.length ? preMids[0] : 0;
+    const preOffsets = new Float32Array(preMids.length);
+    for (let i = 0; i < preMids.length; i++) preOffsets[i] = preMids[i] - preBase;
+    return {
+      symbol,
+      spread: cfg.spread * shape.scale,
+      decimals: cfg.decimals,
+      preBase,
+      preOffsets,
+      live: ticksOf(liveBars),
+      anchor: null,
+      curated: { start, seed: seedStr, speed, loopLength: pl.bars.length, srcTime: pl.srcTimes[start], shape: { ...shape, ref } },
+      speed,
+      lastIndex: -1,
+      lastTick: null,
+    };
   };
+
+  // A replay (ghost, challenge) names its start: rebuild exactly that.
+  if (Number.isInteger(opts.startIndex)) return build(opts.startIndex);
+  const rand = seededRandom(`${seedStr}:${symbol}:start`);
+  if (!useAE) {
+    const start = curated.pickStart(symbol, durationSeconds * speed, rand);
+    return start === null ? null : build(start);
+  }
+  const key = curated.durationKey(pl, durationSeconds * speed);
+  const valid = key ? pl.validStarts[key] : [];
+  const eligible = actionEngine.scoreWindows(symbol, dataMinutes, valid || [], curated.barsAt);
+  if (!eligible.length) return null; // not enough action: this instrument is not offered
+  const hz = deliverySteps();
+  const picked = actionEngine.pickWindow(symbol, eligible, rand, (start) => {
+    const entry = build(start);
+    const samples = [];
+    for (let k = 0; k < durationSeconds * hz; k++) samples.push([k / hz, priceAtEntry(entry, k / hz, stepsFor(entry, hz), seedStr).mid]);
+    return { entry, samples };
+  }, speed);
+  if (!picked) return null;
+  picked.entry.action = { percentile: Math.round(picked.pct), continuity: picked.continuity, reason: picked.reason || null };
+  return picked.entry;
 }
 
 // Chart history for a curated match: the playlist minutes before the pre-match
@@ -350,7 +404,13 @@ function buildCuratedContext(entry) {
   const count = Math.max(0, Math.min(CURATED_CONTEXT_MAX_BARS, loopLength - span));
   const first = start - PRE_MATCH_MINUTES - count;
   const bars = curated.barsAt(entry.symbol, first, count);
-  const m1 = bars.map((b, k) => [(first + k - start) * 60, b.open, b.high, b.low, b.close]);
+  const sh = entry.curated.shape;
+  const T = (v) => (sh && sh.flip ? 2 * sh.ref - v : v) * ((sh && sh.scale) || 1);
+  const m1 = bars.map((b, k) => {
+    const hi = T(b.high);
+    const lo = T(b.low);
+    return [(first + k - start) * 60, T(b.open), Math.max(hi, lo), Math.min(hi, lo), T(b.close)];
+  });
   return {
     context: { m1, h1: [], d1: [] },
     // Keeps H1/H4 boundaries on the source bar's real minute-of-day.
@@ -511,6 +571,82 @@ function getCurrentPrice(matchId, symbol, elapsedSeconds) {
   return entry.lastTick;
 }
 
+// Sub-second prices (Action Engine, no frozen candle). The per-second series
+// above is never changed: second k is exactly entry.live[k], so replays and
+// anything reading whole seconds see the same prices as before. Between
+// second k and k+1 the price follows a seeded Brownian bridge (same seed for
+// every player in the match, so everyone sees the same path), scaled to the
+// window's typical one-second move.
+function typicalStep(entry) {
+  if (entry.typStep !== undefined) return entry.typStep;
+  const d = [];
+  for (let i = 1; i < entry.live.length; i++) d.push(Math.abs(entry.live[i] - entry.live[i - 1]));
+  d.sort((a, b) => a - b);
+  const nonZero = d.filter((x) => x > 0);
+  entry.typStep = (nonZero.length ? nonZero[Math.floor(nonZero.length / 2)] : 0) || 10 ** -entry.decimals;
+  return entry.typStep;
+}
+
+function bridgePoints(entry, k, sub, seedKey) {
+  const cache = entry.bridgeCache || (entry.bridgeCache = { k: -1, sub: 0, pts: null });
+  if (cache.k === k && cache.sub === sub) return cache.pts;
+  const a = entry.live[k];
+  const b = entry.live[Math.min(k + 1, entry.live.length - 1)];
+  const rand = intrabar.rngFor(String(seedKey), `${entry.symbol}:sub:${k}`);
+  const normal = () => Math.sqrt(-2 * Math.log(Math.max(1e-12, rand()))) * Math.cos(2 * Math.PI * rand());
+  // At least two price units, so the steps survive rounding to the instrument's decimals.
+  const sigma = Math.max(typicalStep(entry), Math.abs(b - a), 2 * 10 ** -entry.decimals) * 0.6;
+  const w = [0];
+  for (let j = 1; j <= sub; j++) w.push(w[j - 1] + (normal() * sigma) / Math.sqrt(sub));
+  const unit = 10 ** -entry.decimals;
+  const round = (v) => Number(v.toFixed(entry.decimals));
+  const pts = [a];
+  for (let j = 1; j < sub; j++) {
+    let v = round(a + ((b - a) * j) / sub + (w[j] - (j / sub) * w[sub]));
+    // Every step must visibly move: never equal to the step before it, and
+    // the last one never equal to the next whole second's price.
+    const prev = pts[j - 1];
+    if (v === round(prev) || (j === sub - 1 && v === round(b))) {
+      const dir = b > prev ? 1 : b < prev ? -1 : rand() < 0.5 ? 1 : -1;
+      v = round(prev + dir * unit);
+      if (j === sub - 1 && v === round(b)) v = round(prev - dir * unit);
+    }
+    pts.push(v);
+  }
+  cache.k = k;
+  cache.sub = sub;
+  cache.pts = pts;
+  return pts;
+}
+
+// Price at a real match time t (seconds, may be fractional), with `sub` price
+// steps per data second. Whole seconds return exactly the per-second series.
+function priceAtEntry(entry, t, sub, seedKey) {
+  const dataT = Math.max(0, t * (entry.speed || 1));
+  const k = Math.min(entry.live.length - 1, Math.floor(dataT + 1e-9));
+  const j = Math.min(sub - 1, Math.floor((dataT - k) * sub + 1e-9));
+  if (j <= 0 || sub <= 1) {
+    if (entry.lastIndex !== k) {
+      entry.lastIndex = k;
+      entry.lastTick = { t: k, ...buildTick(entry.live[k], entry.spread, entry.decimals) };
+    }
+    return entry.lastTick;
+  }
+  const mid = bridgePoints(entry, k, sub, seedKey)[j];
+  return { t: k + j / sub, ...buildTick(mid, entry.spread, entry.decimals) };
+}
+
+// Steps per DATA second so the player gets deliveryHz distinct prices per
+// REAL second at any replay speed.
+const stepsFor = (entry, hz = deliverySteps()) => Math.max(1, Math.ceil(hz / (entry.speed || 1)));
+
+function getPriceAt(matchId, symbol, t, sub = null) {
+  const match = MATCH_WINDOWS.get(matchId);
+  const entry = match && match[symbol];
+  if (!entry) throw new Error(`No window assigned for match ${matchId} / ${symbol}`);
+  return priceAtEntry(entry, t, sub || stepsFor(entry), (entry.curated && entry.curated.seed) || entry.seedKey || matchId);
+}
+
 function getPreMatchHistory(matchId, symbol) {
   const match = MATCH_WINDOWS.get(matchId);
   const entry = match && match[symbol];
@@ -569,7 +705,7 @@ function getBigMoves(matchId, symbol, topPercent) {
   const entry = match && match[symbol];
   if (!entry || !entry.curated) return [];
   const minutes = Math.ceil(entry.live.length / TICKS_PER_MINUTE);
-  return curated.movesBetween(symbol, entry.curated.start, minutes, topPercent).map((m) => ({ symbol, dataSecond: m.minute * TICKS_PER_MINUTE, movePct: m.movePct, rangeBps: m.rangeBps }));
+  return curated.movesBetween(symbol, entry.curated.start, minutes, topPercent).map((m) => ({ symbol, dataSecond: m.minute * TICKS_PER_MINUTE, movePct: entry.curated.shape && entry.curated.shape.flip ? -m.movePct : m.movePct, rangeBps: m.rangeBps }));
 }
 
 // Real spike events inside this match's live window, in data seconds from
@@ -579,7 +715,7 @@ function getSpikeSchedule(matchId, symbol) {
   const entry = match && match[symbol];
   if (!entry || !entry.curated) return [];
   const minutes = Math.ceil(entry.live.length / TICKS_PER_MINUTE);
-  return curated.spikesBetween(symbol, entry.curated.start, minutes).map((s) => ({ symbol, dataSecond: s.minute * TICKS_PER_MINUTE, movePct: s.movePct, rangeBps: s.rangeBps }));
+  return curated.spikesBetween(symbol, entry.curated.start, minutes).map((s) => ({ symbol, dataSecond: s.minute * TICKS_PER_MINUTE, movePct: entry.curated.shape && entry.curated.shape.flip ? -s.movePct : s.movePct, rangeBps: s.rangeBps }));
 }
 
 function releaseMatchWindows(matchId) {
@@ -672,6 +808,8 @@ module.exports = {
   getSpikeSchedule,
   getBigMoves,
   getCurrentPrice,
+  getPriceAt,
+  actionWindowCount,
   getPreMatchHistory,
   getChartContext,
   releaseMatchWindows,

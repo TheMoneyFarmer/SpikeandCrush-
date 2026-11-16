@@ -175,7 +175,8 @@ test('spike schedule only lists real indexed events from the playlist', () => {
     const start = instruments.getMarketInfo(id)[sym].start;
     for (const s of instruments.getSpikeSchedule(id, sym)) {
       const idx = (start + s.dataSecond / 60) % pl.bars.length;
-      assert.ok(pl.spikes.some((x) => x.i === idx && x.movePct === s.movePct), `${sym} invented spike at ${idx}`);
+      // A mirrored match (Action Engine anti-memorisation) flips the sign only.
+      assert.ok(pl.spikes.some((x) => x.i === idx && Math.abs(x.movePct) === Math.abs(s.movePct)), `${sym} invented spike at ${idx}`);
     }
     instruments.releaseMatchWindows(id);
   }
