@@ -45,6 +45,19 @@ After (`motion-after.json`, 500 matches per mode, 4 prices a second):
 | Solo | 120 | 4 | 0 / 3 s (8) | 0 | 100% | 100% |
 | Private | 120 | 4 | 0 / 3 s (8) | 0 | 100% | 100% |
 
+## Live measurements (local server, dev database)
+
+| Test | Result |
+|---|---|
+| 10 Blitz matches at once | 4.01 prices/s per client; gap p50 250 ms, p99 253 ms, worst 274 ms; no duplicate or out-of-order seq; "Time's up" 121 ms after the last price; end screen 2.0-2.5 s after 0:00 (was ~19 s) |
+| 20-minute Grand soak, 10 clients | 4,804 prices each (4/s); gap p99 254-255 ms, worst 325 ms; clock 1200 -> 0 on every client; end screen 2.9 s; heap 86-96 MB flat; event-loop p99 <= 14 ms |
+| Network cut 10 s (browser) | "Reconnecting" pill within 3 s; back 1.5-2.0 s after the network returned; same socket, no duplicate listeners; timer equal to server time |
+| Tab in background 30 s (browser) | timer equal to server time on return; no duplicate listeners |
+| 500 ms stall in one match (test) | the other match kept sending; no catch-up burst; worst gap under 800 ms |
+| Nobody connected (test) | the match ends on its own clock |
+
+Not verified: Railway restart history (no access); a real phone on a mobile network.
+
 ## Re-run
 
 ```
