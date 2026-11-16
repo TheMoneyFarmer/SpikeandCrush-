@@ -41,6 +41,7 @@ const PAGES = {
   'tournaments.html': { path: '/tournaments', title: 'Tournaments | Spike & Crush', description: 'Spike & Crush tournaments.' },
   'auth-callback.html': { path: '/auth-callback', title: 'Signing in | Spike & Crush', description: 'Finishing your sign-in.' },
   'reset-password.html': { path: '/reset-password', title: 'Reset password | Spike & Crush', description: 'Choose a new password.' },
+  'forgot-password.html': { path: '/forgot-password', title: 'Forgot password | Spike & Crush', description: 'Get a link to choose a new password.' },
   'verify-email.html': { path: '/verify-email', title: 'Verify your email | Spike & Crush', description: 'Confirm your email address.' },
   'thanks.html': { path: '/thanks', title: 'Thanks | Spike & Crush', description: 'Thanks for getting in touch.' },
   '404.html': { path: '/404', title: 'Page not found | Spike & Crush', description: 'This page went down.' },
@@ -48,7 +49,7 @@ const PAGES = {
 };
 
 // Sent as a header too, so non-HTML responses and redirects carry it.
-const NOINDEX_PREFIXES = ['/thanks', '/invite/', '/r/', '/play', '/wallet', '/cards', '/shop', '/battle-pass', '/async', '/replay', '/my-accounts', '/clip', '/settings', '/analytics', '/profile', '/tournament', '/auth-callback', '/reset-password', '/verify-email', '/trading-floor'];
+const NOINDEX_PREFIXES = ['/thanks', '/invite/', '/r/', '/play', '/wallet', '/cards', '/shop', '/battle-pass', '/async', '/replay', '/my-accounts', '/clip', '/settings', '/analytics', '/profile', '/tournament', '/auth-callback', '/reset-password', '/forgot-password', '/verify-email', '/trading-floor'];
 
 function isNoindexPath(path) {
   if (NOINDEX_PREFIXES.some((p) => path === p || path.startsWith(p.endsWith('/') ? p : `${p}/`))) return true;

@@ -194,11 +194,24 @@
             <div id="usernameAvailability" class="text-secondary" style="font-size:12px;"></div>
           </div>
           <div class="field"><label>Email</label><input type="email" id="pEmail" /></div>
-          <div class="field"><label>New Password (leave blank to keep current)</label><input type="password" id="pNewPassword" autocomplete="new-password" /></div>
-          <div class="field"><label>Current Password (required to save)</label><input type="password" id="pCurrentPassword" autocomplete="current-password" /></div>
+          <div class="field"><label for="pNewPassword">New password (leave blank to keep current)</label><input type="password" id="pNewPassword" autocomplete="new-password" maxlength="72" aria-describedby="pPwHint" /><div id="pPwHint" class="text-secondary" style="font-size:12px;margin-top:4px;">At least 8 characters, with letters and at least one number. Other devices are signed out when you change it.</div></div>
+          <div class="field"><label for="pConfirmPassword">Confirm new password</label><input type="password" id="pConfirmPassword" autocomplete="new-password" maxlength="72" /></div>
+          <div class="field"><label for="pCurrentPassword">Current password (required to save)</label><input type="password" id="pCurrentPassword" autocomplete="current-password" /></div>
           <div id="profileError" class="form-error"></div>
           <button type="submit" class="btn btn-primary">Save Changes</button>
+          <a href="/forgot-password" style="display:inline-flex;align-items:center;min-height:44px;margin-left:12px;font-size:13px;">Forgot your current password?</a>
         </form>
+
+        <div id="googleOnlyBox" class="panel" hidden style="margin-top:16px;">
+          <p style="margin:0 0 10px;">You sign in with Google, so this account has no password yet.</p>
+          <button type="button" class="btn btn-outline" id="setPasswordBtn" style="min-height:44px;">Set a password</button>
+          <div class="text-secondary" style="font-size:12px;margin-top:6px;">We email a link to your verified address. After that you can also sign in with your username and password.</div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <button type="button" class="btn btn-outline" id="signOutEverywhereBtn" style="min-height:44px;">Sign out of all other devices</button>
+          <div id="pwChangedAt" class="text-secondary" style="font-size:12px;margin-top:6px;"></div>
+        </div>
       </div>
 
       <!-- GAME PREFERENCES -->
@@ -595,6 +608,33 @@
       }
     });
 
+    // Sign-in method, last password change, Google-only "Set a password".
+    (async () => {
+      try {
+        const sec = await TW.api('/api/auth/account-security');
+        document.getElementById('googleOnlyBox').hidden = sec.hasPassword;
+        if (!sec.hasPassword) document.getElementById('pCurrentPassword').closest('.field').querySelector('label').textContent = 'Current password (Google sign-in: set a password first)';
+        if (sec.passwordChangedAt) document.getElementById('pwChangedAt').textContent = `Password last changed ${new Date(sec.passwordChangedAt).toLocaleString()}.`;
+      } catch (e) { /* older server: keep the plain form */ }
+    })();
+    document.getElementById('setPasswordBtn').addEventListener('click', async (e) => {
+      e.target.disabled = true;
+      try {
+        const r = await TW.api('/api/auth/set-password-link', { method: 'POST' });
+        TW.toast(r.message || 'Check your email for the link', 'info');
+      } catch (err) { TW.toast(err.message, 'danger'); }
+      e.target.disabled = false;
+    });
+    document.getElementById('signOutEverywhereBtn').addEventListener('click', async (e) => {
+      if (!confirm('Sign out of every other device? This device stays signed in.')) return;
+      e.target.disabled = true;
+      try {
+        await TW.api('/api/auth/sign-out-everywhere', { method: 'POST' });
+        TW.toast('Signed out of all other devices', 'info');
+      } catch (err) { TW.toast(err.message, 'danger'); }
+      e.target.disabled = false;
+    });
+
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const errEl = document.getElementById('profileError');
@@ -606,12 +646,20 @@
           email: document.getElementById('pEmail').value.trim(),
         };
         const newPassword = document.getElementById('pNewPassword').value;
-        if (newPassword) body.newPassword = newPassword;
+        if (newPassword) {
+          if (newPassword !== document.getElementById('pConfirmPassword').value) {
+            errEl.textContent = 'The two new passwords do not match.';
+            return;
+          }
+          body.newPassword = newPassword;
+        }
         const data = await TW.api('/api/player/me', { method: 'PATCH', body });
         TW.updatePlayerCache(data.player);
 
         document.getElementById('pCurrentPassword').value = '';
         document.getElementById('pNewPassword').value = '';
+        document.getElementById('pConfirmPassword').value = '';
+        if (newPassword) TW.toast('Password changed. Other devices were signed out and we emailed you a confirmation.', 'info');
         TW.updateHeader();
         if (data.pendingEmail) {
           document.getElementById('pEmail').value = data.player.email || '';
