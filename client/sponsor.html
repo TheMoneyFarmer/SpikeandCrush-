@@ -62,6 +62,8 @@
   .sp-err { color: var(--crush); font-size: 13px; }
   @media (max-width: 760px) { .sp-tiers { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 600px) { .sp-form { grid-template-columns: minmax(0, 1fr); } }
+.sp-opt { color: var(--mute, #9AA4B8); font-weight: 400; }
+.sp-consent { font-size: 13px; color: var(--mute, #9AA4B8); margin: 0 0 12px; line-height: 1.5; }
 </style>
   <link rel="stylesheet" href="/css/console.css" />
 <script src="/js/analytics.js" defer></script>
@@ -97,7 +99,11 @@
             <option value="prop_firm">A prop firm</option>
             <option value="broker">A broker</option>
             <option value="sponsor">A brand or sponsor</option>
+            <option value="other">Something else</option>
           </select></div>
+        <div class="sp-field"><label class="lb-label" for="role">Your role <span class="sp-opt">(optional)</span></label><input id="role" name="role" maxlength="80" autocomplete="organization-title" /></div>
+        <div class="sp-field"><label class="lb-label" for="phone">Phone or WhatsApp <span class="sp-opt">(optional)</span></label><input id="phone" name="phone" type="tel" maxlength="40" autocomplete="tel" inputmode="tel" /></div>
+        <div class="sp-field"><label class="lb-label" for="country">Country <span class="sp-opt">(optional)</span></label><input id="country" name="country" maxlength="60" autocomplete="country-name" /></div>
         <div class="sp-field"><label class="lb-label" for="wants">You want to list</label>
           <select id="wants" name="wants" required>
             <option value="">Choose one</option>
@@ -114,6 +120,7 @@
           </select></div>
         <div class="sp-field full"><label class="lb-label" for="message">Message</label><textarea id="message" name="message" maxlength="2000"></textarea></div>
         <div class="full">
+          <p class="sp-consent" id="sponsorConsent">By sending this form you agree that we may contact you about this request. We do not send marketing emails without asking first. See our <a href="/privacy">Privacy Policy</a>.</p>
           <button type="submit" class="lb-btn lb-btn-gold" id="sponsorSubmit">Send request</button>
           <div class="sp-status" id="sponsorStatus" role="status" aria-live="polite"></div>
         </div>
@@ -149,6 +156,7 @@
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const body = Object.fromEntries(new FormData(form).entries());
+        body.consentText = document.getElementById('sponsorConsent').textContent.trim();
         if (!body.company.trim() || !body.contactName.trim()) {
           status.className = 'sp-status err';
           status.textContent = 'Please fill in your company and your name.';

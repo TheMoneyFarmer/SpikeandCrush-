@@ -121,6 +121,11 @@ function createCompTemplatesRouter({ db, authenticate, optionalViewerId, sendEma
           }).catch(() => {});
         }
       }
+      // Leads centre: a quiet waitlist lead (no team email, no auto-reply).
+      if (created) {
+        const player = await db.getPlayerById(req.tokenPlayer.id).catch(() => null);
+        require('./lobby').leadsService().submit({ category: 'waitlist', source_form: `waitlist:${t.key}`, name: player && player.username, email: player && player.email, extras: { competition: t.key, source }, player_id: req.tokenPlayer.id }, { notify: false, autoReply: false }).catch(() => {});
+      }
       res.json({ joined: true, created });
     } catch (e) {
       console.error('[waitlist join]', e.message);

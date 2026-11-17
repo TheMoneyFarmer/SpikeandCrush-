@@ -18,10 +18,12 @@ const LEAD_INTERESTS = ['global_strip', 'competition', 'mode', 'hero', 'tourname
 const LEAD_BUDGETS = ['under_1k', '1k_5k', '5k_20k', '20k_plus', 'not_sure'];
 const LEADS_PER_IP_PER_DAY = 3;
 const LEAD_INBOX = 'hello@spikeandcrush.com';
-const COMPANY_TYPES = ['prop_firm', 'broker', 'sponsor'];
+const COMPANY_TYPES = ['prop_firm', 'broker', 'sponsor', 'other'];
 const WANTS = ['competition', 'prize', 'both'];
 const TIER_INTEREST = ['featured', 'plus', 'standard', 'not_sure'];
-const TYPE_LABEL = { prop_firm: 'Prop firm', broker: 'Broker', sponsor: 'Sponsor' };
+const TYPE_LABEL = { prop_firm: 'Prop firm', broker: 'Broker', sponsor: 'Sponsor', other: 'Other' };
+// Leads centre category for each company type (server/leads.js).
+const LEAD_CATEGORY = { prop_firm: 'partner_prop_firm', broker: 'partner_broker', sponsor: 'sponsor_brand', other: 'business_other' };
 const WANT_LABEL = { competition: 'A competition', prize: 'A prize sponsorship', both: 'Both' };
 const LOBBY_MODES = ['quick', 'blitz', 'grand', 'solo', 'async', 'private', 'tournament'];
 
@@ -55,6 +57,9 @@ function prizeCoinsOf(c) {
   if (Number(c.prize_pool_coins) > 0) return Number(c.prize_pool_coins);
   return (Array.isArray(c.prize_payouts) ? c.prize_payouts : []).reduce((sum, p) => sum + (Number(p.coins) || 0), 0);
 }
+
+let leadsSvc = null;
+const leadsService = () => (leadsSvc ||= require('./leads').createLeadsService({ client: () => require('./database').client(), sendEmail }));
 
 function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets, competitionSummary, TIERS, authenticate, optionalViewerId }) {
   const r = express.Router();
@@ -294,6 +299,38 @@ function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets,
       res.status(500).send('Could not open sponsor link');
     }
   }
+  // Feedback and bug reports (Help page). Stored as leads; signed-in players
+  // are linked to their account. Honeypot and limits like the partner form.
+  const feedbackLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, keyGenerator: (req) => visitorIp(req), message: { error: 'Too many messages. Please try again later.' } });
+  r.post('/api/feedback', feedbackLimiter, async (req, res) => {
+    if (!db.isConfigured) return res.status(503).json({ error: 'Feedback is unavailable right now' });
+    const b = req.body || {};
+    if (String(b.website2 || '').trim()) return res.json({ success: true });
+    const kind = b.kind === 'bug' ? 'bug_report' : 'player_feedback';
+    const message = String(b.message || '').trim();
+    if (message.length < 5) return res.status(400).json({ error: 'Please write a few words.' });
+    try {
+      const viewerId = await (optionalViewerId ? optionalViewerId(req) : null);
+      const player = viewerId ? await db.getPlayerById(viewerId).catch(() => null) : null;
+      const out = await leadsService().submit({
+        category: kind,
+        source_form: kind === 'bug_report' ? 'help_bug_report' : 'help_feedback',
+        name: player ? player.username : b.name,
+        email: player ? player.email : b.email || null,
+        message,
+        extras: { page: String(b.page || '').slice(0, 200), device: String(req.headers['user-agent'] || '').slice(0, 200) },
+        player_id: player ? player.id : null,
+        consent_text: 'Help page: we may contact you about this message.',
+        ip_hash: ipHash(req),
+      }, { notify: true, autoReply: Boolean(player ? player.email : b.email) });
+      res.json({ success: true, id: out.id });
+    } catch (e) {
+      if (e.status === 400) return res.status(400).json({ error: e.message });
+      console.error('[feedback]', e.message);
+      res.status(500).json({ error: 'Could not send your message. Please email hello@spikeandcrush.com.' });
+    }
+  });
+
   r.get('/api/sponsors/:id/click', clickLimiter, handleClick);
   r.post('/api/sponsors/:id/click', clickLimiter, handleClick);
 
@@ -333,6 +370,30 @@ function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets,
       if ((await db.countRecentSponsorLeads(hash, since)) >= LEADS_PER_IP_PER_DAY) {
         return res.status(429).json({ error: 'Thanks - we already have your enquiry and will be in touch.' });
       }
+      // Leads centre first (every lead in one place, email failures recorded
+      // on the lead). Until its table exists, the old sponsor_leads path below.
+      try {
+        const out = await leadsService().submit({
+          category: LEAD_CATEGORY[lead.company_type],
+          source_form: 'partner_with_us',
+          name: lead.contact_name,
+          company: lead.company,
+          role: b.role,
+          email: lead.email,
+          phone: b.phone,
+          country: b.country,
+          website: lead.website,
+          message: lead.message,
+          extras: { wants: lead.wants, tier_interest: lead.tier_interest, budget_band: lead.budget_band, interest: lead.interest },
+          consent_text: b.consentText || 'Partner with us form: we may contact you about this request.',
+          ip_hash: hash,
+        });
+        return res.json({ success: true, id: out.id });
+      } catch (e) {
+        if (e.status === 400) return res.status(400).json({ error: e.message, errors: e.errors });
+        if (!/leads|PGRST205|42P01|does not exist|schema cache/i.test(`${e.code || ''} ${e.message || ''}`)) throw e;
+        console.warn('[leads] leads table missing - run the leads_centre migration; using sponsor_leads');
+      }
       const saved = await db.createSponsorLead({ ...lead, ip_hash: hash });
       const esc = (x) => String(x ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
       sendEmail({
@@ -361,4 +422,4 @@ function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets,
   return r;
 }
 
-module.exports = { createLobbyRouter, isHttpUrl, prizeCoinsOf };
+module.exports = { createLobbyRouter, isHttpUrl, prizeCoinsOf, leadsService };
