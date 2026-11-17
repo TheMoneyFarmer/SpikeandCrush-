@@ -317,6 +317,7 @@ app.use('/api/partners', require('./routes/partners')());
 app.use('/api/support', require('./routes/support')());
 app.use('/api/sponsors', require('./routes/sponsors')());
 app.use('/api/listings', require('./routes/listings')());
+app.use('/api/rewards', require('./routes/compWinners')());
 
 // Anything not matched above (e.g. /lib/auth.js, /server.js) is a 404.
 app.use((req, res) => {
@@ -379,6 +380,11 @@ if (isConfigured) {
   });
   setTimeout(sponsorTick, 30 * 1000).unref();
   setInterval(sponsorTick, 60 * 60 * 1000).unref();
+  // Prize requests not marked credited in time: one reminder email a day.
+  const prizeReminder = () => require('../server/compRewards').createCompRewards({ client: () => require('./lib/supabaseAdmin').supabase, sendEmail: require('./lib/email').sendEmail }).remindOverdue().catch((e) => {
+    if (!/comp_winners|schema cache/.test(e.message || '')) console.warn('[rewards] reminder failed:', e.message);
+  });
+  setInterval(prizeReminder, 12 * 60 * 60 * 1000).unref();
 }
 
 server.listen(ADMIN_PORT, () => {

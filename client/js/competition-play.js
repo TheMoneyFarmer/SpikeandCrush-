@@ -46,6 +46,14 @@
   function renderHeader() {
     const c = view.competition;
     $('compTitle').textContent = c.title + (c.isTest ? ' (TEST)' : '');
+    // Honest data label beside the title (server/marketDataSource.js).
+    if (c.dataSource && !document.getElementById('compDataLabel')) {
+      const chip = document.createElement('span');
+      chip.id = 'compDataLabel';
+      chip.className = 'comp-data-label';
+      chip.textContent = c.dataSource;
+      $('compTitle').insertAdjacentElement('afterend', chip);
+    }
     const boardSponsor = $('compBoardSponsor');
     if (boardSponsor && !boardSponsor.dataset.target && window.TW && TW.SponsorSlots) {
       boardSponsor.dataset.target = `competition:${c.frequency || c.id}`;

@@ -9,12 +9,15 @@
 
 const compStates = require('./competitionStates');
 const liveFeed = require('./liveFeed');
+// Competition prices come through the market data source (replay today,
+// the live feed later). See server/marketDataSource.js.
+const marketDataSource = require('./marketDataSource');
+const marketData = () => marketDataSource.current();
 const crypto = require('crypto');
 const db = require('./database');
 const csvLoader = require('./csvLoader');
 const instruments = require('./instruments');
 const marginRules = require('./marginRules');
-const replayClock = require('./replayClock');
 const { GAME_RULES, baseRatingForPosition, tierForRating } = require('./gameEngine');
 const { runPool, createMemo } = require('./concurrency');
 const gameFeel = require('./config/gameFeel');
@@ -227,10 +230,10 @@ function makeSpikeTracker() {
   return function spikeEvents(comp, dataTime) {
     const cfg = gameFeel.get().spikeAlerts;
     const out = [];
-    if (!cfg.enabled || !replayClock.isCuratedTime(dataTime)) return out;
+    if (!cfg.enabled || !marketData().isCuratedTime(dataTime)) return out;
     let st = spikeState.get(comp.id);
     if (!st) spikeState.set(comp.id, (st = { lastAlertAt: -Infinity, pending: null }));
-    if (st.pending && dataTime >= st.pending.t + replayClock.BASE_SECONDS) {
+    if (st.pending && dataTime >= st.pending.t + marketData().BASE_SECONDS) {
       out.push({ event: 'comp:spike_result', payload: { id: st.pending.id, symbol: st.pending.symbol, movePct: st.pending.movePct, showSeconds: cfg.resultShowSeconds } });
       st.pending = null;
     }
@@ -238,7 +241,7 @@ function makeSpikeTracker() {
     // A tick runs every few seconds: look one tick plus the lead time ahead.
     const ahead = cfg.leadDataSeconds + Math.ceil(TICK_MS / 1000);
     for (const symbol of comp.instruments || []) {
-      const sp = replayClock.compSpikeBetween(symbol, dataTime, dataTime + ahead);
+      const sp = marketData().compSpikeBetween(symbol, dataTime, dataTime + ahead);
       if (!sp) continue;
       st.pending = { id: `cspike-${comp.id.slice(0, 6)}-${sp.t}`, symbol, t: sp.t, movePct: sp.movePct };
       st.lastAlertAt = dataTime;
@@ -249,6 +252,9 @@ function makeSpikeTracker() {
     return out;
   };
 }
+
+let rewardsSvc = null;
+const rewards = () => (rewardsSvc ||= require('./compRewards').createCompRewards({ client: () => db.client(), sendEmail: require('../admin/lib/email').sendEmail }));
 
 function createCompEngine({ io, notifyPlayer }) {
   const holder = `${process.pid}-${crypto.randomUUID().slice(0, 8)}`;
@@ -286,7 +292,7 @@ function createCompEngine({ io, notifyPlayer }) {
   function quotesFor(comp, dataTime) {
     const quotes = {};
     for (const sym of comp.instruments || []) {
-      const q = replayClock.getPriceAt(sym, dataTime);
+      const q = marketData().getPriceAt(sym, dataTime);
       if (q) quotes[sym] = q;
     }
     return quotes;
@@ -361,7 +367,7 @@ function createCompEngine({ io, notifyPlayer }) {
 
     const nowMs = Math.min(Date.now(), new Date(comp.ends_at).getTime());
     const started = Date.now() >= new Date(comp.starts_at).getTime();
-    const dataTime = started ? replayClock.dataTimeFor(comp, nowMs) : replayClock.dataTimeFor(comp, new Date(comp.starts_at).getTime());
+    const dataTime = started ? marketData().dataTimeFor(comp, nowMs) : marketData().dataTimeFor(comp, new Date(comp.starts_at).getTime());
     const quotes = quotesFor(comp, dataTime);
     const positions = await db.listCompPositions({ account_id: account.id }, { limit: 300 });
     const open = positions.filter((p) => p.status === 'open');
@@ -375,7 +381,7 @@ function createCompEngine({ io, notifyPlayer }) {
       accounts.length <= 500
         ? rankAccounts(accounts.map((a) => (a.id === account.id ? { ...a, equity } : a))).findIndex((a) => a.id === account.id) + 1
         : rankById.get(account.id) || accounts.length;
-    const shift = replayClock.timeShiftFor(comp);
+    const shift = marketData().timeShiftFor(comp);
 
     return {
       competition: competitionSummary(comp),
@@ -417,6 +423,8 @@ function createCompEngine({ io, notifyPlayer }) {
       title: comp.title,
       frequency: comp.frequency,
       status: comp.status,
+      // "Demo market data" while the replay is the source; never "live".
+      dataSource: marketDataSource.label(),
       startsAt: comp.starts_at,
       endsAt: comp.ends_at,
       instruments: comp.instruments,
@@ -502,8 +510,8 @@ function createCompEngine({ io, notifyPlayer }) {
         status: 400,
       });
 
-    const dataTime = replayClock.dataTimeFor(comp);
-    const quote = replayClock.getPriceAt(symbol, dataTime);
+    const dataTime = marketData().dataTimeFor(comp);
+    const quote = marketData().getPriceAt(symbol, dataTime);
     if (!quote || quote.marketClosed) throw Object.assign(new Error('Market closed - you can still close trades'), { status: 400 });
 
     // A new trade has to fit in free margin.
@@ -554,7 +562,7 @@ function createCompEngine({ io, notifyPlayer }) {
     if (!pos || pos.player_id !== playerId || pos.competition_id !== comp.id || pos.status !== 'open') {
       throw Object.assign(new Error('Position not found'), { status: 404 });
     }
-    const quote = replayClock.getPriceAt(pos.symbol, replayClock.dataTimeFor(comp));
+    const quote = marketData().getPriceAt(pos.symbol, marketData().dataTimeFor(comp));
     const { exit, pnl } = positionPnl(pos, quote);
     const closed = await db.compClosePosition(pos.id, exit, 'manual', pnl);
     if (!closed)
@@ -570,7 +578,7 @@ function createCompEngine({ io, notifyPlayer }) {
     if (!pos || pos.player_id !== playerId || pos.competition_id !== comp.id || pos.status !== 'open') {
       throw Object.assign(new Error('Position not found'), { status: 404 });
     }
-    const quote = replayClock.getPriceAt(pos.symbol, replayClock.dataTimeFor(comp));
+    const quote = marketData().getPriceAt(pos.symbol, marketData().dataTimeFor(comp));
     const { sl, tp } = validateStops(pos.side, pos.side === 'BUY' ? quote.bid : quote.ask, stopLoss, takeProfit);
     const updated = await db.updateCompPosition(pos.id, {
       stop_loss: sl,
@@ -597,11 +605,11 @@ function createCompEngine({ io, notifyPlayer }) {
 
     const endMs = Math.min(Date.now(), new Date(comp.ends_at).getTime());
     const startMs = new Date(comp.starts_at).getTime();
-    const dataTime = replayClock.dataTimeFor(comp, Math.max(startMs, endMs));
-    const shift = replayClock.timeShiftFor(comp);
+    const dataTime = marketData().dataTimeFor(comp, Math.max(startMs, endMs));
+    const shift = marketData().timeShiftFor(comp);
 
     const m5From = dataTime - CHART_HISTORY_BARS * 3600;
-    const m5 = replayClock.candlesUpTo(symbol, m5From, dataTime);
+    const m5 = marketData().candlesUpTo(symbol, m5From, dataTime);
     const m5Start = m5.length ? m5[0][0] : dataTime;
     const market = csvLoader.getMarketSeries(symbol);
     const h1 = market ? market.h1.filter((b) => b.time < m5Start && b.time >= m5Start - CHART_HISTORY_BARS * 4 * 3600) : [];
@@ -609,7 +617,7 @@ function createCompEngine({ io, notifyPlayer }) {
     const d1 = market ? market.d1.filter((b) => b.time + 86400 <= h1Start).slice(-CHART_HISTORY_BARS) : [];
     const row = (b) => [b.time + shift, b.open, b.high, b.low, b.close];
 
-    const quote = replayClock.getPriceAt(symbol, dataTime);
+    const quote = marketData().getPriceAt(symbol, dataTime);
     return {
       symbol,
       compTime: dataTime + shift,
@@ -645,20 +653,20 @@ function createCompEngine({ io, notifyPlayer }) {
   // time order: at every point each open position's SL/TP is checked, then
   // the account's margin level at that same moment against the stop-out level.
   async function walkAccountPath(comp, acc, open, lastData, dataTime) {
-    const startOf = (pos) => Math.max(lastData, replayClock.dataTimeFor(comp, new Date(pos.opened_at).getTime()));
+    const startOf = (pos) => Math.max(lastData, marketData().dataTimeFor(comp, new Date(pos.opened_at).getTime()));
     const times = new Set([dataTime]);
     for (const sym of new Set(open.map((p) => p.symbol))) {
-      for (const pt of replayClock.pathBetween(sym, lastData, dataTime)) times.add(pt.t);
+      for (const pt of marketData().pathBetween(sym, lastData, dataTime)) times.add(pt.t);
     }
-    const prevPx = new Map(open.map((p) => [p.id, closingPrice(p, replayClock.getPriceAt(p.symbol, startOf(p)))]));
+    const prevPx = new Map(open.map((p) => [p.id, closingPrice(p, marketData().getPriceAt(p.symbol, startOf(p)))]));
     let balance = Number(acc.balance);
     let live = open.slice();
-    const equityAt = (t) => live.reduce((eq, pos) => eq + positionPnl(pos, replayClock.getPriceAt(pos.symbol, t)).pnl, balance);
+    const equityAt = (t) => live.reduce((eq, pos) => eq + positionPnl(pos, marketData().getPriceAt(pos.symbol, t)).pnl, balance);
 
     for (const t of [...times].sort((a, b) => a - b)) {
       for (const pos of live.slice()) {
         if (t <= startOf(pos)) continue;
-        const quote = replayClock.getPriceAt(pos.symbol, t);
+        const quote = marketData().getPriceAt(pos.symbol, t);
         const px = closingPrice(pos, quote);
         const hit = stopHit(pos, prevPx.get(pos.id), px);
         prevPx.set(pos.id, px);
@@ -677,11 +685,11 @@ function createCompEngine({ io, notifyPlayer }) {
       // margin level recovers. Stored as 'loss_limit' (the table has no
       // stop_out reason; the play screen labels it Stopped out). The account stays open.
       let equity = equityAt(t);
-      const usedAt = () => marginRules.usedMargin(live, (p) => marginRules.mid(replayClock.getPriceAt(p.symbol, t)));
+      const usedAt = () => marginRules.usedMargin(live, (p) => marginRules.mid(marketData().getPriceAt(p.symbol, t)));
       let level = marginRules.marginLevel(equity, usedAt());
       let closed = 0;
       while (level !== null && level <= marginRules.STOP_OUT_LEVEL && live.length) {
-        const scored = live.map((p) => ({ p, ...positionPnl(p, replayClock.getPriceAt(p.symbol, t)) })).sort((x, y) => x.pnl - y.pnl);
+        const scored = live.map((p) => ({ p, ...positionPnl(p, marketData().getPriceAt(p.symbol, t)) })).sort((x, y) => x.pnl - y.pnl);
         const { p: worst, exit, pnl } = scored[0];
         live = live.filter((p) => p !== worst);
         if (await db.compClosePosition(worst.id, exit, 'loss_limit', pnl)) {
@@ -699,13 +707,13 @@ function createCompEngine({ io, notifyPlayer }) {
   const spikeEvents = makeSpikeTracker();
 
   async function tickCompetition(comp, nowMs) {
-    const dataTime = replayClock.dataTimeFor(comp, nowMs);
+    const dataTime = marketData().dataTimeFor(comp, nowMs);
     const lastData = comp.last_tick_data_time
       ? Math.floor(new Date(comp.last_tick_data_time).getTime() / 1000)
       : Math.floor(new Date(comp.data_window_start).getTime() / 1000);
     const openAll = await db.listOpenCompPositions(comp.id);
     const quotes = quotesFor(comp, dataTime);
-    const shift = replayClock.timeShiftFor(comp);
+    const shift = marketData().timeShiftFor(comp);
     const fresh = await db.listCompAccounts(comp.id);
     const byAccount = {};
     for (const pos of openAll) (byAccount[pos.account_id] = byAccount[pos.account_id] || []).push(pos);
@@ -791,7 +799,7 @@ function createCompEngine({ io, notifyPlayer }) {
     const comp = await db.getCompetitionById(compId);
     if (!comp || comp.status === 'void') return { settled: false, reason: 'void' };
     const endMs = new Date(comp.ends_at).getTime();
-    const finalData = replayClock.dataTimeFor(comp, Math.min(Date.now(), endMs));
+    const finalData = marketData().dataTimeFor(comp, Math.min(Date.now(), endMs));
     const quotes = quotesFor(comp, finalData);
 
     const open = await db.listOpenCompPositions(comp.id);
@@ -806,6 +814,17 @@ function createCompEngine({ io, notifyPlayer }) {
       equity: Number(a.balance),
     }));
     const ranked = rankAccounts(accounts);
+    // Money-prize competitions: winners go to admin review (server/compRewards.js).
+    // Nothing is emailed or paid here. Idempotent per (competition, rank).
+    if (comp.prize_kind === 'money') {
+      try {
+        const template = comp.template_key ? await db.getCompTemplate(comp.template_key) : null;
+        const out = await rewards().recordWinners(comp, template, ranked);
+        if (out.created) console.log(`[comp ${comp.id}] ${out.created} winners waiting for review`);
+      } catch (e) {
+        console.error('[comp rewards] could not record winners (settlement continues):', e.message);
+      }
+    }
     // Prizes are coin credits only - coins have no cash value, so any legacy
     // `usd` amount on a payout row is ignored.
     const payouts = Object.fromEntries((comp.prize_payouts || []).map((p) => [p.rank, { coins: Number(p.coins) || 0 }]));
@@ -911,12 +930,12 @@ function createCompEngine({ io, notifyPlayer }) {
     const account = await db.getCompAccount(compId, playerId);
     if (!comp || !account) throw Object.assign(new Error('Account not found'), { status: 404 });
     await db.updateCompAccount(account.id, { status: 'disqualified' });
-    const dataTime = replayClock.dataTimeFor(comp, Math.min(Date.now(), new Date(comp.ends_at).getTime()));
+    const dataTime = marketData().dataTimeFor(comp, Math.min(Date.now(), new Date(comp.ends_at).getTime()));
     for (const pos of await db.listCompPositions({
       account_id: account.id,
       status: 'open',
     })) {
-      const { exit, pnl } = positionPnl(pos, replayClock.getPriceAt(pos.symbol, dataTime));
+      const { exit, pnl } = positionPnl(pos, marketData().getPriceAt(pos.symbol, dataTime));
       await db.compClosePosition(pos.id, exit, 'disqualified', pnl);
     }
     emit(comp.id, playerId, 'comp:update', {
@@ -938,10 +957,20 @@ function createCompEngine({ io, notifyPlayer }) {
     payouts,
     replaySpeed = 1,
     isTest = false,
+    calendarPool = false,
   }) {
     const id = crypto.randomUUID();
-    const usedStarts = frequency ? await db.listRecentWindowStarts(frequency, replayClock.USED_WINDOW_MEMORY) : [];
-    const window = replayClock.chooseDataWindow({
+    // Live-data competitions (Daily Open, Weekend Open): only instruments whose
+    // market is open for the whole window (server/marketCalendar.js). A stock
+    // never appears on a Saturday; nothing is faked open.
+    if (calendarPool) {
+      const pool = require('./marketCalendar').poolFor(new Date(startsAt).getTime(), new Date(endsAt).getTime(), instruments.INSTRUMENTS);
+      const open = new Set(pool.symbols);
+      wanted = (wanted && wanted.length ? wanted : pool.symbols).filter((s) => open.has(s));
+      if (!wanted.length) throw new Error(`No market is open for the whole of "${title}" (${new Date(startsAt).toISOString()} to ${new Date(endsAt).toISOString()})`);
+    }
+    const usedStarts = frequency ? await db.listRecentWindowStarts(frequency, marketData().USED_WINDOW_MEMORY) : [];
+    const window = marketData().chooseDataWindow({
       id,
       startsAt,
       endsAt,
@@ -1031,6 +1060,7 @@ function createCompEngine({ io, notifyPlayer }) {
             endsAt: slot.endsAt,
             entryFee: tpl.entryFee,
             payouts: tpl.payouts,
+            calendarPool: Boolean(st && st.data_source === 'live'),
           });
           created.push(
             `${frequency} ${row.starts_at.slice(0, 16)} (${row.instruments.length} instruments, data from ${row.data_window_start.slice(0, 10)})`

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Competition Winners | Spike &amp; Crush Admin</title>
+<link rel="icon" href="/icons/admin.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/admin-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
+<style>
+  .wn-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .wn-toolbar select, .wn-toolbar input { min-height: 36px; }
+  .wn-flag { color: #FF4D5E; font-size: 12px; display: block; }
+  .wn-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 1100px) { .wn-grid { grid-template-columns: 1fr; } }
+  .wn-detail dl { display: grid; grid-template-columns: 140px 1fr; gap: 4px 10px; font-size: 13px; }
+  .wn-detail dt { color: #9AA4B8; }
+  .wn-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .wn-events { list-style: none; padding: 0; font-size: 12px; max-height: 240px; overflow: auto; }
+  .wn-events li { padding: 5px 0; border-bottom: 1px solid #1D2638; }
+  .wn-partners { margin-top: 16px; }
+  .wn-pform { display: grid; grid-template-columns: 180px 1fr; gap: 6px 10px; align-items: center; max-width: 720px; }
+</style>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="winners"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+        <p class="text-secondary" style="font-size:13px;margin-top:0;">Winners appear here as <strong>Pending review</strong> when a money-prize competition ends. Nothing is emailed until you approve. Flags are hints for review, never automatic bans.</p>
+        <div class="wn-toolbar">
+          <select id="wnStatus" aria-label="Status"><option value="">Any status</option></select>
+          <select id="wnQueue" aria-label="Queue"><option value="">All winners</option><option value="manual">Manual payout queue</option></select>
+          <button class="btn btn-primary" id="wnApprove" disabled>Approve selected</button>
+          <button class="btn" id="wnExport">Export CSV</button>
+        </div>
+        <div class="wn-grid">
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th><input type="checkbox" id="wnAll" aria-label="Select all pending" /></th><th>Competition</th><th>#</th><th>Player</th><th>Prize</th><th>Partner</th><th>Status</th></tr></thead><tbody id="wnRows"><tr><td colspan="7">Loading</td></tr></tbody></table></div>
+          <div class="panel wn-detail" id="wnDetail"><div class="empty-state">Choose a winner.</div></div>
+        </div>
+        <div class="panel wn-partners">
+          <h3>Sponsoring partners</h3>
+          <p class="text-secondary" style="font-size:12px;">Who pays the prize. The IB manager contact is stored encrypted and shown masked; only a super admin can reveal it. The claim button uses the partner listing's link through the opaque redirect.</p>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Name</th><th>Type</th><th>Contact</th><th>Countries</th><th></th></tr></thead><tbody id="wnPartners"></tbody></table></div>
+          <h4>Add or edit a partner</h4>
+          <form id="wnPForm" class="wn-pform">
+            <input type="hidden" id="wnPId" />
+            <label for="wnPName">Name</label><input id="wnPName" required maxlength="120" />
+            <label for="wnPType">Type</label><select id="wnPType"><option value="broker">Broker</option><option value="prop_firm">Prop firm</option></select>
+            <label for="wnPListing">Partner listing id (for the link)</label><input id="wnPListing" placeholder="the listing's id from Partner Listings" />
+            <label for="wnPAllowed">Allowed countries</label><input id="wnPAllowed" placeholder="empty = any not restricted, e.g. AE, GB" />
+            <label for="wnPRestricted">Restricted countries</label><input id="wnPRestricted" placeholder="e.g. US, CA" />
+            <label for="wnPSteps">Claim steps shown to winners</label><input id="wnPSteps" maxlength="1000" />
+            <label for="wnPNamed">Name them in emails</label><select id="wnPNamed"><option value="false">No (only if the terms name them)</option><option value="true">Yes, the terms name them</option></select>
+            <label for="wnPEmail">IB manager email</label><input id="wnPEmail" type="email" placeholder="leave empty to keep the saved one" />
+            <label for="wnPWa">IB manager WhatsApp</label><input id="wnPWa" placeholder="leave empty to keep the saved one" />
+            <label for="wnPDays">Remind me after (days)</label><input id="wnPDays" type="number" min="1" max="60" value="5" />
+            <span></span><div class="wn-buttons"><button class="btn btn-primary" type="submit">Save partner</button><button class="btn" type="reset" id="wnPReset">New partner</button></div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="js/time-ago.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/winners.js"></script>
+</body>
+</html>
