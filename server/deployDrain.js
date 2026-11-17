@@ -50,8 +50,11 @@ function createDeployDrain({ gameEngine, io, notifyPlayer }) {
     return status();
   }
 
-  // Tournament lobbies are left alone: cancelling one would orphan the
-  // bracket's matchup. Everything else in 'waiting' is closed with refunds.
+  // Bracket tournament lobbies (a user-made tournament's matchup) are left
+  // alone: cancelling one would orphan the bracket. Everything else in
+  // 'waiting' is closed with refunds - including the public Elimination mode,
+  // which shares the internal key 'tournament' (skipping it by key let one open
+  // Elimination lobby block every deploy).
   let closing = false;
   async function closeIdleLobbies() {
     if (!state.draining || closing || Date.now() - state.since < LOBBY_GRACE_MS) return 0;
@@ -59,9 +62,10 @@ function createDeployDrain({ gameEngine, io, notifyPlayer }) {
     let closed = 0;
     try {
       for (const summary of gameEngine.listActiveMatches()) {
-        if (summary.status !== 'waiting' || summary.mode === 'tournament') continue;
+        if (summary.status !== 'waiting') continue;
         const match = gameEngine.getMatch(summary.id);
         if (!match || match.status !== 'waiting') continue;
+        if (match.config && match.config.tournamentId) continue;
         await gameEngine.closeLobby(match, LOBBY_CLOSED_MESSAGE, 'lobby_closed_update');
         closed++;
       }
