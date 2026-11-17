@@ -25,6 +25,7 @@ window.Admin = window.Admin || {};
       { key: 'tournaments-sponsors', label: 'Sponsors / Prizes', href: '/tournaments.html?tab=sponsors' },
       { key: 'competitions', label: 'Competitions', href: '/competitions.html' },
       { key: 'listings', label: 'Partner Listings', href: '/listings.html' },
+      { key: 'winners', label: 'Competition Winners', href: '/winners.html' },
     ]},
     { group: 'Sponsors', icon: 'handshake', items: [
       { key: 'sponsors', label: 'Sponsors', href: '/sponsors.html' },

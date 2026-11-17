@@ -603,6 +603,12 @@ app.get('/profile/:username', (req, res) => res.sendFile(path.join(CLIENT_DIR, '
 app.get('/auth-callback', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'auth-callback.html')));
 app.get('/reset-password', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'reset-password.html')));
 app.get('/forgot-password', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'forgot-password.html')));
+// Competition prize claims (server/compRewards.js): claim page, its API and the
+// opaque /go/c/ redirect to the sponsoring partner.
+app.use(require('./claimRoutes').createClaimRouter({
+  rewards: require('./compRewards').createCompRewards({ client: () => db.client(), sendEmail, siteUrl: () => process.env.SITE_URL || 'https://www.spikeandcrush.com' }),
+  clientDir: CLIENT_DIR,
+}));
 app.get('/verify-email', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'verify-email.html')));
 
 // Player invite links: /invite/CODE remembers the inviter for 30 days. Read once,
