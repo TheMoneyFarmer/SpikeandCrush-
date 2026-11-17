@@ -329,6 +329,51 @@
           <h2>Frequently Asked Questions</h2>
           <div id="faqList"></div>
         </section>
+
+        <section class="help-section" id="feedback">
+          <h2>Send feedback or report a bug</h2>
+          <p>Tell us what to improve, or what went wrong. A person reads every message.</p>
+          <form id="feedbackForm" novalidate style="display:grid;gap:10px;max-width:560px;">
+            <div aria-hidden="true" style="position:absolute;left:-9999px;"><label for="fbWebsite2">Leave this empty</label><input id="fbWebsite2" name="website2" tabindex="-1" autocomplete="off" /></div>
+            <label style="display:flex;gap:16px;flex-wrap:wrap;">
+              <span style="display:inline-flex;align-items:center;gap:6px;min-height:44px;"><input type="radio" name="kind" value="feedback" checked /> Feedback</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;min-height:44px;"><input type="radio" name="kind" value="bug" /> Bug report</span>
+            </label>
+            <label for="fbMessage">Your message</label>
+            <textarea id="fbMessage" name="message" required minlength="5" maxlength="4000" rows="5" style="width:100%;min-height:110px;"></textarea>
+            <div id="fbGuest" hidden style="display:grid;gap:6px;">
+              <label for="fbEmail">Your email (optional, if you want a reply)</label>
+              <input id="fbEmail" name="email" type="email" maxlength="200" autocomplete="email" style="min-height:44px;" />
+            </div>
+            <p class="text-secondary" style="font-size:12px;margin:0;">We may contact you about this message. No marketing emails without asking first.</p>
+            <div><button type="submit" class="btn btn-primary" id="fbSubmit" style="min-height:44px;">Send</button> <span id="fbStatus" role="status" aria-live="polite" style="margin-left:8px;"></span></div>
+          </form>
+          <script>
+            (function () {
+              const form = document.getElementById('feedbackForm');
+              const status = document.getElementById('fbStatus');
+              const signedIn = !!(window.TW && TW.getToken && TW.getToken());
+              document.getElementById('fbGuest').hidden = signedIn;
+              form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const body = Object.fromEntries(new FormData(form).entries());
+                body.page = location.pathname;
+                if (String(body.message || '').trim().length < 5) { status.textContent = 'Please write a few words.'; return; }
+                const btn = document.getElementById('fbSubmit');
+                btn.disabled = true; status.textContent = 'Sending...';
+                try {
+                  const headers = { 'Content-Type': 'application/json' };
+                  if (signedIn) headers.Authorization = 'Bearer ' + TW.getToken();
+                  const res = await fetch('/api/feedback', { method: 'POST', headers, body: JSON.stringify(body) });
+                  const j = await res.json().catch(() => ({}));
+                  if (!res.ok) throw new Error(j.error || 'Could not send.');
+                  form.reset(); status.textContent = 'Thanks. We received your message.';
+                } catch (err) { status.textContent = err.message; }
+                btn.disabled = false;
+              });
+            })();
+          </script>
+        </section>
       </div>
     </div>
   </div>

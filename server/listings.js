@@ -255,6 +255,10 @@ function createListingsRouter({ db, authenticate, optionalViewerId, sendEmail, c
           sendEmail({ to: player.email, idempotencyKey: `waitlist-confirm:listing:${row.id}:${player.id}`, ...waitlistConfirmEmail({ username: player.username, title: row.title, hook: (row.listing && row.listing.summary) || '', rhythm: 'Coming soon', link: `${siteUrl(req)}/competitions/listing/${row.slug}` }) }).catch(() => {});
         }
       }
+      if (created) {
+        const player = await db.getPlayerById(req.tokenPlayer.id).catch(() => null);
+        require('./lobby').leadsService().submit({ category: 'waitlist', source_form: `waitlist:listing:${row.slug || row.id}`, name: player && player.username, email: player && player.email, extras: { listing: row.slug || row.id, source }, player_id: req.tokenPlayer.id }, { notify: false, autoReply: false }).catch(() => {});
+      }
       res.json({ joined: true, created });
     } catch (e) {
       console.error('[listing waitlist]', e.message);

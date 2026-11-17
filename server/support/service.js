@@ -179,12 +179,30 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
       category: (topic && topic.category) || 'other',
       priority: (topic && topic.priority) || 'normal',
     });
-    if (topic && topic.topic === 'sponsor') {
+    // Leads centre: every escalation is a lead (a sponsor question from the
+    // chat is a brand-sponsor lead). The support inbox already notifies the
+    // team, so no second email here. Summary only: no secrets or payment data
+    // (the chat masks card and ID numbers before anything is stored).
+    try {
       const email = await contactEmail(conv);
-      supabase
-        .from('sponsor_leads')
-        .insert({ company: 'From support chat', contact_name: await whoLabel(conv), email, interest: 'support_chat', message: userText.slice(0, 2000), status: 'new' })
-        .then(({ error }) => error && console.warn('[support] sponsor lead insert failed:', error.message));
+      const sponsorTopic = topic && topic.topic === 'sponsor';
+      await require('../lobby').leadsService().submit({
+        category: sponsorTopic ? 'sponsor_brand' : 'support_escalation',
+        source_form: 'support_chat',
+        name: await whoLabel(conv),
+        email,
+        message: [summary && `Summary: ${summary}`, reason && `Reason: ${reason}`, `Ticket: ${store.ticketRef(ticket)}`].filter(Boolean).join('\n'),
+        extras: { conversation_id: conv.id, ticket: store.ticketRef(ticket), topic: (topic && topic.topic) || null },
+        player_id: conv.user_id || null,
+      }, { notify: sponsorTopic, autoReply: false });
+    } catch (e) {
+      if (topic && topic.topic === 'sponsor') {
+        supabase
+          .from('sponsor_leads')
+          .insert({ company: 'From support chat', contact_name: await whoLabel(conv), email: await contactEmail(conv), interest: 'support_chat', message: userText.slice(0, 2000), status: 'new' })
+          .then(({ error }) => error && console.warn('[support] sponsor lead insert failed:', error.message));
+      }
+      if (!/leads|PGRST205|42P01|schema cache/i.test(String(e.message || ''))) console.warn('[support] lead not created:', e.message);
     }
     const priority = (topic && topic.priority) || conv.priority || 'normal';
     conv = await store.updateConversation(conv.id, {

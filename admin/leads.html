@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Leads | Spike &amp; Crush Admin</title>
+<link rel="icon" href="/icons/admin.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/admin-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
+<style>
+  .ld-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .ld-tab { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border, #1D2638); background: transparent; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .ld-tab[aria-selected="true"] { background: var(--panel-2, #111724); border-color: #F5B83D; }
+  .ld-dot { width: 8px; height: 8px; border-radius: 50%; background: #FF4D5E; display: inline-block; }
+  .ld-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .ld-filters input, .ld-filters select { min-height: 36px; }
+  .ld-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 1100px) { .ld-grid { grid-template-columns: 1fr; } }
+  .ld-row { cursor: pointer; }
+  .ld-row.unread td:first-child { font-weight: 700; }
+  .ld-detail .kv { display: grid; grid-template-columns: 120px 1fr; gap: 4px 10px; font-size: 13px; }
+  .ld-detail .kv dt { color: var(--muted, #9AA4B8); }
+  .ld-msg { white-space: pre-wrap; background: var(--panel-2, #111724); padding: 10px; border-radius: 8px; font-size: 13px; margin: 10px 0; }
+  .ld-timeline { list-style: none; padding: 0; margin: 0; font-size: 12px; max-height: 260px; overflow: auto; }
+  .ld-timeline li { padding: 6px 0; border-bottom: 1px solid var(--border, #1D2638); }
+  .ld-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+  .ld-actions label { font-size: 12px; color: var(--muted, #9AA4B8); display: grid; gap: 4px; }
+  .ld-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .ld-warn { color: #FF4D5E; font-size: 12px; }
+  .ld-summary td, .ld-summary th { text-align: right; }
+  .ld-summary td:first-child, .ld-summary th:first-child { text-align: left; }
+</style>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="leads"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+        <div class="ld-tabs" role="tablist" id="ldTabs"></div>
+        <div class="ld-filters">
+          <input id="ldSearch" type="search" placeholder="Search name, company, email, message" aria-label="Search leads" />
+          <select id="ldStatus" aria-label="Status"><option value="">Any status</option></select>
+          <select id="ldPriority" aria-label="Priority"><option value="">Any priority</option><option>low</option><option>normal</option><option>high</option></select>
+          <select id="ldOwner" aria-label="Owner"><option value="">Any owner</option><option value="none">No owner</option><option value="me">Mine</option></select>
+          <select id="ldSort" aria-label="Sort"><option value="newest">Newest first</option><option value="followup">Next follow-up</option></select>
+          <span id="ldRange"></span>
+          <button class="btn" id="ldExport">Export CSV</button>
+          <button class="btn" id="ldSettingsBtn">Settings</button>
+        </div>
+        <div class="ld-grid">
+          <div>
+            <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Received</th><th>Category</th><th>Who</th><th>Status</th><th>Owner</th><th>Follow-up</th></tr></thead><tbody id="ldRows"><tr><td colspan="6">Loading</td></tr></tbody></table></div>
+            <div class="panel" style="margin-top:16px;"><h3>Pipeline</h3><div id="ldSummary" class="text-secondary">Loading</div></div>
+          </div>
+          <div class="panel ld-detail" id="ldDetail"><div class="empty-state">Choose a lead to see it here.</div></div>
+        </div>
+        <div class="panel" id="ldSettings" hidden style="margin-top:16px;">
+          <h3>Lead settings</h3>
+          <p class="text-secondary" style="font-size:12px;">Where each category's notification goes (comma separated). Empty uses the default: <span id="ldDefault"></span>.</p>
+          <div id="ldRouting" style="display:grid;grid-template-columns:200px 1fr;gap:6px 10px;align-items:center;"></div>
+          <div style="display:grid;grid-template-columns:200px 1fr;gap:6px 10px;align-items:center;margin-top:10px;">
+            <label for="ldReplyTime">Reply time in the auto-reply</label><input id="ldReplyTime" placeholder="Leave empty to promise nothing, e.g. within two working days" />
+            <label for="ldStaleDays">Digest: New for more than (days)</label><input id="ldStaleDays" type="number" min="1" max="60" />
+            <label for="ldCaptcha">Captcha on forms</label><select id="ldCaptcha"><option value="false">Off</option><option value="true">On (needs the Turnstile keys)</option></select>
+          </div>
+          <div class="ld-buttons"><button class="btn btn-primary" id="ldSaveSettings">Save settings</button></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="js/time-ago.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/date-range.js"></script>
+  <script src="js/leads.js"></script>
+</body>
+</html>

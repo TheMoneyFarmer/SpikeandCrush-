@@ -28,7 +28,8 @@ window.Admin = window.Admin || {};
     ]},
     { group: 'Sponsors', icon: 'handshake', items: [
       { key: 'sponsors', label: 'Sponsors', href: '/sponsors.html' },
-      { key: 'sponsors-leads', label: 'Partner Requests', href: '/sponsors.html?tab=leads' },
+      { key: 'leads', label: 'Leads', href: '/leads.html' },
+      { key: 'sponsors-leads', label: 'Partner Requests (old)', href: '/sponsors.html?tab=leads' },
       { key: 'lobby-settings', label: 'Lobby Settings', href: '/sponsors.html?tab=lobby' },
     ]},
     { group: 'Economy', icon: 'coin', items: [

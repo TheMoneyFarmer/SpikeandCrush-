@@ -317,6 +317,7 @@ app.use('/api/partners', require('./routes/partners')());
 app.use('/api/support', require('./routes/support')());
 app.use('/api/sponsors', require('./routes/sponsors')());
 app.use('/api/listings', require('./routes/listings')());
+app.use('/api/leads', require('./routes/leads')());
 
 // Anything not matched above (e.g. /lib/auth.js, /server.js) is a 404.
 app.use((req, res) => {
@@ -379,6 +380,12 @@ if (isConfigured) {
   });
   setTimeout(sponsorTick, 30 * 1000).unref();
   setInterval(sponsorTick, 60 * 60 * 1000).unref();
+  // Leads: daily follow-up digest (each owner once a day, idempotent per day).
+  const leadsDigest = () => require('./routes/leads').runLeadsDigest({ sendEmail: require('./lib/email').sendEmail }).catch((e) => {
+    if (!/leads|PGRST205|schema cache/.test(e.message || '')) console.warn('[leads] digest failed:', e.message);
+  });
+  setTimeout(leadsDigest, 60 * 1000).unref();
+  setInterval(leadsDigest, 6 * 60 * 60 * 1000).unref();
 }
 
 server.listen(ADMIN_PORT, () => {
