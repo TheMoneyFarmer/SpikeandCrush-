@@ -31,3 +31,19 @@ test('drain closes waiting Elimination and Quick lobbies, keeps bracket tourname
   assert.strictEqual(matches.bracket.status, 'waiting');
   drain.setDraining(false);
 });
+
+test('an abandoned public Elimination lobby expires like any other lobby (bracket rounds stay)', async () => {
+  process.env.SUPABASE_URL = '';
+  const { createGameEngine } = require('../server/gameEngine');
+  const engine = createGameEngine({ to: () => ({ emit() {} }), emit() {}, sockets: { sockets: new Map() } }, () => {}, () => {}, () => {}, () => true);
+  const pub = await engine.createMatch('tournament', {});
+  engine.joinMatch(pub, { id: 'e1', username: 'e1', war_rating: 1000, unlockedCards: [] }, null);
+  const bracket = await engine.createMatch('tournament', { tournamentId: 't1' });
+  if (bracket.config) bracket.config.tournamentId = 't1';
+  engine.joinMatch(bracket, { id: 'b1', username: 'b1', war_rating: 1000, unlockedCards: [] }, null);
+  const later = Date.now() + 2 * 60 * 60 * 1000;
+  await engine.sweepIdleLobbies(later);
+  assert.ok(!engine.getMatch(pub.id) || engine.getMatch(pub.id).status !== 'waiting', 'public Elimination lobby closed');
+  assert.strictEqual(engine.getMatch(bracket.id) && engine.getMatch(bracket.id).status, 'waiting', 'bracket round kept');
+  for (const m of [pub, bracket]) for (const k of Object.keys(m.timers || {})) { clearTimeout(m.timers[k]); clearInterval(m.timers[k]); }
+});
