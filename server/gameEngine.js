@@ -1194,7 +1194,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     }
     // Leaving the game screen keeps the seat, so a second match has to wait.
     // Tournament brackets seat both players themselves on their schedule.
-    if (match.mode !== 'tournament' && isInLiveMatch(playerInfo.id)) {
+    if (!(match.config && match.config.tournamentId) && isInLiveMatch(playerInfo.id)) {
       return { success: false, error: LIVE_MATCH_BUSY_ERROR };
     }
     if (isFull(match)) return { success: false, error: 'Match is full' };
@@ -3599,7 +3599,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   // if no humans are left, the room is closed. Tournament brackets are not
   // leavable from the waiting room - their entry belongs to the bracket.
   async function leaveLobby(match, playerId) {
-    if (match.mode === 'tournament') return { success: false, error: 'Tournament rounds cannot be left before they start' };
+    // Bracket rounds only (config.tournamentId): the public Elimination mode
+    // shares the key 'tournament' and is an ordinary, leavable lobby.
+    if (match.config && match.config.tournamentId) return { success: false, error: 'Tournament rounds cannot be left before they start' };
     const player = match.players[playerId];
     delete match.players[playerId];
     match.playerOrder = match.playerOrder.filter((id) => id !== playerId);
@@ -3663,11 +3665,13 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
   // Waiting rooms never start on their own, so without this one left behind
   // (tab closed, script that never connected) would hold memory and the player's
-  // entry coins forever. Tournament rounds belong to their bracket and stay.
+  // entry coins forever. Bracket tournament rounds (config.tournamentId) belong
+  // to their bracket and stay; the public Elimination mode shares the internal
+  // key 'tournament' but is an ordinary lobby and expires like the others.
   async function sweepIdleLobbies(nowMs = Date.now()) {
     let closed = 0;
     for (const match of Array.from(matches.values())) {
-      if (match.status !== 'waiting' || match.mode === 'tournament') continue;
+      if (match.status !== 'waiting' || (match.config && match.config.tournamentId)) continue;
       const humans = match.playerOrder.filter((id) => match.players[id] && !match.players[id].isAI);
       if (humans.some((id) => match.players[id].socketId)) match.lastHumanSeenAt = nowMs;
       const idleFor = nowMs - (match.lastHumanSeenAt || match.createdAt);
