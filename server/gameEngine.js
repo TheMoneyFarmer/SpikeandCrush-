@@ -19,6 +19,7 @@ const intrabar = require('./intrabar');
 const { createMatchLog, downsample } = require('./matchLog');
 const curated = require('./curated');
 const engineHealth = require('./engineHealth');
+const endgame = require('./endgame');
 const { performance } = require('perf_hooks');
 // Activity levels change only when playlists are rebuilt: read once a minute.
 let activityCache = { at: 0, levels: {} };
@@ -837,6 +838,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       marketSeed,
       replaySpeed,
       rules,
+      // Season at creation: which seasonal cards are featured or vaulted (endgame).
+      season: require('./endgame').seasonSnapshot(),
       // Elimination state (cuts), market events and the half-time checkpoint.
       elimination: { cuts: [], nextCutIndex: 0, active: false, warned: {} },
       marketEvents: [],
@@ -1582,6 +1585,14 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     let saved = null;
     if (db.awardXp) saved = await db.awardXp(p.id, { matchId: match.id, amount: gained, key: `xp:${match.id}:${p.id}`, bestStreak: p.bestStreak, bestHeat: p.bestHeat, qualifyingWins: p.qualifyingWins, floorXp: before.xp }).catch(() => null);
     const afterXp = saved ? saved.xp : before.xp + gained;
+    // Season track: the same capped, server-computed XP (endgame Stage 2).
+    let season = null;
+    if (endgame.runtime.active && gained > 0) {
+      season = await endgame.addSeasonXp(db.client(), endgame.runtime.active, p.id, gained, { grant: endgame.makeGrant(db), rating: p.warRating, tierFor: tierForRating }).catch((e) => {
+        if (!/season_progress|schema cache/.test(e.message || '')) console.warn('[season xp]', e.message);
+        return null;
+      });
+    }
     const after = progression.standing(row || {}, { xp: afterXp });
     const unlocked = progression.newUnlocks(before, after);
     return {
@@ -1593,6 +1604,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       level: progression.levelInfo(after.xp),
       unlocked: unlocked.map((id) => ({ id, name: sabotage.CARDS[id].name, icon: sabotage.CARDS[id].icon, rarity: sabotage.CARDS[id].rarity })),
       persisted: Boolean(saved),
+      season: season ? { name: endgame.runtime.active.name, level: season.level, xp: season.xp, rewards: season.rewards } : null,
     };
   }
 
@@ -2843,6 +2855,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // The clock just hit 0: say so right away (saving below takes a moment),
     // so the screen never sits on a frozen 0:00 with nothing happening.
     emitToAll(match, 'match:resolving', { matchId: match.id, standings: results.map((r) => ({ username: r.username, rank: r.rank, pnl: r.pnl })) });
+    // Endgame telemetry and mastery (server results only; cosmetic, never power).
+    for (const p of Object.values(match.players)) {
+      const held = [...new Set((p.cards || []).map((c) => c.type))];
+      if (held.length) logEvent(match, 'cards_held', p.id, { cards: held });
+    }
+    if (db.isConfigured) {
+      const humans = new Set(Object.values(match.players).filter((p) => !p.isAI).map((p) => p.id));
+      const outcomes = endgame.masteryOutcomes((match.cardLog || []).filter((e) => humans.has(e.attacker)), results.map((r) => ({ playerId: r.playerId, rank: r.rank })));
+      if (outcomes.length) endgame.recordMastery(db.client(), outcomes).catch((e) => { if (!/card_mastery|schema cache/.test(e.message || '')) console.warn('[mastery]', e.message); });
+    }
 
     const ratingField = match.config.ratingKey || 'war_rating';
     // One player's saves never wait on another's (was one after another: a

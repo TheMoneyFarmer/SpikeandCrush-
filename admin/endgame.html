@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seasons and Balance | Spike &amp; Crush Admin</title>
+<link rel="icon" href="/icons/admin.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/admin-32.png" type="image/png" sizes="32x32" />
+<link rel="stylesheet" href="css/admin-base.css" />
+<link rel="stylesheet" href="css/admin-tables.css" />
+<link rel="stylesheet" href="css/admin-components.css" />
+<link rel="stylesheet" href="css/admin-console.css" />
+<style>
+  .eg-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .eg-tabs button[aria-selected="true"] { border-color: #F5B83D; }
+  .eg-flag { color: #FF4D5E; font-size: 12px; }
+  .eg-form { display: grid; grid-template-columns: 200px 1fr; gap: 6px 10px; align-items: center; max-width: 820px; }
+  .eg-form textarea { min-height: 90px; font-family: var(--mono, monospace); font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar" data-active="endgame"></aside>
+    <main class="admin-main">
+      <div class="admin-topbar" id="adminTopbar"></div>
+      <div class="admin-content">
+        <div class="eg-tabs" role="tablist">
+          <button class="btn" role="tab" data-tab="balance" aria-selected="true">Balance</button>
+          <button class="btn" role="tab" data-tab="config" aria-selected="false">Card settings</button>
+          <button class="btn" role="tab" data-tab="seasons" aria-selected="false">Season Studio</button>
+        </div>
+
+        <section id="tab-balance">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+            <select id="bDays"><option value="7">Last 7 days</option><option value="28" selected>Last 28 days</option><option value="90">Last 90 days</option></select>
+            <input id="bMode" placeholder="mode (e.g. quick)" style="width:140px;" />
+            <select id="bBracket"><option value="">All ranks</option></select>
+            <button class="btn" id="bRun">Rebuild yesterday</button>
+          </div>
+          <p class="text-secondary" style="font-size:12px;" id="bNote"></p>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Card</th><th>Held</th><th>Played</th><th>Pick rate</th><th>Win rate played</th><th>Win rate not played</th><th>Rank swing</th><th>Flags</th></tr></thead><tbody id="bRows"><tr><td colspan="8">Loading</td></tr></tbody></table></div>
+        </section>
+
+        <section id="tab-config" hidden>
+          <p class="text-secondary" style="font-size:12px;">Card durations as versioned settings. Each save is a new version (logged); the game server picks it up within a minute, no deploy. Heat lives in Fire Gameplay settings.</p>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Card</th><th>Default</th><th>Allowed</th><th>New duration (s)</th></tr></thead><tbody id="cRows"></tbody></table></div>
+          <div style="display:flex;gap:8px;margin:10px 0;"><input id="cNote" placeholder="why (shown in the change log)" style="flex:1;" /><button class="btn btn-primary" id="cSave">Save as new version</button></div>
+          <h3>Change log</h3>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Version</th><th>When</th><th>By</th><th>Note</th><th>Changes</th><th></th></tr></thead><tbody id="cVersions"></tbody></table></div>
+        </section>
+
+        <section id="tab-seasons" hidden>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Season</th><th>Dates</th><th>State</th><th>Featured</th><th></th></tr></thead><tbody id="sRows"></tbody></table></div>
+          <h3 id="sFormTitle">New season</h3>
+          <form class="eg-form" id="sForm">
+            <input type="hidden" id="sId" />
+            <label for="sName">Name</label><input id="sName" required maxlength="80" />
+            <label for="sTheme">Theme</label><input id="sTheme" maxlength="200" />
+            <label for="sStart">Starts</label><input id="sStart" type="datetime-local" required />
+            <label for="sEnd">Ends (default 8 weeks)</label><input id="sEnd" type="datetime-local" />
+            <label for="sFeatured">Featured cards (ids, 3 to 4)</label><input id="sFeatured" placeholder="e.g. profit_skim, ghost_trade" />
+            <label for="sReset">Soft rank reset %</label><input id="sReset" type="number" min="0" max="100" value="25" />
+            <label for="sTrack">Track rewards (JSON)</label><textarea id="sTrack">[{"level":5,"reward":{"type":"coins","amount":10}},{"level":10,"reward":{"type":"cosmetic","id":"rk_frame_rookie"}}]</textarea>
+            <label for="sPeak">Peak rank rewards (JSON)</label><textarea id="sPeak">[{"tier":"Elite","reward":{"type":"title","id":"rk_title_analyst"}}]</textarea>
+            <span></span><div style="display:flex;gap:8px;"><button class="btn btn-primary" type="submit">Save season</button><button class="btn" type="reset" id="sNew">New</button></div>
+          </form>
+          <p class="text-secondary" style="font-size:12px;">Preview: players see the season on the home banner and at /season. At the end, peak rewards and the soft reset run once per player (audit rows), then the season is archived; featured cards go to the Vault.</p>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="js/time-ago.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-nav.js"></script>
+  <script src="js/endgame.js"></script>
+</body>
+</html>

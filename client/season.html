@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- seo:start -->
+<title>Season | Spike &amp; Crush</title>
+<meta name="description" content="The current season: track, rewards and featured cards." />
+<meta name="robots" content="noindex, nofollow" />
+<link rel="canonical" href="https://www.spikeandcrush.com/season" />
+<meta name="theme-color" content="#14213d" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta property="og:site_name" content="Spike &amp; Crush" />
+<meta property="og:title" content="Season | Spike &amp; Crush" />
+<meta property="og:description" content="The current season: track, rewards and featured cards." />
+<meta property="og:url" content="https://www.spikeandcrush.com/season" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://www.spikeandcrush.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Spike &amp; Crush, the competitive trading game. Up. Then not." />
+<meta name="twitter:card" content="summary_large_image" />
+<!-- seo:end -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="/icons/cards.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/cards-32.png" type="image/png" sizes="32x32" />
+<link rel="alternate icon" href="/favicon.ico" sizes="48x48" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/themes.css" />
+<link rel="stylesheet" href="css/tutorial.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<link rel="stylesheet" href="/css/mobile.css">
+<style>
+  .bp-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+  .bp-progress-wrap { background: var(--surface-2); border-radius: 999px; height: 14px; overflow: hidden; border: 1px solid var(--border); }
+  .bp-progress-bar { height: 100%; background: var(--gradient-primary); transition: width .3s ease; }
+  .bp-premium-badge { background: var(--gradient-gold, linear-gradient(135deg,#f6d365,#fda085)); color: #3a2400; font-weight: 800; padding: 4px 12px; border-radius: 999px; font-size: 12px; }
+  .bp-track { display: flex; overflow-x: auto; gap: 10px; padding: 8px 4px 16px; }
+  .bp-tier { flex: 0 0 110px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; text-align: center; position: relative; }
+  .bp-tier.claimed { border-color: var(--accent); }
+  .bp-tier .tier-num { font-size: 11px; color: var(--text-secondary); font-weight: 700; margin-bottom: 6px; }
+  .bp-tier .reward { font-size: 22px; margin-bottom: 4px; }
+  .bp-tier .reward-label { font-size: 10px; color: var(--text-secondary); min-height: 26px; }
+  .bp-tier .locked-overlay { position: absolute; inset: 0; background: rgba(20,33,61,0.55); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .bp-track-row { margin-bottom: 6px; }
+  .bp-track-row .row-label { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
+  .challenge-list { display: flex; flex-direction: column; gap: 8px; }
+  .challenge-row { display: flex; justify-content: space-between; align-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; }
+  .challenge-row.completed { opacity: 0.6; }
+  .challenge-row .label { font-size: 13px; }
+  .challenge-row .coins { color: var(--gold); font-weight: 700; font-size: 12px; margin-left: 8px; }
+  .bp-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .bp-panels { grid-template-columns: 1fr; } }
+</style>
+  <link rel="stylesheet" href="/css/console.css" />
+<script src="/js/analytics.js" defer></script>
+</head>
+<body data-page="season">
+  <div id="twNav" data-active=""></div>
+  <main class="container" style="max-width:860px;margin:0 auto;padding:16px;">
+    <section class="panel" id="snHead">
+      <h1 style="font-family:Rajdhani,Inter,sans-serif;margin:0;" id="snName">Season</h1>
+      <p class="text-secondary" id="snSub" style="margin:4px 0 0;">Loading...</p>
+      <div id="snMine" hidden style="margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;"><span id="snLevel"></span><span id="snXp" class="text-secondary"></span></div>
+        <div style="height:8px;background:#1D2638;border-radius:4px;overflow:hidden;margin-top:6px;"><i id="snBar" style="display:block;height:100%;width:0;background:#F5B83D;"></i></div>
+      </div>
+    </section>
+    <section class="panel" style="margin-top:14px;" id="snFeatured" hidden>
+      <h2 style="font-size:18px;margin:0 0 8px;">Featured cards this season</h2>
+      <p class="text-secondary" style="font-size:13px;margin:0 0 8px;">Featured cards join ranked matches for this season. Cards from past seasons wait in the Vault: still yours, usable in casual and private matches.</p>
+      <div id="snCards" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      <p class="text-secondary" id="snVault" style="font-size:13px;margin:10px 0 0;"></p>
+    </section>
+    <section class="panel" style="margin-top:14px;" id="snTrackWrap" hidden>
+      <h2 style="font-size:18px;margin:0 0 8px;">Season track</h2>
+      <p class="text-secondary" style="font-size:13px;margin:0 0 8px;">Earn season levels with the XP you already get from matches and missions. Rewards are cosmetics, titles and a few coins. Nothing here is sold or makes a card stronger.</p>
+      <ol id="snTrack" style="list-style:none;padding:0;margin:0;display:grid;gap:6px;"></ol>
+    </section>
+    <section class="panel" style="margin-top:14px;" id="snNone" hidden>
+      <p style="margin:0;">No season is running right now. Your level, cards and cosmetics are all kept; the next season will be announced on the home screen.</p>
+    </section>
+  </main>
+  <script src="js/main.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="/js/season.js"></script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-text legal-coins">Coins have no cash value and cannot be withdrawn or exchanged for money.</p>
+      <p class="legal-links">
+        <a href="/competitions">Competitions</a> · <a href="/sponsor">Sponsor</a> · <a href="/contact">Contact</a> · <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/cookies">Cookies</a> · <a href="/responsible">Responsible Gaming</a><span data-cookie-settings hidden> · <a href="/cookies">Cookie settings</a></span>
+      </p>
+      <p class="legal-support">For support: <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a></p>
+      <p class="legal-text" data-company-line hidden></p>
+      <p class="legal-text">© 2026 Spike &amp; Crush</p>
+    </div>
+  </footer>
+  <script src="js/support-widget.js"></script>
+  <script src="/js/orientation.js"></script>
+  <script src="/js/bottom-nav.js"></script>
+</body>
+</html>

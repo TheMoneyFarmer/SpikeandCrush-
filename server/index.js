@@ -28,6 +28,7 @@ const db = require('./database');
 const { sendEmail, renderTemplate } = require('../admin/lib/email');
 const emailVerification = require('./emailVerification');
 const recovery = require('./authRecovery');
+const endgame = require('./endgame');
 const { createGameEngine, LIVE_MATCH_BUSY_ERROR, tierForRating, TIERS } = require('./gameEngine');
 const matchmaking = require('./matchmaking');
 const totp = require('./totp');
@@ -550,6 +551,7 @@ app.get('/privacy', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'privacy.ht
 app.get('/responsible', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'responsible.html')));
 app.get('/shop', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'shop.html')));
 app.get('/battle-pass', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'battle-pass.html')));
+app.get('/season', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'season.html')));
 app.get('/async', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'async.html')));
 app.get('/replay', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'replay.html')));
 app.get('/clip', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'clip.html')));
@@ -713,6 +715,16 @@ app.use('/internal/admin/fire', require('./bridgeAuth').requireBridgeSecret, fir
 fireAdmin.loadConfig(db);
 // Monthly season end: exclusive cosmetics for the top finishers (server/seasons.js).
 require('./seasons').startSeasonJob(db, notifyPlayer);
+// Endgame: the active season (featured cards, Vault) and the active card
+// config, refreshed every minute so admin changes apply without a deploy.
+if (db.isConfigured) {
+  const endgameRefresh = () => {
+    endgame.refreshRuntime(db.client()).catch(() => {});
+    endgame.loadActiveCardConfig(db.client()).catch(() => {});
+  };
+  endgameRefresh();
+  setInterval(endgameRefresh, 60 * 1000).unref();
+}
 // Saved admin Match Settings (game_config 'match_settings') apply at startup
 // too, not only after an admin presses Save.
 if (db.isConfigured) {
@@ -3531,6 +3543,81 @@ app.get('/api/cards/catalog', (req, res) => {
   res.json({ cards: progression.collection(progression.standing({})).map(({ id, name, kind, rarity, description, unlockText }) => ({ id, name, kind, rarity, description, unlockText })) });
 });
 
+// ---- endgame (server/endgame.js) ------------------------------------------------------
+
+// Prestige: at the top level only; confirm required; irreversible; logged.
+app.post('/api/progression/prestige', requireDb, authenticate, async (req, res) => {
+  if (req.body?.confirm !== true) return res.status(400).json({ error: 'Confirm to prestige' });
+  try {
+    const player = await db.getPlayerById(req.tokenPlayer.id);
+    const prog = await loadProgression(player);
+    const out = await endgame.doPrestige(db.client(), player, prog.standing.xp);
+    if (db.grantCosmetics) await db.grantCosmetics([{ player_id: player.id, item_id: `prestige_badge_${Math.min(out.prestige, 10)}`, source: 'prestige' }]).catch(() => {});
+    res.json({ success: true, prestige: out.prestige });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.status ? e.message : 'Could not prestige right now' });
+  }
+});
+
+// The current season, its track and my progress (no login needed to look).
+app.get('/api/seasons/current', async (req, res) => {
+  const s = endgame.runtime.active;
+  if (!s) return res.json({ season: null });
+  let mine = null;
+  try {
+    const viewerId = await optionalViewerId(req);
+    if (viewerId && db.isConfigured) {
+      const { data } = await db.client().from('season_progress').select('xp, level, peak_tier, claimed_levels').eq('season_id', s.id).eq('player_id', viewerId).maybeSingle();
+      mine = data || { xp: 0, level: 1, peak_tier: null, claimed_levels: [] };
+    }
+  } catch (e) { /* not signed in or table missing */ }
+  res.json({
+    season: { id: s.id, name: s.name, startsAt: s.starts_at, endsAt: s.ends_at, featuredCards: (s.featured_cards || []).map((id) => ({ id, name: sabotage.CARDS[id] ? sabotage.CARDS[id].name : id })), track: s.track || [], levels: endgame.SEASON_LEVELS, xpPerLevel: endgame.SEASON_XP_PER_LEVEL },
+    vault: endgame.runtime.seasonalCards.filter((id) => !(s.featured_cards || []).includes(id)),
+    mine,
+  });
+});
+
+// My card mastery: uses, success rate, level and favourite target.
+app.get('/api/mastery/me', requireDb, authenticate, async (req, res) => {
+  try {
+    const { data } = await db.client().from('card_mastery').select('card_id, uses, successes, level, targets').eq('player_id', req.tokenPlayer.id);
+    const rows = data || [];
+    const favIds = [...new Set(rows.map((r) => Object.entries(r.targets || {}).sort((a, b) => b[1] - a[1])[0]?.[0]).filter(Boolean))];
+    const { data: names } = favIds.length ? await db.client().from('players').select('id, username').in('id', favIds) : { data: [] };
+    const nameOf = Object.fromEntries((names || []).map((n) => [n.id, n.username]));
+    res.json({
+      thresholds: endgame.MASTERY_THRESHOLDS,
+      cards: rows.map((r) => {
+        const fav = Object.entries(r.targets || {}).sort((a, b) => b[1] - a[1])[0];
+        return { id: r.card_id, name: sabotage.CARDS[r.card_id] ? sabotage.CARDS[r.card_id].name : r.card_id, uses: r.uses, successes: r.successes, successRate: r.uses ? r.successes / r.uses : 0, level: r.level, favouriteTarget: fav ? nameOf[fav[0]] || null : null };
+      }).sort((a, b) => b.level - a.level || b.successes - a.successes),
+    });
+  } catch (e) {
+    res.json({ thresholds: endgame.MASTERY_THRESHOLDS, cards: [] });
+  }
+});
+
+// Profile showcase: top 3 mastered cards, season peak, prestige, titles.
+app.get('/api/player/:id/showcase', async (req, res) => {
+  if (!/^[0-9a-f-]{36}$/i.test(req.params.id) || !db.isConfigured) return res.status(404).json({ error: 'Not found' });
+  try {
+    const [{ data: player }, { data: mastery }] = await Promise.all([
+      db.client().from('players').select('id, username, prestige_level').eq('id', req.params.id).maybeSingle(),
+      db.client().from('card_mastery').select('card_id, level, successes').eq('player_id', req.params.id).order('level', { ascending: false }).order('successes', { ascending: false }).limit(3),
+    ]);
+    if (!player) return res.status(404).json({ error: 'Not found' });
+    let seasonPeak = null;
+    if (endgame.runtime.active) {
+      const { data: sp } = await db.client().from('season_progress').select('peak_tier, level').eq('season_id', endgame.runtime.active.id).eq('player_id', player.id).maybeSingle();
+      seasonPeak = sp ? { season: endgame.runtime.active.name, peakTier: sp.peak_tier, level: sp.level } : null;
+    }
+    res.json({ username: player.username, prestige: player.prestige_level || 0, topMastery: (mastery || []).map((m) => ({ id: m.card_id, name: sabotage.CARDS[m.card_id] ? sabotage.CARDS[m.card_id].name : m.card_id, level: m.level })), seasonPeak });
+  } catch (e) {
+    res.status(500).json({ error: 'Could not load the showcase' });
+  }
+});
+
 app.get('/api/progression/me', requireDb, authenticate, async (req, res) => {
   try {
     const player = await db.getPlayerById(req.tokenPlayer.id);
@@ -3539,7 +3626,9 @@ app.get('/api/progression/me', requireDb, authenticate, async (req, res) => {
     const collection = progression.collection(prog.standing, prog.grants);
     const next = collection.filter((c) => !c.unlocked && c.unlockRule && c.unlockRule.level).sort((a, b) => a.unlockRule.level - b.unlockRule.level).slice(0, 3);
     res.json({
-      level: progression.levelInfo(prog.standing.xp),
+      // Shown level restarts after a prestige; unlocks stay (they use total XP).
+      level: endgame.prestigeState(prog.standing.xp, player).levelInfo,
+      prestige: { level: Number(player.prestige_level) || 0, canPrestige: endgame.prestigeState(prog.standing.xp, player).canPrestige },
       rank: tierForRating(player.war_rating),
       rating: player.war_rating,
       tiers: TIERS.map((t) => ({ name: t.name, min: t.min, max: Number.isFinite(t.max) ? t.max : null })),

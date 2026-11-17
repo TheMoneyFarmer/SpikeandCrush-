@@ -26,6 +26,7 @@ window.Admin = window.Admin || {};
       { key: 'competitions', label: 'Competitions', href: '/competitions.html' },
       { key: 'listings', label: 'Partner Listings', href: '/listings.html' },
       { key: 'winners', label: 'Competition Winners', href: '/winners.html' },
+      { key: 'endgame', label: 'Seasons and Balance', href: '/endgame.html' },
     ]},
     { group: 'Sponsors', icon: 'handshake', items: [
       { key: 'sponsors', label: 'Sponsors', href: '/sponsors.html' },

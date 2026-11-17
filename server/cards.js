@@ -23,6 +23,11 @@ const progressionRules = () => require('./progression');
 // Cards this player may hold in this match: their unlocked pool, limited to
 // the tiers the mode allows (Blitz has no heavy cards, Solo only defensive,
 // Lifeline only where cuts happen).
+function vaultAllows(match, id) {
+  if (!match || !match.season) return true;
+  return require('./endgame').rankedCardAllowed(id, { ranked: Boolean(match.config && match.config.ranked), activeSeason: match.season.active, seasonalCards: match.season.seasonalCards || [] });
+}
+
 function allowedPool(match, p) {
   const r = cfg(match).cards || {};
   const all = p.unlockedCards || Object.keys(sabotage.CARDS);
@@ -34,7 +39,10 @@ function allowedPool(match, p) {
     if (r.defenseOnly && card.kind !== 'defense') return false;
     if (r.sabotage === false && card.kind !== 'defense') return false;
     const tier = modeIdentity.cardTier(id, basic, card.rarity);
-    return !r.allowedTiers || r.allowedTiers.includes(tier);
+    if (r.allowedTiers && !r.allowedTiers.includes(tier)) return false;
+    // Seasons: a seasonal card not featured this season is in the Vault, so
+    // ranked matches cannot use it (casual and private still can).
+    return vaultAllows(match, id);
   });
 }
 
@@ -171,6 +179,7 @@ function checkPlay(match, caster, cardType, target, nowMs) {
   if (caster.unlockedCards && cardType !== 'lifeline' && !caster.unlockedCards.includes(cardType)) return 'That card is locked for you';
   if (caster.eliminated || caster.spectator) return 'You are out of this match';
   if (match && match.rules && !allowedPool(match, { ...caster, unlockedCards: caster.unlockedCards || null }).includes(cardType)) {
+    if (!vaultAllows(match, cardType)) return 'That card is in the Vault this season: casual and private matches only';
     return c.sabotage === false ? 'No sabotage in this mode' : 'That card is not allowed in this mode';
   }
   if (!def.targeted) return null;

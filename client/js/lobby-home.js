@@ -255,6 +255,19 @@
 
   // ---- mode strip / mobile mode sheet -------------------------------------------------
 
+  // Home banner while a season runs (server/endgame.js).
+  (function seasonBanner() {
+    const el = document.getElementById('lbSeasonBanner');
+    if (!el) return;
+    fetch('/api/seasons/current').then((r) => r.json()).then((d) => {
+      if (!d.season) return;
+      const days = Math.max(0, Math.ceil((Date.parse(d.season.endsAt) - Date.now()) / 86400000));
+      document.getElementById('lbSeasonText').textContent = `${d.season.name} · ${days} days left${d.season.featuredCards.length ? ` · featured: ${d.season.featuredCards.map((c) => c.name).join(', ')}` : ''}`;
+      el.hidden = false;
+      el.style.display = 'flex';
+    }).catch(() => {});
+  })();
+
   function renderModes(modes) {
     // One icon per mode so the tiles read at a glance.
     const MODE_ICON = { quick: 'swords', blitz: 'bolt', grand: 'crown', solo: 'target', async: 'clock', private: 'lock', tournament: 'trophy', stocks: 'bell', futures: 'pit' };

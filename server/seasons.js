@@ -10,6 +10,12 @@ const cosmetics = require('./cosmetics');
 
 async function runSeasonRewards(db, notifyPlayer, season = cosmetics.previousSeason()) {
   if (!db.isConfigured) return { skipped: 'no database' };
+  // Once admin seasons exist (server/endgame.js), their peak rewards replace
+  // these monthly ones, so two season systems never pay out side by side.
+  try {
+    const { count } = await db.client().from('seasons').select('id', { count: 'exact', head: true });
+    if (count) return { skipped: 'admin seasons in use', season };
+  } catch (e) { /* no seasons table: keep monthly rewards */ }
   if (await db.seasonAlreadyRewarded(season)) return { skipped: 'already rewarded or table missing', season };
   const { from, to } = cosmetics.seasonBounds(season);
   const top = await db.seasonTop(from, to, cosmetics.SEASON_TOP);

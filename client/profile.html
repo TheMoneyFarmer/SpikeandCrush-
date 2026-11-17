@@ -172,7 +172,18 @@
       </div>
     </div>
 
-    <div class="panel hidden" id="editProfileSection" style="margin-top:20px;">
+    <section class="panel" id="endgameSection" style="margin-bottom:16px;">
+        <h3 style="margin-top:0;">Showcase</h3>
+        <div id="egShowcase" class="text-secondary" style="font-size:14px;">Loading...</div>
+        <div id="egPrestige" hidden style="margin-top:12px;">
+          <p style="margin:0 0 8px;font-size:14px;">You reached the top level. <strong>Prestige</strong> starts your level again from 1. Every card, unlock and cosmetic stays, and you get a prestige badge. Nothing gets stronger. This cannot be undone.</p>
+          <button type="button" class="btn btn-outline" id="egPrestigeBtn" style="min-height:44px;">Prestige</button>
+        </div>
+        <h3>Card mastery</h3>
+        <p class="text-secondary" style="font-size:12px;margin-top:0;">A card gains mastery when you land it on a player who then finishes below you. Mastery is a badge and a look, never more power.</p>
+        <div id="egMastery" class="text-secondary" style="font-size:13px;">Loading...</div>
+      </section>
+      <div class="panel hidden" id="editProfileSection" style="margin-top:20px;">
       <h3>Edit Profile</h3>
       <p class="text-secondary">Full profile editing (avatar, password, preferences) lives on the <a href="/settings">Settings</a> page now - this is quick access to the basics.</p>
       <form id="editProfileForm">
@@ -232,6 +243,7 @@
   <script src="/js/device.js"></script>
   <script src="/js/friends-panel.js"></script>
   <script src="/js/lottie.js"></script>
+  <script src="/js/endgame-profile.js"></script>
   <script>
     TW.requireAuth();
     const player = TW.getPlayer();
@@ -254,6 +266,7 @@
         }
 
         document.getElementById('editProfileSection').classList.toggle('hidden', !isOwnProfile);
+        if (window.TW && TW.loadEndgame) TW.loadEndgame(data && (data.player || data), isOwnProfile);
         document.getElementById('buyCoinsSection').classList.toggle('hidden', !isOwnProfile);
         document.getElementById('myAccountsLink').hidden = !isOwnProfile;
 

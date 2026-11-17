@@ -33,6 +33,7 @@ const PAGES = {
   'cards.html': { path: '/cards', title: 'Cards | Spike & Crush', description: 'Your sabotage cards and saved deck.' },
   'shop.html': { path: '/shop', title: 'Shop | Spike & Crush', description: 'Spend your coins on cosmetics and cards.' },
   'battle-pass.html': { path: '/battle-pass', title: 'Battle Pass | Spike & Crush', description: 'Earn rewards by playing this season.' },
+  'season.html': { path: '/season', title: 'Season | Spike & Crush', description: 'The current season: track, rewards and featured cards.' },
   'wallet.html': { path: '/wallet', title: 'Wallet | Spike & Crush', description: 'Your coin balance and history.' },
   'profile.html': { path: '/profile', title: 'Profile | Spike & Crush', description: 'Player profile and match history.' },
   'settings.html': { path: '/settings', title: 'Settings | Spike & Crush', description: 'Your account, sound and display settings.' },

@@ -319,6 +319,7 @@ app.use('/api/sponsors', require('./routes/sponsors')());
 app.use('/api/listings', require('./routes/listings')());
 app.use('/api/leads', require('./routes/leads')());
 app.use('/api/rewards', require('./routes/compWinners')());
+app.use('/api/endgame', require('./routes/endgame')());
 
 // Anything not matched above (e.g. /lib/auth.js, /server.js) is a 404.
 app.use((req, res) => {
@@ -392,6 +393,12 @@ if (isConfigured) {
     if (!/comp_winners|schema cache/.test(e.message || '')) console.warn('[rewards] reminder failed:', e.message);
   });
   setInterval(prizeReminder, 12 * 60 * 60 * 1000).unref();
+  // Endgame: nightly card balance numbers and season state/end, checked hourly.
+  const endgameJobs = () => require('./routes/endgame').runEndgameJobs().catch((e) => {
+    if (!/card_balance_daily|seasons|schema cache/.test(e.message || '')) console.warn('[endgame] job failed:', e.message);
+  });
+  setTimeout(endgameJobs, 90 * 1000).unref();
+  setInterval(endgameJobs, 60 * 60 * 1000).unref();
 }
 
 server.listen(ADMIN_PORT, () => {
