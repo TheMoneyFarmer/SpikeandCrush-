@@ -151,6 +151,35 @@ function router() {
     res.json(out);
   });
 
+  // ---- Weekly Twists ----------------------------------------------------------------------
+  const twists = require('../../server/twists');
+  r.get('/twists', async (req, res) => {
+    const { data, error } = await supabase.from('twists').select('*').order('starts_at', { ascending: false }).limit(50);
+    if (error) return res.status(500).json({ error: /twists/.test(error.message) ? 'Run the endgame migration first' : error.message });
+    res.json({ twists: data, library: Object.entries(twists.LIBRARY).map(([key, t]) => ({ key, name: t.name, line: t.line, param: t.param, default: t.default, min: t.min, max: t.max })) });
+  });
+  r.post('/twists', editor, async (req, res) => {
+    const b = req.body || {};
+    const v = twists.validateTwist(b.key, b.params || {});
+    if (v.error) return res.status(400).json({ error: v.error });
+    const s = Date.parse(b.startsAt);
+    const e = b.endsAt ? Date.parse(b.endsAt) : s + 7 * 86400000;
+    if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return res.status(400).json({ error: 'Check the dates (default one week)' });
+    const modes = (Array.isArray(b.modes) ? b.modes : String(b.modes || '').split(',')).map((x) => String(x).trim()).filter(Boolean);
+    const { data, error } = await supabase.from('twists').insert({ twist_key: v.twist.key, params: v.twist.params, starts_at: new Date(s).toISOString(), ends_at: new Date(e).toISOString(), modes, include_ranked: b.includeRanked === true, created_by: who(req) }).select('*').single();
+    if (error) return res.status(500).json({ error: error.message });
+    await audit(req, 'twist_schedule', data.id, { key: data.twist_key, params: data.params, modes, ranked: data.include_ranked });
+    res.json({ twist: data, note: 'New matches pick it up within a minute of the start time.' });
+  });
+  r.post('/twists/:id/toggle', editor, async (req, res) => {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Twist not found' });
+    const { data: cur } = await supabase.from('twists').select('id, enabled').eq('id', req.params.id).maybeSingle();
+    if (!cur) return res.status(404).json({ error: 'Twist not found' });
+    await supabase.from('twists').update({ enabled: !cur.enabled }).eq('id', cur.id);
+    await audit(req, cur.enabled ? 'twist_off' : 'twist_on', cur.id, {});
+    res.json({ enabled: !cur.enabled });
+  });
+
   return r;
 }
 

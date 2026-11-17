@@ -94,6 +94,21 @@ create table if not exists public.prestige_events (
   xp_at int not null
 );
 
+-- Stage 4: weekly twists (fire-layer modifiers only, server/twists.js).
+create table if not exists public.twists (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  created_by text,
+  twist_key text not null,
+  params jsonb not null default '{}'::jsonb,
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  modes text[] not null default '{}',          -- empty = every mode
+  include_ranked boolean not null default false,
+  enabled boolean not null default true,
+  check (ends_at > starts_at)
+);
+
 alter table public.card_balance_daily enable row level security;
 alter table public.card_config_versions enable row level security;
 alter table public.seasons enable row level security;
@@ -101,3 +116,4 @@ alter table public.season_progress enable row level security;
 alter table public.season_resets enable row level security;
 alter table public.card_mastery enable row level security;
 alter table public.prestige_events enable row level security;
+alter table public.twists enable row level security;

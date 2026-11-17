@@ -549,6 +549,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       // Bell Rush / The Pit: say on screen that prices are a simulated replay.
       simulatedLabel: (r.instrumentClasses || []).includes('stocks') ? 'Simulated stocks' : (r.instrumentClasses || []).includes('futures') ? 'Simulated futures' : null,
       accent: r.accent || null,
+      twist: r.twist || null,
     };
   }
 
@@ -807,7 +808,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const dailySeed = mode === 'async' ? new Date().toISOString().slice(0, 10) : null;
     // The mode's rules for this match (server/config/modeIdentity.js),
     // snapshotted now so admin edits only reach new matches.
-    const rules = modeIdentity.rulesFor(mode, mode === 'private' ? opts.hostOptions || modeIdentity.hostOptions({}) : null);
+    // Weekly Twist (endgame Stage 4): fire-layer only, this match's rules copy.
+    const rules = require('./twists').applyToRules(modeIdentity.rulesFor(mode, mode === 'private' ? opts.hostOptions || modeIdentity.hostOptions({}) : null), endgame.runtime.twist, { mode, ranked: Boolean(MATCH_MODES[mode] && MATCH_MODES[mode].ranked) });
     // A pinned list (Solo favourites, tournament/async sets, ghost challenges)
     // only keeps instruments that are still playable; an empty result falls
     // back to a fresh draw so a disabled instrument can never be traded.

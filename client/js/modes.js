@@ -36,6 +36,7 @@ TW.Modes = (function () {
     if (r.events && r.events.length) rows.push(['Market events', r.events.map((e) => `${e.minute} min`).join(', ')]);
     if (r.checkpointMinute) rows.push(['Half-time', `Standings at ${r.checkpointMinute} min`]);
     if (r.host) rows.push(['House rules', hostSummary(r.host)]);
+    if (r.twist) rows.push([`Twist: ${r.twist.name}`, r.twist.line]);
     return { banner: r.banner || '', displayName: r.displayName, rows };
   }
 

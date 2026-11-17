@@ -1,4 +1,4 @@
-# Endgame (branch `endgame-seasons`): Stages 1-3
+# Endgame (branch `endgame-seasons`): Stages 1-4 and rivalries
 
 ## Phase 0: what a player with everything unlocked can do today
 
@@ -29,19 +29,27 @@ Already in the code (reused, not duplicated): monthly seasons (`server/seasons.j
 - Prestige at the top level: shown level back to 1, every card, unlock and cosmetic kept, prestige badge; confirmation required, irreversible, logged (`prestige_events`), cannot happen twice from a double click.
 - Profile showcase: prestige, season peak, top three mastered cards.
 
+**Stage 4: Weekly Twists**
+- 6 twists (`server/twists.js`): Double Heat, No Shields, Faster Spikes, Card Cooldown Halved, Sharp Targets, Streak Rush. Each has one whitelisted setting with bounds; anything else is refused.
+- A twist changes only the card, Heat and spike-alert settings of matches created while it runs (the per-match rules copy). Never GAME_RULES, lots, leverage, margin or payouts. Ranked public matches are left out unless the twist says otherwise; a mode list limits it further.
+- Admin > Seasons and Balance > Weekly Twists: schedule (default one week), modes, include ranked, on/off; logged. Lobby shows a one-line description; the match rules panel lists the twist.
+
+**Stage 5 (part): rivalries**
+- Head-to-head record against any human player from finished matches (`/api/rivalry/:id`), and your top rivals on the profile.
+
 ## Tests
 
-`test/endgame.test.js` (8): GAME_RULES snapshot; balance numbers vs a hand-checked 50-match sample; card config bounds, whitelist, live apply and rollback; season lifecycle with a test clock, track rewards once, end job once per player with audit rows, soft reset values; Vault refused in ranked and allowed in casual and private; mastery only from server outcomes; prestige keeps unlocks and cannot double; season coins capped and keyed. Full suite and every mode end to end pass.
+`test/endgame.test.js` (12): plus twists (library, whitelist and bounds, fire layer only, ranked and modes, No Shields, Sharp Targets) and head-to-head; and the first 8: GAME_RULES snapshot; balance numbers vs a hand-checked 50-match sample; card config bounds, whitelist, live apply and rollback; season lifecycle with a test clock, track rewards once, end job once per player with audit rows, soft reset values; Vault refused in ranked and allowed in casual and private; mastery only from server outcomes; prestige keeps unlocks and cannot double; season coins capped and keyed. Full suite and every mode end to end pass.
 
-## Not built yet (Stages 4 and 5)
+## Not built yet (rest of Stage 5)
 
-- Weekly Twists (6 whitelisted modifiers with bounds, per-mode, lobby line).
+- Rivalry record in the in-match target picker (it is on the profile).
 - Cosmetic catalogue earned through play (candle themes, trade marker effects, crown skins, card variants), Equip and collection screens, challenge library paying XP and cosmetics, rivalries.
 - Seasonal sidegrade cards: the system supports them, but none are designed; until then featured cards can only be chosen from existing cards (which then become seasonal).
 
 ## Content cadence (operating plan)
 
-- **Every week:** schedule one Twist (Stage 4, next) for chosen modes.
+- **Every week:** schedule one Twist in Admin > Seasons and Balance > Weekly Twists.
 - **Every season (8 weeks):** in Season Studio pick 3-4 featured cards, set the track (cosmetics, titles, a few coins) and peak rewards, choose the soft reset %; at the end the job pays peak rewards, resets, archives and vaults the featured cards automatically.
 - **Every month:** one event idea (for example a themed Private room weekend or a Blitz-only weekend) using existing modes.
 - **Without a code change:** card durations (with rollback), seasons and their rewards, featured cards and the Vault, soft reset %, Heat and mission settings (Fire Gameplay), mode settings (Game Modes), and the Balance dashboard to decide what to change.

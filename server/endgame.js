@@ -324,7 +324,7 @@ async function doPrestige(client, player, xp) {
 
 // Game-server cache of the active season (refreshed every minute by index.js)
 // so match creation and card checks never wait on the database.
-const runtime = { active: null, seasonalCards: [], at: 0 };
+const runtime = { active: null, seasonalCards: [], twist: null, at: 0 };
 async function refreshRuntime(client) {
   try {
     const { data } = await client.from('seasons').select('id, name, starts_at, ends_at, state, featured_cards, track').neq('state', 'archived').limit(50);
@@ -333,6 +333,9 @@ async function refreshRuntime(client) {
     // Every card ever featured by a season is a seasonal card (vaulted when not featured now).
     const { data: all } = await client.from('seasons').select('featured_cards').limit(500);
     runtime.seasonalCards = [...new Set((all || []).flatMap((x) => x.featured_cards || []))];
+    const nowIso = new Date().toISOString();
+    const { data: tw } = await client.from('twists').select('*').eq('enabled', true).lte('starts_at', nowIso).gt('ends_at', nowIso).limit(1);
+    runtime.twist = (tw && tw[0]) || null;
     runtime.at = Date.now();
   } catch (e) { /* table missing: no seasons */ }
   return runtime;
@@ -354,10 +357,63 @@ function makeGrant(db) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Stage 5: rivalries (head to head from finished matches; read only)
+// ---------------------------------------------------------------------------
+
+// rows: match_players rows for both players: [{ match_id, player_id, final_rank }]
+function headToHead(rows, me, them) {
+  const byMatch = {};
+  for (const r of rows) (byMatch[r.match_id] ||= {})[r.player_id] = r.final_rank;
+  let wins = 0;
+  let losses = 0;
+  let draws = 0;
+  for (const m of Object.values(byMatch)) {
+    if (m[me] == null || m[them] == null) continue;
+    if (m[me] < m[them]) wins++;
+    else if (m[me] > m[them]) losses++;
+    else draws++;
+  }
+  return { wins, losses, draws, matches: wins + losses + draws };
+}
+
+async function rivalry(client, me, them) {
+  const { data: mine } = await client.from('match_players').select('match_id').eq('player_id', me).not('final_rank', 'is', null).order('match_id').limit(5000);
+  const ids = (mine || []).map((r) => r.match_id);
+  if (!ids.length) return { wins: 0, losses: 0, draws: 0, matches: 0 };
+  const rows = [];
+  for (let i = 0; i < ids.length; i += 500) {
+    const { data } = await client.from('match_players').select('match_id, player_id, final_rank').in('match_id', ids.slice(i, i + 500)).in('player_id', [me, them]);
+    rows.push(...(data || []));
+  }
+  return headToHead(rows, me, them);
+}
+
+// My most frequent opponents (humans) with my record against each.
+async function topRivals(client, me, limit = 5) {
+  const { data: mine } = await client.from('match_players').select('match_id').eq('player_id', me).not('final_rank', 'is', null).limit(2000);
+  const ids = (mine || []).map((r) => r.match_id);
+  if (!ids.length) return [];
+  const rows = [];
+  for (let i = 0; i < ids.length; i += 500) {
+    const { data } = await client.from('match_players').select('match_id, player_id, final_rank, player:players(username, is_persona)').in('match_id', ids.slice(i, i + 500));
+    rows.push(...(data || []));
+  }
+  const counts = {};
+  const names = {};
+  for (const r of rows) {
+    if (r.player_id === me || (r.player && r.player.is_persona)) continue;
+    counts[r.player_id] = (counts[r.player_id] || 0) + 1;
+    names[r.player_id] = r.player && r.player.username;
+  }
+  return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id]) => ({ id, username: names[id], ...headToHead(rows, me, id) }));
+}
+
 module.exports = {
   BRACKETS, MIN_SAMPLE, aggregateBalance, balanceReport, runBalanceAggregation,
   DEFAULT_DURATIONS, durationBounds, validateCardConfig, applyCardConfig, loadActiveCardConfig, saveCardConfig, activateCardConfig,
   SEASON_LEVELS, SEASON_XP_PER_LEVEL, DEFAULT_SEASON_WEEKS, seasonLevel, stateAt, rankedCardAllowed, addSeasonXp, softReset, endSeason, activeSeason,
   runtime, refreshRuntime, seasonSnapshot, makeGrant,
+  headToHead, rivalry, topRivals,
   MASTERY_THRESHOLDS, masteryLevel, masteryOutcomes, recordMastery, prestigeState, doPrestige,
 };

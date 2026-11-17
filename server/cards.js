@@ -37,6 +37,7 @@ function allowedPool(match, p) {
     if (!card) return false;
     if (id === 'lifeline') return Boolean(r.lifeline && match && match.rules && match.rules.elimination);
     if (r.defenseOnly && card.kind !== 'defense') return false;
+    if (r.noShields && id === 'shield') return false; // Twist: No Shields
     if (r.sabotage === false && card.kind !== 'defense') return false;
     const tier = modeIdentity.cardTier(id, basic, card.rarity);
     if (r.allowedTiers && !r.allowedTiers.includes(tier)) return false;
@@ -185,6 +186,8 @@ function checkPlay(match, caster, cardType, target, nowMs) {
   if (!def.targeted) return null;
   if (!target) return 'Choose a target player';
   if (target.id === caster.id) return 'Cannot target yourself';
+  // Twist: Sharp Targets - attack cards may only target the current leader.
+  if (c.leaderOnly && match.leaderId && target.id !== match.leaderId) return 'Sharp Targets this week: attack cards can only target the leader';
   if (target.eliminated || target.spectator) return `${target.username} is out of the match`;
   if (isOffline(target)) return `${target.username} is offline`;
   if (sabotage.hasShieldCard(target, nowMs)) return `${target.username} has a Shield up`;

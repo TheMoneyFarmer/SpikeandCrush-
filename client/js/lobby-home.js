@@ -255,6 +255,14 @@
 
   // ---- mode strip / mobile mode sheet -------------------------------------------------
 
+  // This week's Twist, one line (server/twists.js).
+  fetch('/api/twists/current').then((r) => r.json()).then((d) => {
+    const el = document.getElementById('lbTwistLine');
+    if (!el || !d.twist) return;
+    el.textContent = `This week's twist: ${d.twist.name}. ${d.twist.line}${d.twist.modes.length ? ` (${d.twist.modes.join(', ')})` : ''}${d.twist.ranked ? '' : ' Not in ranked matches.'}`;
+    el.hidden = false;
+  }).catch(() => {});
+
   // Home banner while a season runs (server/endgame.js).
   (function seasonBanner() {
     const el = document.getElementById('lbSeasonBanner');

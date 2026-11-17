@@ -3559,6 +3559,9 @@ app.post('/api/progression/prestige', requireDb, authenticate, async (req, res) 
   }
 });
 
+// This week's Twist (fire-layer rule change) for the lobby line.
+app.get('/api/twists/current', cacheJson(10000), (req, res) => res.json({ twist: require('./twists').publicTwist(endgame.runtime.twist) }));
+
 // The current season, its track and my progress (no login needed to look).
 app.get('/api/seasons/current', async (req, res) => {
   const s = endgame.runtime.active;
@@ -3596,6 +3599,15 @@ app.get('/api/mastery/me', requireDb, authenticate, async (req, res) => {
   } catch (e) {
     res.json({ thresholds: endgame.MASTERY_THRESHOLDS, cards: [] });
   }
+});
+
+// Rivalries: my head-to-head record against a player, and my top rivals.
+app.get('/api/rivalry/:otherId', requireDb, authenticate, async (req, res) => {
+  if (!/^[0-9a-f-]{36}$/i.test(req.params.otherId)) return res.status(404).json({ error: 'Not found' });
+  try { res.json(await endgame.rivalry(db.client(), req.tokenPlayer.id, req.params.otherId)); } catch (e) { res.status(500).json({ error: 'Could not load the record' }); }
+});
+app.get('/api/rivalries/me', requireDb, authenticate, async (req, res) => {
+  try { res.json({ rivals: await endgame.topRivals(db.client(), req.tokenPlayer.id) }); } catch (e) { res.json({ rivals: [] }); }
 });
 
 // Profile showcase: top 3 mastered cards, season peak, prestige, titles.

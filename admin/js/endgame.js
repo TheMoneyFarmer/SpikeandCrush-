@@ -9,8 +9,8 @@
 
   document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
     document.querySelectorAll('[data-tab]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
-    for (const t of ['balance', 'config', 'seasons']) $(`tab-${t}`).hidden = t !== b.dataset.tab;
-    if (!loaded[b.dataset.tab]) { loaded[b.dataset.tab] = true; ({ balance: loadBalance, config: loadConfig, seasons: loadSeasons })[b.dataset.tab](); }
+    for (const t of ['balance', 'config', 'seasons', 'twists']) $(`tab-${t}`).hidden = t !== b.dataset.tab;
+    if (!loaded[b.dataset.tab]) { loaded[b.dataset.tab] = true; ({ balance: loadBalance, config: loadConfig, seasons: loadSeasons, twists: loadTwists })[b.dataset.tab](); }
   }));
 
   async function loadBalance() {
@@ -73,6 +73,31 @@
     const body = { name: $('sName').value, theme: $('sTheme').value, startsAt: new Date($('sStart').value).toISOString(), endsAt: $('sEnd').value ? new Date($('sEnd').value).toISOString() : undefined, featuredCards: $('sFeatured').value, softResetPct: Number($('sReset').value), track, peakRewards: peak };
     const id = $('sId').value;
     try { await Admin.api(id ? `/endgame/seasons/${id}` : '/endgame/seasons', { method: id ? 'PUT' : 'POST', body }); Admin.toast('Season saved', 'success'); $('sForm').reset(); $('sId').value = ''; loadSeasons(); } catch (err) { Admin.toast(err.message, 'danger'); }
+  });
+
+  let library = [];
+  async function loadTwists() {
+    try {
+      const d = await Admin.api('/endgame/twists');
+      library = d.library;
+      if (!$('tKey').options.length) {
+        library.forEach((t) => $('tKey').insertAdjacentHTML('beforeend', `<option value="${t.key}">${esc(t.name)}</option>`));
+        const setParam = () => { const t = library.find((x) => x.key === $('tKey').value); $('tValLabel').textContent = `${t.param} (${t.min} to ${t.max})`; $('tVal').min = t.min; $('tVal').max = t.max; $('tVal').value = t.default; $('tVal').disabled = t.min === t.max; };
+        $('tKey').addEventListener('change', setParam);
+        setParam();
+      }
+      const nameOf = Object.fromEntries(library.map((t) => [t.key, t.name]));
+      $('tRows').innerHTML = d.twists.map((t) => `<tr><td>${esc(nameOf[t.twist_key] || t.twist_key)}</td><td>${esc(JSON.stringify(t.params))}</td><td>${esc(new Date(t.starts_at).toLocaleString())} to ${esc(new Date(t.ends_at).toLocaleString())}</td><td>${esc((t.modes || []).join(', ') || 'all')}</td><td>${t.include_ranked ? 'yes' : 'no'}</td><td><button class="btn btn-sm" data-toggle="${t.id}">${t.enabled ? 'Turn off' : 'Turn on'}</button></td></tr>`).join('') || '<tr><td colspan="6">No twists scheduled.</td></tr>';
+      $('tRows').querySelectorAll('[data-toggle]').forEach((b) => b.addEventListener('click', async () => { await Admin.api(`/endgame/twists/${b.dataset.toggle}/toggle`, { method: 'POST', body: {} }); loadTwists(); }));
+    } catch (e) { $('tRows').innerHTML = `<tr><td colspan="6">${esc(e.message)}</td></tr>`; }
+  }
+  $('tForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const t = library.find((x) => x.key === $('tKey').value);
+    try {
+      await Admin.api('/endgame/twists', { method: 'POST', body: { key: t.key, params: { [t.param]: Number($('tVal').value) }, startsAt: new Date($('tStart').value).toISOString(), endsAt: $('tEnd').value ? new Date($('tEnd').value).toISOString() : undefined, modes: $('tModes').value, includeRanked: $('tRanked').checked } });
+      Admin.toast('Twist scheduled', 'success'); loadTwists();
+    } catch (err) { Admin.toast(err.message, 'danger'); }
   });
 
   loadBalance();

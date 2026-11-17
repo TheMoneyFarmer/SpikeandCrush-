@@ -190,3 +190,55 @@ test('season coin rewards stay small and keyed (no new coin source beyond the ca
   await grant('p1', { type: 'coins', amount: 10 }, 'k2');
   assert.deepStrictEqual(credits, [{ amount: 25, key: 'k1' }, { amount: 10, key: 'k2' }]);
 });
+
+// ---- Stage 4: Weekly Twists -----------------------------------------------------------
+const twists = require('../server/twists');
+const modeIdentity = require('../server/config/modeIdentity');
+
+test('twists: 6 in the library; only whitelisted, in-bounds settings; GAME_RULES untouched', () => {
+  assert.strictEqual(Object.keys(twists.LIBRARY).length, 6);
+  assert.match(twists.validateTwist('double_heat', { factor: 9 }).error, /between/);
+  assert.match(twists.validateTwist('double_heat', { maxLot: 100 }).error, /not a setting/);
+  assert.match(twists.validateTwist('leverage_boost', {}).error, /Unknown twist/);
+  const before = JSON.stringify(GAME_RULES);
+  const base = modeIdentity.rulesFor('blitz');
+  for (const key of Object.keys(twists.LIBRARY)) {
+    const out = twists.applyToRules(base, { key, params: {}, modes: [], include_ranked: true }, { mode: 'blitz', ranked: false });
+    assert.strictEqual(out.twist.key, key);
+    // Only the fire layer may differ.
+    for (const k of Object.keys(out)) if (!['heat', 'cards', 'spikeAlerts', 'twist'].includes(k)) assert.deepStrictEqual(out[k], base[k], `${key} changed ${k}`);
+  }
+  assert.strictEqual(JSON.stringify(GAME_RULES), before);
+  assert.strictEqual(twists.applyToRules(base, { key: 'double_heat', params: { factor: 2 } }, { mode: 'blitz', ranked: false }).heat.basePerWin, base.heat.basePerWin * 2);
+});
+
+test('twists: ranked matches left out unless enabled; mode list respected', () => {
+  const base = modeIdentity.rulesFor('quick');
+  const tw = { key: 'double_heat', params: { factor: 2 }, modes: ['blitz'], include_ranked: false };
+  assert.strictEqual(twists.applyToRules(base, tw, { mode: 'quick', ranked: true }), base, 'ranked untouched');
+  assert.strictEqual(twists.applyToRules(base, { ...tw, include_ranked: true }, { mode: 'quick', ranked: true }), base, 'not in its mode list');
+  assert.ok(twists.applyToRules(base, { ...tw, modes: [] , include_ranked: true }, { mode: 'quick', ranked: true }).twist);
+});
+
+test('twists: No Shields removes the Shield card; Sharp Targets only allows hitting the leader', () => {
+  const rules = twists.applyToRules(modeIdentity.rulesFor('blitz'), { key: 'no_shields', params: {} }, { mode: 'blitz', ranked: false });
+  const match = { mode: 'blitz', config: { ranked: false }, rules };
+  assert.ok(!cardRules.allowedPool(match, { unlockedCards: Object.keys(sabotage.CARDS) }).includes('shield'));
+  const sharp = twists.applyToRules(modeIdentity.rulesFor('blitz'), { key: 'sharp_targets', params: {} }, { mode: 'blitz', ranked: false });
+  const pool = cardRules.allowedPool({ mode: 'blitz', config: { ranked: false }, rules: sharp }, { unlockedCards: Object.keys(sabotage.CARDS) });
+  const attack = pool.find((id) => sabotage.CARDS[id].targeted && sabotage.CARDS[id].kind === 'attack');
+  const players = { c: { id: 'c', username: 'c', unlockedCards: Object.keys(sabotage.CARDS), cards: [{ type: attack }], effects: {} }, lead: { id: 'lead', username: 'lead', effects: {}, socketId: 's' }, other: { id: 'other', username: 'other', effects: {}, socketId: 's' } };
+  const m = { mode: 'blitz', config: { ranked: false }, rules: sharp, players, leaderId: 'lead', lastTargeted: {} };
+  assert.match(cardRules.checkPlay(m, players.c, attack, players.other, Date.now()) || '', /leader/);
+  assert.ok(!/leader/.test(cardRules.checkPlay(m, players.c, attack, players.lead, Date.now()) || ''));
+});
+
+test('rivalries: head-to-head counts only matches both played', () => {
+  const rows = [
+    { match_id: 'm1', player_id: 'a', final_rank: 1 }, { match_id: 'm1', player_id: 'b', final_rank: 3 },
+    { match_id: 'm2', player_id: 'a', final_rank: 4 }, { match_id: 'm2', player_id: 'b', final_rank: 2 },
+    { match_id: 'm3', player_id: 'a', final_rank: 2 }, { match_id: 'm3', player_id: 'b', final_rank: 2 },
+    { match_id: 'm4', player_id: 'a', final_rank: 1 },
+  ];
+  assert.deepStrictEqual(endgame.headToHead(rows, 'a', 'b'), { wins: 1, losses: 1, draws: 1, matches: 3 });
+});

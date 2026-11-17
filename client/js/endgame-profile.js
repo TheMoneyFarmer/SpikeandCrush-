@@ -23,6 +23,10 @@ TW.loadEndgame = async function loadEndgame(player, own) {
     $('egMastery').innerHTML = m.cards.length ? `<table class="admin-table" style="width:100%;font-size:13px;"><thead><tr><th style="text-align:left;">Card</th><th>Level</th><th>Uses</th><th>Success</th><th style="text-align:left;">Favourite target</th></tr></thead><tbody>${m.cards.map((c) => `<tr><td>${esc(c.name)}</td><td style="text-align:center;">${c.level} / 5</td><td style="text-align:center;">${c.uses}</td><td style="text-align:center;">${Math.round(c.successRate * 100)}%</td><td>${esc(c.favouriteTarget || '—')}</td></tr>`).join('')}</tbody></table>` : 'Play cards in matches to start building mastery.';
   } catch (e) { $('egMastery').textContent = 'Mastery unavailable right now.'; }
   try {
+    const rv = await TW.api('/api/rivalries/me');
+    if (rv.rivals.length) $('egMastery').insertAdjacentHTML('afterend', `<h3>Rivals</h3><ul style="list-style:none;padding:0;margin:0;font-size:13px;">${rv.rivals.map((r) => `<li style="padding:4px 0;">${esc(r.username)}: you ${r.wins} - ${r.losses} them${r.draws ? `, ${r.draws} level` : ''} (${r.matches} matches)</li>`).join('')}</ul>`);
+  } catch (e) { /* no rivals yet */ }
+  try {
     const prog = await TW.api('/api/progression/me');
     if (prog.prestige && prog.prestige.canPrestige) {
       $('egPrestige').hidden = false;
