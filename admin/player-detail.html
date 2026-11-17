@@ -162,7 +162,9 @@
                   ? `<button class="btn" id="actUnban">Unban</button>`
                   : `<button class="btn btn-danger" id="actTempBan">Temporary Ban</button><button class="btn btn-danger" id="actPermBan">Permanent Ban</button>`
                 }
-                <button class="btn" id="actReset">Reset Password</button>
+                <button class="btn" id="actReset">Send password reset email</button>
+                <button class="btn" id="actForceSignOut">Force sign-out all sessions</button>
+                <div id="authStatusLine" class="text-secondary" style="font-size:12px;margin-top:6px;flex-basis:100%;"></div>
                 <button class="btn" id="actExport">Export Full Data (GDPR)</button>
                 <button class="btn btn-danger" id="actDelete">Delete Account</button>
               </div>
@@ -237,9 +239,24 @@
         Admin.toast('Player unbanned', 'success'); reload();
       });
       on('actReset', async () => {
+        if (!confirm('Email this player a password reset link?')) return;
         const res = await Admin.api(`/players/${playerId}/reset-password`, { method: 'POST' });
         Admin.toast(res.message, 'success');
       });
+      on('actForceSignOut', async () => {
+        if (!confirm('Sign this player out of every device now?')) return;
+        const res = await Admin.api(`/players/${playerId}/force-sign-out`, { method: 'POST' });
+        Admin.toast(res.message, 'success');
+        loadAuthStatus();
+      });
+      async function loadAuthStatus() {
+        try {
+          const a = await Admin.api(`/players/${playerId}/auth-status`);
+          const fmt = (d) => (d ? Admin.formatDate(d) : 'never');
+          document.getElementById('authStatusLine').textContent = `Email verified: ${a.emailVerified ? 'yes' : 'no'} · Sign-in: ${(a.providers || []).join(', ') || 'unknown'} · Last sign-in: ${fmt(a.lastSignInAt)} · Password last changed: ${fmt(a.passwordChangedAt)}`;
+        } catch (e) { /* older game server */ }
+      }
+      loadAuthStatus();
       on('actExport', async () => {
         const data = await Admin.api(`/players/${playerId}/export`);
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

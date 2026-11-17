@@ -290,6 +290,7 @@ window.TW = window.TW || {};
     if (!res.ok) {
       const err = new Error(sanitizeErrorMessage((data && data.error) || `Request failed (${res.status})`));
       if (data) Object.assign(err, data); // e.g. requiresTotp, so callers can react without re-parsing
+      err.httpStatus = res.status;
       throw err;
     }
     return data;

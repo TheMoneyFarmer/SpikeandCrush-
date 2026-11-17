@@ -291,18 +291,76 @@ function router() {
     }
   });
 
+  // Account recovery from admin. Never shows or sets a password.
+  const recovery = require('../../server/authRecovery');
+  const { sendEmail } = require('../lib/email');
+  const siteUrl = () => String(process.env.SITE_URL || 'https://www.spikeandcrush.com').replace(/\/$/, '').replace('://spikeandcrush.com', '://www.spikeandcrush.com');
+
+  // Sign-in method, email verified, last password change, last sign-in.
+  r.get('/:id/auth-status', async (req, res) => {
+    try {
+      const { data: player } = await supabase.from('players').select('*').eq('id', req.params.id).single();
+      if (!player) return res.status(404).json({ error: 'Player not found' });
+      let user = null;
+      if (player.supabase_user_id) user = (await supabase.auth.admin.getUserById(player.supabase_user_id)).data?.user || null;
+      res.json({
+        emailVerified: Boolean(user?.email_confirmed_at),
+        providers: user?.app_metadata?.providers || [],
+        lastSignInAt: user?.last_sign_in_at || null,
+        passwordChangedAt: player.password_changed_at || null,
+        signedOutEverywhereAt: player.auth_valid_after || null,
+      });
+    } catch (e) {
+      res.status(500).json({ error: 'Could not load sign-in status' });
+    }
+  });
+
+  // Sends the same branded reset email as /forgot-password, linking to the
+  // player site (the old version used Supabase's mailer and the admin address).
   r.post('/:id/reset-password', async (req, res) => {
     const { id } = req.params;
     try {
       const { data: player } = await supabase.from('players').select('email').eq('id', id).single();
       if (!player?.email) return res.status(404).json({ error: 'Player has no email on file' });
-      await supabase.auth.resetPasswordForEmail(player.email, {
-        redirectTo: `${req.headers.origin || 'http://localhost:' + (process.env.PORT || 3002)}/reset-password`,
-      });
-      await logAdminAction({ adminUsername: req.admin.username, actionType: 'reset_password', targetType: 'player', targetId: id, ip: clientIp(req) });
-      res.json({ success: true, message: `Reset email sent to ${player.email} (if a matching auth account exists)` });
+      const { data, error } = await supabase.auth.admin.generateLink({ type: 'recovery', email: player.email, options: { redirectTo: `${siteUrl()}/reset-password` } });
+      const link = data?.properties?.action_link;
+      if (error || !link) return res.status(400).json({ error: 'No sign-in account matches this player email' });
+      const sent = await sendEmail({ to: player.email, ...recovery.resetEmail({ link, expiresMinutes: Number(process.env.RESET_LINK_MINUTES) || 60 }) });
+      await logAdminAction({ adminUsername: req.admin.username, actionType: 'reset_password', targetType: 'player', targetId: id, details: { emailSent: Boolean(sent?.id) }, ip: clientIp(req) });
+      res.json({ success: true, message: sent?.id ? 'Reset email sent' : 'Reset link created but the email provider did not accept it' });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Could not send the reset email' });
+    }
+  });
+
+  // Ends every session of the player: Supabase revokes all their refresh
+  // tokens and the game server refuses their current access tokens at once.
+  r.post('/:id/force-sign-out', async (req, res) => {
+    const { id } = req.params;
+    try {
+      const { data: player } = await supabase.from('players').select('email, supabase_user_id').eq('id', id).single();
+      if (!player?.supabase_user_id || !player.email) return res.status(404).json({ error: 'Player has no sign-in account' });
+      // A one-off session for this player (no email is sent), used only to
+      // revoke all of their sessions, itself included. Own client: never the
+      // shared service client.
+      const { createClient } = require('@supabase/supabase-js');
+      const temp = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+      const { data: link } = await supabase.auth.admin.generateLink({ type: 'magiclink', email: player.email });
+      const hashed = link?.properties?.hashed_token;
+      let revoked = false;
+      if (hashed) {
+        const { data: v } = await temp.auth.verifyOtp({ token_hash: hashed, type: 'magiclink' });
+        if (v?.session?.access_token) {
+          const { error } = await supabase.auth.admin.signOut(v.session.access_token, 'global');
+          revoked = !error;
+        }
+      }
+      const upd = await supabase.from('players').update({ auth_valid_after: new Date().toISOString(), auth_keep_session: null }).eq('id', id);
+      await logAdminAction({ adminUsername: req.admin.username, actionType: 'force_sign_out', targetType: 'player', targetId: id, details: { refreshTokensRevoked: revoked, tokensRefused: !upd.error }, ip: clientIp(req) });
+      if (upd.error && !revoked) return res.status(500).json({ error: 'Could not sign the player out (run the auth_recovery migration)' });
+      res.json({ success: true, message: upd.error ? 'Sessions revoked; current tokens expire within an hour (run the auth_recovery migration for instant sign-out)' : 'Player signed out of every device' });
+    } catch (e) {
+      res.status(500).json({ error: 'Could not sign the player out' });
     }
   });
 

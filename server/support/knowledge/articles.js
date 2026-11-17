@@ -599,10 +599,45 @@ If the page looks wrong, refresh it and make sure your browser is up to date.`,
       tags: ['sign up', 'register', 'login', 'log in', 'google', 'apple', 'password', 'reset password', 'forgot password', 'email', '2fa', 'two factor', 'change username', 'username'],
       body: `- **Sign up** with email and password, or continue with Google. Sign in with Apple is not available.
 - **Verify your email:** after signing up with an email and password, click the link we email you, then log in. The link works for 24 hours. If it expired or never arrived, check spam, then try to log in and choose "Send it again". Google sign-ins don't need this.
-- **Forgot your password?** Use "Forgot password" on the login screen and enter your email. If an account exists for that email, a reset link is sent. Follow the link to set a new password.
+- **Forgot your password?** Choose "Forgot password?" under the password box on the login screen (or go to spikeandcrush.com/forgot-password) and enter your email. If an account exists for that email, a reset link is sent. Follow the link to set a new password.
+- **Passwords** need at least 8 characters, with letters and at least one number.
 - **Two-factor authentication** can be turned on in Settings, Security.
-- **Sessions and login history** are in Settings, Security, where you can sign other devices out.
-- **Changing your username, email or password** is done in Settings, and needs your current password.`,
+- **Sessions and login history** are in Settings, Security. "Sign out of all other devices" signs out everything except the device you are on.
+- **Changing your username, email or password** is done in Settings, and needs your current password. Changing your password signs out your other devices and emails you a confirmation.
+- **Signed up with Google?** Your account has no password. You can keep using "Continue with Google", or choose "Set a password" in Settings to also sign in with a password.`,
+    },
+    {
+      slug: 'forgot-password',
+      title: 'I forgot my password',
+      category: 'account',
+      tags: ['forgot password', 'reset password', 'lost password', 'cannot log in', "can't log in", 'locked out', 'password reset', 'new password', 'change password'],
+      body: `You can always get back into your account. Your coins, rank and cards are safe.
+
+1. On the login screen, choose **Forgot password?** under the password box, or go to **spikeandcrush.com/forgot-password**.
+2. Enter the email on your account and choose **Send reset link**.
+3. Open the email "Reset your Spike & Crush password" and choose **Choose a new password**.
+4. Type your new password twice (at least 8 characters, with letters and at least one number) and save.
+
+You are signed in straight away, every other device is signed out, and we email you a confirmation.
+
+- The link works **once** and **expires after an hour**. If it says it has expired, choose "Send me a new link".
+- For safety, the page always says "If that email has an account, a reset link is on its way", even when no account uses that email.
+- You can ask for up to 3 links an hour.
+- **Signed up with Google?** There is no password to reset: choose "Continue with Google" to sign in.
+- **Forgot your email or username?** Ask for a human agent and support will help you confirm the account.`,
+    },
+    {
+      slug: 'reset-email-not-received',
+      title: 'I did not get the reset or verification email',
+      category: 'account',
+      tags: ['no email', 'email not received', "didn't get email", 'reset email', 'verification email', 'spam', 'junk', 'email missing', 'did not get the email'],
+      body: `Emails usually arrive within a minute. If yours has not:
+
+1. **Check spam and junk**, and the Promotions or Updates tabs in Gmail. The sender is hello@spikeandcrush.com.
+2. **Check the address.** The email only goes to the address on your account. A typo means nothing is sent, and the page cannot tell you (this protects accounts).
+3. **Wait a few minutes**, then ask again. You can ask for up to 3 reset links an hour; each new link replaces the old one.
+4. **Add hello@spikeandcrush.com to your contacts** so the next email lands in your inbox.
+5. Still nothing? Ask for a human agent or email **hello@spikeandcrush.com** from the address on your account, and the team will help.`,
     },
     {
       slug: 'account-deletion',

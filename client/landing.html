@@ -501,6 +501,21 @@ button { font: inherit; }
 .field input { width: 100%; min-height: 48px; padding: 12px 16px; background: var(--deep); border: 1px solid var(--hair-2); border-radius: 4px; color: var(--on); font: 400 16px var(--font); }
 .field input:focus { outline: none; border: 2px solid var(--blue); padding: 11px 15px; }
 .err { color: var(--crush); font-size: 14px; min-height: 20px; margin: 4px 0 8px; }
+.pw-wrap { position: relative; }
+.pw-wrap input { padding-right: 52px; }
+.pw-eye { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; display: grid; place-items: center; background: none; border: 0; color: var(--mute); cursor: pointer; border-radius: 4px; }
+.pw-eye[aria-pressed="true"] { color: var(--on); }
+.pw-eye:focus-visible { outline: 2px solid var(--blue); }
+.lp-forgot { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; color: var(--gold, #F5B83D); text-decoration: none; margin: -4px 0 0; }
+.lp-forgot:hover { text-decoration: underline; }
+.pw-meter { height: 4px; background: var(--hair-2); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.pw-meter i { display: block; height: 100%; width: 0; background: var(--crush); transition: width .2s, background .2s; }
+.pw-rules { list-style: none; padding: 0; margin: 6px 0 0; font-size: 13px; color: var(--mute); display: grid; gap: 2px; }
+.pw-rules li::before { content: "\2022  "; }
+.pw-rules li.ok { color: var(--spike, #2EE6A6); }
+.pw-rules li.ok::before { content: "\2713  "; }
+.lp-switch { font-size: 14px; color: var(--body); margin: 10px 0 0; text-align: center; }
+.lp-switch a { display: inline-flex; align-items: center; min-height: 44px; color: var(--gold, #F5B83D); }
 .submit { width: 100%; }
 .legal { margin-top: 24px; font-size: 12px; color: var(--mute); line-height: 1.6; }
 .legal a { color: var(--link); }
@@ -826,7 +841,8 @@ button { font: inherit; }
 
   <form id="lpLoginForm" novalidate onsubmit="return handleLpLogin(event)">
     <div class="field"><label for="lpLoginUsername">Username</label><input type="text" id="lpLoginUsername" data-label="Username" required autocomplete="username"></div>
-    <div class="field"><label for="lpLoginPassword">Password</label><input type="password" id="lpLoginPassword" data-label="Password" required autocomplete="current-password"></div>
+    <div class="field"><label for="lpLoginPassword">Password</label><div class="pw-wrap"><input type="password" id="lpLoginPassword" data-label="Password" required autocomplete="current-password"><button type="button" class="pw-eye" aria-label="Show password" aria-pressed="false" onclick="togglePw(this)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+    <a class="lp-forgot" id="lpForgotLink" href="/forgot-password">Forgot password?</a>
     <div class="err" id="lpLoginError" role="alert"></div>
     <button class="btn btn-primary submit" type="submit" id="lpLoginSubmit">Log in</button>
   </form>
@@ -834,11 +850,14 @@ button { font: inherit; }
   <form id="lpRegisterForm" novalidate hidden onsubmit="return handleLpRegister(event)">
     <div class="field"><label for="lpRegisterUsername">Username</label><input type="text" id="lpRegisterUsername" data-label="Username" required minlength="3" maxlength="20" autocomplete="username"></div>
     <div class="field"><label for="lpRegisterEmail">Email</label><input type="email" id="lpRegisterEmail" data-label="Email" required autocomplete="email"></div>
-    <div class="field"><label for="lpRegisterPassword">Password <span style="color:var(--mute)">(6+ characters)</span></label><input type="password" id="lpRegisterPassword" data-label="Password" required minlength="6" autocomplete="new-password"></div>
+    <div class="field"><label for="lpRegisterPassword">Password</label><div class="pw-wrap"><input type="password" id="lpRegisterPassword" data-label="Password" required minlength="8" maxlength="72" autocomplete="new-password" aria-describedby="lpPwRules" oninput="pwMeter(this)"><button type="button" class="pw-eye" aria-label="Show password" aria-pressed="false" onclick="togglePw(this)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <div class="pw-meter" aria-hidden="true"><i id="lpPwBar"></i></div>
+      <ul class="pw-rules" id="lpPwRules"><li data-rule="len">At least 8 characters</li><li data-rule="mix">Letters and at least one number</li><li data-rule="strong" id="lpPwStrength">Strength: too short</li></ul></div>
     <label class="lp-agree" style="display:flex;gap:10px;align-items:flex-start;margin:.6rem 0;font-size:13px;line-height:1.45"><input type="checkbox" id="lpRegisterTerms" required style="width:18px;height:18px;margin-top:2px;flex:none" data-required-message="Please agree to the Terms and Privacy Policy to continue."> <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a></span></label>
     <div id="lpTurnstile" hidden style="margin:.5rem 0;min-height:65px"></div>
     <div class="err" id="lpRegisterError" role="alert"></div>
     <button class="btn btn-primary submit" type="submit" id="lpRegisterSubmit">Create account</button>
+    <p class="lp-switch">Already have an account? <a href="#" onclick="showForm('login');return false;">Sign in</a></p>
   </form>
 
   <p class="legal">By continuing you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>. Simulated trading environment. Not financial advice. 18+.</p>
@@ -1062,6 +1081,7 @@ if (new URLSearchParams(location.search).get('login') === 'required') {
   openPanel('login');
   document.getElementById('lpLoginError').textContent = 'Please log in to continue.';
 }
+if (new URLSearchParams(location.search).get('login') === '1') openPanel('login');
 if (new URLSearchParams(location.search).get('login') === 'verified') {
   openPanel('login');
   TW.showAuthNotice(document.getElementById('lpLoginError'), 'Email verified. Log in to start playing.');
@@ -1070,6 +1090,37 @@ if (new URLSearchParams(location.search).get('login') === 'verified') {
 if (new URLSearchParams(location.search).has('signup')) window.addEventListener('load', () => openPanel('register'));
 
 // ── AUTH ── (same TW.api / TW.establishSession flow as before)
+// Show/hide a password field (eye button next to it).
+function togglePw(btn) {
+  const input = btn.parentElement.querySelector('input');
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  btn.setAttribute('aria-pressed', String(show));
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+}
+// Live password rules and a simple strength meter (the server applies the
+// same rules: at least 8 characters with letters and a number).
+function pwMeter(input) {
+  const v = input.value;
+  const len = v.length >= 8;
+  const mix = /[A-Za-z]/.test(v) && /\d/.test(v);
+  let score = 0;
+  if (len) score++;
+  if (mix) score++;
+  if (v.length >= 12) score++;
+  if (/[^A-Za-z0-9]/.test(v) || (/[a-z]/.test(v) && /[A-Z]/.test(v))) score++;
+  const rules = document.getElementById('lpPwRules');
+  rules.querySelector('[data-rule="len"]').classList.toggle('ok', len);
+  rules.querySelector('[data-rule="mix"]').classList.toggle('ok', mix);
+  const label = !v.length ? 'too short' : !len ? 'too short' : ['weak', 'weak', 'okay', 'good', 'strong'][score];
+  const st = document.getElementById('lpPwStrength');
+  st.textContent = `Strength: ${label}`;
+  st.classList.toggle('ok', len && mix && score >= 3);
+  const bar = document.getElementById('lpPwBar');
+  bar.style.width = `${(score / 4) * 100}%`;
+  bar.style.background = score >= 3 ? 'var(--spike, #2EE6A6)' : score === 2 ? 'var(--gold, #F5B83D)' : 'var(--crush)';
+}
+
 async function handleLpLogin(e) {
   e.preventDefault();
   const errEl = document.getElementById('lpLoginError'), btn = document.getElementById('lpLoginSubmit');
@@ -1089,7 +1140,11 @@ async function handleLpLogin(e) {
     location.href = TW.consumePostLoginRedirect() || '/play';
   } catch (err) {
     if (err.needsVerification) TW.showVerifyPrompt(errEl, { username: err.username || username });
-    else SCForm.showSummary(document.getElementById('lpLoginForm'), SCForm.friendly(err));
+    else if (err.httpStatus === 401 && !err.requiresTotp && /invalid username or password/i.test(err.message)) {
+      errEl.innerHTML = 'Wrong username or password. <a href="/forgot-password">Forgot password?</a>';
+    } else if (err.httpStatus === 429 && /failed attempts/i.test(err.message)) {
+      errEl.innerHTML = 'Too many wrong passwords. Wait a few minutes, or <a href="/forgot-password">reset your password</a>.';
+    } else SCForm.showSummary(document.getElementById('lpLoginForm'), SCForm.friendly(err));
     btn.disabled = false; btn.textContent = 'Log in';
   }
   return false;

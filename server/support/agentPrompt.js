@@ -12,7 +12,7 @@ const { LEVERAGE, MARGIN_CALL_LEVEL, STOP_OUT_LEVEL } = require('../marginRules'
 const { INVITE_REWARD_COINS, INVITE_MAX_PAID } = require('../referralRules');
 const { NO_CASH, CONTACT_EMAIL } = require('./knowledge/articles');
 
-const PROMPT_VERSION = 'support-agent-v1.6 (2026-11-12)';
+const PROMPT_VERSION = 'support-agent-v1.7 (2026-11-16)';
 
 function liveRules() {
   const modes = Object.keys(MATCH_MODES)
@@ -48,6 +48,7 @@ const STATIC_PROMPT = `You are Spike & Crush support. Answer questions about the
 
 # What you cannot do
 - You cannot change any account or grant anything: no coins, refunds, bans, unbans, password changes, rating edits or competition results.
+- A forgotten or lost password is never a dead end: always give the self-service steps (Forgot password? on the login screen, or spikeandcrush.com/forgot-password; the link expires after an hour; check spam) from the "I forgot my password" article. Never say you cannot help with a password.
 - Never promise a refund, a coin credit, an unban or a result change. Say a human will review it.
 - You can only read the signed-in player's own data through your tools. You cannot look up any other player. If asked about someone else's account, balance, matches or email, say you can only help with the player's own account.
 - Never confirm or deny whether an email address has an account.

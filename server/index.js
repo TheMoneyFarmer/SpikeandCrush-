@@ -27,6 +27,7 @@ const { Server } = require('socket.io');
 const db = require('./database');
 const { sendEmail, renderTemplate } = require('../admin/lib/email');
 const emailVerification = require('./emailVerification');
+const recovery = require('./authRecovery');
 const { createGameEngine, LIVE_MATCH_BUSY_ERROR, tierForRating, TIERS } = require('./gameEngine');
 const matchmaking = require('./matchmaking');
 const totp = require('./totp');
@@ -352,6 +353,42 @@ async function releaseUnverifiedSignup(player, { anyAge = false } = {}) {
   return true;
 }
 
+// Signs out every other device: Supabase revokes their refresh tokens
+// (scope 'others' keeps the caller's own), and auth_valid_after makes this
+// server refuse their current access tokens at once (tokens are checked
+// locally). keepToken = the caller's own token, or null to sign out everyone.
+// auth_valid_after needs migration 20261116120000_auth_recovery.sql; without
+// it the Supabase revocation still applies (old tokens then last up to an hour).
+async function endOtherSessions(player, keepToken, { passwordChanged = false } = {}) {
+  const keepSession = keepToken ? recovery.tokenClaims(keepToken).session_id || null : null;
+  try {
+    if (keepToken) await supabaseAdmin.auth.admin.signOut(keepToken, 'others');
+  } catch (e) {
+    console.warn('[auth] could not revoke other sessions at Supabase:', e.message);
+  }
+  try {
+    const now = new Date().toISOString();
+    await db.updatePlayer(player.id, { auth_valid_after: now, auth_keep_session: keepSession, ...(passwordChanged ? { password_changed_at: now } : {}) });
+  } catch (e) {
+    if (!/auth_valid_after|auth_keep_session|password_changed_at|column/i.test(e.message || '')) throw e;
+    console.warn('[auth] auth_valid_after column missing - run the auth_recovery migration');
+  }
+}
+
+async function sendPasswordChangedEmail(player) {
+  if (!player.email) return;
+  if (process.env.AUTH_EMAIL_DRY_RUN === '1') {
+    console.log(`[auth] dry run: would send "${recovery.passwordChangedEmail({}).subject}" to ${player.email.replace(/^(.).*(@.*)$/, '$1***$2')}`);
+    return;
+  }
+  if (!process.env.RESEND_API_KEY) return;
+  try {
+    await sendEmail({ to: player.email, idempotencyKey: `pw-changed:${player.id}:${Date.now()}`, ...recovery.passwordChangedEmail({ username: player.username }) });
+  } catch (e) {
+    console.warn('[auth] password-changed email failed:', e.message);
+  }
+}
+
 async function authenticate(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -368,6 +405,8 @@ async function authenticate(req, res, next) {
     if (!player) return res.status(401).json({ error: 'Player record not found' });
     const ban = activeBan(player);
     if (ban) return res.status(403).json({ error: 'This account is banned', bannedUntil: ban.until, reason: ban.reason });
+    // Signed out everywhere else (password change, "sign out of all devices").
+    if (recovery.tokenRetired(player, token)) return res.status(401).json({ error: 'You were signed out on this device. Please log in again.', signedOut: true });
 
     req.user = user;
     req.tokenPlayer = player;
@@ -563,6 +602,7 @@ app.get('/profile', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'profile.ht
 app.get('/profile/:username', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'profile.html')));
 app.get('/auth-callback', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'auth-callback.html')));
 app.get('/reset-password', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'reset-password.html')));
+app.get('/forgot-password', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'forgot-password.html')));
 app.get('/verify-email', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'verify-email.html')));
 
 // Player invite links: /invite/CODE remembers the inviter for 30 days. Read once,
@@ -630,7 +670,20 @@ const loginAccountLimiter = rateLimit({
   max: 10,
   skipSuccessfulRequests: true,
   requestWasSuccessful: (req, res) => res.statusCode < 400 || res.statusCode === 503, // busy isn't a wrong guess
-  keyGenerator: (req) => `login:${String(req.body?.username || '').trim().toLowerCase().slice(0, 64)}`,
+  // Per account AND address: someone typing wrong passwords for your
+  // username from elsewhere cannot lock you out of your own account.
+  keyGenerator: (req) => `login:${String(req.body?.username || '').trim().toLowerCase().slice(0, 64)}:${visitorIp(req)}`,
+  message: { error: 'Too many failed attempts for this account. Please wait a few minutes and try again.' },
+});
+// A wider cap per account across all addresses slows a spread-out attack
+// without locking the owner out (it is much higher than any real use).
+const loginAccountGlobalLimiter = rateLimit({
+  ...limiterDefaults,
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.LOGIN_ACCOUNT_GLOBAL_LIMIT) || 100,
+  skipSuccessfulRequests: true,
+  requestWasSuccessful: (req, res) => res.statusCode < 400 || res.statusCode === 503,
+  keyGenerator: (req) => `login-all:${String(req.body?.username || '').trim().toLowerCase().slice(0, 64)}`,
   message: { error: 'Too many failed attempts for this account. Please wait a few minutes and try again.' },
 });
 // Paid AI calls and spam-prone endpoints get their own, tighter limits (audit item 1).
@@ -741,8 +794,9 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
     if (typeof password !== 'string' || password.length > 200) {
       return res.status(400).json({ error: 'Password is too long' });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    const pwProblem = recovery.passwordProblem(password);
+    if (pwProblem) {
+      return res.status(400).json({ error: pwProblem });
     }
 
     // Email first: someone retrying their own unverified sign-up then gets their username back too.
@@ -829,7 +883,7 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', authLimiter, loginAccountLimiter, requireDb, async (req, res) => {
+app.post('/api/auth/login', authLimiter, loginAccountLimiter, loginAccountGlobalLimiter, requireDb, async (req, res) => {
   try {
     const { username, password, totpCode } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'username and password are required' });
@@ -975,28 +1029,104 @@ app.post('/api/tours/reset', requireDb, authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/auth/reset-password', authLimiter, requireDb, async (req, res) => {
-  const { email } = req.body || {};
-  if (typeof email === 'string' && email.length <= 254) {
-    // Sent through our own email provider: Supabase's built-in sender only allows
-    // a handful of emails an hour across the whole site.
-    const redirectTo = `${publicSiteUrl(req)}/reset-password`;
-    try {
-      const { data, error } = await supabaseAdmin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo } });
-      const link = data?.properties?.action_link;
-      if (!error && link && process.env.RESEND_API_KEY) {
-        const sent = await sendEmail({ to: email, ...emailVerification.passwordResetEmail({ link }) });
-        if (!sent?.id) console.warn('[reset-password] email was not accepted by the provider');
-      } else if (!error) {
-        await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
-      }
-      // An error here is usually "no such user", which the caller must never learn.
-    } catch (e) {
-      console.warn('[reset-password] send failed (not surfaced to caller):', e.message);
-    }
+// Forgot password. Same answer, same status and the same response time for
+// every request: the reply goes out first and the email is sent afterwards,
+// so nothing reveals whether an account exists. Limits per email and per IP
+// (RESET_PER_EMAIL_HOUR, default 3; RESET_PER_IP_HOUR, default 10).
+const RESET_REPLY = 'If that email has an account, a reset link is on its way. Check spam.';
+app.post('/api/auth/reset-password', authLimiter, requireDb, (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Enter a valid email address' });
   }
-  // Always return success - never reveal whether an email exists.
-  res.json({ message: 'Reset email sent if found' });
+  if (!recovery.takeResetAllowance(email, visitorIp(req))) {
+    return res.status(429).json({ error: 'Too many reset requests. Please wait an hour and try again.' });
+  }
+  res.json({ message: RESET_REPLY });
+  setImmediate(() => sendResetLink(email, publicSiteUrl(req)).catch((e) => console.warn('[reset-password] send failed:', e.message)));
+});
+
+// Also used by "Set a password" (Google-only accounts) and admin "Send reset email".
+async function sendResetLink(email, siteUrl) {
+  const redirectTo = `${siteUrl}/reset-password`;
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo } });
+  if (error) return { sent: false }; // usually "no such user": never told to the caller
+  const link = data?.properties?.action_link;
+  if (process.env.AUTH_EMAIL_DRY_RUN === '1') {
+    // Tests: build everything, send nothing, never log the link.
+    console.log(`[auth] dry run: would send "${recovery.resetEmail({ link: 'x' }).subject}" to ${email.replace(/^(.).*(@.*)$/, '$1***$2')}`);
+    return { sent: false, dryRun: true };
+  }
+  if (link && process.env.RESEND_API_KEY) {
+    const sent = await sendEmail({ to: email, ...recovery.resetEmail({ link, expiresMinutes: Number(process.env.RESET_LINK_MINUTES) || 60 }) });
+    if (!sent?.id) console.warn('[reset-password] email was not accepted by the provider');
+    return { sent: Boolean(sent?.id) };
+  }
+  await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
+  return { sent: true };
+}
+
+// Step 2 of the reset: the page sends the new password with the recovery
+// session from the email link. The server applies the password rules, sets
+// the password, signs out every other device and sends a confirmation.
+app.post('/api/auth/complete-reset', authLimiter, requireDb, authenticate, async (req, res) => {
+  const { password } = req.body || {};
+  const problem = recovery.passwordProblem(password);
+  if (problem) return res.status(400).json({ error: problem });
+  const token = (req.headers.authorization || '').slice(7);
+  const claims = recovery.tokenClaims(token);
+  // Only a fresh session from the email link (or a login in the last 10 minutes).
+  const amr = Array.isArray(claims.amr) ? claims.amr.map((x) => x && x.method) : [];
+  const fresh = Number(claims.iat) * 1000 > Date.now() - 10 * 60 * 1000;
+  if (!amr.some((m) => ['recovery', 'otp', 'magiclink'].includes(m)) && !fresh) {
+    return res.status(403).json({ error: 'This reset link has expired. Please request a new one.', expired: true });
+  }
+  try {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(req.user.id, { password });
+    if (error) return res.status(400).json({ error: 'Could not set that password. Please try another one.' });
+    await endOtherSessions(req.tokenPlayer, token, { passwordChanged: true });
+    sendPasswordChangedEmail(req.tokenPlayer);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[complete-reset]', e.message);
+    res.status(500).json({ error: 'Could not update your password. Please try again.' });
+  }
+});
+
+// Settings: how this account signs in (Google-only accounts have no password).
+app.get('/api/auth/account-security', requireDb, authenticate, (req, res) => {
+  const providers = req.user?.app_metadata?.providers || [req.user?.app_metadata?.provider].filter(Boolean);
+  res.json({
+    hasPassword: providers.includes('email'),
+    providers,
+    emailVerified: Boolean(req.user?.email_confirmed_at),
+    passwordChangedAt: req.tokenPlayer.password_changed_at || null,
+  });
+});
+
+// Settings: sign out of every other device.
+app.post('/api/auth/sign-out-everywhere', authLimiter, requireDb, authenticate, async (req, res) => {
+  try {
+    await endOtherSessions(req.tokenPlayer, (req.headers.authorization || '').slice(7));
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[sign-out-everywhere]', e.message);
+    res.status(500).json({ error: 'Could not sign out other devices' });
+  }
+});
+
+// Settings: a Google-only account has no password. "Set a password" sends a
+// set-password link to the verified email.
+app.post('/api/auth/set-password-link', authLimiter, requireDb, authenticate, async (req, res) => {
+  const email = req.user.email;
+  if (!email || !req.user.email_confirmed_at) return res.status(400).json({ error: 'Your email is not verified yet' });
+  if (!recovery.takeResetAllowance(email, visitorIp(req))) return res.status(429).json({ error: 'Too many requests. Please wait an hour and try again.' });
+  try {
+    await sendResetLink(email, publicSiteUrl(req));
+    res.json({ success: true, message: `We sent a link to ${email.replace(/^(.).*(@.*)$/, '$1***$2')} to set your password.` });
+  } catch (e) {
+    res.status(500).json({ error: 'Could not send the link. Please try again.' });
+  }
 });
 
 app.post('/api/auth/verify-email', authLimiter, requireDb, async (req, res) => {
@@ -1435,11 +1565,17 @@ app.patch('/api/player/me', requireDb, authenticate, async (req, res) => {
       }
     }
 
+    let passwordChanged = false;
     if (newPassword) {
-      if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      const pwProblem = recovery.passwordProblem(newPassword);
+      if (pwProblem) return res.status(400).json({ error: pwProblem });
       if (player.supabase_user_id) {
         const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(player.supabase_user_id, { password: newPassword });
-        if (pwErr) return res.status(400).json({ error: pwErr.message });
+        if (pwErr) return res.status(400).json({ error: 'Could not set that password. Please try another one.' });
+        passwordChanged = true;
+        // Other devices are signed out; this one stays in. Confirmation email.
+        await endOtherSessions(player, (req.headers.authorization || '').slice(7), { passwordChanged: true });
+        sendPasswordChangedEmail(player);
       }
     }
 
@@ -4006,6 +4142,7 @@ io.use(async (socket, next) => {
     const player = await db.getPlayerBySupabaseUserId(user.id);
     if (!player) return next(new Error('unauthorized'));
     if (activeBan(player)) return next(new Error('banned'));
+    if (recovery.tokenRetired(player, token)) return next(new Error('unauthorized'));
 
     // socket.data.player keeps the shape every existing handler already
     // expects (`.id`, `.username`) - the extra userId/playerId/username
