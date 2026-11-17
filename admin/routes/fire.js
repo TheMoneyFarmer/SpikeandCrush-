@@ -57,7 +57,7 @@ function router() {
   // stored in game_config key 'mode_identity' as { mode: partial }. New
   // matches pick them up; running matches keep the rules they started with.
   // GAME_RULES and MODE_DURATIONS are not editable here.
-  const MODES = ['quick', 'blitz', 'grand', 'tournament', 'solo', 'async', 'private'];
+  const MODES = ['quick', 'blitz', 'grand', 'tournament', 'stocks', 'futures', 'solo', 'async', 'private'];
   const BLOCKED = ['durationSeconds', 'entryCoins', 'leverage', 'maxPositions', 'stopOutLevel', 'marginCallLevel', 'prizeShare'];
   r.put('/modes/:mode', async (req, res) => {
     const { mode } = req.params;

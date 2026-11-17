@@ -257,7 +257,7 @@
 
   function renderModes(modes) {
     // One icon per mode so the tiles read at a glance.
-    const MODE_ICON = { quick: 'swords', blitz: 'bolt', grand: 'crown', solo: 'target', async: 'clock', private: 'lock', tournament: 'trophy' };
+    const MODE_ICON = { quick: 'swords', blitz: 'bolt', grand: 'crown', solo: 'target', async: 'clock', private: 'lock', tournament: 'trophy', stocks: 'bell', futures: 'pit' };
     document.querySelectorAll('.lb-mode').forEach((btn) => {
       const el = btn.querySelector('.lb-mode-ic');
       if (el) el.innerHTML = ic(MODE_ICON[btn.dataset.mode] || 'bolt', 22);

@@ -437,7 +437,7 @@ function selectMatchInstruments(count = 5, mode = null, opts = {}) {
   // Each mode draws only from its own instrument classes (stocks only in Bell
   // Rush, futures only in The Pit).
   if (Array.isArray(opts.classes)) all = all.filter((sym) => opts.classes.includes(INSTRUMENTS[sym].category));
-  if (opts.dataSeconds) all = all.filter((sym) => actionWindowCount(sym, opts.dataSeconds) > 0);
+  if (opts.dataSeconds) all = all.filter((sym) => actionWindowCount(sym, opts.dataSeconds) >= actionEngine.cfg().minEligibleWindows);
   if (opts.topN) {
     const cat = curated.load();
     const rank = new Map(((cat && cat.ranking) || []).map((r) => [r.sym, r.rank]));
@@ -953,7 +953,7 @@ function getMarketInfo(matchId) {
   if (!match) return null;
   const out = {};
   for (const [symbol, entry] of Object.entries(match)) {
-    out[symbol] = entry.curated ? { curated: true, start: entry.curated.start, seed: entry.curated.seed, speed: entry.speed } : { curated: false, speed: entry.speed || 1 };
+    out[symbol] = entry.curated ? { curated: true, start: entry.curated.start, seed: entry.curated.seed, speed: entry.speed, shape: entry.curated.shape ? { scale: entry.curated.shape.scale, flip: entry.curated.shape.flip } : null } : { curated: false, speed: entry.speed || 1 };
   }
   return out;
 }

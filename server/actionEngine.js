@@ -31,6 +31,7 @@ const DEFAULTS = {
   maxQuietRun: 3, // no more than this many quiet candles in a row
   candleSeconds: 5, // the chart's default candle (client/js/chart.js)
   maxTries: 40,
+  minEligibleWindows: 40, // fewer busy windows than this at a match length = not offered
   recentAvoid: 20,
   priceScale: [0.8, 1.2], // anti-memorisation scale range; [1, 1] = off
   mirror: true, // random up/down flip per match

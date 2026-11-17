@@ -194,7 +194,7 @@ async function idsForPlayerSearch(q) {
 }
 
 const HISTORY_PAGE = 50;
-const WAR_KINDS = ['quick', 'blitz', 'grand', 'private', 'solo', 'tournament', 'async'];
+const WAR_KINDS = ['quick', 'blitz', 'grand', 'stocks', 'futures', 'private', 'solo', 'tournament', 'async'];
 
 // Finished (and voided) matches and ended competitions, newest first, keyset
 // paged by time (`before`), 50 a page. Filters: kind, status, instrument,

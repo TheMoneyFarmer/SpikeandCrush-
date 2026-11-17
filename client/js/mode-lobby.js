@@ -40,11 +40,16 @@ TW.ModeLobby = (function () {
     const isNew = !player || !Number(player.total_matches || 0);
     document.querySelectorAll('.lb-mode[data-mode]').forEach((btn) => {
       const m = byKey(btn.dataset.mode);
-      if (!m) return;
+      if (!m) {
+        // Modes that open only when their data is ready (Bell Rush, The Pit).
+        if (btn.dataset.needsCatalog) btn.hidden = true;
+        return;
+      }
       if (m.enabled === false) {
         btn.hidden = true;
         return;
       }
+      btn.hidden = false;
       const name = btn.querySelector('.lb-mode-name');
       if (name) name.textContent = shortName(m);
       let meta = btn.querySelector('.lb-mode-meta');

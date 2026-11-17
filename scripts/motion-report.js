@@ -32,7 +32,7 @@ const modeIdentity = require(path.join(__dirname, '..', 'server', 'config', 'mod
 const N = Number(process.argv[2]) || 200;
 const jsonOut = process.argv.includes('--json') ? process.argv[process.argv.indexOf('--json') + 1] : null;
 const TF = 5; // default chart candle, seconds (client/js/chart.js DEFAULT_TIMEFRAME)
-const MODES = ['blitz', 'quick', 'grand', 'tournament', 'solo', 'private'];
+const MODES = (process.env.MOTION_MODES || 'blitz,quick,grand,tournament,solo,private,stocks,futures').split(',');
 
 const median = (a) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const pct = (a, p) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor((p / 100) * s.length))] : 0; };
@@ -111,7 +111,7 @@ function main() {
     const per = [];
     for (let i = 0; i < N; i++) {
       const matchId = `motion-${mode}-${i}`;
-      const opts = rules.instrumentPool === 'top' ? { topN: rules.instrumentPoolSize || 6 } : {};
+      const opts = { ...(rules.instrumentPool === 'top' ? { topN: rules.instrumentPoolSize || 6 } : {}), classes: rules.instrumentClasses, dataSeconds: duration * speed };
       const symbols = instruments.selectMatchInstruments(cfg.instrumentCount || 5, mode, opts);
       for (const symbol of symbols) {
         instruments.assignMatchWindow(matchId, symbol, `motion:${mode}:${i}`, Math.ceil(duration / 60), { speed });

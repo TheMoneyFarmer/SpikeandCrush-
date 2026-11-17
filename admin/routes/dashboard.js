@@ -126,7 +126,7 @@ function router() {
 
       // matches, seats, players who played
       const mm = matches.filter((m) => wantMode(m.mode) && m.status !== 'cancelled' && m.status !== 'void');
-      const modes = ['quick', 'blitz', 'grand', 'solo', 'private', 'other'];
+      const modes = ['quick', 'blitz', 'grand', 'stocks', 'futures', 'solo', 'private', 'other'];
       const byMode = Object.fromEntries(modes.map((k) => [k, Array(nBuckets).fill(0)]));
       const matchSeries = Array(nBuckets).fill(0);
       const activeSets = Array.from({ length: nBuckets }, () => new Set());

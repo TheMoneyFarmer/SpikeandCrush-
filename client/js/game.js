@@ -1557,6 +1557,16 @@ window.TW = window.TW || {};
       }
     }
     setupInstrumentTabs(state.instruments);
+    // Bell Rush / The Pit: an honest label beside the instruments.
+    if (state.modeRules && state.modeRules.simulatedLabel && !document.getElementById('simulatedLabel')) {
+      const chip = document.createElement('span');
+      chip.id = 'simulatedLabel';
+      chip.className = 'simulated-chip';
+      chip.textContent = state.modeRules.simulatedLabel;
+      chip.title = `${state.modeRules.simulatedLabel}: a historical replay of real prices with dates hidden. Not live prices.`;
+      const tabs = document.getElementById('instrumentTabs');
+      tabs.parentElement.insertBefore(chip, tabs.nextSibling);
+    }
     TW.Sabotage.render(state);
     if (TW.Modes) TW.Modes.setState(state);
     // Solo / Daily Challenge / challenge link: fetch the ghost once (it is

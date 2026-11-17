@@ -153,6 +153,476 @@
    "score": 0.1921,
    "kept": false,
    "forcedForClass": false
+  },
+  {
+   "rank": 19,
+   "sym": "AMD",
+   "cls": "stocks",
+   "score": 24.3108,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 1
+  },
+  {
+   "rank": 20,
+   "sym": "INTC",
+   "cls": "stocks",
+   "score": 22.1992,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 2
+  },
+  {
+   "rank": 21,
+   "sym": "MU",
+   "cls": "stocks",
+   "score": 21.8432,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 3
+  },
+  {
+   "rank": 22,
+   "sym": "SNOW",
+   "cls": "stocks",
+   "score": 20.489,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 4
+  },
+  {
+   "rank": 23,
+   "sym": "ORCL",
+   "cls": "stocks",
+   "score": 20.2709,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 5
+  },
+  {
+   "rank": 24,
+   "sym": "NVDA",
+   "cls": "stocks",
+   "score": 16.4289,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 6
+  },
+  {
+   "rank": 25,
+   "sym": "PLTR",
+   "cls": "stocks",
+   "score": 15.6718,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 7
+  },
+  {
+   "rank": 26,
+   "sym": "AVGO",
+   "cls": "stocks",
+   "score": 15.3923,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 8
+  },
+  {
+   "rank": 27,
+   "sym": "TSLA",
+   "cls": "stocks",
+   "score": 13.6497,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 9
+  },
+  {
+   "rank": 28,
+   "sym": "META",
+   "cls": "stocks",
+   "score": 10.2798,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 10
+  },
+  {
+   "rank": 29,
+   "sym": "AMZN",
+   "cls": "stocks",
+   "score": 9.6294,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 11
+  },
+  {
+   "rank": 30,
+   "sym": "CRM",
+   "cls": "stocks",
+   "score": 9.207,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 12
+  },
+  {
+   "rank": 31,
+   "sym": "GOOGL",
+   "cls": "stocks",
+   "score": 9.1183,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 13
+  },
+  {
+   "rank": 32,
+   "sym": "MSFT",
+   "cls": "stocks",
+   "score": 9.0269,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 14
+  },
+  {
+   "rank": 33,
+   "sym": "BA",
+   "cls": "stocks",
+   "score": 8.6051,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 15
+  },
+  {
+   "rank": 34,
+   "sym": "BZ",
+   "cls": "futures",
+   "score": 8.0519,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 16
+  },
+  {
+   "rank": 35,
+   "sym": "BABA",
+   "cls": "stocks",
+   "score": 8.0166,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 17
+  },
+  {
+   "rank": 36,
+   "sym": "XOM",
+   "cls": "stocks",
+   "score": 7.7317,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 18
+  },
+  {
+   "rank": 37,
+   "sym": "QQQ",
+   "cls": "stocks",
+   "score": 7.5859,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 19
+  },
+  {
+   "rank": 38,
+   "sym": "CL",
+   "cls": "futures",
+   "score": 6.9811,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 20
+  },
+  {
+   "rank": 39,
+   "sym": "CVX",
+   "cls": "stocks",
+   "score": 6.6993,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 22
+  },
+  {
+   "rank": 40,
+   "sym": "COST",
+   "cls": "stocks",
+   "score": 6.6501,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 23
+  },
+  {
+   "rank": 41,
+   "sym": "JPM",
+   "cls": "stocks",
+   "score": 6.4464,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 24
+  },
+  {
+   "rank": 42,
+   "sym": "CC",
+   "cls": "futures",
+   "score": 5.6894,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 26
+  },
+  {
+   "rank": 43,
+   "sym": "V",
+   "cls": "stocks",
+   "score": 5.4646,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 28
+  },
+  {
+   "rank": 44,
+   "sym": "UBER",
+   "cls": "stocks",
+   "score": 5.4162,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 29
+  },
+  {
+   "rank": 45,
+   "sym": "SB",
+   "cls": "futures",
+   "score": 5.2371,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 30
+  },
+  {
+   "rank": 46,
+   "sym": "SI",
+   "cls": "futures",
+   "score": 5.2113,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 31
+  },
+  {
+   "rank": 47,
+   "sym": "NQ",
+   "cls": "futures",
+   "score": 5.2017,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 32
+  },
+  {
+   "rank": 48,
+   "sym": "WMT",
+   "cls": "stocks",
+   "score": 4.9973,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 33
+  },
+  {
+   "rank": 49,
+   "sym": "SPY",
+   "cls": "stocks",
+   "score": 4.6925,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 34
+  },
+  {
+   "rank": 50,
+   "sym": "GC",
+   "cls": "futures",
+   "score": 4.1009,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 35
+  },
+  {
+   "rank": 51,
+   "sym": "PYPL",
+   "cls": "stocks",
+   "score": 3.8567,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 36
+  },
+  {
+   "rank": 52,
+   "sym": "NFLX",
+   "cls": "stocks",
+   "score": 3.6385,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 37
+  },
+  {
+   "rank": 53,
+   "sym": "PL",
+   "cls": "futures",
+   "score": 3.6347,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 38
+  },
+  {
+   "rank": 54,
+   "sym": "RTY",
+   "cls": "futures",
+   "score": 2.9002,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 39
+  },
+  {
+   "rank": 55,
+   "sym": "ES",
+   "cls": "futures",
+   "score": 2.8826,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 40
+  },
+  {
+   "rank": 56,
+   "sym": "YM",
+   "cls": "futures",
+   "score": 2.6202,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 41
+  },
+  {
+   "rank": 57,
+   "sym": "KC",
+   "cls": "futures",
+   "score": 2.5293,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 42
+  },
+  {
+   "rank": 58,
+   "sym": "HG",
+   "cls": "futures",
+   "score": 1.5393,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 44
+  },
+  {
+   "rank": 59,
+   "sym": "ZB",
+   "cls": "futures",
+   "score": 1.3261,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 45
+  },
+  {
+   "rank": 60,
+   "sym": "PA",
+   "cls": "futures",
+   "score": 1.3178,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 46
+  },
+  {
+   "rank": 61,
+   "sym": "NG",
+   "cls": "futures",
+   "score": 0.6461,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 47
+  },
+  {
+   "rank": 62,
+   "sym": "CT",
+   "cls": "futures",
+   "score": 0.4016,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 48
+  },
+  {
+   "rank": 63,
+   "sym": "6E",
+   "cls": "futures",
+   "score": 0.2676,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 49
+  },
+  {
+   "rank": 64,
+   "sym": "ZS",
+   "cls": "futures",
+   "score": 0.2354,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 50
+  },
+  {
+   "rank": 65,
+   "sym": "DX",
+   "cls": "futures",
+   "score": 0.1573,
+   "kept": true,
+   "forcedForClass": false,
+   "pool": "modes",
+   "modeRank": 51
   }
  ],
  "excluded": [
@@ -3388,7 +3858,7013 @@
     },
     "driftPct": -0.764
    }
+  },
+  "AMD": {
+   "file": "AMD.playlist.json",
+   "class": "stocks",
+   "score": 24.3108,
+   "medRange": 1.2199999999999704,
+   "medBps": 24.373,
+   "activeMinutes": 1250,
+   "segments": 14,
+   "seams": 13,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-04T16:37:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 180
+    },
+    {
+     "from": "2026-11-05T18:01:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-06T16:20:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T17:30:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 135
+    }
+   ],
+   "driftPct": 2.157,
+   "bandPct": {
+    "low": -6.78,
+    "high": 10.27
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 963,
+    "600": 949,
+    "900": 939,
+    "1200": 929,
+    "1800": 909,
+    "3000": 869,
+    "6000": 769,
+    "12000": 637
+   },
+   "spikes": 13,
+   "spikeThresholdBps": 154.15,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.11x the day average; busiest NY hours measured: 09:00 (2.46x), 10:00 (1.48x), 11:00 (1.06x), 12:00 (0.75x)"
+   },
+   "comp": {
+    "file": "AMD.comp.json",
+    "activeMinutes": 28135,
+    "segments": 191,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -5.96,
+     "high": 10.74
+    },
+    "driftPct": -1.875
+   },
+   "pool": "modes"
+  },
+  "INTC": {
+   "file": "INTC.playlist.json",
+   "class": "stocks",
+   "score": 22.1992,
+   "medRange": 0.13100000000000023,
+   "medBps": 22.256,
+   "activeMinutes": 1360,
+   "segments": 17,
+   "seams": 16,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-02T17:49:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T20:09:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-04T17:22:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 205
+    },
+    {
+     "from": "2026-11-05T19:26:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-06T16:20:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-11T15:52:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-12T15:51:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 135
+    }
+   ],
+   "driftPct": -1.671,
+   "bandPct": {
+    "low": -8.04,
+    "high": 5.61
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 977,
+    "600": 963,
+    "900": 953,
+    "1200": 943,
+    "1800": 923,
+    "3000": 883,
+    "6000": 783,
+    "12000": 583
+   },
+   "spikes": 14,
+   "spikeThresholdBps": 110.39,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.09x the day average; busiest NY hours measured: 09:00 (2.24x), 10:00 (1.43x), 11:00 (1.05x), 12:00 (0.82x)"
+   },
+   "comp": {
+    "file": "INTC.comp.json",
+    "activeMinutes": 35415,
+    "segments": 180,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -11.59,
+     "high": 12.36
+    },
+    "driftPct": 1.772
+   },
+   "pool": "modes"
+  },
+  "MU": {
+   "file": "MU.playlist.json",
+   "class": "stocks",
+   "score": 21.8432,
+   "medRange": 1.6830000000001064,
+   "medBps": 21.899,
+   "activeMinutes": 1310,
+   "segments": 14,
+   "seams": 13,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-02T20:29:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 180
+    },
+    {
+     "from": "2026-11-05T17:36:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-05T19:31:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-06T17:30:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 135
+    }
+   ],
+   "driftPct": -6.865,
+   "bandPct": {
+    "low": -5.51,
+    "high": 13.15
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1043,
+    "600": 1029,
+    "900": 1019,
+    "1200": 1009,
+    "1800": 989,
+    "3000": 949,
+    "6000": 849,
+    "12000": 649
+   },
+   "spikes": 14,
+   "spikeThresholdBps": 125.37,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.09x the day average; busiest NY hours measured: 09:00 (2.25x), 10:00 (1.47x), 11:00 (1.05x), 15:00 (0.82x)"
+   },
+   "comp": {
+    "file": "MU.comp.json",
+    "activeMinutes": 34450,
+    "segments": 177,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -9.77,
+     "high": 8.12
+    },
+    "driftPct": 1.295
+   },
+   "pool": "modes"
+  },
+  "SNOW": {
+   "file": "SNOW.playlist.json",
+   "class": "stocks",
+   "score": 20.489,
+   "medRange": 0.6009999999999991,
+   "medBps": 20.814,
+   "activeMinutes": 1065,
+   "segments": 17,
+   "seams": 16,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-02T16:19:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T19:29:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T15:03:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-04T16:22:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-05T17:16:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-05T18:11:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-12T15:16:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-13T14:32:00.000Z",
+     "minutes": 80
+    }
+   ],
+   "driftPct": -3.472,
+   "bandPct": {
+    "low": -6.8,
+    "high": 5.54
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 941,
+    "600": 934,
+    "900": 929,
+    "1200": 924,
+    "1800": 914,
+    "3000": 894,
+    "6000": 844,
+    "12000": 744
+   },
+   "spikes": 11,
+   "spikeThresholdBps": 139.68,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.13x the day average; busiest NY hours measured: 09:00 (2.82x), 10:00 (1.45x), 11:00 (0.92x), 15:00 (0.83x)"
+   },
+   "comp": {
+    "file": "SNOW.comp.json",
+    "activeMinutes": 20040,
+    "segments": 200,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -7.14,
+     "high": 4.63
+    },
+    "driftPct": 1.809
+   },
+   "pool": "modes"
+  },
+  "ORCL": {
+   "file": "ORCL.playlist.json",
+   "class": "stocks",
+   "score": 20.2709,
+   "medRange": 0.25,
+   "medBps": 20.323,
+   "activeMinutes": 1210,
+   "segments": 16,
+   "seams": 15,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 205
+    },
+    {
+     "from": "2026-11-05T18:11:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-05T20:26:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-06T17:35:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-11T15:42:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-12T15:46:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-13T15:10:00.000Z",
+     "minutes": 45
+    }
+   ],
+   "driftPct": -2.882,
+   "bandPct": {
+    "low": -10.74,
+    "high": 6.43
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1210,
+    "600": 1210,
+    "900": 1210,
+    "1200": 1210,
+    "1800": 1210,
+    "3000": 1210,
+    "6000": 1210,
+    "12000": 1210
+   },
+   "spikes": 13,
+   "spikeThresholdBps": 135.55,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.11x the day average; busiest NY hours measured: 09:00 (2.46x), 10:00 (1.43x), 11:00 (1.00x), 12:00 (0.83x)"
+   },
+   "comp": {
+    "file": "ORCL.comp.json",
+    "activeMinutes": 33645,
+    "segments": 205,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -6.7,
+     "high": 8.66
+    },
+    "driftPct": -1.344
+   },
+   "pool": "modes"
+  },
+  "NVDA": {
+   "file": "NVDA.playlist.json",
+   "class": "stocks",
+   "score": 16.4289,
+   "medRange": 0.3009999999999877,
+   "medBps": 16.471,
+   "activeMinutes": 1275,
+   "segments": 16,
+   "seams": 15,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-04T15:42:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 170
+    },
+    {
+     "from": "2026-11-05T18:01:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T18:41:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-06T16:20:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T17:30:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-10T15:38:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-10T20:03:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 125
+    }
+   ],
+   "driftPct": -0.139,
+   "bandPct": {
+    "low": -7.77,
+    "high": 7.16
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 630,
+    "600": 602,
+    "900": 583,
+    "1200": 568,
+    "1800": 538,
+    "3000": 478,
+    "6000": 361,
+    "12000": 261
+   },
+   "spikes": 13,
+   "spikeThresholdBps": 98.96,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.09x the day average; busiest NY hours measured: 09:00 (2.28x), 10:00 (1.37x), 11:00 (1.07x), 15:00 (0.83x)"
+   },
+   "comp": {
+    "file": "NVDA.comp.json",
+    "activeMinutes": 29320,
+    "segments": 198,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -5.56,
+     "high": 6.06
+    },
+    "driftPct": -0.226
+   },
+   "pool": "modes"
+  },
+  "PLTR": {
+   "file": "PLTR.playlist.json",
+   "class": "stocks",
+   "score": 15.6718,
+   "medRange": 0.2699999999999818,
+   "medBps": 15.712,
+   "activeMinutes": 1370,
+   "segments": 15,
+   "seams": 14,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-02T19:44:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 200
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 205
+    },
+    {
+     "from": "2026-11-05T18:01:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-06T17:35:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-10T15:33:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-10T17:23:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 105
+    }
+   ],
+   "driftPct": -1.927,
+   "bandPct": {
+    "low": -2.18,
+    "high": 9.42
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1370,
+    "600": 1370,
+    "900": 1370,
+    "1200": 1370,
+    "1800": 1370,
+    "3000": 1370,
+    "6000": 1370,
+    "12000": 1370
+   },
+   "spikes": 14,
+   "spikeThresholdBps": 95.32,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.12x the day average; busiest NY hours measured: 09:00 (2.58x), 10:00 (1.45x), 11:00 (1.00x), 15:00 (0.79x)"
+   },
+   "comp": {
+    "file": "PLTR.comp.json",
+    "activeMinutes": 29925,
+    "segments": 202,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -5.75,
+     "high": 7.21
+    },
+    "driftPct": -1.393
+   },
+   "pool": "modes"
+  },
+  "AVGO": {
+   "file": "AVGO.playlist.json",
+   "class": "stocks",
+   "score": 15.3923,
+   "medRange": 0.5099999999999909,
+   "medBps": 15.432,
+   "activeMinutes": 1365,
+   "segments": 16,
+   "seams": 15,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-04T16:27:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 205
+    },
+    {
+     "from": "2026-11-05T18:01:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-05T19:26:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-06T16:20:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-06T17:30:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-11T15:37:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 185
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 130
+    }
+   ],
+   "driftPct": -4.406,
+   "bandPct": {
+    "low": -5.37,
+    "high": 5.51
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1241,
+    "600": 1234,
+    "900": 1229,
+    "1200": 1224,
+    "1800": 1214,
+    "3000": 1194,
+    "6000": 1144,
+    "12000": 1044
+   },
+   "spikes": 14,
+   "spikeThresholdBps": 98.82,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.11x the day average; busiest NY hours measured: 09:00 (2.51x), 10:00 (1.42x), 11:00 (1.06x), 12:00 (0.78x)"
+   },
+   "comp": {
+    "file": "AVGO.comp.json",
+    "activeMinutes": 32120,
+    "segments": 194,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -7.05,
+     "high": 4.61
+    },
+    "driftPct": -0.601
+   },
+   "pool": "modes"
+  },
+  "TSLA": {
+   "file": "TSLA.playlist.json",
+   "class": "stocks",
+   "score": 13.6497,
+   "medRange": 0.5289999999999964,
+   "medBps": 13.685,
+   "activeMinutes": 1415,
+   "segments": 16,
+   "seams": 15,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-02T15:54:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T17:24:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 200
+    },
+    {
+     "from": "2026-11-05T17:56:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-05T20:01:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-06T17:30:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-12T15:46:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T20:11:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 165
+    }
+   ],
+   "driftPct": 0.448,
+   "bandPct": {
+    "low": -7.94,
+    "high": 3.68
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1291,
+    "600": 1284,
+    "900": 1279,
+    "1200": 1274,
+    "1800": 1264,
+    "3000": 1244,
+    "6000": 1194,
+    "12000": 1094
+   },
+   "spikes": 15,
+   "spikeThresholdBps": 103.48,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.12x the day average; busiest NY hours measured: 09:00 (2.63x), 10:00 (1.38x), 11:00 (1.02x), 15:00 (0.93x)"
+   },
+   "comp": {
+    "file": "TSLA.comp.json",
+    "activeMinutes": 33340,
+    "segments": 200,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -5.28,
+     "high": 6.47
+    },
+    "driftPct": -0.403
+   },
+   "pool": "modes"
+  },
+  "META": {
+   "file": "META.playlist.json",
+   "class": "stocks",
+   "score": 10.2798,
+   "medRange": 0.6499999999999773,
+   "medBps": 10.309,
+   "activeMinutes": 1255,
+   "segments": 16,
+   "seams": 15,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T15:44:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T14:52:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 280
+    },
+    {
+     "from": "2026-11-05T19:16:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-09T15:24:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-10T15:38:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-11T15:42:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-12T15:31:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 140
+    }
+   ],
+   "driftPct": 1.025,
+   "bandPct": {
+    "low": -6.68,
+    "high": 1.05
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1131,
+    "600": 1124,
+    "900": 1119,
+    "1200": 1114,
+    "1800": 1104,
+    "3000": 1084,
+    "6000": 1034,
+    "12000": 934
+   },
+   "spikes": 13,
+   "spikeThresholdBps": 70.31,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.10x the day average; busiest NY hours measured: 09:00 (2.43x), 10:00 (1.45x), 11:00 (1.06x), 15:00 (0.76x)"
+   },
+   "comp": {
+    "file": "META.comp.json",
+    "activeMinutes": 34650,
+    "segments": 201,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -3.54,
+     "high": 6.46
+    },
+    "driftPct": -1.263
+   },
+   "pool": "modes"
+  },
+  "AMZN": {
+   "file": "AMZN.playlist.json",
+   "class": "stocks",
+   "score": 9.6294,
+   "medRange": 0.25099999999997635,
+   "medBps": 9.654,
+   "activeMinutes": 1190,
+   "segments": 10,
+   "seams": 9,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 385
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 140
+    },
+    {
+     "from": "2026-11-06T17:25:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 105
+    }
+   ],
+   "driftPct": -5.99,
+   "bandPct": {
+    "low": -3.71,
+    "high": 4.07
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1190,
+    "600": 1190,
+    "900": 1190,
+    "1200": 1190,
+    "1800": 1190,
+    "3000": 1190,
+    "6000": 1190,
+    "12000": 1190
+   },
+   "spikes": 12,
+   "spikeThresholdBps": 59.75,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.12x the day average; busiest NY hours measured: 09:00 (2.58x), 10:00 (1.35x), 11:00 (0.97x), 15:00 (0.77x)"
+   },
+   "comp": {
+    "file": "AMZN.comp.json",
+    "activeMinutes": 33090,
+    "segments": 209,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -6.49,
+     "high": 2.49
+    },
+    "driftPct": 1.292
+   },
+   "pool": "modes"
+  },
+  "CRM": {
+   "file": "CRM.playlist.json",
+   "class": "stocks",
+   "score": 9.207,
+   "medRange": 0.20999999999997954,
+   "medBps": 9.424,
+   "activeMinutes": 1040,
+   "segments": 18,
+   "seams": 17,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-02T20:29:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-04T14:30:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-04T15:40:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-05T14:34:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-05T15:44:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-05T17:59:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T18:29:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T20:09:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-06T14:33:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-09T14:32:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-10T14:31:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T15:56:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T17:11:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-11T14:30:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T14:30:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-13T14:34:00.000Z",
+     "minutes": 60
+    }
+   ],
+   "driftPct": -2.711,
+   "bandPct": {
+    "low": -2.9,
+    "high": 4.26
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1040,
+    "600": 1040,
+    "900": 1040,
+    "1200": 1040,
+    "1800": 1040,
+    "3000": 1040,
+    "6000": 1040,
+    "12000": 1040
+   },
+   "spikes": 11,
+   "spikeThresholdBps": 86.9,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.15x the day average; busiest NY hours measured: 09:00 (3.13x), 10:00 (1.36x), 11:00 (0.87x), 15:00 (0.84x)"
+   },
+   "comp": {
+    "file": "CRM.comp.json",
+    "activeMinutes": 32205,
+    "segments": 209,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -9.12,
+     "high": 12.13
+    },
+    "driftPct": 1.869
+   },
+   "pool": "modes"
+  },
+  "GOOGL": {
+   "file": "GOOGL.playlist.json",
+   "class": "stocks",
+   "score": 9.1183,
+   "medRange": 0.2610000000000241,
+   "medBps": 9.142,
+   "activeMinutes": 1265,
+   "segments": 13,
+   "seams": 12,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 295
+    },
+    {
+     "from": "2026-11-05T19:31:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-06T17:30:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-12T15:51:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-12T17:46:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 135
+    }
+   ],
+   "driftPct": -4.558,
+   "bandPct": {
+    "low": -4.16,
+    "high": 3.32
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1265,
+    "600": 1265,
+    "900": 1265,
+    "1200": 1265,
+    "1800": 1265,
+    "3000": 1265,
+    "6000": 1265,
+    "12000": 1265
+   },
+   "spikes": 13,
+   "spikeThresholdBps": 57.15,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.10x the day average; busiest NY hours measured: 09:00 (2.38x), 10:00 (1.39x), 11:00 (1.01x), 15:00 (0.79x)"
+   },
+   "comp": {
+    "file": "GOOGL.comp.json",
+    "activeMinutes": 35835,
+    "segments": 191,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -4.66,
+     "high": 3.07
+    },
+    "driftPct": 0.782
+   },
+   "pool": "modes"
+  },
+  "MSFT": {
+   "file": "MSFT.playlist.json",
+   "class": "stocks",
+   "score": 9.0269,
+   "medRange": 0.48099999999999454,
+   "medBps": 9.05,
+   "activeMinutes": 1360,
+   "segments": 15,
+   "seams": 14,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-02T20:14:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T15:13:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-04T16:12:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 385
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-06T17:30:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-10T17:13:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 135
+    }
+   ],
+   "driftPct": -3.074,
+   "bandPct": {
+    "low": -2.16,
+    "high": 2.4
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1360,
+    "600": 1360,
+    "900": 1360,
+    "1200": 1360,
+    "1800": 1360,
+    "3000": 1360,
+    "6000": 1360,
+    "12000": 1360
+   },
+   "spikes": 14,
+   "spikeThresholdBps": 62.31,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.10x the day average; busiest NY hours measured: 09:00 (2.41x), 10:00 (1.33x), 11:00 (0.92x), 15:00 (0.87x)"
+   },
+   "comp": {
+    "file": "MSFT.comp.json",
+    "activeMinutes": 28515,
+    "segments": 211,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -12.55,
+     "high": 10.41
+    },
+    "driftPct": 0.752
+   },
+   "pool": "modes"
+  },
+  "BA": {
+   "file": "BA.playlist.json",
+   "class": "stocks",
+   "score": 8.6051,
+   "medRange": 0.15100000000001046,
+   "medBps": 8.699,
+   "activeMinutes": 1000,
+   "segments": 14,
+   "seams": 13,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 185
+    },
+    {
+     "from": "2026-11-05T18:56:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-06T17:31:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T14:35:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-09T17:30:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T19:25:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-10T14:34:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-10T15:49:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T14:33:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-12T14:32:00.000Z",
+     "minutes": 40
+    }
+   ],
+   "driftPct": -2.256,
+   "bandPct": {
+    "low": -3.5,
+    "high": 1.88
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 876,
+    "600": 869,
+    "900": 864,
+    "1200": 859,
+    "1800": 849,
+    "3000": 829,
+    "6000": 779,
+    "12000": 679
+   },
+   "spikes": 10,
+   "spikeThresholdBps": 72.38,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.11x the day average; busiest NY hours measured: 09:00 (2.45x), 10:00 (1.27x), 12:00 (0.91x), 11:00 (0.88x)"
+   },
+   "comp": {
+    "file": "BA.comp.json",
+    "activeMinutes": 35870,
+    "segments": 206,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -8.19,
+     "high": 5.58
+    },
+    "driftPct": -1.912
+   },
+   "pool": "modes"
+  },
+  "BZ": {
+   "file": "BZ.playlist.json",
+   "class": "futures",
+   "score": 8.0519,
+   "medRange": 0.08899999999999864,
+   "medBps": 9.06,
+   "activeMinutes": 4080,
+   "segments": 52,
+   "seams": 51,
+   "windows": [
+    {
+     "from": "2026-11-02T07:29:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T08:09:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-02T12:44:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T13:29:00.000Z",
+     "minutes": 215
+    },
+    {
+     "from": "2026-11-02T17:29:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-02T18:34:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-03T07:53:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-03T08:53:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-03T12:13:00.000Z",
+     "minutes": 285
+    },
+    {
+     "from": "2026-11-04T04:52:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-04T07:32:00.000Z",
+     "minutes": 170
+    },
+    {
+     "from": "2026-11-04T10:22:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-04T12:17:00.000Z",
+     "minutes": 390
+    },
+    {
+     "from": "2026-11-04T18:47:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-05T01:01:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-05T05:26:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T07:36:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-05T08:51:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T12:56:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-05T15:16:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T16:11:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-05T17:46:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T07:40:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-06T09:25:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T10:00:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T12:10:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-06T13:30:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-09T01:04:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T08:29:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-09T10:59:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-09T11:54:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T12:39:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-09T16:04:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T19:24:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-10T07:38:00.000Z",
+     "minutes": 195
+    },
+    {
+     "from": "2026-11-10T12:33:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-10T13:58:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-10T15:28:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-11T09:12:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-11T14:17:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T15:17:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T16:07:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T08:12:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T13:02:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-12T14:07:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-12T15:37:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-12T16:42:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T17:47:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T08:01:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-13T08:56:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-13T13:31:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T15:31:00.000Z",
+     "minutes": 30
+    }
+   ],
+   "driftPct": -13.794,
+   "bandPct": {
+    "low": -1.96,
+    "high": 13.78
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 3567,
+    "600": 3546,
+    "900": 3531,
+    "1200": 3516,
+    "1800": 3486,
+    "3000": 3426,
+    "6000": 3276,
+    "12000": 2976
+   },
+   "spikes": 41,
+   "spikeThresholdBps": 64.19,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 08:00 (1.67x), 09:00 (1.50x), 11:00 (1.46x), 10:00 (1.29x)"
+   },
+   "comp": {
+    "file": "BZ.comp.json",
+    "activeMinutes": 123270,
+    "segments": 403,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -3.76,
+     "high": 5.66
+    },
+    "driftPct": -0.494
+   },
+   "pool": "modes"
+  },
+  "BABA": {
+   "file": "BABA.playlist.json",
+   "class": "stocks",
+   "score": 8.0166,
+   "medRange": 0.09099999999999397,
+   "medBps": 8.951,
+   "activeMinutes": 1375,
+   "segments": 17,
+   "seams": 16,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T19:24:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T20:24:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 140
+    },
+    {
+     "from": "2026-11-04T16:57:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 195
+    },
+    {
+     "from": "2026-11-05T17:51:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T18:36:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T19:26:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-06T20:06:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-09T14:30:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-10T14:34:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-11T14:33:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T14:34:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-13T14:33:00.000Z",
+     "minutes": 75
+    }
+   ],
+   "driftPct": 0.88,
+   "bandPct": {
+    "low": -4.04,
+    "high": 1.74
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 616,
+    "600": 588,
+    "900": 568,
+    "1200": 548,
+    "1800": 508,
+    "3000": 428,
+    "6000": 292,
+    "12000": 179
+   },
+   "spikes": 14,
+   "spikeThresholdBps": 67.51,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.13x the day average; busiest NY hours measured: 09:00 (2.74x), 10:00 (1.40x), 11:00 (1.02x), 15:00 (0.85x)"
+   },
+   "comp": {
+    "file": "BABA.comp.json",
+    "activeMinutes": 33915,
+    "segments": 203,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -11.71,
+     "high": 8.48
+    },
+    "driftPct": 1.503
+   },
+   "pool": "modes"
+  },
+  "XOM": {
+   "file": "XOM.playlist.json",
+   "class": "stocks",
+   "score": 7.7317,
+   "medRange": 0.13100000000000023,
+   "medBps": 7.762,
+   "activeMinutes": 1345,
+   "segments": 18,
+   "seams": 17,
+   "windows": [
+    {
+     "from": "2026-11-02T14:35:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-02T17:25:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T18:20:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T19:25:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T14:41:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T14:30:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-04T15:50:00.000Z",
+     "minutes": 170
+    },
+    {
+     "from": "2026-11-05T14:35:00.000Z",
+     "minutes": 220
+    },
+    {
+     "from": "2026-11-05T18:40:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T20:20:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-06T14:34:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-06T16:19:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-10T14:34:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-10T15:59:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-11T14:33:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-12T14:33:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-13T14:35:00.000Z",
+     "minutes": 75
+    }
+   ],
+   "driftPct": -1.818,
+   "bandPct": {
+    "low": -5.48,
+    "high": 1.07
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 525,
+    "600": 497,
+    "900": 477,
+    "1200": 457,
+    "1800": 424,
+    "3000": 384,
+    "6000": 284,
+    "12000": 153
+   },
+   "spikes": 14,
+   "spikeThresholdBps": 44.16,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.10x the day average; busiest NY hours measured: 09:00 (2.28x), 10:00 (1.29x), 11:00 (0.98x), 15:00 (0.92x)"
+   },
+   "comp": {
+    "file": "XOM.comp.json",
+    "activeMinutes": 34275,
+    "segments": 241,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -5.14,
+     "high": 10.48
+    },
+    "driftPct": 0.423
+   },
+   "pool": "modes"
+  },
+  "QQQ": {
+   "file": "QQQ.playlist.json",
+   "class": "stocks",
+   "score": 7.5859,
+   "medRange": 0.5199999999999818,
+   "medBps": 7.605,
+   "activeMinutes": 1370,
+   "segments": 13,
+   "seams": 12,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-02T19:44:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 155
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 385
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-06T17:30:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-12T16:01:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 135
+    }
+   ],
+   "driftPct": -3.536,
+   "bandPct": {
+    "low": -2.99,
+    "high": 2.57
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1370,
+    "600": 1370,
+    "900": 1370,
+    "1200": 1370,
+    "1800": 1370,
+    "3000": 1370,
+    "6000": 1370,
+    "12000": 1370
+   },
+   "spikes": 14,
+   "spikeThresholdBps": 36.17,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.06x the day average; busiest NY hours measured: 09:00 (1.86x), 10:00 (1.43x), 11:00 (1.10x), 12:00 (0.85x)"
+   },
+   "comp": {
+    "file": "QQQ.comp.json",
+    "activeMinutes": 29015,
+    "segments": 183,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -5.02,
+     "high": 4.56
+    },
+    "driftPct": -1.76
+   },
+   "pool": "modes"
+  },
+  "CL": {
+   "file": "CL.playlist.json",
+   "class": "futures",
+   "score": 6.9811,
+   "medRange": 0.0799999999999983,
+   "medBps": 8.844,
+   "activeMinutes": 4720,
+   "segments": 59,
+   "seams": 58,
+   "windows": [
+    {
+     "from": "2026-11-02T00:55:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-02T07:25:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T08:10:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-02T12:45:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-02T13:35:00.000Z",
+     "minutes": 185
+    },
+    {
+     "from": "2026-11-02T17:25:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-02T19:00:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T19:50:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T00:40:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T06:40:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T08:10:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-03T08:50:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-03T09:50:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-03T12:10:00.000Z",
+     "minutes": 265
+    },
+    {
+     "from": "2026-11-04T00:56:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T02:26:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T04:56:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-04T05:51:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T06:41:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-04T07:31:00.000Z",
+     "minutes": 140
+    },
+    {
+     "from": "2026-11-04T09:56:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-04T12:11:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T12:56:00.000Z",
+     "minutes": 375
+    },
+    {
+     "from": "2026-11-05T00:56:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-05T05:26:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-05T07:01:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-05T08:51:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T12:41:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-05T13:41:00.000Z",
+     "minutes": 220
+    },
+    {
+     "from": "2026-11-05T18:56:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-06T00:56:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T07:46:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-06T10:31:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T12:11:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-06T13:01:00.000Z",
+     "minutes": 220
+    },
+    {
+     "from": "2026-11-06T18:41:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T01:00:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T08:10:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-09T10:45:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-09T12:40:00.000Z",
+     "minutes": 200
+    },
+    {
+     "from": "2026-11-09T16:05:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T19:25:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-10T07:36:00.000Z",
+     "minutes": 200
+    },
+    {
+     "from": "2026-11-10T12:31:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-10T13:56:00.000Z",
+     "minutes": 185
+    },
+    {
+     "from": "2026-11-11T07:57:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-11T09:12:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-11T10:02:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T15:17:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T16:02:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-12T08:03:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T12:58:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-12T13:58:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-12T16:43:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-12T17:43:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-13T07:58:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T13:23:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-13T14:28:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T15:08:00.000Z",
+     "minutes": 55
+    }
+   ],
+   "driftPct": -9.273,
+   "bandPct": {
+    "low": -1.51,
+    "high": 10.08
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 4097,
+    "600": 4069,
+    "900": 4049,
+    "1200": 4029,
+    "1800": 3989,
+    "3000": 3909,
+    "6000": 3709,
+    "12000": 3388
+   },
+   "spikes": 48,
+   "spikeThresholdBps": 59,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 08:00 (1.76x), 09:00 (1.60x), 11:00 (1.49x), 10:00 (1.38x)"
+   },
+   "comp": {
+    "file": "CL.comp.json",
+    "activeMinutes": 135080,
+    "segments": 373,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -7.78,
+     "high": 5.47
+    },
+    "driftPct": 1.31
+   },
+   "pool": "modes"
+  },
+  "CVX": {
+   "file": "CVX.playlist.json",
+   "class": "stocks",
+   "score": 6.6993,
+   "medRange": 0.14999999999997726,
+   "medBps": 6.718,
+   "activeMinutes": 1195,
+   "segments": 16,
+   "seams": 15,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T15:29:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-02T17:44:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T14:33:00.000Z",
+     "minutes": 225
+    },
+    {
+     "from": "2026-11-04T20:28:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T14:32:00.000Z",
+     "minutes": 195
+    },
+    {
+     "from": "2026-11-05T18:17:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T20:12:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-06T14:31:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-09T14:30:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-09T19:35:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T14:34:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-10T15:49:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-11T14:33:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T14:32:00.000Z",
+     "minutes": 65
+    }
+   ],
+   "driftPct": -1.041,
+   "bandPct": {
+    "low": -4.45,
+    "high": 1.07
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 759,
+    "600": 738,
+    "900": 723,
+    "1200": 708,
+    "1800": 678,
+    "3000": 618,
+    "6000": 468,
+    "12000": 260
+   },
+   "spikes": 12,
+   "spikeThresholdBps": 43.91,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.10x the day average; busiest NY hours measured: 09:00 (2.42x), 10:00 (1.26x), 11:00 (0.97x), 15:00 (0.89x)"
+   },
+   "comp": {
+    "file": "CVX.comp.json",
+    "activeMinutes": 34065,
+    "segments": 224,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -5.4,
+     "high": 6.38
+    },
+    "driftPct": 1.644
+   },
+   "pool": "modes"
+  },
+  "COST": {
+   "file": "COST.playlist.json",
+   "class": "stocks",
+   "score": 6.6501,
+   "medRange": 0.7190000000000509,
+   "medBps": 6.747,
+   "activeMinutes": 945,
+   "segments": 13,
+   "seams": 12,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T14:30:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-05T14:34:00.000Z",
+     "minutes": 175
+    },
+    {
+     "from": "2026-11-05T17:59:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T19:14:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T19:54:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-06T14:33:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-09T14:32:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-10T14:32:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-12T14:33:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-12T15:43:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-13T14:32:00.000Z",
+     "minutes": 95
+    }
+   ],
+   "driftPct": 3.181,
+   "bandPct": {
+    "low": -1.15,
+    "high": 2.85
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 945,
+    "600": 945,
+    "900": 945,
+    "1200": 945,
+    "1800": 945,
+    "3000": 945,
+    "6000": 945,
+    "12000": 945
+   },
+   "spikes": 10,
+   "spikeThresholdBps": 68.63,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.17x the day average; busiest NY hours measured: 09:00 (3.30x), 10:00 (1.52x), 11:00 (1.01x), 15:00 (0.76x)"
+   },
+   "comp": {
+    "file": "COST.comp.json",
+    "activeMinutes": 29030,
+    "segments": 228,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -10.91,
+     "high": 6.79
+    },
+    "driftPct": 0.529
+   },
+   "pool": "modes"
+  },
+  "JPM": {
+   "file": "JPM.playlist.json",
+   "class": "stocks",
+   "score": 6.4464,
+   "medRange": 0.22100000000000364,
+   "medBps": 6.473,
+   "activeMinutes": 1250,
+   "segments": 14,
+   "seams": 13,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-02T20:24:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 205
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 225
+    },
+    {
+     "from": "2026-11-05T18:21:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-05T19:31:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-11T15:17:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 70
+    }
+   ],
+   "driftPct": -3.323,
+   "bandPct": {
+    "low": -3.67,
+    "high": 3.1
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1250,
+    "600": 1250,
+    "900": 1250,
+    "1200": 1250,
+    "1800": 1250,
+    "3000": 1250,
+    "6000": 1250,
+    "12000": 1250
+   },
+   "spikes": 13,
+   "spikeThresholdBps": 55.85,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.11x the day average; busiest NY hours measured: 09:00 (2.52x), 10:00 (1.48x), 11:00 (1.02x), 15:00 (0.80x)"
+   },
+   "comp": {
+    "file": "JPM.comp.json",
+    "activeMinutes": 36885,
+    "segments": 224,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -4.13,
+     "high": 13.42
+    },
+    "driftPct": 0.425
+   },
+   "pool": "modes"
+  },
+  "CC": {
+   "file": "CC.playlist.json",
+   "class": "futures",
+   "score": 5.6894,
+   "medRange": 5.685999999999694,
+   "medBps": 11.083,
+   "activeMinutes": 1030,
+   "segments": 23,
+   "seams": 22,
+   "windows": [
+    {
+     "from": "2026-11-02T09:49:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T12:09:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T12:59:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T14:31:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-02T15:11:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T16:11:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-03T12:56:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T14:21:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T13:19:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-04T14:04:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T15:04:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-05T09:49:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-06T13:00:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-06T15:17:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-09T09:49:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-10T09:45:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-10T12:55:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T14:30:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-10T15:55:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T13:26:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-11T14:26:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-12T13:10:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T16:25:00.000Z",
+     "minutes": 35
+    }
+   ],
+   "driftPct": -3.544,
+   "bandPct": {
+    "low": -4.2,
+    "high": 3.41
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 782,
+    "600": 768,
+    "900": 758,
+    "1200": 748,
+    "1800": 729,
+    "3000": 709,
+    "6000": 659,
+    "12000": 559
+   },
+   "spikes": 11,
+   "spikeThresholdBps": 57.22,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 04:00 (2.04x), 08:00 (1.23x), 05:00 (1.19x), 09:00 (1.18x)"
+   },
+   "comp": {
+    "file": "CC.comp.json",
+    "activeMinutes": 54240,
+    "segments": 207,
+    "sourceDays": 207.8,
+    "bandPct": {
+     "low": -7.66,
+     "high": 4.59
+    },
+    "driftPct": 1.704
+   },
+   "pool": "modes"
+  },
+  "V": {
+   "file": "V.playlist.json",
+   "class": "stocks",
+   "score": 5.4646,
+   "medRange": 0.2310000000000514,
+   "medBps": 5.483,
+   "activeMinutes": 1175,
+   "segments": 18,
+   "seams": 17,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T15:29:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T20:09:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-03T15:33:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-04T20:22:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-05T17:16:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-05T18:56:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T20:06:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-06T16:00:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 50
+    }
+   ],
+   "driftPct": 3.598,
+   "bandPct": {
+    "low": -1.1,
+    "high": 3.45
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1051,
+    "600": 1044,
+    "900": 1039,
+    "1200": 1034,
+    "1800": 1024,
+    "3000": 1004,
+    "6000": 954,
+    "12000": 854
+   },
+   "spikes": 12,
+   "spikeThresholdBps": 53.48,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.13x the day average; busiest NY hours measured: 09:00 (2.85x), 10:00 (1.27x), 15:00 (1.05x), 11:00 (0.89x)"
+   },
+   "comp": {
+    "file": "V.comp.json",
+    "activeMinutes": 34375,
+    "segments": 245,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -10.85,
+     "high": 4.4
+    },
+    "driftPct": 0.322
+   },
+   "pool": "modes"
+  },
+  "UBER": {
+   "file": "UBER.playlist.json",
+   "class": "stocks",
+   "score": 5.4162,
+   "medRange": 0.06100000000000705,
+   "medBps": 8.999,
+   "activeMinutes": 1205,
+   "segments": 15,
+   "seams": 14,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 155
+    },
+    {
+     "from": "2026-11-04T20:07:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-05T18:26:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T19:06:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-09T15:44:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-10T15:33:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 95
+    }
+   ],
+   "driftPct": 5.321,
+   "bandPct": {
+    "low": -0.33,
+    "high": 7.31
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1081,
+    "600": 1074,
+    "900": 1069,
+    "1200": 1064,
+    "1800": 1054,
+    "3000": 1034,
+    "6000": 984,
+    "12000": 884
+   },
+   "spikes": 13,
+   "spikeThresholdBps": 77.59,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.13x the day average; busiest NY hours measured: 09:00 (2.85x), 10:00 (1.36x), 11:00 (0.87x), 15:00 (0.84x)"
+   },
+   "comp": {
+    "file": "UBER.comp.json",
+    "activeMinutes": 37505,
+    "segments": 228,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -12.45,
+     "high": 8.32
+    },
+    "driftPct": -0.608
+   },
+   "pool": "modes"
+  },
+  "SB": {
+   "file": "SB.playlist.json",
+   "class": "futures",
+   "score": 5.2371,
+   "medRange": 0.27100000000007185,
+   "medBps": 5.353,
+   "activeMinutes": 945,
+   "segments": 19,
+   "seams": 18,
+   "windows": [
+    {
+     "from": "2026-11-02T08:49:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-03T08:47:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-03T12:30:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-03T13:55:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-03T14:40:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-04T09:14:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T14:55:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-05T08:47:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T13:54:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-06T17:18:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T08:47:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-09T12:33:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-09T13:43:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T14:43:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-10T13:24:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-11T14:26:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T08:46:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T13:11:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-13T08:47:00.000Z",
+     "minutes": 30
+    }
+   ],
+   "driftPct": -0.999,
+   "bandPct": {
+    "low": -2.04,
+    "high": 1.13
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 821,
+    "600": 814,
+    "900": 809,
+    "1200": 804,
+    "1800": 794,
+    "3000": 774,
+    "6000": 724,
+    "12000": 624
+   },
+   "spikes": 10,
+   "spikeThresholdBps": 29.72,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 03:00 (2.25x), 04:00 (1.16x), 08:00 (1.14x), 09:00 (1.08x)"
+   },
+   "comp": {
+    "file": "SB.comp.json",
+    "activeMinutes": 54130,
+    "segments": 246,
+    "sourceDays": 207.7,
+    "bandPct": {
+     "low": -7.98,
+     "high": 12.7
+    },
+    "driftPct": 0.781
+   },
+   "pool": "modes"
+  },
+  "SI": {
+   "file": "SI.playlist.json",
+   "class": "futures",
+   "score": 5.2113,
+   "medRange": 0.03999999999999915,
+   "medBps": 7.819,
+   "activeMinutes": 4870,
+   "segments": 56,
+   "seams": 55,
+   "windows": [
+    {
+     "from": "2026-11-02T00:45:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-02T02:30:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-02T05:45:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-02T13:20:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-02T14:20:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-03T00:38:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-03T02:23:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-03T05:28:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-03T06:18:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T12:13:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T12:48:00.000Z",
+     "minutes": 175
+    },
+    {
+     "from": "2026-11-04T00:13:00.000Z",
+     "minutes": 220
+    },
+    {
+     "from": "2026-11-04T03:53:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T04:38:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T05:13:00.000Z",
+     "minutes": 135
+    },
+    {
+     "from": "2026-11-04T07:58:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T12:13:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T12:48:00.000Z",
+     "minutes": 225
+    },
+    {
+     "from": "2026-11-05T00:28:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-05T05:28:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-05T08:03:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T12:58:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-05T14:28:00.000Z",
+     "minutes": 210
+    },
+    {
+     "from": "2026-11-05T17:58:00.000Z",
+     "minutes": 200
+    },
+    {
+     "from": "2026-11-05T23:08:00.000Z",
+     "minutes": 255
+    },
+    {
+     "from": "2026-11-06T05:03:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-06T07:28:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-06T11:48:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T12:58:00.000Z",
+     "minutes": 165
+    },
+    {
+     "from": "2026-11-08T23:52:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-09T02:22:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-09T05:27:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T12:52:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T13:42:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T14:12:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-09T16:02:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T19:37:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-10T00:57:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-10T02:27:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-10T05:32:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T09:02:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-10T12:57:00.000Z",
+     "minutes": 135
+    },
+    {
+     "from": "2026-11-10T15:17:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-11T00:58:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-11T05:33:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-11T14:33:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-11T23:58:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T00:53:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T01:28:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-12T05:33:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-12T08:28:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-12T12:58:00.000Z",
+     "minutes": 200
+    },
+    {
+     "from": "2026-11-13T00:59:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-13T05:19:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-13T13:14:00.000Z",
+     "minutes": 195
+    },
+    {
+     "from": "2026-11-13T21:19:00.000Z",
+     "minutes": 40
+    }
+   ],
+   "driftPct": 6.543,
+   "bandPct": {
+    "low": -1.38,
+    "high": 7.53
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 4002,
+    "600": 3953,
+    "900": 3918,
+    "1200": 3883,
+    "1800": 3813,
+    "3000": 3673,
+    "6000": 3324,
+    "12000": 2901
+   },
+   "spikes": 49,
+   "spikeThresholdBps": 40.31,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 20:00 (1.82x), 08:00 (1.74x), 09:00 (1.55x), 10:00 (1.33x)"
+   },
+   "comp": {
+    "file": "SI.comp.json",
+    "activeMinutes": 140225,
+    "segments": 431,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -6.03,
+     "high": 5.38
+    },
+    "driftPct": 0.426
+   },
+   "pool": "modes"
+  },
+  "NQ": {
+   "file": "NQ.playlist.json",
+   "class": "futures",
+   "score": 5.2017,
+   "medRange": 14.554000000000087,
+   "medBps": 5.202,
+   "activeMinutes": 4395,
+   "segments": 41,
+   "seams": 40,
+   "windows": [
+    {
+     "from": "2026-11-02T14:25:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-02T15:55:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T17:45:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-02T19:25:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-02T23:00:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T14:25:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-03T23:55:00.000Z",
+     "minutes": 225
+    },
+    {
+     "from": "2026-11-04T03:45:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-04T05:50:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-04T12:05:00.000Z",
+     "minutes": 135
+    },
+    {
+     "from": "2026-11-04T14:25:00.000Z",
+     "minutes": 170
+    },
+    {
+     "from": "2026-11-04T17:20:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-04T20:30:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T00:50:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-05T14:25:00.000Z",
+     "minutes": 410
+    },
+    {
+     "from": "2026-11-05T23:00:00.000Z",
+     "minutes": 230
+    },
+    {
+     "from": "2026-11-06T02:55:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-06T04:40:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-06T07:25:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-06T09:25:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-06T12:35:00.000Z",
+     "minutes": 475
+    },
+    {
+     "from": "2026-11-06T20:35:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-08T23:04:00.000Z",
+     "minutes": 165
+    },
+    {
+     "from": "2026-11-09T01:54:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T06:04:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-09T07:24:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-09T08:59:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T10:54:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T14:24:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-09T15:49:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-09T19:39:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T13:14:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-10T14:14:00.000Z",
+     "minutes": 270
+    },
+    {
+     "from": "2026-11-11T14:24:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-11T23:04:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-12T13:04:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-12T14:24:00.000Z",
+     "minutes": 195
+    },
+    {
+     "from": "2026-11-12T17:49:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-12T18:49:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-13T14:25:00.000Z",
+     "minutes": 265
+    },
+    {
+     "from": "2026-11-13T20:45:00.000Z",
+     "minutes": 30
+    }
+   ],
+   "driftPct": -2.674,
+   "bandPct": {
+    "low": -5.96,
+    "high": 2.21
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 3899,
+    "600": 3871,
+    "900": 3851,
+    "1200": 3831,
+    "1800": 3791,
+    "3000": 3711,
+    "6000": 3511,
+    "12000": 3111
+   },
+   "spikes": 44,
+   "spikeThresholdBps": 33.24,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 10:00 (1.99x), 09:00 (1.74x), 11:00 (1.53x), 16:00 (1.22x)"
+   },
+   "comp": {
+    "file": "NQ.comp.json",
+    "activeMinutes": 98230,
+    "segments": 461,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -9.18,
+     "high": 5.46
+    },
+    "driftPct": -0.272
+   },
+   "pool": "modes"
+  },
+  "WMT": {
+   "file": "WMT.playlist.json",
+   "class": "stocks",
+   "score": 4.9973,
+   "medRange": 0.0799999999999983,
+   "medBps": 6.279,
+   "activeMinutes": 1280,
+   "segments": 15,
+   "seams": 14,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-04T20:17:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 235
+    },
+    {
+     "from": "2026-11-05T18:41:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T19:26:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T20:01:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-12T15:46:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 100
+    }
+   ],
+   "driftPct": -0.127,
+   "bandPct": {
+    "low": -1.39,
+    "high": 2.6
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1032,
+    "600": 1018,
+    "900": 1008,
+    "1200": 998,
+    "1800": 978,
+    "3000": 938,
+    "6000": 838,
+    "12000": 638
+   },
+   "spikes": 13,
+   "spikeThresholdBps": 46.53,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.14x the day average; busiest NY hours measured: 09:00 (2.88x), 10:00 (1.47x), 11:00 (0.95x), 15:00 (0.83x)"
+   },
+   "comp": {
+    "file": "WMT.comp.json",
+    "activeMinutes": 34785,
+    "segments": 221,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -12.72,
+     "high": 6.39
+    },
+    "driftPct": 0.201
+   },
+   "pool": "modes"
+  },
+  "SPY": {
+   "file": "SPY.playlist.json",
+   "class": "stocks",
+   "score": 4.6925,
+   "medRange": 0.3509999999999991,
+   "medBps": 4.705,
+   "activeMinutes": 1360,
+   "segments": 13,
+   "seams": 12,
+   "windows": [
+    {
+     "from": "2026-11-02T17:44:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T20:19:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 135
+    },
+    {
+     "from": "2026-11-05T14:31:00.000Z",
+     "minutes": 385
+    },
+    {
+     "from": "2026-11-06T14:30:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-06T17:00:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T14:33:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-10T17:28:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T14:31:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-12T16:01:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-13T14:30:00.000Z",
+     "minutes": 135
+    }
+   ],
+   "driftPct": -3.773,
+   "bandPct": {
+    "low": -2.71,
+    "high": 1.24
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1360,
+    "600": 1360,
+    "900": 1360,
+    "1200": 1360,
+    "1800": 1360,
+    "3000": 1360,
+    "6000": 1360,
+    "12000": 1360
+   },
+   "spikes": 14,
+   "spikeThresholdBps": 23.43,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.05x the day average; busiest NY hours measured: 09:00 (1.61x), 10:00 (1.37x), 11:00 (1.10x), 12:00 (0.88x)"
+   },
+   "comp": {
+    "file": "SPY.comp.json",
+    "activeMinutes": 27785,
+    "segments": 174,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -4.24,
+     "high": 1.73
+    },
+    "driftPct": -1.168
+   },
+   "pool": "modes"
+  },
+  "GC": {
+   "file": "GC.playlist.json",
+   "class": "futures",
+   "score": 4.1009,
+   "medRange": 1.643000000000029,
+   "medBps": 4.102,
+   "activeMinutes": 4510,
+   "segments": 55,
+   "seams": 54,
+   "windows": [
+    {
+     "from": "2026-11-02T00:45:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-02T02:30:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T13:10:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-02T15:15:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T00:25:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-03T12:45:00.000Z",
+     "minutes": 185
+    },
+    {
+     "from": "2026-11-03T23:20:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T00:15:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T01:00:00.000Z",
+     "minutes": 210
+    },
+    {
+     "from": "2026-11-04T04:35:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T05:10:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-04T07:55:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T09:05:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T12:05:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T12:55:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-04T14:20:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-04T16:25:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-05T00:15:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-05T02:25:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-05T05:25:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-05T09:00:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T13:00:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-05T14:25:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-05T17:00:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-05T19:40:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T20:25:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-05T23:05:00.000Z",
+     "minutes": 285
+    },
+    {
+     "from": "2026-11-06T05:00:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-06T06:10:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-06T08:00:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-06T13:00:00.000Z",
+     "minutes": 165
+    },
+    {
+     "from": "2026-11-08T23:54:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-09T01:54:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-09T12:49:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T13:29:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-09T19:39:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-10T01:00:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-10T02:30:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T09:00:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-10T13:00:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-10T16:10:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-11T01:01:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-11T14:26:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-11T23:51:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-12T01:01:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-12T01:41:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-12T05:31:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-12T07:06:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T08:06:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-12T13:01:00.000Z",
+     "minutes": 245
+    },
+    {
+     "from": "2026-11-13T00:47:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-13T02:47:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-13T05:22:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-13T13:17:00.000Z",
+     "minutes": 195
+    },
+    {
+     "from": "2026-11-15T23:01:00.000Z",
+     "minutes": 40
+    }
+   ],
+   "driftPct": 3.479,
+   "bandPct": {
+    "low": -0.7,
+    "high": 6.92
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 4262,
+    "600": 4248,
+    "900": 4238,
+    "1200": 4228,
+    "1800": 4208,
+    "3000": 4168,
+    "6000": 4068,
+    "12000": 3868
+   },
+   "spikes": 46,
+   "spikeThresholdBps": 21.66,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 20:00 (1.74x), 08:00 (1.73x), 09:00 (1.56x), 10:00 (1.36x)"
+   },
+   "comp": {
+    "file": "GC.comp.json",
+    "activeMinutes": 142745,
+    "segments": 454,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -11.8,
+     "high": 9.59
+    },
+    "driftPct": -0.41
+   },
+   "pool": "modes"
+  },
+  "PYPL": {
+   "file": "PYPL.playlist.json",
+   "class": "stocks",
+   "score": 3.8567,
+   "medRange": 0.04999999999999716,
+   "medBps": 8.289,
+   "activeMinutes": 1070,
+   "segments": 14,
+   "seams": 13,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-02T20:30:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T14:34:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-04T14:33:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-04T16:13:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T14:32:00.000Z",
+     "minutes": 270
+    },
+    {
+     "from": "2026-11-05T20:07:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-06T14:31:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-06T17:31:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T14:30:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-10T14:34:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-11T14:30:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-12T14:30:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-13T14:33:00.000Z",
+     "minutes": 95
+    }
+   ],
+   "driftPct": 4.912,
+   "bandPct": {
+    "low": -2.69,
+    "high": 3.19
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1070,
+    "600": 1070,
+    "900": 1070,
+    "1200": 1070,
+    "1800": 1070,
+    "3000": 1070,
+    "6000": 1070,
+    "12000": 1070
+   },
+   "spikes": 11,
+   "spikeThresholdBps": 64.87,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.12x the day average; busiest NY hours measured: 09:00 (2.67x), 10:00 (1.38x), 11:00 (0.90x), 15:00 (0.83x)"
+   },
+   "comp": {
+    "file": "PYPL.comp.json",
+    "activeMinutes": 30370,
+    "segments": 224,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -7.02,
+     "high": 5.2
+    },
+    "driftPct": 1.461
+   },
+   "pool": "modes"
+  },
+  "NFLX": {
+   "file": "NFLX.playlist.json",
+   "class": "stocks",
+   "score": 3.6385,
+   "medRange": 0.04999999999999716,
+   "medBps": 7.662,
+   "activeMinutes": 1120,
+   "segments": 13,
+   "seams": 12,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-03T14:33:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T14:33:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-05T14:32:00.000Z",
+     "minutes": 165
+    },
+    {
+     "from": "2026-11-05T17:22:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T18:22:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T19:02:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-06T14:31:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-09T14:30:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-10T14:30:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-11T14:30:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-12T14:30:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-13T14:34:00.000Z",
+     "minutes": 130
+    }
+   ],
+   "driftPct": -3.007,
+   "bandPct": {
+    "low": -1.77,
+    "high": 2.43
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1120,
+    "600": 1120,
+    "900": 1120,
+    "1200": 1120,
+    "1800": 1120,
+    "3000": 1120,
+    "6000": 1120,
+    "12000": 1120
+   },
+   "spikes": 12,
+   "spikeThresholdBps": 57.53,
+   "sessionHint": {
+    "label": "US cash session 09:30-16:00 New York",
+    "held": "did not hold",
+    "note": "hint hours run at 1.13x the day average; busiest NY hours measured: 09:00 (2.83x), 10:00 (1.36x), 11:00 (0.93x), 15:00 (0.79x)"
+   },
+   "comp": {
+    "file": "NFLX.comp.json",
+    "activeMinutes": 36665,
+    "segments": 200,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -6.44,
+     "high": 2.28
+    },
+    "driftPct": 1.495
+   },
+   "pool": "modes"
+  },
+  "PL": {
+   "file": "PL.playlist.json",
+   "class": "futures",
+   "score": 3.6347,
+   "medRange": 1.0499999999999545,
+   "medBps": 6.927,
+   "activeMinutes": 4350,
+   "segments": 48,
+   "seams": 47,
+   "windows": [
+    {
+     "from": "2026-11-02T00:55:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-02T02:30:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T13:41:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-03T00:37:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-03T02:27:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-03T05:32:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T12:12:00.000Z",
+     "minutes": 185
+    },
+    {
+     "from": "2026-11-03T15:22:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T00:17:00.000Z",
+     "minutes": 155
+    },
+    {
+     "from": "2026-11-04T02:57:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-04T04:32:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-04T07:47:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-04T08:52:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-04T12:07:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-04T14:22:00.000Z",
+     "minutes": 185
+    },
+    {
+     "from": "2026-11-05T00:14:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-05T02:24:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-05T05:24:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T12:59:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-05T14:09:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-05T16:41:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-05T18:26:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-05T23:41:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-06T00:31:00.000Z",
+     "minutes": 200
+    },
+    {
+     "from": "2026-11-06T05:26:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-06T07:41:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-06T09:31:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T11:46:00.000Z",
+     "minutes": 170
+    },
+    {
+     "from": "2026-11-06T14:43:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-08T23:57:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-09T12:47:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T13:27:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-09T19:37:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-10T05:28:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T09:34:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-10T12:54:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-10T16:04:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-11T00:55:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-11T12:45:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-11T14:30:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-12T00:52:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-12T05:32:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T07:47:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T12:52:00.000Z",
+     "minutes": 195
+    },
+    {
+     "from": "2026-11-13T00:58:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-13T05:23:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-13T13:13:00.000Z",
+     "minutes": 165
+    },
+    {
+     "from": "2026-11-13T16:03:00.000Z",
+     "minutes": 35
+    }
+   ],
+   "driftPct": 10.176,
+   "bandPct": {
+    "low": -3.91,
+    "high": 5.38
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 3819,
+    "600": 3791,
+    "900": 3771,
+    "1200": 3751,
+    "1800": 3711,
+    "3000": 3631,
+    "6000": 3431,
+    "12000": 3092
+   },
+   "spikes": 44,
+   "spikeThresholdBps": 37.42,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 20:00 (1.71x), 08:00 (1.70x), 09:00 (1.56x), 10:00 (1.50x)"
+   },
+   "comp": {
+    "file": "PL.comp.json",
+    "activeMinutes": 142305,
+    "segments": 441,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -5.14,
+     "high": 2.67
+    },
+    "driftPct": 1.04
+   },
+   "pool": "modes"
+  },
+  "RTY": {
+   "file": "RTY.playlist.json",
+   "class": "futures",
+   "score": 2.9002,
+   "medRange": 0.9049999999997453,
+   "medBps": 3.206,
+   "activeMinutes": 4970,
+   "segments": 44,
+   "seams": 43,
+   "windows": [
+    {
+     "from": "2026-11-02T13:20:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T14:25:00.000Z",
+     "minutes": 400
+    },
+    {
+     "from": "2026-11-03T12:15:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T13:20:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-03T14:20:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-03T23:55:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-04T02:40:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-04T04:30:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-04T08:00:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T09:00:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T10:10:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-04T11:55:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-04T13:15:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T14:25:00.000Z",
+     "minutes": 290
+    },
+    {
+     "from": "2026-11-04T20:25:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T14:20:00.000Z",
+     "minutes": 415
+    },
+    {
+     "from": "2026-11-05T23:00:00.000Z",
+     "minutes": 205
+    },
+    {
+     "from": "2026-11-06T02:30:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T03:40:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-06T06:45:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-06T09:50:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-06T10:45:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-06T13:00:00.000Z",
+     "minutes": 385
+    },
+    {
+     "from": "2026-11-06T19:25:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-08T23:04:00.000Z",
+     "minutes": 165
+    },
+    {
+     "from": "2026-11-09T06:59:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-09T07:54:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-09T11:09:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T12:44:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T13:29:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T14:19:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-09T19:29:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-09T20:29:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T08:59:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T13:24:00.000Z",
+     "minutes": 355
+    },
+    {
+     "from": "2026-11-10T20:29:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-11T14:24:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-12T13:04:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-12T14:24:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-12T17:54:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T18:49:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-12T20:04:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-13T13:29:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T14:14:00.000Z",
+     "minutes": 290
+    }
+   ],
+   "driftPct": -2.051,
+   "bandPct": {
+    "low": -3.3,
+    "high": 2.65
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 4474,
+    "600": 4446,
+    "900": 4426,
+    "1200": 4406,
+    "1800": 4366,
+    "3000": 4286,
+    "6000": 4086,
+    "12000": 3686
+   },
+   "spikes": 50,
+   "spikeThresholdBps": 23.68,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 10:00 (2.17x), 09:00 (1.96x), 11:00 (1.68x), 08:00 (1.38x)"
+   },
+   "comp": {
+    "file": "RTY.comp.json",
+    "activeMinutes": 120770,
+    "segments": 374,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -2.99,
+     "high": 9.44
+    },
+    "driftPct": -1.189
+   },
+   "pool": "modes"
+  },
+  "ES": {
+   "file": "ES.playlist.json",
+   "class": "futures",
+   "score": 2.8826,
+   "medRange": 2.144999999999527,
+   "medBps": 2.883,
+   "activeMinutes": 4825,
+   "segments": 44,
+   "seams": 43,
+   "windows": [
+    {
+     "from": "2026-11-02T14:26:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-02T16:06:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T17:46:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-02T19:01:00.000Z",
+     "minutes": 130
+    },
+    {
+     "from": "2026-11-03T13:16:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-03T14:21:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-03T17:46:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T23:36:00.000Z",
+     "minutes": 210
+    },
+    {
+     "from": "2026-11-04T03:11:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-04T04:56:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T10:11:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T12:01:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T12:46:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T14:26:00.000Z",
+     "minutes": 250
+    },
+    {
+     "from": "2026-11-05T08:56:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T14:11:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-05T16:43:00.000Z",
+     "minutes": 270
+    },
+    {
+     "from": "2026-11-05T23:03:00.000Z",
+     "minutes": 335
+    },
+    {
+     "from": "2026-11-06T04:48:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-06T06:58:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-06T09:48:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T10:48:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T11:43:00.000Z",
+     "minutes": 175
+    },
+    {
+     "from": "2026-11-06T14:39:00.000Z",
+     "minutes": 390
+    },
+    {
+     "from": "2026-11-08T23:03:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-09T06:58:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-09T08:58:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T12:48:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T13:28:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T14:23:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-09T19:38:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T20:28:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T09:05:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T13:20:00.000Z",
+     "minutes": 365
+    },
+    {
+     "from": "2026-11-10T19:30:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T14:26:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-11T19:01:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-11T23:01:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-12T13:07:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-12T14:27:00.000Z",
+     "minutes": 195
+    },
+    {
+     "from": "2026-11-12T17:47:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-12T19:32:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-13T14:23:00.000Z",
+     "minutes": 290
+    },
+    {
+     "from": "2026-11-13T19:53:00.000Z",
+     "minutes": 35
+    }
+   ],
+   "driftPct": -3.807,
+   "bandPct": {
+    "low": -3.73,
+    "high": 1.68
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 4329,
+    "600": 4301,
+    "900": 4281,
+    "1200": 4261,
+    "1800": 4221,
+    "3000": 4141,
+    "6000": 3941,
+    "12000": 3541
+   },
+   "spikes": 49,
+   "spikeThresholdBps": 18.79,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 10:00 (2.04x), 09:00 (1.69x), 11:00 (1.55x), 12:00 (1.35x)"
+   },
+   "comp": {
+    "file": "ES.comp.json",
+    "activeMinutes": 101260,
+    "segments": 458,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -6.3,
+     "high": 2.56
+    },
+    "driftPct": -0.581
+   },
+   "pool": "modes"
+  },
+  "YM": {
+   "file": "YM.playlist.json",
+   "class": "futures",
+   "score": 2.6202,
+   "medRange": 13.59599999999773,
+   "medBps": 2.621,
+   "activeMinutes": 4785,
+   "segments": 47,
+   "seams": 46,
+   "windows": [
+    {
+     "from": "2026-11-02T13:30:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T14:15:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-02T17:20:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-02T18:25:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T19:00:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-02T20:15:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-03T08:45:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-03T12:40:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T13:15:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-03T14:20:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-04T00:20:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T01:00:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-04T02:35:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T05:05:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T08:00:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-04T09:10:00.000Z",
+     "minutes": 150
+    },
+    {
+     "from": "2026-11-04T11:50:00.000Z",
+     "minutes": 325
+    },
+    {
+     "from": "2026-11-04T17:20:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T18:00:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T20:30:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T08:45:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-05T12:45:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T13:55:00.000Z",
+     "minutes": 440
+    },
+    {
+     "from": "2026-11-05T23:00:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-06T01:00:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-06T03:40:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T07:30:00.000Z",
+     "minutes": 715
+    },
+    {
+     "from": "2026-11-06T19:30:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-08T23:24:00.000Z",
+     "minutes": 140
+    },
+    {
+     "from": "2026-11-09T06:59:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-09T08:59:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T11:04:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T12:39:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T13:29:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T14:24:00.000Z",
+     "minutes": 145
+    },
+    {
+     "from": "2026-11-09T19:34:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T09:00:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-10T13:20:00.000Z",
+     "minutes": 215
+    },
+    {
+     "from": "2026-11-10T17:00:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-11T14:26:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-11T19:01:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T23:01:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-12T13:06:00.000Z",
+     "minutes": 230
+    },
+    {
+     "from": "2026-11-12T17:01:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-12T17:46:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-12T18:51:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-13T14:12:00.000Z",
+     "minutes": 255
+    }
+   ],
+   "driftPct": -1.463,
+   "bandPct": {
+    "low": -1.68,
+    "high": 3.28
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 4661,
+    "600": 4654,
+    "900": 4649,
+    "1200": 4644,
+    "1800": 4634,
+    "3000": 4614,
+    "6000": 4564,
+    "12000": 4464
+   },
+   "spikes": 48,
+   "spikeThresholdBps": 16.94,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 09:00 (2.01x), 10:00 (1.98x), 11:00 (1.52x), 08:00 (1.37x)"
+   },
+   "comp": {
+    "file": "YM.comp.json",
+    "activeMinutes": 108940,
+    "segments": 405,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -6.24,
+     "high": 2.88
+    },
+    "driftPct": -1.582
+   },
+   "pool": "modes"
+  },
+  "KC": {
+   "file": "KC.playlist.json",
+   "class": "futures",
+   "score": 2.5293,
+   "medRange": 0.20500000000004093,
+   "medBps": 7.522,
+   "activeMinutes": 1410,
+   "segments": 25,
+   "seams": 24,
+   "windows": [
+    {
+     "from": "2026-11-02T09:19:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-02T10:55:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T12:46:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T13:43:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-02T14:23:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-02T15:33:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-03T09:57:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-03T12:22:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-03T13:32:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-03T16:22:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-04T14:32:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T15:27:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T16:12:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T09:17:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T12:57:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T13:27:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-06T14:54:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-09T13:51:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T13:19:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-12T12:58:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-12T15:38:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-13T10:59:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-13T11:54:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-13T12:59:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-13T14:24:00.000Z",
+     "minutes": 65
+    }
+   ],
+   "driftPct": 3.909,
+   "bandPct": {
+    "low": -3.08,
+    "high": 2.04
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 999,
+    "600": 985,
+    "900": 975,
+    "1200": 965,
+    "1800": 945,
+    "3000": 905,
+    "6000": 805,
+    "12000": 605
+   },
+   "spikes": 15,
+   "spikeThresholdBps": 42.44,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 08:00 (1.33x), 04:00 (1.33x), 09:00 (1.23x), 10:00 (1.13x)"
+   },
+   "comp": {
+    "file": "KC.comp.json",
+    "activeMinutes": 55520,
+    "segments": 223,
+    "sourceDays": 207.8,
+    "bandPct": {
+     "low": -6.52,
+     "high": 6.71
+    },
+    "driftPct": 1.265
+   },
+   "pool": "modes"
+  },
+  "HG": {
+   "file": "HG.playlist.json",
+   "class": "futures",
+   "score": 1.5393,
+   "medRange": 0.0027999999999996916,
+   "medBps": 4.405,
+   "activeMinutes": 4595,
+   "segments": 56,
+   "seams": 55,
+   "windows": [
+    {
+     "from": "2026-11-02T01:00:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-02T02:40:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T13:41:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T14:26:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-03T05:52:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-03T07:52:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T08:37:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-03T09:37:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-03T12:12:00.000Z",
+     "minutes": 230
+    },
+    {
+     "from": "2026-11-04T00:20:00.000Z",
+     "minutes": 195
+    },
+    {
+     "from": "2026-11-04T03:50:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-04T04:40:00.000Z",
+     "minutes": 270
+    },
+    {
+     "from": "2026-11-04T12:50:00.000Z",
+     "minutes": 290
+    },
+    {
+     "from": "2026-11-05T01:00:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-05T02:25:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-05T05:15:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-05T06:55:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T07:45:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-05T08:55:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T13:00:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-05T13:50:00.000Z",
+     "minutes": 135
+    },
+    {
+     "from": "2026-11-05T16:42:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-05T19:52:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-06T00:52:00.000Z",
+     "minutes": 155
+    },
+    {
+     "from": "2026-11-06T05:27:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-06T07:12:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-06T09:47:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T11:57:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-06T13:02:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-06T14:44:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-06T15:44:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T16:19:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-08T23:58:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-09T05:23:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-09T07:38:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T12:33:00.000Z",
+     "minutes": 105
+    },
+    {
+     "from": "2026-11-09T14:28:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-09T16:18:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T09:03:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T12:25:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T13:05:00.000Z",
+     "minutes": 140
+    },
+    {
+     "from": "2026-11-10T15:51:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-11T00:57:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T01:47:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T05:32:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-11T13:02:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-11T14:32:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T02:27:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T05:32:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-12T08:57:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-12T13:01:00.000Z",
+     "minutes": 220
+    },
+    {
+     "from": "2026-11-13T01:01:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-13T02:31:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T05:31:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T07:51:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-13T13:16:00.000Z",
+     "minutes": 145
+    }
+   ],
+   "driftPct": -4.564,
+   "bandPct": {
+    "low": -1.07,
+    "high": 3.53
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 4471,
+    "600": 4464,
+    "900": 4459,
+    "1200": 4454,
+    "1800": 4444,
+    "3000": 4424,
+    "6000": 4374,
+    "12000": 4274
+   },
+   "spikes": 46,
+   "spikeThresholdBps": 18.89,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 08:00 (1.65x), 09:00 (1.50x), 20:00 (1.47x), 10:00 (1.34x)"
+   },
+   "comp": {
+    "file": "HG.comp.json",
+    "activeMinutes": 141370,
+    "segments": 456,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -5.14,
+     "high": 14.19
+    },
+    "driftPct": -1.724
+   },
+   "pool": "modes"
+  },
+  "ZB": {
+   "file": "ZB.playlist.json",
+   "class": "futures",
+   "score": 1.3261,
+   "medRange": 0.03200000000001069,
+   "medBps": 3.033,
+   "activeMinutes": 535,
+   "segments": 11,
+   "seams": 10,
+   "windows": [
+    {
+     "from": "2026-11-04T12:49:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T13:29:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-04T14:30:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T15:15:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-05T14:09:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-06T14:00:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-06T15:02:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-10T13:19:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-10T14:15:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-13T13:28:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T14:45:00.000Z",
+     "minutes": 65
+    }
+   ],
+   "driftPct": -0.09,
+   "bandPct": {
+    "low": -0.53,
+    "high": 0.87
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 535,
+    "600": 535,
+    "900": 535,
+    "1200": 535,
+    "1800": 535,
+    "3000": 535,
+    "6000": 535,
+    "12000": 535
+   },
+   "spikes": 6,
+   "spikeThresholdBps": 20.78,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 08:00 (1.70x), 09:00 (1.50x), 10:00 (1.37x), 11:00 (1.08x)"
+   },
+   "comp": {
+    "file": "ZB.comp.json",
+    "activeMinutes": 65085,
+    "segments": 442,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -4.13,
+     "high": 2.48
+    },
+    "driftPct": -0.941
+   },
+   "pool": "modes"
+  },
+  "PA": {
+   "file": "PA.playlist.json",
+   "class": "futures",
+   "score": 1.3178,
+   "medRange": 0.75,
+   "medBps": 7.313,
+   "activeMinutes": 3390,
+   "segments": 58,
+   "seams": 57,
+   "windows": [
+    {
+     "from": "2026-11-02T01:24:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-02T02:29:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T05:31:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-02T12:49:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-02T13:40:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-02T14:20:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-03T00:41:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-03T12:46:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-03T14:22:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-04T01:03:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T02:23:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-04T05:24:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-04T08:55:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T13:13:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T13:58:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-04T16:28:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T00:56:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-05T01:46:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T05:28:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T06:48:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T11:58:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T12:33:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-05T14:28:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T16:41:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-05T18:56:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T00:47:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-06T02:32:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-06T05:07:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-06T08:00:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T11:52:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-06T13:17:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-06T14:44:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-08T23:59:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T00:44:00.000Z",
+     "minutes": 110
+    },
+    {
+     "from": "2026-11-09T12:44:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-09T13:29:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T14:09:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-09T15:19:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T19:36:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T00:53:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T01:28:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T09:02:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-10T13:15:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-10T15:20:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-10T16:10:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-11T01:11:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-11T09:06:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-11T13:01:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-11T14:31:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-11T15:11:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T00:56:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T01:41:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-12T08:51:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T12:56:00.000Z",
+     "minutes": 210
+    },
+    {
+     "from": "2026-11-13T00:59:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-13T05:41:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-13T12:56:00.000Z",
+     "minutes": 190
+    },
+    {
+     "from": "2026-11-13T16:26:00.000Z",
+     "minutes": 30
+    }
+   ],
+   "driftPct": 7.691,
+   "bandPct": {
+    "low": -4.1,
+    "high": 5.88
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 3018,
+    "600": 2997,
+    "900": 2982,
+    "1200": 2967,
+    "1800": 2937,
+    "3000": 2877,
+    "6000": 2727,
+    "12000": 2427
+   },
+   "spikes": 34,
+   "spikeThresholdBps": 42.53,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 08:00 (1.77x), 20:00 (1.73x), 09:00 (1.61x), 10:00 (1.49x)"
+   },
+   "comp": {
+    "file": "PA.comp.json",
+    "activeMinutes": 141655,
+    "segments": 455,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -3.94,
+     "high": 4.3
+    },
+    "driftPct": -0.839
+   },
+   "pool": "modes"
+  },
+  "NG": {
+   "file": "NG.playlist.json",
+   "class": "futures",
+   "score": 0.6461,
+   "medRange": 0.002200000000000202,
+   "medBps": 7.271,
+   "activeMinutes": 2955,
+   "segments": 29,
+   "seams": 28,
+   "windows": [
+    {
+     "from": "2026-11-02T12:57:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T13:43:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-02T18:17:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T12:57:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-03T15:22:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-03T17:48:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T12:33:00.000Z",
+     "minutes": 140
+    },
+    {
+     "from": "2026-11-04T15:28:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T17:53:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-05T12:49:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T13:29:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-06T12:36:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-06T14:49:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-06T18:24:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-09T12:16:00.000Z",
+     "minutes": 200
+    },
+    {
+     "from": "2026-11-09T16:41:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T17:51:00.000Z",
+     "minutes": 125
+    },
+    {
+     "from": "2026-11-10T12:23:00.000Z",
+     "minutes": 175
+    },
+    {
+     "from": "2026-11-10T16:23:00.000Z",
+     "minutes": 165
+    },
+    {
+     "from": "2026-11-11T12:52:00.000Z",
+     "minutes": 140
+    },
+    {
+     "from": "2026-11-11T15:12:00.000Z",
+     "minutes": 275
+    },
+    {
+     "from": "2026-11-12T12:26:00.000Z",
+     "minutes": 315
+    },
+    {
+     "from": "2026-11-12T17:46:00.000Z",
+     "minutes": 120
+    },
+    {
+     "from": "2026-11-13T12:03:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-13T13:28:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-13T14:18:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-13T15:13:00.000Z",
+     "minutes": 160
+    },
+    {
+     "from": "2026-11-13T18:28:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T19:13:00.000Z",
+     "minutes": 30
+    }
+   ],
+   "driftPct": -0.645,
+   "bandPct": {
+    "low": -3.45,
+    "high": 4.87
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1816,
+    "600": 1760,
+    "900": 1720,
+    "1200": 1683,
+    "1800": 1617,
+    "3000": 1497,
+    "6000": 1197,
+    "12000": 747
+   },
+   "spikes": 30,
+   "spikeThresholdBps": 55.54,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 08:00 (2.17x), 09:00 (1.87x), 13:00 (1.67x), 11:00 (1.64x)"
+   },
+   "comp": {
+    "file": "NG.comp.json",
+    "activeMinutes": 103240,
+    "segments": 392,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -6.16,
+     "high": 3.05
+    },
+    "driftPct": 1.898
+   },
+   "pool": "modes"
+  },
+  "CT": {
+   "file": "CT.playlist.json",
+   "class": "futures",
+   "score": 0.4016,
+   "medRange": 0.02199999999999136,
+   "medBps": 2.719,
+   "activeMinutes": 790,
+   "segments": 17,
+   "seams": 16,
+   "windows": [
+    {
+     "from": "2026-11-02T09:11:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T13:03:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-03T14:13:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T14:53:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-04T05:30:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-04T07:57:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-04T08:52:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T09:37:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T15:05:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-05T08:29:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-05T14:21:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-05T16:43:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T17:18:00.000Z",
+     "minutes": 65
+    },
+    {
+     "from": "2026-11-06T14:50:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-09T14:32:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-09T15:42:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T14:34:00.000Z",
+     "minutes": 30
+    }
+   ],
+   "driftPct": 1.802,
+   "bandPct": {
+    "low": -0.63,
+    "high": 1.37
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 584,
+    "600": 577,
+    "900": 572,
+    "1200": 567,
+    "1800": 557,
+    "3000": 537,
+    "6000": 487,
+    "12000": 387
+   },
+   "spikes": 8,
+   "spikeThresholdBps": 23.05,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 09:00 (1.54x), 08:00 (1.47x), 10:00 (1.43x), 14:00 (1.33x)"
+   },
+   "comp": {
+    "file": "CT.comp.json",
+    "activeMinutes": 105945,
+    "segments": 434,
+    "sourceDays": 207.8,
+    "bandPct": {
+     "low": -3.97,
+     "high": 1.77
+    },
+    "driftPct": 0.714
+   },
+   "pool": "modes"
+  },
+  "6E": {
+   "file": "6E.playlist.json",
+   "class": "futures",
+   "score": 0.2676,
+   "medRange": 0.0001100000000000545,
+   "medBps": 0.986,
+   "activeMinutes": 5125,
+   "segments": 44,
+   "seams": 43,
+   "windows": [
+    {
+     "from": "2026-11-02T07:15:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-02T08:30:00.000Z",
+     "minutes": 140
+    },
+    {
+     "from": "2026-11-02T10:55:00.000Z",
+     "minutes": 95
+    },
+    {
+     "from": "2026-11-02T12:35:00.000Z",
+     "minutes": 270
+    },
+    {
+     "from": "2026-11-03T00:40:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-03T06:55:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-03T07:40:00.000Z",
+     "minutes": 205
+    },
+    {
+     "from": "2026-11-03T12:00:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T13:05:00.000Z",
+     "minutes": 195
+    },
+    {
+     "from": "2026-11-03T16:25:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T00:11:00.000Z",
+     "minutes": 670
+    },
+    {
+     "from": "2026-11-04T11:36:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-04T12:51:00.000Z",
+     "minutes": 345
+    },
+    {
+     "from": "2026-11-05T00:53:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-05T06:58:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-05T07:53:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T08:48:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-05T10:18:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T11:43:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-05T12:33:00.000Z",
+     "minutes": 315
+    },
+    {
+     "from": "2026-11-05T19:33:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T23:46:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T01:01:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-06T06:51:00.000Z",
+     "minutes": 235
+    },
+    {
+     "from": "2026-11-06T12:41:00.000Z",
+     "minutes": 260
+    },
+    {
+     "from": "2026-11-06T17:21:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-09T08:20:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-09T11:00:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T12:55:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T13:55:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-09T15:45:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T06:58:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-10T08:03:00.000Z",
+     "minutes": 100
+    },
+    {
+     "from": "2026-11-10T09:43:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T13:13:00.000Z",
+     "minutes": 205
+    },
+    {
+     "from": "2026-11-11T07:56:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-11T13:16:00.000Z",
+     "minutes": 155
+    },
+    {
+     "from": "2026-11-12T02:35:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T07:00:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-12T13:05:00.000Z",
+     "minutes": 225
+    },
+    {
+     "from": "2026-11-13T06:40:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-13T08:05:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-13T09:40:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-13T12:40:00.000Z",
+     "minutes": 240
+    }
+   ],
+   "driftPct": -1.372,
+   "bandPct": {
+    "low": -0.08,
+    "high": 1.22
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 4629,
+    "600": 4601,
+    "900": 4581,
+    "1200": 4561,
+    "1800": 4521,
+    "3000": 4441,
+    "6000": 4241,
+    "12000": 3910
+   },
+   "spikes": 52,
+   "spikeThresholdBps": 5.42,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 08:00 (1.84x), 09:00 (1.68x), 10:00 (1.68x), 03:00 (1.35x)"
+   },
+   "comp": {
+    "file": "6E.comp.json",
+    "activeMinutes": 135380,
+    "segments": 374,
+    "sourceDays": 210,
+    "bandPct": {
+     "low": -0.65,
+     "high": 2.79
+    },
+    "driftPct": -1.56
+   },
+   "pool": "modes"
+  },
+  "ZS": {
+   "file": "ZS.playlist.json",
+   "class": "futures",
+   "score": 0.2354,
+   "medRange": 0.26099999999996726,
+   "medBps": 2.168,
+   "activeMinutes": 1095,
+   "segments": 18,
+   "seams": 17,
+   "windows": [
+    {
+     "from": "2026-11-02T14:34:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-03T14:35:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-04T12:56:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-04T14:33:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-04T15:08:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-04T16:38:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-05T14:35:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-06T14:41:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-09T14:34:00.000Z",
+     "minutes": 60
+    },
+    {
+     "from": "2026-11-10T05:33:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T12:54:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-10T14:35:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-10T16:27:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-10T18:28:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-11T14:31:00.000Z",
+     "minutes": 80
+    },
+    {
+     "from": "2026-11-11T16:41:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T14:34:00.000Z",
+     "minutes": 90
+    },
+    {
+     "from": "2026-11-13T14:34:00.000Z",
+     "minutes": 75
+    }
+   ],
+   "driftPct": 2.492,
+   "bandPct": {
+    "low": -2.98,
+    "high": 0.77
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 1095,
+    "600": 1095,
+    "900": 1095,
+    "1200": 1095,
+    "1800": 1095,
+    "3000": 1095,
+    "6000": 1095,
+    "12000": 1095
+   },
+   "spikes": 11,
+   "spikeThresholdBps": 26.98,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 09:00 (2.52x), 12:00 (1.73x), 10:00 (1.72x), 14:00 (1.69x)"
+   },
+   "comp": {
+    "file": "ZS.comp.json",
+    "activeMinutes": 93995,
+    "segments": 512,
+    "sourceDays": 207.8,
+    "bandPct": {
+     "low": -11.92,
+     "high": 2.68
+    },
+    "driftPct": -0.792
+   },
+   "pool": "modes"
+  },
+  "DX": {
+   "file": "DX.playlist.json",
+   "class": "futures",
+   "score": 0.1573,
+   "medRange": 0.010000000000005116,
+   "medBps": 0.981,
+   "activeMinutes": 3920,
+   "segments": 44,
+   "seams": 43,
+   "windows": [
+    {
+     "from": "2026-11-02T07:15:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-02T08:40:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-02T10:50:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-02T11:30:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-02T12:45:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-02T13:41:00.000Z",
+     "minutes": 200
+    },
+    {
+     "from": "2026-11-02T17:46:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T06:58:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-03T07:53:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-03T09:58:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T12:03:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-03T13:03:00.000Z",
+     "minutes": 200
+    },
+    {
+     "from": "2026-11-04T01:04:00.000Z",
+     "minutes": 600
+    },
+    {
+     "from": "2026-11-04T11:34:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-04T12:49:00.000Z",
+     "minutes": 350
+    },
+    {
+     "from": "2026-11-05T01:00:00.000Z",
+     "minutes": 70
+    },
+    {
+     "from": "2026-11-05T06:59:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-05T08:59:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-05T11:59:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-05T12:34:00.000Z",
+     "minutes": 155
+    },
+    {
+     "from": "2026-11-05T16:58:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T01:03:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-06T06:29:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-06T08:29:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-06T09:19:00.000Z",
+     "minutes": 55
+    },
+    {
+     "from": "2026-11-06T13:09:00.000Z",
+     "minutes": 85
+    },
+    {
+     "from": "2026-11-06T14:41:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-09T13:26:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-09T14:16:00.000Z",
+     "minutes": 75
+    },
+    {
+     "from": "2026-11-09T15:46:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-09T19:36:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T07:59:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-10T09:05:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-10T13:25:00.000Z",
+     "minutes": 210
+    },
+    {
+     "from": "2026-11-11T07:55:00.000Z",
+     "minutes": 50
+    },
+    {
+     "from": "2026-11-11T13:18:00.000Z",
+     "minutes": 115
+    },
+    {
+     "from": "2026-11-11T15:13:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T08:18:00.000Z",
+     "minutes": 30
+    },
+    {
+     "from": "2026-11-12T12:50:00.000Z",
+     "minutes": 165
+    },
+    {
+     "from": "2026-11-12T15:40:00.000Z",
+     "minutes": 45
+    },
+    {
+     "from": "2026-11-12T16:30:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T06:32:00.000Z",
+     "minutes": 40
+    },
+    {
+     "from": "2026-11-13T12:45:00.000Z",
+     "minutes": 35
+    },
+    {
+     "from": "2026-11-13T13:25:00.000Z",
+     "minutes": 185
+    }
+   ],
+   "driftPct": 1.699,
+   "bandPct": {
+    "low": -0.98,
+    "high": 0.23
+   },
+   "loopJump": 0,
+   "validStarts": {
+    "180": 3130,
+    "600": 3095,
+    "900": 3070,
+    "1200": 3045,
+    "1800": 2995,
+    "3000": 2906,
+    "6000": 2706,
+    "12000": 2306
+   },
+   "spikes": 40,
+   "spikeThresholdBps": 4.84,
+   "sessionHint": {
+    "label": "-",
+    "held": "n/a",
+    "note": "busiest New York hours: 08:00 (1.74x), 09:00 (1.60x), 10:00 (1.51x), 11:00 (1.23x)"
+   },
+   "comp": {
+    "file": "DX.comp.json",
+    "activeMinutes": 127670,
+    "segments": 361,
+    "sourceDays": 207.9,
+    "bandPct": {
+     "low": -2.95,
+     "high": 0.94
+    },
+    "driftPct": 1.969
+   },
+   "pool": "modes"
   }
  },
- "compEpoch": 1893974400
+ "compEpoch": 1893974400,
+ "modesCuration": {
+  "builtFrom": "data/curated-modes",
+  "at": "2026-11-17",
+  "added": 47,
+  "skippedExisting": [
+   "AAPL"
+  ],
+  "excluded": [
+   "VX",
+   "MA",
+   "OJ"
+  ]
+ }
 }

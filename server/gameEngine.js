@@ -545,6 +545,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       checkpointMinute: r.checkpointMinute,
       host: r.host || null,
       resultHighlights: r.resultHighlights,
+      // Bell Rush / The Pit: say on screen that prices are a simulated replay.
+      simulatedLabel: (r.instrumentClasses || []).includes('stocks') ? 'Simulated stocks' : (r.instrumentClasses || []).includes('futures') ? 'Simulated futures' : null,
+      accent: r.accent || null,
     };
   }
 

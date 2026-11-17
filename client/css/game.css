@@ -1874,3 +1874,16 @@ html, body {
   border: 1px solid rgba(245, 184, 61, 0.35);
 }
 .stall-strip[hidden] { display: none; }
+
+/* Bell Rush / The Pit: prices are a simulated historical replay. */
+.simulated-chip {
+  align-self: center;
+  flex: 0 0 auto;
+  margin: 0 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: #9AA4B8;
+  border: 1px solid #1D2638;
+}

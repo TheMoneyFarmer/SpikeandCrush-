@@ -3712,7 +3712,7 @@ function modeDataReady(mode) {
   const classes = modeIdentity.rulesFor(mode).instrumentClasses;
   if (!classes.some((c) => c === 'stocks' || c === 'futures')) return true;
   const speed = Math.max(1, Number((require('./config/gameFeel').get().market.replaySpeed || {})[mode]) || 1);
-  const ready = instrumentsRegistry.playableSymbols(mode).filter((s) => classes.includes(instrumentsRegistry.getInstrument(s).category) && instrumentsRegistry.actionWindowCount(s, mm.durationSeconds * speed) > 0);
+  const ready = instrumentsRegistry.playableSymbols(mode).filter((s) => classes.includes(instrumentsRegistry.getInstrument(s).category) && instrumentsRegistry.actionWindowCount(s, mm.durationSeconds * speed) >= require('./actionEngine').cfg().minEligibleWindows);
   return ready.length >= Math.min(mm.instrumentCount, 4);
 }
 

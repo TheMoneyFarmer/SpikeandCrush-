@@ -619,6 +619,9 @@ window.TW = window.TW || {};
     // Elimination: the public cut-based mode (internal key 'tournament').
     // User-made bracket tournaments stay on /tournaments.
     document.getElementById('modeTournamentBtn')?.addEventListener('click', () => withModeTutorial('elimination', () => startMatch('tournament')));
+    // Bell Rush (stocks only) and The Pit (futures only): shown once the mode catalog lists them.
+    document.getElementById('modeStocksBtn')?.addEventListener('click', () => startMatch('stocks'));
+    document.getElementById('modeFuturesBtn')?.addEventListener('click', () => startMatch('futures'));
 
     document.getElementById('joinPrivateBtn')?.addEventListener('click', () => {
       const input = document.getElementById('joinRoomCodeInput');

@@ -74,6 +74,25 @@ async function runMode(mode, { players = 4, opts = {}, checkpoints = [], extra }
     },
   });
 
+  // Bell Rush (stocks only) and The Pit (futures only).
+  const instr = require('../server/instruments');
+  await runMode('stocks', {
+    checkpoints: [60, 200, 400, 550],
+    extra: ({ match, hands, results }) => {
+      check(match.instruments.length === 8 && match.instruments.every((s) => instr.INSTRUMENTS[s].category === 'stocks'), `stocks only (${match.instruments.join(' ')})`);
+      check(hands.every((n) => n === 5), `5 cards dealt (${hands.join('/')})`);
+      check(results.every((r) => r.mode && r.mode.key === 'stocks'), 'results carry the mode block');
+    },
+  });
+  await runMode('futures', {
+    checkpoints: [60, 300, 600, 850],
+    extra: ({ match, hands, results }) => {
+      check(match.instruments.length === 6 && match.instruments.every((s) => instr.INSTRUMENTS[s].category === 'futures'), `futures only (${match.instruments.join(' ')})`);
+      check(hands.every((n) => n === 5), `5 cards dealt (${hands.join('/')})`);
+      check(results.every((r) => r.mode && r.mode.key === 'futures'), 'results carry the mode block');
+    },
+  });
+
   await runMode('blitz', {
     checkpoints: [20, 60, 120, 170],
     extra: ({ match, hands, results }) => {
