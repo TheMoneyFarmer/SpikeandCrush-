@@ -49,7 +49,7 @@ test('forward: fetches body and attachments, sends once with reply-to the sender
   const body = JSON.parse(send.opts.body);
   assert.deepStrictEqual(body.to, ['me@gmail.com']);
   assert.deepStrictEqual(body.reply_to, ['jo@partner.example']);
-  assert.match(body.subject, /^\[hello@\] Partnership$/);
+  assert.strictEqual(body.subject, 'Partnership', 'subject unchanged, so replies carry no tag');
   assert.strictEqual(body.attachments[0].filename, 'deck.pdf');
   assert.strictEqual(Buffer.from(body.attachments[0].content, 'base64').toString(), 'pdf');
   assert.strictEqual(send.opts.headers['Idempotency-Key'], 'inbound-fwd:em_1');

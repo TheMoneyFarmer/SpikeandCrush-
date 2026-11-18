@@ -82,7 +82,8 @@ function createInboundForwarder({ fetchImpl = (...a) => fetch(...a), apiKey = ()
     const body = {
       from: from(),
       to,
-      subject: `[hello@] ${email.subject || '(no subject)'}`.slice(0, 250),
+      // the original subject, untouched: a reply from the inbox reads "Re: <their subject>"
+      subject: String(email.subject || '(no subject)').slice(0, 250),
       ...(replyTo.length ? { reply_to: replyTo } : {}),
       html: `<div style="font:13px Arial,sans-serif;color:#555;border-bottom:1px solid #ddd;padding:0 0 8px;margin:0 0 12px">${esc(note)}</div>${email.html || `<pre style="white-space:pre-wrap;font:14px Arial,sans-serif">${esc(email.text || '')}</pre>`}`,
       text: `${note}\n\n${email.text || ''}`,
