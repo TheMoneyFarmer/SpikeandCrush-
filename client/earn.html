@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- seo:start -->
+<title>Earn coins | Spike &amp; Crush</title>
+<meta name="description" content="Daily rewards, achievements and tasks that pay coins for playing." />
+<meta name="robots" content="noindex, nofollow" />
+<link rel="canonical" href="https://www.spikeandcrush.com/earn" />
+<meta name="theme-color" content="#14213d" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta property="og:site_name" content="Spike &amp; Crush" />
+<meta property="og:title" content="Earn coins | Spike &amp; Crush" />
+<meta property="og:description" content="Daily rewards, achievements and tasks that pay coins for playing." />
+<meta property="og:url" content="https://www.spikeandcrush.com/earn" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://www.spikeandcrush.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Spike &amp; Crush, the competitive trading game. Up. Then not." />
+<meta name="twitter:card" content="summary_large_image" />
+<!-- seo:end -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sc_theme")==="light"?"light":"default";d.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="/icons/cards.svg" type="image/svg+xml" />
+<link rel="icon" href="/icons/cards-32.png" type="image/png" sizes="32x32" />
+<link rel="alternate icon" href="/favicon.ico" sizes="48x48" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/themes.css" />
+<link rel="stylesheet" href="css/tutorial.css" />
+<link rel="stylesheet" href="css/premium.css" />
+<link rel="stylesheet" href="/css/mobile.css">
+<style>
+  .er-wrap { max-width: 860px; margin: 0 auto; padding: 16px; }
+  .er-h1 { font-family: Rajdhani, Inter, sans-serif; font-size: 30px; margin: 0; }
+  .er-sub { color: #9AA4B8; margin: 4px 0 0; font-size: 14px; }
+  .er-panel { background: #0E1320; border: 1px solid #1D2638; border-radius: 12px; padding: 16px; margin-top: 14px; }
+  .er-panel h2 { font-family: Rajdhani, Inter, sans-serif; font-size: 20px; margin: 0 0 4px; }
+  .er-note { color: #9AA4B8; font-size: 13px; margin: 0 0 12px; }
+  .er-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .er-day { background: #111724; border: 1px solid #1D2638; border-radius: 10px; padding: 8px 4px; text-align: center; }
+  .er-day b { display: block; font-size: 16px; color: #F5B83D; }
+  .er-day span { font-size: 11px; color: #9AA4B8; }
+  .er-day.done { border-color: #2EE6A6; }
+  .er-day.done b { color: #2EE6A6; }
+  .er-day.today { border-color: #F5B83D; box-shadow: 0 0 0 1px #F5B83D inset; }
+  .er-row { display: flex; align-items: center; gap: 12px; background: #111724; border: 1px solid #1D2638; border-radius: 10px; padding: 10px 12px; }
+  .er-list { display: grid; gap: 8px; }
+  .er-row .er-main { flex: 1; min-width: 0; }
+  .er-row .er-label { font-size: 14px; color: #E8ECF4; }
+  .er-row .er-meta { font-size: 12px; color: #9AA4B8; margin-top: 2px; }
+  .er-bar { height: 6px; background: #1D2638; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .er-bar i { display: block; height: 100%; background: #F5B83D; }
+  .er-coins { color: #F5B83D; font-weight: 700; font-size: 13px; white-space: nowrap; }
+  .er-btn { min-height: 40px; padding: 0 16px; border-radius: 10px; border: 0; background: #F5B83D; color: #07090F; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap; }
+  .er-btn[disabled] { background: #1D2638; color: #9AA4B8; cursor: default; }
+  .er-tag { font-size: 12px; color: #2EE6A6; font-weight: 600; white-space: nowrap; }
+  .er-wb { border-color: #F5B83D; }
+  .er-total { font-size: 13px; color: #9AA4B8; margin-top: 8px; }
+  @media (max-width: 520px) { .er-days { grid-template-columns: repeat(4, minmax(0, 1fr)); } .er-row { flex-wrap: wrap; } }
+</style>
+  <link rel="stylesheet" href="/css/console.css" />
+<script src="/js/analytics.js" defer></script>
+</head>
+<body data-page="earn">
+  <div id="twNav" data-active="earn"></div>
+  <main class="er-wrap">
+    <h1 class="er-h1">Earn coins</h1>
+    <p class="er-sub">Coins come from playing: daily rewards, wins, levels, achievements and invites. They have no cash value.</p>
+    <p class="er-sub" id="erLogin" hidden>Log in to collect rewards. <a href="/?login=required">Log in</a></p>
+    <section class="er-panel er-wb" id="erWb" hidden>
+      <h2>Welcome back</h2>
+      <p class="er-note" id="erWbText"></p>
+      <button class="er-btn" id="erWbBtn" type="button">Collect</button>
+    </section>
+    <section class="er-panel" id="erStreak" hidden>
+      <h2>Daily reward</h2>
+      <p class="er-note">Collect once a day. Come back every day for a bigger reward; missing a day starts again at day 1.</p>
+      <div class="er-days" id="erDays"></div>
+      <div style="margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><button class="er-btn" id="erStreakBtn" type="button">Collect</button><span class="er-meta" id="erStreakMsg" style="color:#9AA4B8;font-size:13px;"></span></div>
+    </section>
+    <section class="er-panel" id="erStarterWrap" hidden>
+      <h2>Getting started</h2>
+      <p class="er-note">One-time coins for your first steps.</p>
+      <div class="er-list" id="erStarter"></div>
+    </section>
+    <section class="er-panel" id="erAutoWrap" hidden>
+      <h2>Paid automatically</h2>
+      <p class="er-note">These arrive on their own when you play.</p>
+      <div class="er-list" id="erAuto"></div>
+    </section>
+    <section class="er-panel" id="erAchWrap" hidden>
+      <h2>Achievements</h2>
+      <p class="er-note">Milestones that pay once.</p>
+      <div class="er-list" id="erAch"></div>
+    </section>
+    <section class="er-panel">
+      <h2>Invite friends</h2>
+      <p class="er-note">Get coins for each friend who joins with your link and finishes their first match.</p>
+      <a class="er-btn" href="/wallet" style="display:inline-flex;align-items:center;text-decoration:none;">Get my invite link</a>
+    </section>
+    <p class="er-total" id="erTotal"></p>
+  </main>
+  <script src="js/main.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="/js/earn.js"></script>
+  <footer class="legal-footer">
+    <div class="legal-footer-content">
+      <p class="legal-text">
+        Spike &amp; Crush is a skill-based competitive trading game. All matches are conducted using simulated virtual accounts with historical market data for entertainment purposes only. No real money is traded. No real financial instruments are bought or sold. This platform does not constitute financial advice, investment advice, or any form of regulated financial activity. Past performance in simulated environments does not reflect real market outcomes. Play responsibly.
+      </p>
+      <p class="legal-text legal-coins">Coins have no cash value and cannot be withdrawn or exchanged for money.</p>
+      <p class="legal-links">
+        <a href="/competitions">Competitions</a> · <a href="/sponsor">Sponsor</a> · <a href="/contact">Contact</a> · <a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a> · <a href="/cookies">Cookies</a> · <a href="/responsible">Responsible Gaming</a><span data-cookie-settings hidden> · <a href="/cookies">Cookie settings</a></span>
+      </p>
+      <p class="legal-support">For support: <a href="mailto:hello@spikeandcrush.com">hello@spikeandcrush.com</a></p>
+      <p class="legal-text" data-company-line hidden></p>
+      <p class="legal-text">© 2026 Spike &amp; Crush</p>
+    </div>
+  </footer>
+  <script src="js/support-widget.js"></script>
+  <script src="/js/orientation.js"></script>
+  <script src="/js/bottom-nav.js"></script>
+</body>
+</html>

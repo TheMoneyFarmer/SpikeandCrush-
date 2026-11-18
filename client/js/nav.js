@@ -13,6 +13,7 @@ window.TW = window.TW || {};
     { key: 'tournaments', label: 'Tournaments', href: '/competitions' },
     { key: 'cards', label: 'Cards', href: '/cards' },
     { key: 'shop', label: 'Shop', href: '/shop' },
+    { key: 'earn', label: 'Earn coins', href: '/earn' },
     { key: 'wallet', label: 'Wallet', href: '/wallet' },
     { key: 'battle-pass', label: 'Battle Pass', href: '/battle-pass' },
     { key: 'settings', label: 'Settings', href: '/settings' },
@@ -63,6 +64,7 @@ window.TW = window.TW || {};
     { key: 'leaderboard', label: 'Ranks', href: '/leaderboard' },
     { key: 'cards', label: 'Cards', href: '/cards' },
     { key: 'shop', label: 'Shop', href: '/shop' },
+    { key: 'earn', label: 'Earn', href: '/earn' },
     { key: 'wallet', label: 'Wallet', href: '/wallet' },
   ];
   const AVATAR_MENU = [

@@ -3,7 +3,9 @@
 ## What it does
 
 - `server/liveMarket.js` connects to Coinbase Exchange's public market data (no account, no key): the WebSocket `ticker` channel for every trade, and the REST candles endpoint for history.
-- Served today: **BTCUSD, ETHUSD**. Forex, metals, energy, indices and stocks need a licensed live feed and are not served; a live competition drops them and logs why.
+- Served today: **BTCUSD, ETHUSD** plus 8 live-only coins: **SOLUSD, XRPUSD, DOGEUSD, ADAUSD, LTCUSD, LINKUSD, AVAXUSD, BCHUSD** (`instruments.LIVE_INSTRUMENTS`: never in war matches or the replay, which have no data for them). Forex, metals, energy, indices and stocks need a licensed live feed and are not served; a live competition drops them and logs why.
+- Feed health = BTC and ETH traded in the last 30 s. Any single coin with no trade for 90 s is closed to new trades on its own.
+- Scheduled live runs (Daily Open, Weekend Open) take their hours from the admin template (`server/compSchedule.js`), are free to enter, carry the template's partner, and are money-prize competitions: settlement sends winners to Admin > Competition Winners. Weekend Open uses the template's instrument list (add coins there); Daily Open uses every open market the feed serves.
 - Prices: one per second that traded (72 hours in memory). After a restart the last 50 hours of 1-minute bars are reloaded, so SL/TP and stop-out checks walk any gap (wicks included).
 - Health: socket open and every served symbol traded in the last 30 seconds. While unhealthy, a live competition's quotes are "market closed": new trades are blocked, closing still works.
 - The game server writes `liveFeed.heartbeatAt` every 15 seconds while healthy (deployed servers only); the admin panel reads it.

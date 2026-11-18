@@ -402,6 +402,8 @@ function isFull(match) {
 
 function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, isPlayerOnSite) {
   let onFlatAlert = null; // set by index.js: throttled email when a match goes flat
+  let earnSvc = null;
+  const earn = () => (earnSvc ||= require('./earn').createEarn({ db, notify: (...a) => notifyPlayer?.(...a) }));
   const matches = new Map();
   const roomCodeIndex = new Map(); // roomCode -> matchId
   const socketSessions = new Map(); // socketId -> { matchId, playerId }
@@ -3058,6 +3060,14 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       } catch (e) {
         console.warn('[progression] XP award failed for', r.username, e.message);
       }
+    }));
+    // Coins earned by playing (server/earn.js): first win of the day, level-ups,
+    // the Daily Challenge. Separate from match prizes; each paid once by key.
+    await Promise.all(results.map(async (r) => {
+      const p = match.players[r.playerId];
+      if (!p || r.isAI || !db.isConfigured) return;
+      if (!r.fire) r.fire = {};
+      r.fire.earned = await earn().onMatchEnd(match, p, r, r.fire.progress).catch(() => []);
     }));
 
     match.status = 'finished';

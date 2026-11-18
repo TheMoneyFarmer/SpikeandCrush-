@@ -386,8 +386,24 @@ const DEFAULT_MODE_CLASSES = ['forex', 'metals', 'indices', 'commodities', 'cryp
 
 const CATEGORIES = Object.keys(INSTRUMENTS).reduce((set, sym) => set.add(INSTRUMENTS[sym].category), new Set());
 
+// Live-only coins: traded only in live-data competitions (server/liveMarket.js,
+// Coinbase prices). They are NOT in INSTRUMENTS, so no war match, replay,
+// ticker or curation ever deals them (there is no replay data for them).
+// getInstrument() finds them so quotes, P&L and margin work in a live competition.
+const crypto_ = (name, nick, decimals, spread, minLot, maxLot) => ({ name, category: 'crypto', nickname: nick, pipSize: 10 ** -decimals, pipValue: 10 ** -decimals, spread, contractSize: 1, minLot, maxLot, decimals, dataFile: null, liveOnly: true });
+const LIVE_INSTRUMENTS = {
+  SOLUSD: crypto_('Solana', ['solana', 'sol'], 2, 0.06, 0.01, 2000),
+  XRPUSD: crypto_('XRP', ['xrp', 'ripple'], 4, 0.0006, 1, 100000),
+  DOGEUSD: crypto_('Dogecoin', ['dogecoin', 'doge'], 5, 0.00006, 10, 1000000),
+  ADAUSD: crypto_('Cardano', ['cardano', 'ada'], 4, 0.0002, 1, 100000),
+  LTCUSD: crypto_('Litecoin', ['litecoin', 'ltc'], 2, 0.06, 0.01, 2000),
+  LINKUSD: crypto_('Chainlink', ['chainlink', 'link'], 3, 0.008, 0.1, 20000),
+  AVAXUSD: crypto_('Avalanche', ['avalanche', 'avax'], 3, 0.008, 0.1, 20000),
+  BCHUSD: crypto_('Bitcoin Cash', ['bitcoin cash', 'bch'], 2, 0.3, 0.01, 500),
+};
+
 function getInstrument(symbol) {
-  return INSTRUMENTS[symbol] || null;
+  return INSTRUMENTS[symbol] || LIVE_INSTRUMENTS[symbol] || null;
 }
 
 function listInstruments() {
@@ -1054,6 +1070,7 @@ function preloadAll() {
 
 module.exports = {
   INSTRUMENTS,
+  LIVE_INSTRUMENTS,
   DEFAULT_MODE_CLASSES,
   CATEGORIES: Array.from(CATEGORIES),
   getInstrument,

@@ -191,6 +191,13 @@
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
     }
     if (isStandalone()) {
+      // Earn coins > Getting started: opened from the home screen, once per account.
+      try {
+        const token = window.TW && TW.getToken && TW.getToken();
+        if (token && ls.get('tw_earn_installed') !== '1') {
+          fetch('/api/earn/installed', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).then((r) => { if (r.ok) ls.set('tw_earn_installed', '1'); }).catch(() => {});
+        }
+      } catch (e) { /* best effort */ }
       try {
         if (!sessionStorage.getItem('tw_pwa_session')) { sessionStorage.setItem('tw_pwa_session', '1'); send('standalone_session'); }
       } catch (e) { /* ignore */ }

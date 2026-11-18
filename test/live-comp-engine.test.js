@@ -63,6 +63,27 @@ test('creating a live competition: real-time window, live instruments only, hone
   if (!(replay instanceof Error)) assert.ok(!('data_source' in replay) || replay.data_source !== 'live', 'replay stays replay');
 });
 
+test('a scheduled live Open: free entry, partner money prizes, every live coin, never a coin pool', async () => {
+  const startsAt = new Date(now + 3600000);
+  const row = await engine.createCompetition({ frequency: 'weekend', title: 'Weekend Open', description: 'x', instruments: [], startsAt, endsAt: new Date(now + 2 * 86400000), entryFee: 0, payouts: [], calendarPool: true, dataSource: 'live', money: { templateKey: 'weekend', partnerId: 'partner-1', currency: 'USD' } });
+  assert.strictEqual(row.prize_kind, 'money');
+  assert.strictEqual(row.entry_fee_coins, 0);
+  assert.strictEqual(row.prize_pool_coins, 0);
+  assert.deepStrictEqual(row.prize_payouts, []);
+  assert.strictEqual(row.template_key, 'weekend');
+  assert.strictEqual(row.partner_id, 'partner-1');
+  for (const s of ['BTCUSD', 'ETHUSD', 'SOLUSD', 'XRPUSD', 'DOGEUSD']) assert.ok(row.instruments.includes(s), `${s} in the live pool`);
+  assert.ok(!row.instruments.includes('EURUSD'), 'no forex without a forex feed');
+});
+
+test('live-only coins never reach war matches or the replay', () => {
+  const instruments = require('../server/instruments');
+  assert.ok(!('SOLUSD' in instruments.INSTRUMENTS));
+  assert.ok(!instruments.playableSymbols('quick').includes('SOLUSD'));
+  assert.strictEqual(instruments.getInstrument('SOLUSD').liveOnly, true, 'but quotes and P&L can find it');
+  assert.strictEqual(instruments.calculatePnL('BUY', 2, 100, 101, 'SOLUSD'), 2);
+});
+
 test('live chart: unshifted times, history from the feed', async () => {
   const d = await engine.getChartData('live', 'pa', 'BTCUSD');
   assert.ok(Math.abs(d.compTime - nowSec) <= 2, 'chart clock is real time');

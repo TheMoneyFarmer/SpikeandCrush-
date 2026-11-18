@@ -3556,11 +3556,44 @@ app.post('/api/progression/prestige', requireDb, authenticate, async (req, res) 
     const prog = await loadProgression(player);
     const out = await endgame.doPrestige(db.client(), player, prog.standing.xp);
     if (db.grantCosmetics) await db.grantCosmetics([{ player_id: player.id, item_id: `prestige_badge_${Math.min(out.prestige, 10)}`, source: 'prestige' }]).catch(() => {});
-    res.json({ success: true, prestige: out.prestige });
+    const coins = await earnService.onPrestige(player.id, out.prestige).catch(() => null);
+    res.json({ success: true, prestige: out.prestige, coins: coins ? coins.coins : 0 });
   } catch (e) {
     res.status(e.status || 500).json({ error: e.status ? e.message : 'Could not prestige right now' });
   }
 });
+
+// ---- Earn coins by playing (server/earn.js) --------------------------------------
+const earnService = require('./earn').createEarn({ db, notify: notifyPlayer });
+app.get('/api/earn', requireDb, authenticate, async (req, res) => {
+  try {
+    res.json(await earnService.status(await db.getPlayerById(req.tokenPlayer.id), req.user));
+  } catch (e) {
+    console.error('[earn status]', e.message);
+    res.status(500).json({ error: 'Could not load rewards right now' });
+  }
+});
+app.post('/api/earn/claim', requireDb, authenticate, async (req, res) => {
+  const { kind, id } = req.body || {};
+  if (!['streak', 'starter', 'achievement', 'welcome_back'].includes(kind)) return res.status(400).json({ error: 'Unknown reward' });
+  try {
+    const out = await earnService.claim(await db.getPlayerById(req.tokenPlayer.id), req.user, kind, typeof id === 'string' ? id.slice(0, 40) : null);
+    if (out.error) return res.status(400).json(out);
+    res.json(out);
+  } catch (e) {
+    console.error('[earn claim]', e.message);
+    res.status(500).json({ error: 'Could not collect right now' });
+  }
+});
+// The installed app reports itself once (Getting started task).
+app.post('/api/earn/installed', requireDb, authenticate, async (req, res) => {
+  try {
+    res.json(await earnService.markInstalled(await db.getPlayerById(req.tokenPlayer.id)));
+  } catch (e) {
+    res.status(500).json({ error: 'Could not save' });
+  }
+});
+app.get('/earn', (req, res) => res.sendFile(path.join(CLIENT_DIR, 'earn.html')));
 
 // This week's Twist (fire-layer rule change) for the lobby line.
 app.get('/api/twists/current', cacheJson(10000), (req, res) => res.json({ twist: require('./twists').publicTwist(endgame.runtime.twist) }));
@@ -4650,6 +4683,13 @@ server.listen(PORT, () => {
   // Live prices for live-data competitions (server/liveMarket.js). Only a
   // deployed server writes the health heartbeat other processes trust.
   require('./liveFeed').start(require('./envCheck').alertsEnabled() ? db : null);
+  // Weekly leaderboard coins (Monday, last week's top 3 per tier). Deployed
+  // servers only, so a local copy never pays real players; keys stop repeats.
+  if (db.isConfigured && require('./envCheck').alertsEnabled()) {
+    const runWeekly = () => earnService.weeklyJob().then((r) => r.paid && console.log('[earn weekly]', JSON.stringify(r))).catch((e) => console.warn('[earn weekly]', e.message));
+    setTimeout(runWeekly, 60000).unref();
+    setInterval(runWeekly, 3600000).unref();
+  }
   compEngine.start();
   startRetention(db);
   // Admin records: new trade columns and the event log switch on only once

@@ -964,6 +964,7 @@ function createCompEngine({ io, notifyPlayer }) {
     isTest = false,
     calendarPool = false,
     dataSource = 'replay',
+    money = null, // { templateKey, partnerId, currency }: partner money prizes, free entry
   }) {
     const id = crypto.randomUUID();
     const comp = { data_source: dataSource === 'live' ? 'live' : 'replay' }; // picks the price source below
@@ -971,7 +972,9 @@ function createCompEngine({ io, notifyPlayer }) {
     // market is open for the whole window (server/marketCalendar.js). A stock
     // never appears on a Saturday; nothing is faked open.
     if (calendarPool) {
-      const pool = require('./marketCalendar').poolFor(new Date(startsAt).getTime(), new Date(endsAt).getTime(), instruments.INSTRUMENTS);
+      // live competitions may also use the live-only coins (instruments.LIVE_INSTRUMENTS)
+      const registry = comp.data_source === 'live' ? { ...instruments.INSTRUMENTS, ...instruments.LIVE_INSTRUMENTS } : instruments.INSTRUMENTS;
+      const pool = require('./marketCalendar').poolFor(new Date(startsAt).getTime(), new Date(endsAt).getTime(), registry);
       const open = new Set(pool.symbols);
       wanted = (wanted && wanted.length ? wanted : pool.symbols).filter((s) => open.has(s));
       if (!wanted.length) throw new Error(`No market is open for the whole of "${title}" (${new Date(startsAt).toISOString()} to ${new Date(endsAt).toISOString()})`);
@@ -982,7 +985,8 @@ function createCompEngine({ io, notifyPlayer }) {
       startsAt,
       endsAt,
       replaySpeed,
-      instruments: competitionInstruments(wanted),
+      // replay picks from curated replay data; live takes what the feed serves
+      instruments: comp.data_source === 'live' ? wanted : competitionInstruments(wanted),
       usedStarts,
     });
     for (const d of window.dropped) console.warn(`[compEngine] ${title}: dropped ${d.symbol} - ${d.reason}`);
@@ -1012,6 +1016,9 @@ function createCompEngine({ io, notifyPlayer }) {
       is_test: isTest,
       data_window_start: window.dataWindowStart,
       ...(comp.data_source === 'live' ? { data_source: 'live' } : {}),
+      // Partner money prizes: free entry, no coin pool; settle() sends the
+      // winners to admin review with the template's prize table.
+      ...(money ? { prize_kind: 'money', entry_fee_coins: 0, prize_pool_coins: 0, prize_payouts: [], prize_details: {}, template_key: money.templateKey, prize_currency: money.currency, ...(money.partnerId ? { partner_id: money.partnerId } : {}) } : {}),
       status: new Date(startsAt).getTime() <= Date.now() ? 'active' : 'scheduled',
     });
   }
@@ -1056,6 +1063,32 @@ function createCompEngine({ io, notifyPlayer }) {
       const st = states && states[frequency];
       if (st && (!compStates.ENTERABLE_STATES.includes(st.state) || (st.data_source === 'live' && !liveOk))) continue;
       const existing = await db.listCompetitionsByFrequency(frequency, new Date(Date.now() - 40 * DAY_MS).toISOString());
+      // Live templates (Daily Open, Weekend Open): the admin template decides
+      // the hours (server/compSchedule.js), entry is free and prizes are the
+      // partner's money prizes (winners reviewed, server/compRewards.js), never coins.
+      if (st && st.data_source === 'live') {
+        const slot = require('./compSchedule').nextWindow(st, Date.now());
+        if (!slot || existing.some((c) => new Date(c.starts_at).getTime() === slot.startsAt.getTime())) continue;
+        try {
+          const row = await createCompetition({
+            frequency,
+            title: st.title || tpl.title,
+            description: st.format_hook || tpl.description,
+            instruments: (st.instruments && st.instruments.length) ? st.instruments : [],
+            startsAt: slot.startsAt,
+            endsAt: slot.endsAt,
+            entryFee: 0,
+            payouts: [],
+            calendarPool: true,
+            dataSource: 'live',
+            money: { templateKey: st.key, partnerId: st.partner_id || null, currency: st.prize_currency || 'USD' },
+          });
+          created.push(`${frequency} live ${row.starts_at.slice(0, 16)} (${row.instruments.length} instruments)`);
+        } catch (e) {
+          console.error(`[compEngine] could not schedule ${frequency}:`, e.message);
+        }
+        continue;
+      }
       for (const slot of slotsFor(tpl, Date.now())) {
         if (existing.some((c) => new Date(c.starts_at).getTime() === slot.startsAt.getTime())) continue;
         try {

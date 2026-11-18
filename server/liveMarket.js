@@ -15,16 +15,26 @@
 // A price at time t is the last tick at or before t; before the first tick
 // it walks the 1-minute bar (open, low/high, close) like the replay does.
 //
-// healthy(): socket open and every served symbol traded in the last
-// STALE_SECONDS. A live competition never trades on a stale price: quotes are
-// marketClosed (new trades blocked, closing allowed) while the feed is stale.
+// healthy(): socket open and BTC and ETH traded in the last HEALTH_SECONDS.
+// A live competition never trades on a stale price: a coin with no trade for
+// STALE_SECONDS, or any coin while the feed is unhealthy, quotes marketClosed
+// (new trades blocked, closing allowed).
 
 const WS_URL = 'wss://ws-feed.exchange.coinbase.com';
 const REST = 'https://api.exchange.coinbase.com';
-const PRODUCTS = { BTCUSD: 'BTC-USD', ETHUSD: 'ETH-USD' };
+const PRODUCTS = {
+  BTCUSD: 'BTC-USD', ETHUSD: 'ETH-USD',
+  // live-only coins (server/instruments.js LIVE_INSTRUMENTS)
+  SOLUSD: 'SOL-USD', XRPUSD: 'XRP-USD', DOGEUSD: 'DOGE-USD', ADAUSD: 'ADA-USD',
+  LTCUSD: 'LTC-USD', LINKUSD: 'LINK-USD', AVAXUSD: 'AVAX-USD', BCHUSD: 'BCH-USD',
+};
+// Feed health is judged on the busiest markets; a quieter coin that has not
+// traded for STALE_SECONDS is closed to new trades on its own.
+const CORE = ['BTCUSD', 'ETHUSD'];
+const HEALTH_SECONDS = 30;
 const KEEP_TICK_SECONDS = 72 * 3600;
 const BACKFILL_SECONDS = 50 * 3600;
-const STALE_SECONDS = 30;
+const STALE_SECONDS = 90;
 const BASE_SECONDS = 300;
 
 function createLiveMarket({ products = PRODUCTS, fetchImpl = (...a) => fetch(...a), WebSocketImpl = globalThis.WebSocket, now = () => Date.now(), log = console } = {}) {
@@ -209,7 +219,7 @@ function createLiveMarket({ products = PRODUCTS, fetchImpl = (...a) => fetch(...
   function healthy() {
     if (!open) return false;
     const t = Math.floor(now() / 1000);
-    return Object.keys(products).every((s) => { const b = ticks[s]; return b.t.length && t - b.t[b.t.length - 1] <= STALE_SECONDS; });
+    return CORE.filter((s) => products[s]).every((s) => { const b = ticks[s]; return b.t.length && t - b.t[b.t.length - 1] <= HEALTH_SECONDS; });
   }
 
   function status() {
