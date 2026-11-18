@@ -38,12 +38,13 @@ test('calendar: a weekday US cash session has every class; Saturday only crypto;
   assert.strictEqual(calendar.openAt('stocks', Date.parse('2026-07-15T13:29:00Z')), false);
 });
 
-test('data source: the replay is labelled "Demo market data"; the live stub refuses to run', () => {
+test('data source: chosen per competition; replay is "Demo market data"; live is not healthy until the feed runs', () => {
   const ds = require('../server/marketDataSource');
-  assert.strictEqual(ds.current().name, 'historical');
-  assert.strictEqual(ds.label(), 'Demo market data');
-  assert.throws(() => ds.LiveFeed.getPriceAt('BTCUSD', 0), /Live feed not connected/);
-  assert.strictEqual(ds.LiveFeed.healthy(), false, 'stub is never healthy, so canGoLive stays false and competitions stay Coming soon');
+  assert.strictEqual(ds.current({}).name, 'historical', 'default is the replay');
+  assert.strictEqual(ds.forComp({ data_source: 'live' }).name, 'live');
+  assert.strictEqual(ds.label({}), 'Demo market data');
+  assert.strictEqual(ds.LiveFeed.getPriceAt('BTCUSD', 0), null, 'no live data in tests');
+  assert.strictEqual(ds.LiveFeed.healthy(), false, 'feed not started, so canGoLive stays false and competitions stay Coming soon');
   assert.ok(!/\blive\b/i.test(ds.HistoricalReplay.label));
 });
 

@@ -4647,6 +4647,9 @@ for (const r of instrumentReport) {
 
 server.listen(PORT, () => {
   console.log(`Spike & Crush server listening on http://localhost:${PORT}`);
+  // Live prices for live-data competitions (server/liveMarket.js). Only a
+  // deployed server writes the health heartbeat other processes trust.
+  require('./liveFeed').start(require('./envCheck').alertsEnabled() ? db : null);
   compEngine.start();
   startRetention(db);
   // Admin records: new trade columns and the event log switch on only once

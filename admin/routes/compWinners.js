@@ -190,7 +190,9 @@ function router() {
     if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return res.status(400).json({ error: 'Give a start and an end' });
     const registry = require('../../server/instruments').INSTRUMENTS;
     const pool = calendar.poolFor(start, end, registry);
-    res.json({ ...pool, dataSource: require('../../server/marketDataSource').label() });
+    const { liveMarket } = require('../../server/liveMarket');
+    // open markets, and of those the ones the live feed actually serves today
+    res.json({ ...pool, liveSymbols: pool.symbols.filter((s) => liveMarket().supports(s)), dataSource: require('../../server/marketDataSource').label('live') });
   });
 
   return r;

@@ -50,6 +50,8 @@ module.exports = function competitionsRoutes() {
   const isSuper = (req) => req.admin.role === 'super_admin';
   async function liveReady() {
     const { data } = await supabase.from('app_settings').select('value').eq('key', 'liveFeed.ready').maybeSingle();
+    const { data: hb } = await supabase.from('app_settings').select('value').eq('key', 'liveFeed.heartbeatAt').maybeSingle();
+    liveFeed.noteHeartbeat(hb && hb.value); // the game server's feed health
     return data ? data.value === true : false;
   }
   async function waitlistCount(key) {
