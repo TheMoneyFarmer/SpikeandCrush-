@@ -499,7 +499,7 @@ const opsMonitor = createOpsMonitor({
   liveMatches: () => gameEngine.liveMatchCount(),
   connectedSockets: () => io.engine?.clientsCount || 0,
   sendAlert: (subject, details) =>
-    sendEmail({
+    !require('./envCheck').alertsEnabled() ? Promise.resolve({ skipped: true }) : sendEmail({
       to: process.env.ALERT_EMAIL || 'hello@spikeandcrush.com',
       subject: `[Spike & Crush] ${subject}`,
       text: JSON.stringify(details, null, 2),

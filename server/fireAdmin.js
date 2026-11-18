@@ -67,6 +67,7 @@ function flatAlertHandler(row) {
   const subject = `Fire monitor: a ${row.mode} match went flat for ${row.longest_flat_seconds}s on ${row.symbol}`;
   const text = `Match ${row.match_id} (${row.mode}) showed an unchanged ${row.symbol} price for ${row.longest_flat_seconds} seconds (limit ${gameFeel.get().market.flatLimitSeconds}s). Curated: ${row.curated}. Start offset: ${row.start_offset}. ${extra ? `${extra} more flat matches since the last alert.` : ''}\nCheck the Fire monitor in the admin panel.`;
   console.warn('[fire monitor]', subject);
+  if (!require('./envCheck').alertsEnabled()) return; // local copy: log only
   try {
     const { sendEmail } = require('../admin/lib/email');
     Promise.resolve(sendEmail({ to: ALERT_TO, subject, text, html: `<p>${text.replace(/\n/g, '<br>')}</p>` })).catch((e) => console.warn('[fire monitor] email failed:', e.message));

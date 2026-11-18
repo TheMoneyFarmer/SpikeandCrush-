@@ -61,4 +61,11 @@ function signingSecret(purpose, ...names) {
   return (devKeys[purpose] ||= crypto.randomBytes(32).toString('hex'));
 }
 
-module.exports = { checkEnv, inspect, signingSecret, isPlaceholder, SETS };
+// Owner alert emails (crashes, flat markets) only from a deployed server.
+// Local copies share the real .env, so without this every test run that hits
+// a busy port emails "Server error" to the real inbox. ALERTS_LOCAL=1 opts in.
+function alertsEnabled(env = process.env) {
+  return Boolean(env.RAILWAY_ENVIRONMENT_NAME || env.RAILWAY_GIT_COMMIT_SHA) || env.ALERTS_LOCAL === '1';
+}
+
+module.exports = { checkEnv, inspect, signingSecret, isPlaceholder, alertsEnabled, SETS };

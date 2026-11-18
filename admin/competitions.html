@@ -106,6 +106,7 @@
         <label class="field">Prize pool<input id="tPool" type="number" min="0" step="1"></label>
         <label class="field">Top figure on featured days<input id="tTop" type="number" min="0" step="1"></label>
         <label class="field">Currency<input id="tCur" maxlength="3" placeholder="USD"></label>
+        <label class="field" style="grid-column:1/-1">Sponsoring partner (pays the prize; winners claim through its link)<select id="tPartnerId"><option value="">None: manual payout</option></select><span class="muted" style="font-size:12px">Add partners in Competition Winners &gt; Sponsoring partners, then pick one here. Past winners keep the partner they won under.</span></label>
         <label class="field" style="grid-column:1/-1">Paying partner (admin note, never shown on cards)<input id="tPartner" maxlength="300"></label>
         <label style="display:flex;gap:8px;align-items:center;grid-column:1/-1"><input type="checkbox" id="tConfirmed"> Prize pool confirmed by the named partner</label>
         <label class="field" style="grid-column:1/-1">Prize split, place and percent, one per line (must add up to 100)<textarea id="tSplit" rows="4" placeholder="1st: 50"></textarea></label>
@@ -116,6 +117,7 @@
         <label class="field" id="tOpenWrap">Session opens<input id="tOpen" placeholder="00:00"></label>
         <label class="field" id="tCloseWrap">Session closes<input id="tClose" placeholder="22:00"></label>
         <label class="field" id="tSessionWrap">Session name<input id="tSession" maxlength="40"></label>
+        <div class="field" id="tDaysWrap" style="grid-column:1/-1"><span>Sessions start on (timezone above; a close at or before the open ends the next day)</span><div id="tDays" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px"></div></div>
         <label class="field" id="tInstrWrap" style="grid-column:1/-1">Instrument pool (weekend markets only)<input id="tInstr" placeholder="BTCUSD, ETHUSD"></label>
       </div>
       <div class="admin-modal-actions" style="margin-top:16px">
@@ -183,7 +185,19 @@
       $('tTitle').value = t.title; $('tSchedule').value = t.schedule_text; $('tRhythm').value = t.rhythm_text; $('tLength').value = t.length_text;
       $('tHook').value = t.format_hook; $('tRules').value = t.rules_line; $('tState').value = t.state; $('tReason').value = '';
       $('tPool').value = t.prize_pool_amount; $('tTop').value = t.prize_top_amount; $('tCur').value = t.prize_currency; $('tPartner').value = t.prize_partner_note || ''; $('tConfirmed').checked = t.prize_pool_confirmed;
-      ['tPool', 'tTop', 'tCur', 'tPartner', 'tConfirmed', 'tSplit'].forEach((id) => { $(id).disabled = !tplData.isSuper; });
+      ['tPool', 'tTop', 'tCur', 'tPartner', 'tConfirmed', 'tSplit', 'tPartnerId'].forEach((id) => { $(id).disabled = !tplData.isSuper; });
+      const sel = $('tPartnerId');
+      sel.innerHTML = '<option value="">None: manual payout</option>';
+      sel.dataset.loaded = ''; // never save a partner change from a list that failed to load
+      Admin.api('/rewards/partners').then((d) => {
+        for (const p of d.partners || []) sel.insertAdjacentHTML('beforeend', `<option value="${Admin.escapeHtml(p.id)}">${Admin.escapeHtml(p.name)} (${p.partner_type === 'prop_firm' ? 'Prop firm' : 'Broker'})</option>`);
+        sel.value = t.partner_id || '';
+        sel.dataset.loaded = '1';
+      }).catch(() => { sel.insertAdjacentHTML('beforeend', '<option disabled>Could not load partners</option>'); });
+      const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const on = (t.schedule && Array.isArray(t.schedule.days) && t.schedule.days.length) ? t.schedule.days : [1, 2, 3, 4, 5];
+      $('tDays').innerHTML = DAY.map((d, i) => `<label style="display:flex;gap:4px;align-items:center"><input type="checkbox" value="${i}" ${on.includes(i) ? 'checked' : ''}>${d}</label>`).join('');
+      $('tDaysWrap').hidden = t.key === 'weekend';
       $('tUnconfirmed').hidden = Boolean(t.prize_pool_confirmed);
       $('tSplit').value = (t.prize_breakdown || []).map((x) => `${x.places}: ${x.share}`).join('\n');
       const sch = t.schedule || {};
@@ -208,7 +222,8 @@
       const weekend = editing.key === 'weekend';
       body.schedule = weekend
         ? { timezone: $('tTz').value.trim() || 'UTC', start: $('tOpen').value.trim() || '00:00', end: $('tClose').value.trim() || '23:59', marketsLabel: $('tSession').value }
-        : { timezone: $('tTz').value.trim() || 'UTC', open: $('tOpen').value.trim() || '00:00', close: $('tClose').value.trim() || '22:00', sessionName: $('tSession').value };
+        : { timezone: $('tTz').value.trim() || 'UTC', open: $('tOpen').value.trim() || '00:00', close: $('tClose').value.trim() || '22:00', sessionName: $('tSession').value, days: [...$('tDays').querySelectorAll('input:checked')].map((x) => Number(x.value)) };
+      if (tplData.isSuper && $('tPartnerId').dataset.loaded === '1') body.partner_id = $('tPartnerId').value || null;
       if (weekend) body.instruments = $('tInstr').value;
       try { await Admin.api(`/competitions/templates/${editing.key}`, { method: 'PUT', body }); $('tplModal').classList.add('hidden'); Admin.toast('Saved', 'success'); loadTemplates(); } catch (e) { Admin.toast(e.message, 'danger'); }
     });

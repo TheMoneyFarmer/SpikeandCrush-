@@ -123,12 +123,29 @@ module.exports = function competitionsRoutes() {
           if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v[f]))) return res.status(400).json({ error: `${f} must be a time like 09:30` });
           sch[f] = String(v[f]);
         }
+        if (v.days !== undefined) {
+          const days = Array.isArray(v.days) ? [...new Set(v.days.map(Number))].sort((a, b) => a - b) : [];
+          if (!days.length || days.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) return res.status(400).json({ error: 'Pick at least one start day' });
+          sch.days = days;
+        }
         if (v.sessionName !== undefined) sch.sessionName = String(v.sessionName).trim().slice(0, 40) || sch.sessionName;
         if (v.marketsLabel !== undefined) sch.marketsLabel = String(v.marketsLabel).trim().slice(0, 40) || sch.marketsLabel;
         patch.schedule = sch;
       }
       const touchesPrize = PRIZE_FIELDS.some((k) => k in b);
       if (touchesPrize && !isSuper(req)) return res.status(403).json({ error: 'Only a super admin can set or confirm a prize pool' });
+      if ('partner_id' in b) {
+        if (!isSuper(req)) return res.status(403).json({ error: 'Only a super admin can set the sponsoring partner' });
+        if (b.partner_id === null || b.partner_id === '') patch.partner_id = null;
+        else {
+          const { data: p, error: pe } = await supabase.from('comp_partners').select('id, name').eq('id', String(b.partner_id)).maybeSingle();
+          if (pe || !p) return res.status(400).json({ error: 'That partner does not exist (add it in Competition Winners first)' });
+          patch.partner_id = p.id;
+          // the confirm check needs a named partner in the note
+          if (!String(('prize_partner_note' in b ? b.prize_partner_note : t.prize_partner_note) || '').trim()) b.prize_partner_note = p.name;
+        }
+        if (patch.partner_id === (t.partner_id || null)) delete patch.partner_id;
+      }
       if ('prize_pool_amount' in b) patch.prize_pool_amount = Math.max(0, Number(b.prize_pool_amount) || 0);
       if ('prize_top_amount' in b) patch.prize_top_amount = Math.max(0, Number(b.prize_top_amount) || 0);
       if ('prize_currency' in b) patch.prize_currency = /^[A-Z]{3}$/.test(b.prize_currency) ? b.prize_currency : 'USD';
