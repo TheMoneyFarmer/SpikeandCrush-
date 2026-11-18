@@ -54,3 +54,23 @@
   .lb-mode-grid .lb-mode-name { font-size: 14px; }
   .lb-mode-grid .lb-mode-meta { min-height: 42px; justify-content: flex-start; }
 }
+
+/* Desktop: every mode visible. Compare modes and the code box sit in a slim
+   line above the tiles; the tiles share the full width and wrap if narrow. */
+@media (min-width: 1024px) {
+  .lb-modes { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; column-gap: 12px; row-gap: 14px; }
+  .lb-modes > * { grid-column: 1 / -1; }
+  .lb-modes > .lb-compare-btn { grid-column: 2; grid-row: 1; min-height: 40px; margin: 0; }
+  .lb-modes > .lb-join { grid-column: 3; grid-row: 1; flex: none; display: flex; align-items: center; gap: 8px; }
+  .lb-join .lb-label { margin: 0; font-size: 13px; white-space: nowrap; }
+  .lb-join input { width: 150px; min-height: 40px; height: 40px; font-size: 14px; letter-spacing: 0.15em; text-align: center; }
+  .lb-join button { min-height: 40px; height: 40px; padding: 0 18px; }
+  .lb-mode-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); overflow: visible; margin: 0; padding: 0; }
+  .lb-mode-grid .lb-mode { width: auto; min-width: 0; grid-template-columns: 100%; }
+  .lb-mode-win { -webkit-line-clamp: 3; font-size: 11.5px; line-height: 1.3; color: #aab4c8; }
+}
+.lb-mode-win b { display: block; font-weight: 600; color: #d5dcea; }
+/* Phone tiles are small: show what you trade; how you win is in Compare modes. */
+@media (max-width: 1023px) { .lb-mode-how { display: none; } }
+/* Small laptops: an even 5 + 4. */
+@media (min-width: 1024px) and (max-width: 1279px) { .lb-mode-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }

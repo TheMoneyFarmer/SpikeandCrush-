@@ -16,6 +16,23 @@ TW.ModeLobby = (function () {
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } },
   };
 
+  // Card text: what you trade (bold) and how you win. Unknown modes fall back to winShort.
+  const CARD_LINES = {
+    quick: ['All markets', 'Top equity wins'],
+    blitz: ['Busiest markets', 'Top equity in 3 min'],
+    grand: ['Markets + events', 'Top equity in 20 min'],
+    solo: ['Race your ghost', 'Beat your record'],
+    async: ['Same market for all', 'Best of the day'],
+    private: ['Host picks the rules', 'Play with friends'],
+    tournament: ['All markets', 'Survive the cuts'],
+    stocks: ['US stocks only', 'Top equity wins'],
+    futures: ['Futures only', 'Top equity wins'],
+  };
+  const cardText = (m) => {
+    const l = CARD_LINES[m.key];
+    return l ? `<b>${esc(l[0])}</b><span class="lb-mode-how">${esc(l[1])}</span>` : esc(m.winShort);
+  };
+
   const mins = (m) => (m.durationSeconds ? `${Math.round(m.durationSeconds / 60)} min` : '');
   const slots = (m) => (m.cardSlots === 0 ? 'No cards' : `${m.startingHand || m.cardSlots} cards to start${m.sabotage ? '' : ', defense only'}`);
 
@@ -58,7 +75,7 @@ TW.ModeLobby = (function () {
         meta.className = 'lb-mode-meta';
         btn.appendChild(meta);
       }
-      meta.innerHTML = `<span class="lb-mode-win">${esc(m.winShort)}</span>${m.live ? `<span class="lb-mode-live"><i aria-hidden="true"></i>${m.live} playing</span>` : ''}`;
+      meta.innerHTML = `<span class="lb-mode-win">${cardText(m)}</span>${m.live ? `<span class="lb-mode-live"><i aria-hidden="true"></i>${m.live} playing</span>` : ''}`;
       btn.title = `${m.displayName}: ${m.identity} Best for: ${m.bestFor}.`;
       btn.setAttribute('aria-label', `${m.displayName}, ${mins(m)}, ${m.winShort}, ${slots(m)}${m.entryCoins ? `, ${m.entryCoins} coins entry` : ''}${m.live ? `, ${m.live} playing now` : ''}`);
       btn.querySelector('.lb-mode-tag')?.remove();
