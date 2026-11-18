@@ -482,6 +482,9 @@ app.use(cors({ origin: corsOrigin }));
 // Mostly for /api/match/:id/history, which carries several hundred KB of
 // price history per instrument - gzip cuts that ~5x on mobile connections.
 app.use(compression());
+// Mail to hello@ (Resend Receiving) forwarded to INBOUND_FORWARD_TO. Before
+// express.json: the signature is checked against the exact raw body.
+app.post('/api/inbound/resend', express.raw({ type: '*/*', limit: '256kb' }), require('./inboundEmail').createInboundForwarder().webhook());
 app.use(express.json({ limit: '200kb' }));
 
 // Safe deploys: pause new matches and let live ones finish before a restart
