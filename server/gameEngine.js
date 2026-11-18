@@ -589,6 +589,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       modeLabel: match.config.label || (match.mode === 'private' ? 'Private War' : match.mode),
       status: match.status,
       instruments: match.instruments,
+      instrumentSpecs: instruments.clientSpecs(match.instruments),
       durationSeconds: match.config.durationSeconds,
       lobbyDeadline: match.status === 'waiting' ? match.lobbyDeadline : null,
       maxPlayers: match.config.maxPlayers,
@@ -1667,14 +1668,16 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const lotLimited = player.effects.lot_limiter && nowMs < player.effects.lot_limiter.until;
     // No lot limit of its own: size is decided by free margin below. Only these
     // two sabotage cards still cap it, for as long as they last.
-    const cardLotCap = Math.min(liquidityDrained ? 0.1 : Infinity, lotLimited ? 0.05 : Infinity);
+    // Shares and contracts can't go below 1, so for them the cards cap at 1.
+    const minSize = instruments.sizeRules(symbol).min;
+    const cardLotCap = Math.max(Math.min(liquidityDrained ? 0.1 : Infinity, lotLimited ? 0.05 : Infinity), minSize);
     const numLots = Number(lots);
-    // Sizes round to 2 decimals, so anything smaller would be a free 0-lot trade.
-    if (!Number.isFinite(numLots) || numLots < 0.01) {
-      return { success: false, error: 'Lot size must be at least 0.01' };
-    }
+    // Lots in 0.01 steps (anything smaller would be a free 0-lot trade),
+    // shares and contracts whole.
+    const badSize = instruments.sizeError(symbol, numLots);
+    if (badSize) return { success: false, error: badSize };
     if (numLots > cardLotCap) {
-      return { success: false, error: `A sabotage card limits your lot size to ${cardLotCap} right now` };
+      return { success: false, error: `A sabotage card limits your size to ${cardLotCap} ${instruments.unitWord(symbol, cardLotCap)} right now` };
     }
     if (player.positions.length >= MAX_POSITIONS) {
       return { success: false, error: 'Maximum open positions reached' };
@@ -1688,12 +1691,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const required = marginRules.positionMargin(symbol, numLots, marginRules.mid(price));
     if (required > freeMargin) {
       const most = marginRules.maxAffordableLots(symbol, marginRules.mid(price), freeMargin);
-      return { success: false, error: most > 0 ? `Not enough free margin. You can open up to ${most} lots of ${symbol} right now` : 'No free margin left. Close a position to open a new one' };
+      return { success: false, error: most > 0 ? `Not enough free margin. You can open up to ${most} ${instruments.unitWord(symbol, most)} of ${symbol} right now` : freeMargin > 0 && instruments.sizeRules(symbol).unit !== 'lot' ? `Not enough free margin for 1 ${instruments.unitWord(symbol, 1)} of ${symbol}. Close a position first` : 'No free margin left. Close a position to open a new one' };
     }
     // Margin Squeeze: only a share of what free margin would allow.
     if (on(fx.margin_squeeze)) {
-      const most = Math.floor(marginRules.maxAffordableLots(symbol, marginRules.mid(price), freeMargin) * fx.margin_squeeze.share * 100) / 100;
-      if (numLots > most) return { success: false, error: `Margin Squeeze active - you can open up to ${most} lots right now` };
+      const most = instruments.floorToStep(symbol, marginRules.maxAffordableLots(symbol, marginRules.mid(price), freeMargin) * fx.margin_squeeze.share);
+      if (numLots > most) return { success: false, error: `Margin Squeeze active - you can open up to ${most} ${instruments.unitWord(symbol, most)} right now` };
     }
     // Slippage Storm: this fill lands worse by N spreads (uses one charge).
     const slip = takeSlippage(player, symbol, nowMs);
@@ -1890,7 +1893,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const price = getEffectivePrice(match, position.symbol, elapsedSeconds, nowMs, playerId);
     const exitPrice = position.direction === 'BUY' ? price.bid : price.ask;
 
-    const closedLots = Math.round(position.lots * (pct / 100) * 100) / 100;
+    // Whole shares and contracts stay whole.
+    const closedLots = instruments.sizeRules(position.symbol).step >= 1 ? Math.round(position.lots * (pct / 100)) : Math.round(position.lots * (pct / 100) * 100) / 100;
     const remainingLots = Math.round((position.lots - closedLots) * 100) / 100;
     if (closedLots <= 0 || remainingLots <= 0) {
       return { success: false, error: 'Resulting lot sizes must be greater than 0' };
@@ -2161,7 +2165,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         id: crypto.randomUUID(),
         symbol,
         direction,
-        lots: 0.05,
+        lots: Math.max(0.05, instruments.sizeRules(symbol).min), // 1 share / 1 contract on whole-unit markets
         entryPrice,
         openedAt: nowMs,
         stopLoss: null,
@@ -2331,10 +2335,14 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     aggressive: [0.5, 1.0, 1.5, 2.0, 2.0, 3.0],
     patient: [0.1, 0.25, 0.5, 0.5, 0.5, 1.0],
   };
-  function lotSizeForStyle(style) {
+  // Stocks: about 25 shares per lot-sized idea; futures: 1 to 3 contracts.
+  function lotSizeForStyle(style, symbol) {
     const pool = LOT_POOL[style];
-    if (pool) return pool[Math.floor(Math.random() * pool.length)];
-    return Math.round((0.1 + Math.random() * 2.9) * 10) / 10; // chaos: fully random
+    const lots = pool ? pool[Math.floor(Math.random() * pool.length)] : Math.round((0.1 + Math.random() * 2.9) * 10) / 10; // chaos: fully random
+    const { unit } = instruments.sizeRules(symbol);
+    if (unit === 'share') return Math.max(1, Math.round(lots * 25));
+    if (unit === 'contract') return Math.max(1, Math.min(3, Math.round(lots)));
+    return lots;
   }
 
   // Not every trade carries a stop loss / take profit - humans skip them
@@ -2381,7 +2389,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           } else {
             st.entered = true;
             for (const symbol of match.instruments) {
-              openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('aggressive'), ...slTpForStyle('aggressive') });
+              openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('aggressive', symbol), ...slTpForStyle('aggressive') });
             }
             st.lastActionAt = elapsedSeconds;
           }
@@ -2391,7 +2399,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           closeTrade(match.id, player.id, pos.id);
           if (player.positions.length < MAX_POSITIONS) {
             const symbol = match.instruments[Math.floor(Math.random() * match.instruments.length)];
-            openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('aggressive'), ...slTpForStyle('aggressive') });
+            openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('aggressive', symbol), ...slTpForStyle('aggressive') });
           }
           st.lastActionAt = elapsedSeconds;
           st.reopenIntervalSec = rand(20, 40);
@@ -2420,7 +2428,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
             st.entryTime = elapsedSeconds + rand(5, 15);
           } else {
             st.entered = true;
-            openTrade(match.id, player.id, { symbol: st.instrument, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('patient'), ...slTpForStyle('patient') });
+            openTrade(match.id, player.id, { symbol: st.instrument, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('patient', st.instrument), ...slTpForStyle('patient') });
           }
         }
         st.cardTimes.forEach((t, i) => {
@@ -2435,7 +2443,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       default: {
         if (elapsedSeconds >= st.nextEntryAt && player.positions.length < MAX_POSITIONS) {
           const symbol = match.instruments[Math.floor(Math.random() * match.instruments.length)];
-          openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('chaos'), ...slTpForStyle('chaos') });
+          openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('chaos', symbol), ...slTpForStyle('chaos') });
           st.nextEntryAt = elapsedSeconds + rand(10, 60);
         }
         if (Math.random() < 0.03 && player.positions.length > 0) {

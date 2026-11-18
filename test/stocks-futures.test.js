@@ -51,13 +51,70 @@ test('Bell Rush draws about 8 stocks and The Pit about 6 futures, all with busy 
   }
 });
 
-test('P&L on a stock and a futures contract matches a hand calculation (existing lot maths)', () => {
-  // NVDA: BUY 10 lots (shares) at 120.00, price 121.50 -> 1.50 x 10 x contractSize 1 = 15.00
+test('P&L on a stock and a futures contract matches a hand calculation (real contract specs)', () => {
+  // NVDA: BUY 10 shares at 120.00, price 121.50 -> 1.50 x 10 shares = 15.00
   assert.strictEqual(Number(instruments.calculatePnL('BUY', 10, 120.0, 121.5, 'NVDA').toFixed(2)), 15.0);
-  // CL (crude, simulated futures): SELL 0.5 lots at 78.40, price 77.90 -> 0.50 x 0.5 x 1000 = 250.00
-  assert.strictEqual(Number(instruments.calculatePnL('SELL', 0.5, 78.4, 77.9, 'CL').toFixed(2)), 250.0);
-  // ES: BUY 1 lot at 5000.0, price 4990.0 -> -10 x 1 x 1 = -10.00
-  assert.strictEqual(Number(instruments.calculatePnL('BUY', 1, 5000.0, 4990.0, 'ES').toFixed(2)), -10.0);
+  // CL (NYMEX WTI, 1,000 barrels): SELL 1 contract at 78.40, price 77.90 -> 0.50 x 1,000 = 500.00
+  assert.strictEqual(Number(instruments.calculatePnL('SELL', 1, 78.4, 77.9, 'CL').toFixed(2)), 500.0);
+  // ES (CME E-mini S&P 500, $50 a point): BUY 1 at 5000.00, price 4990.00 -> -10 x 50 = -500.00
+  assert.strictEqual(Number(instruments.calculatePnL('BUY', 1, 5000.0, 4990.0, 'ES').toFixed(2)), -500.0);
+  // NQ ($20 a point): one 0.25 tick on 2 contracts = $10
+  assert.strictEqual(Number(instruments.calculatePnL('BUY', 2, 20000.0, 20000.25, 'NQ').toFixed(2)), 10.0);
+});
+
+test('futures carry the real exchange tick and tick value', () => {
+  const spec = { ES: [50, 0.25, 12.5], NQ: [20, 0.25, 5], YM: [5, 1, 5], RTY: [50, 0.1, 5], CL: [1000, 0.01, 10], GC: [100, 0.1, 10], SI: [5000, 0.005, 25], HG: [25000, 0.0005, 12.5], ZB: [1000, 0.03125, 31.25], '6E': [125000, 0.00005, 6.25], ZS: [50, 0.25, 12.5], KC: [375, 0.05, 18.75] };
+  for (const [sym, [cs, tick, tv]] of Object.entries(spec)) {
+    const c = instruments.INSTRUMENTS[sym];
+    assert.strictEqual(c.contractSize, cs, `${sym} multiplier`);
+    assert.strictEqual(c.pipSize, tick, `${sym} tick`);
+    assert.ok(Math.abs(c.pipSize * c.contractSize - tv) < 1e-9 && c.pipValue === tv, `${sym} tick value`);
+  }
+});
+
+test('futures trade in whole contracts, stocks in whole shares, forex in 0.01 lots', () => {
+  for (const [sym, c] of Object.entries(instruments.INSTRUMENTS)) {
+    if (c.category === 'futures') assert.deepStrictEqual([c.unit, c.lotStep, c.minLot], ['contract', 1, 1], sym);
+    if (c.category === 'stocks') assert.deepStrictEqual([c.unit, c.lotStep, c.minLot], ['share', 1, 1], sym);
+  }
+  assert.strictEqual(instruments.sizeError('ES', 1), null);
+  assert.match(instruments.sizeError('ES', 0.5), /at least 1 contract/);
+  assert.match(instruments.sizeError('ES', 1.5), /whole contracts/);
+  assert.match(instruments.sizeError('NVDA', 2.5), /whole shares/);
+  assert.strictEqual(instruments.sizeError('EURUSD', 0.01), null);
+  assert.match(instruments.sizeError('EURUSD', 0.001), /0.01 lots/);
+  assert.strictEqual(instruments.floorToStep('ES', 2.9), 2);
+  assert.strictEqual(instruments.floorToStep('EURUSD', 2.999), 2.99);
+  assert.strictEqual(instruments.unitWord('ES', 1), 'contract');
+  assert.strictEqual(instruments.unitWord('NVDA', 3), 'shares');
+});
+
+test('the game screens get every instrument\'s contract size from the server', () => {
+  const specs = instruments.clientSpecs(Object.keys(instruments.INSTRUMENTS));
+  for (const [sym, c] of Object.entries(instruments.INSTRUMENTS)) {
+    assert.ok(specs[sym].contractSize > 0, `${sym} contractSize`);
+    assert.strictEqual(specs[sym].contractSize, c.contractSize);
+    assert.ok(['lot', 'share', 'contract'].includes(specs[sym].unit), sym);
+  }
+  assert.strictEqual(specs.USDJPY.usdBase, true);
+});
+
+test('The Pit: whole contracts open, fractions are refused, bots size in contracts', async () => {
+  const { createGameEngine } = require('../server/gameEngine');
+  const room = { emit() {} };
+  const engine = createGameEngine({ to: () => room, emit() {} }, () => {}, () => {}, () => {}, () => true);
+  const match = await engine.createMatch('futures');
+  engine.joinMatch(match, { id: 'pit1', username: 'Pit', war_rating: 1000 });
+  match.status = 'active';
+  match.startedAt = Date.now() - 5000;
+  const sym = match.instruments.find((s) => instruments.INSTRUMENTS[s].contractSize * 3000 < 400000) || match.instruments[0];
+  const half = engine.openTrade(match.id, 'pit1', { symbol: sym, direction: 'BUY', lots: 0.5 });
+  assert.strictEqual(half.success, false);
+  assert.match(half.error, /contract/);
+  const one = engine.openTrade(match.id, 'pit1', { symbol: sym, direction: 'BUY', lots: 1 });
+  assert.ok(one.success, one.error);
+  assert.strictEqual(match.players.pit1.positions[0].lots, 1);
+  assert.ok(match.instruments.every((s) => instruments.sizeRules(s).unit === 'contract'));
 });
 
 test('hidden dates, price scale and mirror apply to the new instruments too', () => {

@@ -31,7 +31,7 @@ There are 33 cards:
 - **Profit Skim** (legendary, targets one player; Reach Level 17 and Win 25 matches): Takes 15% of the target's banked profit into yours (max 250).
 - **Spread Spike** (common, hits every other unshielded player; starter card): Triple the spread on one instrument for 20s.
 - **Volatility Surge** (rare, hits every other unshielded player; Reach Level 6): Double price movement speed for 25s.
-- **Liquidity Drain** (common, hits every other unshielded player; Reach Level 2): Cap max lot size at 0.1 for all players for 30s.
+- **Liquidity Drain** (common, hits every other unshielded player; Reach Level 2): Cap max size at 0.1 lots (1 share or contract) for all players for 30s.
 - **Reversal Flash** (rare, hits every other unshielded player; Reach Level 9): Force a sharp 10 pip reversal, then snap back, over 8s.
 - **Position Freeze** (common, targets one player; starter card): Target cannot open new trades for 15s.
 - **Force Close** (epic, targets one player; Reach Level 15): Force close the target's best-performing position at market.
@@ -44,7 +44,7 @@ There are 33 cards:
 - **Dead Calm** (rare, hits every other unshielded player; Reach Level 8): Freeze price movement on every instrument for everyone except you, for 6s.
 - **Lockout** (common, targets one player; Reach Level 4): Target cannot close any position for 10s.
 - **Margin Call** (legendary, targets one player; Reach Level 18 and Win 50 matches): Force-close every one of the target's open positions at market.
-- **Lot Limiter** (common, targets one player; starter card): Cap the target's max lot size at 0.05 for 15s.
+- **Lot Limiter** (common, targets one player; starter card): Cap the target's max size at 0.05 lots (1 share or contract) for 15s.
 - **Pip Theft** (legendary, targets one player; Reach Level 15 and Win 10 matches): Steal 150 from the target's capital straight into yours.
 - **Ghost Trade** (rare, targets one player; Reach Level 11): Force a small losing position onto the target's account.
 - **Stop Snipe** (rare, targets one player; Reach Level 10): Drag the target's best position's stop-loss to break-even, wiping their cushion.

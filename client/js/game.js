@@ -27,6 +27,15 @@ window.TW = window.TW || {};
     BTCUSD: 0.01, ETHUSD: 0.01, USTUSD: 0.0001, AAPL: 0.01,
   };
   const USD_BASE = new Set(['USDJPY', 'USDCHF', 'USDCAD']);
+  // Every other instrument (stocks, futures, anything added later) comes from
+  // the server's own specs (js/units.js), so P&L and margin never fall back to 0.
+  TW.Units.onSet((specs) => {
+    for (const [sym, sp] of Object.entries(specs)) {
+      if (!(sym in CONTRACT_SIZE)) CONTRACT_SIZE[sym] = sp.contractSize;
+      if (!(sym in PIP_SIZE)) PIP_SIZE[sym] = sp.pipSize;
+      if (sp.usdBase) USD_BASE.add(sym);
+    }
+  });
   let sltpMode = 'pips';
   function liveClosePnl(direction, lots, entryPrice, exitPrice, symbol) {
     const size = CONTRACT_SIZE[symbol] || 0;
@@ -330,13 +339,13 @@ window.TW = window.TW || {};
         <button type="button" class="pos-toggle" data-toggle aria-expanded="false" title="Stop loss, take profit and more">
           <span class="pos-side ${pos.direction === 'BUY' ? 'is-buy' : 'is-sell'}">${pos.direction}</span>
           <span class="info">
-            <span class="pos-what"><b>${pos.lots}</b> ${pos.symbol}</span>
+            <span class="pos-what"><b>${pos.lots}</b>${TW.Units.whole(pos.symbol) ? ` ${TW.Units.word(pos.symbol, pos.lots)}` : ''} ${pos.symbol}</span>
             <span class="pos-at text-secondary">@ ${pos.entryPrice}<span class="pos-sltp" data-sltp-text>${sltpText()}</span></span>
             <span class="pos-meta mono" data-meta></span>
           </span>
         </button>
         <div class="pnl" data-pnl>${TW.formatMoney(0)}</div>
-        <button class="btn pos-close" data-close aria-label="Close ${pos.direction} ${pos.lots} ${pos.symbol}" title="Close position">
+        <button class="btn pos-close" data-close aria-label="Close ${pos.direction} ${TW.Units.size(pos.symbol, pos.lots)} ${pos.symbol}" title="Close position">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
       </div>
@@ -588,6 +597,7 @@ window.TW = window.TW || {};
         btn.classList.add('active');
         TW.Chart.setActiveSymbol(sym);
         if (dragLevels) dragLevels.reset();
+        applySizeUnit();
         renderQuotes();
         updateRiskCalc();
       });
@@ -595,6 +605,50 @@ window.TW = window.TW || {};
     });
     activeInstrument = instruments[0];
     TW.Chart.setActiveSymbol(activeInstrument);
+  }
+
+  // The ticket in the active market's own unit: lots (forex, CFDs), shares
+  // (stocks) or contracts (futures), with stop distances in pips, cents or ticks.
+  let sizeUnitShown = null;
+  function applySizeUnit() {
+    const sym = activeInstrument;
+    const wrap = document.getElementById('lotSelector');
+    if (!wrap) return;
+    const label = document.getElementById('lotLabel');
+    if (label) label.textContent = TW.Units.label(sym);
+    const d = TW.Units.dist(sym);
+    document.querySelectorAll('#slQuickPips .lot-chip, #tpQuickPips .lot-chip').forEach((b) => { b.textContent = `${b.dataset.pips}${d.short}`; });
+    const pipsBtn = document.querySelector('#sltpModeToggle .lot-chip[data-mode="pips"]');
+    if (pipsBtn) pipsBtn.textContent = d.word;
+    if (sltpMode === 'pips') {
+      document.getElementById('preSlInput').placeholder = `${d.word.toLowerCase()} off`;
+      document.getElementById('preTpInput').placeholder = `${d.word.toLowerCase()} off`;
+    }
+    const u = TW.Units.unit(sym);
+    if (sizeUnitShown === u) return;
+    sizeUnitShown = u;
+    const chips = TW.Units.chips(sym);
+    wrap.querySelectorAll('.lot-chip[data-lot]').forEach((chip, i) => {
+      if (chips[i] === undefined) return;
+      chip.dataset.lot = String(chips[i]);
+      chip.textContent = TW.Units.whole(sym) ? String(chips[i]) : Number(chips[i]).toFixed(1);
+    });
+    const input = document.getElementById('customLotInput');
+    input.min = String(TW.Units.min(sym));
+    input.step = String(TW.Units.step(sym));
+    input.placeholder = TW.Units.whole(sym) ? '0' : '0.0';
+    if (!TW.Units.valid(sym, selectedLot)) selectedLot = TW.Units.defaultSize(sym);
+    let onChip = false;
+    wrap.querySelectorAll('.lot-chip').forEach((c) => {
+      const on = c.dataset.lot !== undefined && Number(c.dataset.lot) === selectedLot;
+      onChip = onChip || on;
+      c.classList.toggle('active', on);
+    });
+    if (window.Device && Device.isMobile()) input.value = TW.Units.whole(sym) ? String(selectedLot) : selectedLot.toFixed(2);
+    else input.value = onChip ? '' : String(selectedLot);
+    if (!onChip) document.getElementById('customLotChip').classList.add('active');
+    updateRiskCalc();
+    window.dispatchEvent(new CustomEvent('tw:game', { detail: { type: 'units' } }));
   }
 
   function setupLotSelector() {
@@ -610,13 +664,20 @@ window.TW = window.TW || {};
     });
     const customInput = document.getElementById('customLotInput');
     customInput.addEventListener('input', () => {
-      const val = Number(customInput.value);
+      let val = Number(customInput.value);
+      // Shares and contracts are whole.
+      if (val > 0 && TW.Units.whole(activeInstrument)) val = Math.max(1, Math.round(val));
       if (val > 0) {
         selectedLot = val;
         wrap.querySelectorAll('.lot-chip').forEach((c) => c.classList.remove('active'));
         document.getElementById('customLotChip').classList.add('active');
         updateRiskCalc();
       }
+    });
+
+    // Shares and contracts: show the whole size that will actually be sent.
+    customInput.addEventListener('change', () => {
+      if (TW.Units.whole(activeInstrument) && Number(customInput.value) > 0) customInput.value = String(selectedLot);
     });
 
     if (window.Device && Device.isMobile()) setupLotStepper(customInput);
@@ -643,14 +704,17 @@ window.TW = window.TW || {};
     inc.className = 'lot-step-btn lot-step-inc';
     inc.textContent = '+';
 
-    const step = (delta) => {
-      const current = selectedLot || 0.1;
-      const next = Math.min(10, Math.max(0.01, Math.round((current + delta) * 100) / 100));
-      customInput.value = next.toFixed(2);
+    const step = (dir) => {
+      const whole = TW.Units.whole(activeInstrument);
+      const current = selectedLot || (whole ? 1 : 0.1);
+      const next = whole
+        ? Math.min(1000, Math.max(1, Math.round(current) + dir))
+        : Math.min(10, Math.max(0.01, Math.round((current + dir * 0.1) * 100) / 100));
+      customInput.value = whole ? String(next) : next.toFixed(2);
       customInput.dispatchEvent(new Event('input'));
     };
-    dec.addEventListener('click', () => step(-0.1));
-    inc.addEventListener('click', () => step(0.1));
+    dec.addEventListener('click', () => step(-1));
+    inc.addEventListener('click', () => step(1));
 
     chip.insertBefore(dec, customInput);
     chip.appendChild(inc);
@@ -708,8 +772,9 @@ window.TW = window.TW || {};
         const isPips = sltpMode === 'pips';
         document.getElementById('slQuickPips').style.display = isPips ? 'flex' : 'none';
         document.getElementById('tpQuickPips').style.display = isPips ? 'flex' : 'none';
-        document.getElementById('preSlInput').placeholder = isPips ? 'pips off' : 'price off';
-        document.getElementById('preTpInput').placeholder = isPips ? 'pips off' : 'price off';
+        const distWord = TW.Units.dist(activeInstrument).word.toLowerCase();
+        document.getElementById('preSlInput').placeholder = isPips ? `${distWord} off` : 'price off';
+        document.getElementById('preTpInput').placeholder = isPips ? `${distWord} off` : 'price off';
         if (sltpMode === 'drag') {
           dragLevels.enable();
           // Phones: the lines are on the Chart tab.
@@ -1556,7 +1621,9 @@ window.TW = window.TW || {};
         TW.SponsorSlots.renderInto(tag);
       }
     }
+    TW.Units.set(state.instrumentSpecs);
     setupInstrumentTabs(state.instruments);
+    applySizeUnit();
     // Bell Rush / The Pit: an honest label beside the instruments.
     if (state.modeRules && state.modeRules.simulatedLabel && !document.getElementById('simulatedLabel')) {
       const chip = document.createElement('span');
@@ -1743,7 +1810,8 @@ window.TW = window.TW || {};
   });
 
   socket.on('trade:partial_closed', (data) => {
-    TW.toast(`Partial close: ${data.closedLots} lots for ${TW.formatMoney(data.pnl)}`, data.pnl >= 0 ? 'info' : 'warning');
+    const partSym = (myAccount.positions.find((p) => p.id === data.positionId) || {}).symbol;
+    TW.toast(`Partial close: ${TW.Units.size(partSym, data.closedLots)} for ${TW.formatMoney(data.pnl)}`, data.pnl >= 0 ? 'info' : 'warning');
     TW.Sound.play(data.pnl >= 0 ? 'closeProfit' : 'closeLoss');
     const pos = myAccount.positions.find((p) => p.id === data.positionId);
     if (pos) pos.lots = data.remainingLots;
@@ -1866,6 +1934,7 @@ window.TW = window.TW || {};
         instruments: (lastState && lastState.instruments) || [],
         active: activeInstrument,
         lot: selectedLot,
+        unit: TW.Units.unit(activeInstrument),
         prices: lastPrices,
         positions: myAccount.positions.slice(),
         balance: myAccount.balance,

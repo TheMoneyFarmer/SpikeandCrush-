@@ -241,7 +241,11 @@
   }
 
   // ---- order rail -------------------------------------------------------------------
+  // Lots for forex and CFDs, whole shares for stocks, whole contracts for futures.
+  const activeSym = () => (TW.Game ? TW.Game.state().active : null);
+  const wholeUnits = () => Boolean(TW.Units && TW.Units.whole(activeSym()));
   function lotSet() {
+    if (wholeUnits()) return TW.Units.chips(activeSym()).slice(0, 4);
     const fc = TW.FireConfig || {};
     return fc.lotChips || [0.1, 0.5, 1, 5];
   }
@@ -269,16 +273,17 @@
       more.classList.toggle('on', !inSet);
     }
     const note = $('plAssetsNote');
-    if (note) note.innerHTML = `${dotHtml('hot')} busy now ${dotHtml('warm')} moving ${dotHtml('quiet')} quiet. BUY and SELL here use your lot: <b class="mono">${cur}</b>.`;
+    if (note) note.innerHTML = `${dotHtml('hot')} busy now ${dotHtml('warm')} moving ${dotHtml('quiet')} quiet. BUY and SELL here use your size: <b class="mono">${TW.Units ? TW.Units.size(activeSym(), cur) : cur}</b>.`;
   }
   function openLotSheet() {
-    const all = (TW.FireConfig && TW.FireConfig.allLots) || [0.01, 0.1, 0.5, 1, 2, 5, 10];
+    const whole = wholeUnits();
+    const all = whole ? TW.Units.chips(activeSym()) : (TW.FireConfig && TW.FireConfig.allLots) || [0.01, 0.1, 0.5, 1, 2, 5, 10];
     let sheet = $('plLotSheet');
     if (sheet) { sheet.remove(); $('plLotMore').setAttribute('aria-expanded', 'false'); return; }
     sheet = document.createElement('div');
     sheet.id = 'plLotSheet';
     sheet.className = 'pl-lotsheet';
-    sheet.innerHTML = `${all.map((v) => `<button type="button" class="pl-lot" data-v="${v}">${v}</button>`).join('')}<label class="pl-lotcustom">Custom<input type="number" min="0.01" step="0.01" inputmode="decimal" aria-label="Custom lot size" /></label>`;
+    sheet.innerHTML = `${all.map((v) => `<button type="button" class="pl-lot" data-v="${v}">${v}</button>`).join('')}<label class="pl-lotcustom">Custom<input type="number" min="${whole ? 1 : 0.01}" step="${whole ? 1 : 0.01}" inputmode="${whole ? 'numeric' : 'decimal'}" aria-label="Custom size" /></label>`;
     $('plLots').after(sheet);
     $('plLotMore').setAttribute('aria-expanded', 'true');
     sheet.querySelectorAll('[data-v]').forEach((b) => b.addEventListener('click', () => { TW.Game.setLot(b.dataset.v); markLots(); sheet.remove(); $('plLotMore').setAttribute('aria-expanded', 'false'); }));
@@ -292,7 +297,7 @@
     const st = TW.Game.state();
     if (prefs().confirmTrades) {
       const px = st.prices[st.active];
-      const ok = await confirmStep(`${direction} ${st.lot} ${st.active}`, `At about ${px ? (direction === 'BUY' ? px.ask : px.bid) : 'market'}. The server fills at the live price.`);
+      const ok = await confirmStep(`${direction} ${TW.Units ? TW.Units.size(st.active, st.lot) : st.lot} ${st.active}`, `At about ${px ? (direction === 'BUY' ? px.ask : px.bid) : 'market'}. The server fills at the live price.`);
       if (!ok) return;
     }
     const before = st.positions.length;
@@ -457,6 +462,13 @@
   function onGame(e) {
     if (!on) return;
     const d = e.detail || {};
+    if (d.type === 'units') {
+      // Market changed between lots, shares and contracts: the 0.01 and 10 lot
+      // extras only make sense for lots.
+      document.querySelectorAll('#lotSelector .pl-extra').forEach((b) => { b.hidden = wholeUnits(); });
+      if ($('plLots')) buildLots();
+      return;
+    }
     if (d.type === 'prices') {
       const st = TW.Game.state();
       for (const [s, p] of Object.entries(st.prices)) if (!(s in firstMid)) firstMid[s] = p.mid;

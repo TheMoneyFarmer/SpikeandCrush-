@@ -32,8 +32,8 @@ window.TW = window.TW || {};
       body: 'Automatically closes your trade when price reaches your target. Locks in your profit. Set in pips or at a specific price level. Drag the line on the chart to adjust it mid-trade.',
     },
     lots: {
-      title: 'Lot Size',
-      body: 'How large your position is. Bigger lot sizes mean bigger profits AND bigger losses per pip of movement. Start small until you understand how an instrument moves.',
+      title: 'Order size',
+      body: 'How large your position is. Forex and CFDs trade in lots (1 lot of EUR/USD is 100,000 euros, about $10 a pip). Stocks trade in whole shares ($1 a share for every $1 move). Futures trade in whole contracts at the exchange multiplier (1 E-mini S&P 500 contract is $50 a point, $12.50 a tick). Bigger size means bigger profits AND bigger losses. Start small until you understand how an instrument moves.',
     },
     spread: {
       title: 'Spread',

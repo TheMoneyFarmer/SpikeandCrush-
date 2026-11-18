@@ -17,6 +17,8 @@ Every mode uses the same trading rules and the same money maths (starting capita
 | Blitz War | 3 minutes | 5 coins | 2+ (no limit) | 5 to start | Highest equity wins | no |
 | Grand War | 20 minutes | 25 coins | 4+ (no limit) | 5 to start | Highest equity wins | yes (separate Grand War rating) |
 | Elimination | 15 minutes | 10 coins | no limit, cuts need 4+ | 5 to start | Survive the cuts | no |
+| Bell Rush | 10 minutes | 10 coins | 2+ (no limit) | 5 to start | Highest equity wins | yes (War Rating) |
+| The Pit | 15 minutes | 10 coins | 2+ (no limit) | 5 to start | Highest equity wins | yes (War Rating) |
 | Solo Ranked | 10 minutes | free | you and 3 AI traders | 5 to start | Highest equity wins | yes (separate Solo rating) |
 | Daily Challenge | 10 minutes | 5 coins | just you | none | Best of the day | no |
 | Private War | 10 minutes | 1 coin for the host, free for invited players | 2+ (no limit) | 5 to start | Host decides | no |
@@ -25,6 +27,8 @@ Every mode uses the same trading rules and the same money maths (starting capita
 - **Blitz War**: A three-minute sprint on the busiest markets. Fast refills, no heavy cards. Best for: a quick fix between other things. Cards refill fast, no heavy cards, more spike alerts.
 - **Grand War**: Twenty minutes of strategy with scheduled market events and a half-time check. Best for: when you have time to plan. Market events at 5, 10 and 15 minutes, half-time standings, Steady Hand badge.
 - **Elimination**: Survive the cuts. Every 3 minutes the bottom of the table is knocked out. Best for: big lobbies and nerves of steel. Bottom 20% cut every 3 minutes; Lifeline card.
+- **Bell Rush**: Open bell. Fast money. US stocks only, on their busiest minutes. Best for: stock pickers who like a fast tape. Stocks only (simulated, historical replay): about 8 stocks a match, opening-bell style surges.
+- **The Pit**: Where the big contracts move. Futures only: indices, energy, metals, rates and softs. Best for: big swings and heavy contracts. Futures only (simulated, historical replay): about 6 contracts a match.
 - **Solo Ranked**: Free, always open: race the ghost of your own best run and finish a mission chain. Best for: learning, practice and beating your personal best. Ghost of your best run, 3-mission chain, sabotage the AI traders.
 - **Daily Challenge**: One market for everyone today. Set the score, then challenge friends. Best for: one go a day and bragging rights. Same market for everyone, no sabotage, share a challenge link.
 - **Private War**: Your room, your rules: invite friends with a code and choose how it plays. Best for: playing with friends. Host sets cards, deck level, starting hand, cuts and flavor.

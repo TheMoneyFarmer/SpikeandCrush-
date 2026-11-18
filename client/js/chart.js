@@ -94,6 +94,13 @@ TW.Chart = (function () {
     XAGUSD: 5000, NAS100: 1, US30: 1, UK100: 1, GER40: 1, BRENT: 1000, USOIL: 1000,
     BTCUSD: 1, ETHUSD: 1, USTUSD: 1, AAPL: 1,
   };
+  // Stocks, futures and anything else: the server's specs (js/units.js).
+  if (TW.Units) TW.Units.onSet((specs) => {
+    for (const [sym, sp] of Object.entries(specs)) {
+      if (!(sym in PIP_SIZE)) PIP_SIZE[sym] = sp.pipSize;
+      if (!(sym in CONTRACT_SIZE)) CONTRACT_SIZE[sym] = sp.contractSize;
+    }
+  });
   const DRAG_COLOR = '#ffeb3b';
   const FLASH_COLOR = '#ff1744';
   // Position 1 (oldest of the up-to-3 visible) / 2 / 3 each get a distinct

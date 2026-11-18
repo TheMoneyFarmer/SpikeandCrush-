@@ -156,7 +156,7 @@
           <button type="button" class="pos-toggle" data-toggle aria-expanded="false" title="Stop loss and take profit">
             <span class="pos-side ${p.side === 'BUY' ? 'is-buy' : 'is-sell'}">${p.side}</span>
             <span class="info">
-              <span class="pos-what"><b>${p.lots}</b> ${TW.escapeHtml(p.symbol)}</span>
+              <span class="pos-what"><b>${p.lots}</b>${TW.Units && TW.Units.whole(p.symbol) ? ` ${TW.Units.word(p.symbol, p.lots)}` : ''} ${TW.escapeHtml(p.symbol)}</span>
               <span class="pos-at text-secondary">@ ${p.entryPrice}<span class="pos-sltp" data-sltp-text></span></span>
             </span>
           </button>
@@ -230,7 +230,7 @@
           .slice(0, 50)
           .map(
             (t) => `<div class="trade-history-row">
-          <span><strong class="${t.side === 'BUY' ? 'text-buy' : 'text-sell'}">${t.side}</strong> ${t.lots} ${TW.escapeHtml(t.symbol)}</span>
+          <span><strong class="${t.side === 'BUY' ? 'text-buy' : 'text-sell'}">${t.side}</strong> ${t.lots}${TW.Units && TW.Units.whole(t.symbol) ? ` ${TW.Units.word(t.symbol, t.lots)}` : ''} ${TW.escapeHtml(t.symbol)}</span>
           <span class="text-secondary">${reasons[t.exitReason] || t.exitReason}</span>
           <span class="${t.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(t.pnl)}</span>
         </div>`
@@ -282,7 +282,9 @@
     }
     lastTradeIds = ids;
     view = next;
+    if (TW.Units) TW.Units.set(view.instrumentInfo);
     pushQuotesToChart(view.quotes, view.compTime);
+    applySizeUnit();
     renderAll();
   }
 
@@ -408,7 +410,39 @@
     activeSymbol = sym;
     TW.Chart.setActiveSymbol(sym);
     if (dragLevels) dragLevels.reset();
+    applySizeUnit();
     renderAll();
+  }
+
+  // The ticket in the active market's unit: lots, shares or contracts (js/units.js).
+  let sizeUnitShown = null;
+  function applySizeUnit() {
+    if (!activeSymbol || !TW.Units) return;
+    const sym = activeSymbol;
+    const label = $('lotLabel');
+    if (label) label.textContent = TW.Units.label(sym);
+    const u = TW.Units.unit(sym);
+    if (sizeUnitShown === u) return;
+    sizeUnitShown = u;
+    const chips = TW.Units.chips(sym);
+    $('lotSelector').querySelectorAll('.lot-chip[data-lot]').forEach((chip, i) => {
+      if (chips[i] === undefined) return;
+      chip.dataset.lot = String(chips[i]);
+      chip.textContent = TW.Units.whole(sym) ? String(chips[i]) : Number(chips[i]).toFixed(1);
+    });
+    const input = $('customLotInput');
+    input.min = String(TW.Units.min(sym));
+    input.step = String(TW.Units.step(sym));
+    input.placeholder = TW.Units.whole(sym) ? '0' : '0.0';
+    if (!TW.Units.valid(sym, selectedLots)) selectedLots = TW.Units.defaultSize(sym);
+    let onChip = false;
+    $('lotSelector').querySelectorAll('.lot-chip').forEach((c) => {
+      const on = c.dataset.lot !== undefined && Number(c.dataset.lot) === selectedLots;
+      onChip = onChip || on;
+      c.classList.toggle('active', on);
+    });
+    input.value = onChip ? '' : String(selectedLots);
+    if (!onChip) $('customLotChip').classList.add('active');
   }
 
   // ---- wiring ----------------------------------------------------------------------------
@@ -442,11 +476,16 @@
       $('customLotInput').value = '';
     });
     $('customLotInput').addEventListener('input', (e) => {
-      const v = Number(e.target.value);
+      let v = Number(e.target.value);
+      if (v > 0 && TW.Units && TW.Units.whole(activeSymbol)) v = Math.max(1, Math.round(v));
       if (!Number.isFinite(v) || v <= 0) return;
       $('lotSelector').querySelectorAll('.lot-chip').forEach((c) => c.classList.remove('active'));
       $('customLotChip').classList.add('active');
       selectedLots = v;
+    });
+
+    $('customLotInput').addEventListener('change', (e) => {
+      if (TW.Units && TW.Units.whole(activeSymbol) && Number(e.target.value) > 0) e.target.value = String(selectedLots);
     });
 
     $('positionsList').addEventListener('click', (e) => {

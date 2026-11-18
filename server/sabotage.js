@@ -81,7 +81,7 @@ const CARDS = {
   volatility_surge: C('volatility_surge', 'Volatility Surge', 'market', 'market', 'rare', 'wave', 25,
     'Double price movement speed for 25s.'),
   liquidity_drain: C('liquidity_drain', 'Liquidity Drain', 'market', 'market', 'common', 'drain', 30,
-    'Cap max lot size at 0.1 for all players for 30s.'),
+    'Cap max size at 0.1 lots (1 share or contract) for all players for 30s.'),
   reversal_flash: C('reversal_flash', 'Reversal Flash', 'market', 'market', 'rare', 'reverse', 8,
     'Force a sharp 10 pip reversal, then snap back, over 8s.', { requiresSymbol: true }),
   position_freeze: C('position_freeze', 'Position Freeze', 'opponent', 'attack', 'common', 'freeze', 15,
@@ -107,7 +107,7 @@ const CARDS = {
   margin_call: C('margin_call', 'Margin Call', 'opponent', 'attack', 'legendary', 'warn', 0,
     "Force-close every one of the target's open positions at market."),
   lot_limiter: C('lot_limiter', 'Lot Limiter', 'opponent', 'attack', 'common', 'ruler', 15,
-    "Cap the target's max lot size at 0.05 for 15s."),
+    "Cap the target's max size at 0.05 lots (1 share or contract) for 15s."),
   pip_theft: C('pip_theft', 'Pip Theft', 'opponent', 'attack', 'legendary', 'thief', 0,
     "Steal 150 from the target's capital straight into yours."),
   ghost_trade: C('ghost_trade', 'Ghost Trade', 'opponent', 'attack', 'rare', 'ghost', 0,
@@ -353,7 +353,7 @@ function playCard(match, casterId, cardType, ctx = {}, now = Date.now()) {
     case 'liquidity_drain':
       match.marketEffects.liquidityDrainUntil = until;
       match.marketEffects.liquidityDrainCasterId = caster.id;
-      result.feedText = `${caster.username} played Liquidity Drain - max lot size capped at 0.1 for everyone else`;
+      result.feedText = `${caster.username} played Liquidity Drain - max size capped at 0.1 lots (1 share or contract) for everyone else`;
       result.notify.push({ to: 'all', event: 'sabotage:incoming', payload: { cardType, duration: cardDef.duration } });
       break;
     case 'reversal_flash': {

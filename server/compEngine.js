@@ -411,7 +411,7 @@ function createCompEngine({ io, notifyPlayer }) {
       instrumentInfo: Object.fromEntries(
         (comp.instruments || []).map((sym) => {
           const cfg = instruments.getInstrument(sym);
-          return [sym, { name: cfg.name, pipSize: cfg.pipSize, decimals: cfg.decimals, minLot: cfg.minLot }];
+          return [sym, { name: cfg.name, pipSize: cfg.pipSize, decimals: cfg.decimals, minLot: cfg.minLot, ...instruments.clientSpecs([sym])[sym] }];
         })
       ),
     };
@@ -462,12 +462,13 @@ function createCompEngine({ io, notifyPlayer }) {
   // ---- trading -----------------------------------------------------------------------
 
   function validateLots(symbol, lots) {
-    const cfg = instruments.getInstrument(symbol);
     const n = Number(lots);
     // No upper limit: size is decided by free margin when the trade opens.
-    if (!Number.isFinite(n) || n < cfg.minLot) {
-      throw Object.assign(new Error(`Lot size must be at least ${cfg.minLot}`), { status: 400 });
-    }
+    // Lots in 0.01 steps, shares and contracts whole.
+    const bad = instruments.sizeError(symbol, n);
+    if (bad) throw Object.assign(new Error(bad), { status: 400 });
+    const cfg = instruments.getInstrument(symbol);
+    if (n < cfg.minLot) throw Object.assign(new Error(`Size must be at least ${cfg.minLot} ${instruments.unitWord(symbol, cfg.minLot)}`), { status: 400 });
     return Math.round(n * 100) / 100;
   }
 
@@ -521,7 +522,7 @@ function createCompEngine({ io, notifyPlayer }) {
     const freeMargin = equity - usedNow;
     if (marginRules.positionMargin(symbol, size, marginRules.mid(quote)) > freeMargin) {
       const most = marginRules.maxAffordableLots(symbol, marginRules.mid(quote), freeMargin);
-      throw Object.assign(new Error(most > 0 ? `Not enough free margin. You can open up to ${most} lots of ${symbol} right now` : 'No free margin left. Close a position to open a new one'), { status: 400 });
+      throw Object.assign(new Error(most > 0 ? `Not enough free margin. You can open up to ${most} ${instruments.unitWord(symbol, most)} of ${symbol} right now` : freeMargin > 0 && instruments.sizeRules(symbol).unit !== 'lot' ? `Not enough free margin for 1 ${instruments.unitWord(symbol, 1)} of ${symbol}. Close a position first` : 'No free margin left. Close a position to open a new one'), { status: 400 });
     }
 
     const entryPrice = dir === 'BUY' ? quote.ask : quote.bid;

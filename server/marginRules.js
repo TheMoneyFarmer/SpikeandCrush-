@@ -40,11 +40,12 @@ function marginLevel(equity, used) {
   return used > 0 ? (equity / used) * 100 : null;
 }
 
-// The biggest size that fits in the free margin, rounded down to 0.01 lots.
+// The biggest size that fits in the free margin, rounded down to the market's
+// step (0.01 lots, 1 share, 1 contract).
 function maxAffordableLots(symbol, price, freeMargin) {
   const perLot = positionMargin(symbol, 1, price);
   if (!(perLot > 0) || freeMargin <= 0) return 0;
-  return Math.floor((freeMargin / perLot) * 100) / 100;
+  return instruments.floorToStep(symbol, freeMargin / perLot);
 }
 
 const mid = (quote) => (Number(quote.bid) + Number(quote.ask)) / 2;
