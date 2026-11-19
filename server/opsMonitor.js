@@ -15,10 +15,14 @@ const ALERT_EVERY_MS = 30 * 60 * 1000; // at most one email per problem per half
 const ERRORS_BEFORE_RESTART = 10; // uncaught errors in one minute before giving up
 const BUSY_MESSAGE = 'The game is very busy right now. Please try again in a minute.';
 
-function createOpsMonitor({ liveMatches, connectedSockets, sendAlert, exit = process.exit, intervalMs = SAMPLE_EVERY_MS }) {
-  const loop = monitorEventLoopDelay({ resolution: 20 });
-  loop.enable();
+// CPU time (ms) this process has used since start.
+const cpuMsNow = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
+
+function createOpsMonitor({ liveMatches, connectedSockets, sendAlert, exit = process.exit, intervalMs = SAMPLE_EVERY_MS, loop: loopIn, cpuMs = cpuMsNow }) {
+  const loop = loopIn || monitorEventLoopDelay({ resolution: 20 });
+  if (!loopIn) loop.enable();
   let lagP99Ms = 0;
+  let lastCpuMs = cpuMs();
   const lastAlert = new Map();
   let recentCrashes = [];
 
@@ -62,9 +66,19 @@ function createOpsMonitor({ liveMatches, connectedSockets, sendAlert, exit = pro
   }
 
   function sample() {
-    lagP99Ms = Math.round(loop.percentile(99) / 1e6);
+    const rawLagMs = Math.round(loop.percentile(99) / 1e6);
     loop.reset();
+    const cpuNow = cpuMs();
+    const cpuUsedMs = cpuNow - lastCpuMs;
+    lastCpuMs = cpuNow;
+    // A loop that is really overloaded burns CPU the whole time it is late. If the
+    // timers were late but the process used almost no CPU, the container was
+    // paused (the host froze or moved it), not overloaded: log it, do not email
+    // and do not refuse matches. Seen 2026-11-19: 742 s "lag" with 0 matches.
+    const paused = rawLagMs >= LAG_FULL_MS && cpuUsedMs < rawLagMs / 2;
+    lagP99Ms = paused ? 0 : rawLagMs;
     const s = snapshot();
+    if (paused) console.warn('[ops] process was paused, not overloaded', JSON.stringify({ pausedMs: rawLagMs, cpuUsedMs: Math.round(cpuUsedMs) }));
     console.log('[ops]', JSON.stringify(s));
     if (s.heapRatio >= HEAP_FULL_RATIO) alert('heap', 'Server memory is nearly full', s);
     if (lagP99Ms >= LAG_FULL_MS) alert('lag', 'Server is overloaded (slow event loop)', s);

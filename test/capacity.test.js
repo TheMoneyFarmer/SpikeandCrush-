@@ -171,6 +171,24 @@ test('new matches are refused when the server is full, with a friendly message',
   assert.match(body.error, /busy/);
 });
 
+test('a paused container is not reported as overload; a busy loop still is', () => {
+  const fakeLoop = (ms) => ({ percentile: () => ms * 1e6, reset() {} });
+  const quiet = (fn) => { const l = console.log, w = console.warn; console.log = console.warn = () => {}; try { return fn(); } finally { console.log = l; console.warn = w; } };
+  // The 2026-11-19 email: 742 s late, nothing running, and the process used almost no CPU.
+  let cpu = 0; const alerts = [];
+  const paused = monitor(0, { loop: fakeLoop(742492), cpuMs: () => (cpu += 40), sendAlert: async (s) => alerts.push(s) });
+  const s1 = quiet(() => paused.sample());
+  assert.strictEqual(s1.lagP99Ms, 0);
+  assert.strictEqual(paused.hasRoom(), true, 'matches are not refused after a pause');
+  // Really overloaded: 800 ms late and the CPU busy the whole window.
+  let cpu2 = 0;
+  const busy = monitor(0, { loop: fakeLoop(800), cpuMs: () => (cpu2 += 50000), sendAlert: async (s) => alerts.push(s) });
+  const s2 = quiet(() => busy.sample());
+  assert.strictEqual(s2.lagP99Ms, 800);
+  assert.strictEqual(busy.hasRoom(), false);
+  return new Promise((r) => setImmediate(r)).then(() => assert.deepStrictEqual(alerts, ['Server is overloaded (slow event loop)']));
+});
+
 test('one error does not take the server down; a burst of them restarts it', () => {
   let exited = 0;
   const m = monitor(0, { exit: () => { exited++; } });
