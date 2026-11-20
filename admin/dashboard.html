@@ -130,7 +130,7 @@
       const k = data.kpis;
       const tiles = [
         ['Active players', fmt(k.activePlayers.value), delta(k.activePlayers.value, k.activePlayers.prev), spark(k.activePlayers.series), '/players.html'],
-        ['New signups', fmt(k.signups.value), delta(k.signups.value, k.signups.prev), spark(k.signups.series), '/analytics.html?tab=players'],
+        ['New signups', fmt(k.signups.value), delta(k.signups.value, k.signups.prev), spark(k.signups.series), '/analytics.html?tab=funnels'],
         ['Matches played', fmt(k.matches.value), delta(k.matches.value, k.matches.prev), spark(k.matches.series), '/matches.html?tab=history'],
         ['Real-player seats', k.realSeatsPct.value == null ? '–' : `${k.realSeatsPct.value}%`, delta(k.realSeatsPct.value, k.realSeatsPct.prev, 'pts'), '', '/matches.html?tab=history'],
         ['Revenue', `$${Number(k.revenue.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, delta(k.revenue.value, k.revenue.prev), spark(k.revenue.series), '/monetisation.html?tab=overview'],

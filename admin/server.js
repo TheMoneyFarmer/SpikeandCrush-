@@ -307,6 +307,7 @@ app.use('/api/competitions', require('./routes/competitions')());
 app.use('/admin/api/comps', requireAdmin, supportAgentGuard, require('./routes/competitions')());
 app.use('/api/monetisation', require('./routes/monetisation')());
 app.use('/api/analytics', require('./routes/analytics')());
+app.use('/api/insights', require('./routes/insights')());
 app.use('/api/config', require('./routes/gameConfig')());
 app.use('/api/fire', require('./routes/fire')());
 app.use('/api/branding', require('./routes/branding')());

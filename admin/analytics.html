@@ -3,162 +3,101 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Analytics — Spike & Crush Admin</title>
+<title>Analytics | Spike &amp; Crush Admin</title>
 <link rel="icon" href="/icons/admin.svg" type="image/svg+xml" />
 <link rel="icon" href="/icons/admin-32.png" type="image/png" sizes="32x32" />
 <link rel="stylesheet" href="css/admin-base.css" />
 <link rel="stylesheet" href="css/admin-tables.css" />
-<link rel="stylesheet" href="css/admin-charts.css" />
 <link rel="stylesheet" href="css/admin-components.css" />
 <link rel="stylesheet" href="css/admin-console.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<link rel="stylesheet" href="css/admin-records.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .ax { --bg: #07090F; --panel: #0E1320; --tile: #111724; --line: #1D2638; --text: #E8ECF4; --muted: #9AA4B8; --gold: #F5B83D; --spike: #2EE6A6; --crush: #FF4D5E;
+        background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; padding: 16px; border-radius: 12px; min-height: 70vh; }
+  .ax h1, .ax h2, .ax h3 { font-family: Rajdhani, Inter, sans-serif; margin: 0; letter-spacing: .2px; }
+  .ax h1 { font-size: 28px; }
+  .ax h2 { font-size: 18px; margin-bottom: 8px; }
+  .ax-sub { color: var(--muted); font-size: 13px; margin: 4px 0 12px; }
+  .ax-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 12px; scrollbar-width: thin; }
+  .ax-tabs button { flex: 0 0 auto; min-height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font: 600 13px Inter, sans-serif; cursor: pointer; }
+  .ax-tabs button[aria-selected="true"] { color: var(--text); border-color: var(--gold); box-shadow: inset 0 -2px 0 var(--gold); }
+  .ax-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 14px; }
+  .ax-bar label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
+  .ax-bar input, .ax-bar select { min-height: 36px; background: var(--tile); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; font: 13px Inter, sans-serif; min-width: 0; }
+  .ax-bar input[type="text"] { width: 120px; }
+  .ax-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .ax-seg button { min-height: 36px; padding: 0 10px; background: var(--tile); color: var(--muted); border: 0; font: 600 12px Inter, sans-serif; cursor: pointer; }
+  .ax-seg button[aria-pressed="true"] { background: var(--gold); color: #07090F; }
+  .ax-toggle { flex-direction: row !important; align-items: center; gap: 6px !important; font-size: 12px !important; color: var(--text) !important; min-height: 36px; }
+  .ax-btn { min-height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--gold); background: transparent; color: var(--gold); font: 600 13px Inter, sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+  .ax-btn svg { width: 16px; height: 16px; }
+  .ax-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .ax-tile { background: var(--tile); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+  .ax-tile span { display: block; font-size: 12px; color: var(--muted); }
+  .ax-tile b { display: block; font: 700 22px Rajdhani, Inter, sans-serif; margin-top: 4px; overflow-wrap: anywhere; }
+  .ax-tile i { display: block; font-style: normal; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .ax-tile.red { border-color: var(--crush); } .ax-tile.red i { color: var(--crush); }
+  .ax-tile.warning { border-color: var(--gold); } .ax-tile.warning i { color: var(--gold); }
+  .ax-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; min-width: 0; }
+  .ax-chart svg { width: 100%; height: 200px; display: block; }
+  .ax-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .ax-legend b { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .ax-table { overflow-x: auto; }
+  .ax-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ax-table th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .ax-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .ax-table td.num, .ax-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ax-table a { color: var(--gold); }
+  .ax-note { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+  .ax-empty, .ax-loading { color: var(--muted); padding: 30px 10px; text-align: center; font-size: 14px; }
+  .ax-error { color: var(--crush); padding: 16px; }
+  @media (max-width: 640px) {
+    .ax { padding: 12px; border-radius: 0; }
+    .ax-bar input[type="text"] { width: 100%; }
+    .ax-bar label { flex: 1 1 45%; }
+    .ax-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ax-tile b { font-size: 19px; }
+  }
+</style>
 </head>
 <body>
   <div class="admin-shell">
-    <aside class="admin-sidebar" id="adminSidebar" data-active="an-players"></aside>
+    <aside class="admin-sidebar" id="adminSidebar" data-active="an-overview"></aside>
     <main class="admin-main">
       <div class="admin-topbar" id="adminTopbar"></div>
       <div class="admin-content">
-
-        <div class="admin-tabs">
-          <button class="admin-tab" data-tab="players">Player Analytics</button>
-          <button class="admin-tab" data-tab="matches">Match Analytics</button>
-          <button class="admin-tab" data-tab="revenue">Revenue Analytics</button>
-          <button class="admin-tab" data-tab="retention">Retention Analytics</button>
-          <button class="admin-tab" data-tab="geo">Geographic Analytics</button>
-          <button class="admin-tab" data-tab="pwa">App installs</button>
-        </div>
-
-        <div class="admin-tab-panel" id="tab-players">
-          <div class="kpi-grid" id="playerKpis"></div>
-          <div class="charts-grid">
-            <div class="chart-card"><h3>DAU (90 days)</h3><canvas id="chartDau"></canvas></div>
-            <div class="chart-card"><h3>New vs Returning (active last 30d)</h3><canvas id="chartNewReturning"></canvas></div>
-            <div class="chart-card"><h3>Session Length Distribution</h3><canvas id="chartSessionLength"></canvas></div>
-          </div>
-          <div class="panel" style="margin-top:16px;">
-            <h3>Cohort Retention Heatmap (by signup month, weekly active %)</h3>
-            <div id="cohortHeatmap"></div>
-          </div>
-        </div>
-
-        <div class="admin-tab-panel" id="tab-matches">
-          <div class="charts-grid">
-            <div class="chart-card"><h3>Matches by Mode</h3><canvas id="chartByMode"></canvas></div>
-            <div class="chart-card"><h3>Matches by Instrument</h3><canvas id="chartByInstrument"></canvas></div>
-          </div>
-        </div>
-
-        <div class="admin-tab-panel" id="tab-revenue">
-          <div class="kpi-grid" id="revAnalyticsKpis"></div>
-          <div class="chart-card"><h3>Revenue by Day (90 days)</h3><canvas id="chartRevenueDaily"></canvas></div>
-        </div>
-
-        <div class="admin-tab-panel" id="tab-retention">
-          <div class="kpi-grid" id="retentionKpis"></div>
-        </div>
-
-        <div class="admin-tab-panel" id="tab-pwa">
-          <div class="admin-table-toolbar"><span id="pwaRange"></span></div>
-          <div class="kpi-grid" id="pwaKpis"></div>
-          <div class="panel"><h3 style="margin-top:0">By platform</h3><div id="pwaTable"></div>
-          <p class="text-secondary" style="font-size:12px">Counts only, no player ids. Installs are counted on Android (the browser tells us); iPhone installs show up as installed sessions.</p></div>
-        </div>
-        <div class="admin-tab-panel" id="tab-geo">
-          <div id="geoTableWrap"><div class="empty-state">Loading…</div></div>
-        </div>
-
+        <section class="ax" aria-live="polite">
+          <h1>Analytics</h1>
+          <p class="ax-sub">From our own database. Internal traffic (admin, test and computer players) is left out unless you include it.</p>
+          <nav class="ax-tabs" role="tablist" id="axTabs"></nav>
+          <form class="ax-bar" id="axBar" onsubmit="return false">
+            <div class="ax-seg" role="group" aria-label="Date range" id="axPresets">
+              <button type="button" data-preset="today">Today</button><button type="button" data-preset="7">7 days</button><button type="button" data-preset="30" aria-pressed="true">30 days</button><button type="button" data-preset="90">90 days</button>
+            </div>
+            <label>From<input type="date" id="axFrom" /></label>
+            <label>To<input type="date" id="axTo" /></label>
+            <div class="ax-seg" role="group" aria-label="Time zone" id="axTz">
+              <button type="button" data-tz="dubai" aria-pressed="true">Asia/Dubai</button><button type="button" data-tz="utc">UTC</button>
+            </div>
+            <label>Device<select id="axDevice"><option value="">All</option><option value="phone">Phone</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option><option value="unknown">Unknown</option></select></label>
+            <label>Mode<select id="axMode"><option value="">All</option><option>quick</option><option>blitz</option><option>grand</option><option>tournament</option><option>solo</option><option>private</option><option>stocks</option><option>futures</option><option>async</option></select></label>
+            <label>Country<input type="text" id="axCountry" placeholder="e.g. AE" maxlength="2" /></label>
+            <label>Source<input type="text" id="axSource" placeholder="e.g. google.com" /></label>
+            <label>Campaign<input type="text" id="axCampaign" placeholder="campaign" /></label>
+            <label>Page<input type="text" id="axPage" placeholder="/play" /></label>
+            <label class="ax-toggle"><input type="checkbox" id="axInternal" /> Include internal traffic</label>
+            <a class="ax-btn" id="axCsv" href="#" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/></svg>CSV</a>
+          </form>
+          <div id="axBody"><div class="ax-loading">Loading</div></div>
+        </section>
       </div>
     </main>
   </div>
-
   <script src="js/time-ago.js"></script>
   <script src="js/admin-api.js"></script>
   <script src="js/admin-auth.js"></script>
   <script src="js/admin-nav.js"></script>
-  <script src="js/admin-charts.js"></script>
-  <script src="js/date-range.js"></script>
-  <script>
-    Admin.renderNav();
-    Admin.renderTopbar('Analytics');
-
-    const loaded = {};
-    function activateTab(name) {
-      document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-      document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
-      if (!loaded[name]) { loaders[name](); loaded[name] = true; }
-    }
-    document.querySelectorAll('.admin-tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
-
-    let pwaRange = null;
-    const loaders = {
-      pwa: async () => {
-        if (!pwaRange) pwaRange = await Admin.DateRange.mount(document.getElementById('pwaRange'), { defaultPreset: '30d', onChange: () => loaders.pwa() });
-        const d = await Admin.api(`/analytics/pwa?${pwaRange.query()}`);
-        if (!d.ready) { document.getElementById('pwaKpis').innerHTML = '<div class="empty-state">No data yet: run supabase/migrations/20261116090000_pwa_events.sql.</div>'; document.getElementById('pwaTable').innerHTML = ''; return; }
-        const t = d.totals || {};
-        const k = (label, v) => `<div class="kpi-card"><div class="kpi-label">${label}</div><div class="kpi-value">${v ?? 0}</div></div>`;
-        document.getElementById('pwaKpis').innerHTML = k('Installs (Android)', t.installed) + k('Installed sessions', t.standalone_session) + k('Install card shown', t.prompt_shown) + k('Dismissed', t.prompt_dismissed) + k("Don't show again", t.prompt_never) + k('Matches played installed', d.installedMatchShare == null ? '-' : `${d.installedMatchShare}%`);
-        const kinds = ['prompt_shown', 'prompt_dismissed', 'prompt_never', 'install_click', 'installed', 'standalone_session', 'match_installed', 'match_browser', 'lock_failed_nudge'];
-        const rows = Object.entries(d.byPlatform || {});
-        document.getElementById('pwaTable').innerHTML = rows.length ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Platform</th>${kinds.map((x) => `<th>${x.replace(/_/g, ' ')}</th>`).join('')}</tr></thead><tbody>${rows.map(([p, v]) => `<tr><td>${Admin.escapeHtml(p)}</td>${kinds.map((x) => `<td>${v[x] || 0}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<div class="empty-state">No install events in this range.</div>';
-      },
-      players: async () => {
-        const d = await Admin.api('/analytics/players');
-        document.getElementById('playerKpis').innerHTML = `
-          <div class="kpi-card"><div class="kpi-label">WAU</div><div class="kpi-value">${d.wau}</div></div>
-          <div class="kpi-card"><div class="kpi-label">MAU</div><div class="kpi-value">${d.mau}</div></div>
-          <div class="kpi-card"><div class="kpi-label">Day 1 Retention</div><div class="kpi-value">${d.retention.day1 ?? '—'}%</div></div>
-          <div class="kpi-card"><div class="kpi-label">Day 7 Retention</div><div class="kpi-value">${d.retention.day7 ?? '—'}%</div></div>
-          <div class="kpi-card"><div class="kpi-label">Day 30 Retention</div><div class="kpi-value">${d.retention.day30 ?? '—'}%</div></div>
-        `;
-        Admin.Charts.lineChart(document.getElementById('chartDau'), { labels: d.dauSeries.map((r) => r.day.slice(5)), datasets: [{ data: d.dauSeries.map((r) => r.count), borderColor: Admin.Charts.PALETTE.teal, fill: true, backgroundColor: 'rgba(0,200,150,0.08)' }] });
-        Admin.Charts.doughnutChart(document.getElementById('chartNewReturning'), { labels: ['New', 'Returning'], data: [d.newVsReturning.new, d.newVsReturning.returning] });
-        Admin.Charts.barChart(document.getElementById('chartSessionLength'), { labels: Object.keys(d.sessionLengthDistribution), datasets: [{ label: 'Sessions', data: Object.values(d.sessionLengthDistribution), backgroundColor: Admin.Charts.PALETTE.info, borderRadius: 3 }] });
-
-        document.getElementById('cohortHeatmap').innerHTML = `
-          <table class="admin-table"><thead><tr><th>Cohort</th><th>Size</th>${[0, 1, 2, 3, 4].map((w) => `<th>Week ${w}</th>`).join('')}</tr></thead>
-          <tbody>${d.cohortHeatmap.map((c) => `<tr><td>${c.cohort}</td><td>${c.size}</td>${c.weeks.map((w) => `<td style="background:rgba(0,200,150,${w / 100});">${w}%</td>`).join('')}</tr>`).join('')}</tbody></table>
-        `;
-      },
-      matches: async () => {
-        const d = await Admin.api('/analytics/matches');
-        Admin.Charts.doughnutChart(document.getElementById('chartByMode'), { labels: Object.keys(d.avgDurationSecondsByMode), data: Object.keys(d.avgDurationSecondsByMode).map(() => 1) });
-        Admin.Charts.horizontalBarChart(document.getElementById('chartByInstrument'), { labels: Object.keys(d.instrumentPopularity), data: Object.values(d.instrumentPopularity) });
-      },
-      revenue: async () => {
-        const d = await Admin.api('/analytics/revenue');
-        document.getElementById('revAnalyticsKpis').innerHTML = `
-          <div class="kpi-card"><div class="kpi-label">Avg Order Value</div><div class="kpi-value">${Admin.formatMoney(d.averageOrderValue)}</div></div>
-          <div class="kpi-card"><div class="kpi-label">Conversion Rate</div><div class="kpi-value">${d.conversionRateFreeToPaid}%</div></div>
-          <div class="kpi-card"><div class="kpi-label">Projected Monthly</div><div class="kpi-value">${Admin.formatMoney(d.projectedMonthlyRevenue)}</div></div>
-        `;
-        const days = Object.keys(d.revenueByDay);
-        Admin.Charts.lineChart(document.getElementById('chartRevenueDaily'), { labels: days.map((d) => d.slice(5)), datasets: [{ data: Object.values(d.revenueByDay), borderColor: Admin.Charts.PALETTE.gold, fill: true, backgroundColor: 'rgba(255,215,0,0.08)' }] });
-      },
-      retention: async () => {
-        const d = await Admin.api('/analytics/retention');
-        document.getElementById('retentionKpis').innerHTML = `
-          <div class="kpi-card"><div class="kpi-label">Day 1</div><div class="kpi-value">${d.retention.day1 ?? '—'}%</div></div>
-          <div class="kpi-card"><div class="kpi-label">Day 7</div><div class="kpi-value">${d.retention.day7 ?? '—'}%</div></div>
-          <div class="kpi-card"><div class="kpi-label">Day 30</div><div class="kpi-value">${d.retention.day30 ?? '—'}%</div></div>
-        `;
-      },
-      geo: async () => {
-        const d = await Admin.api('/analytics/geographic');
-        const rows = Object.entries(d.playersByCountry).sort((a, b) => b[1] - a[1]);
-        document.getElementById('geoTableWrap').innerHTML = `
-          <div class="text-secondary" style="font-size:12px;margin-bottom:10px;">${Admin.escapeHtml(d.note)}</div>
-          <div class="admin-table-wrap"><table class="admin-table">
-            <thead><tr><th>Country</th><th>Players</th><th>Revenue</th></tr></thead>
-            <tbody>${rows.map(([c, n]) => `<tr><td>${Admin.escapeHtml(c)}</td><td>${n}</td><td>${Admin.formatMoney(d.revenueByCountry[c] || 0)}</td></tr>`).join('')}</tbody>
-          </table></div>
-        `;
-      },
-    };
-
-    activateTab(new URLSearchParams(location.search).get('tab') || 'players');
-  </script>
+  <script src="js/insights.js"></script>
 </body>
 </html>
