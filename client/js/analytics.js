@@ -257,10 +257,13 @@
     function collect(name, props) {
       q.push({ name, props: props || {}, page: location.pathname });
       if (q.length >= 20) flush(false);
-      else if (!timer) timer = setTimeout(() => flush(false), 3000);
+      else if (!timer) timer = setTimeout(() => flush(false), 1000);
     }
-    const once = (name, props) => { const k = `sc_fp_${name}`; if (ss.get(k)) return; ss.set(k, '1'); collect(name, props); };
+    // once per visit per event AND per its properties (Daily Open and Weekend Open are two views)
+    const once = (name, props) => { const k = `sc_fp_${name}_${JSON.stringify(props || {})}`; if (ss.get(k)) return; ss.set(k, '1'); collect(name, props); };
     addEventListener('pagehide', () => flush(true));
+    addEventListener('beforeunload', () => flush(true));
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(true); });
     return { collect, once, flush, firstTouch, sessionId, setIdleMinutes: (m) => { if (m > 0) IDLE_MS = m * 60 * 1000; } };
   })();
 
@@ -274,7 +277,6 @@
     document.addEventListener('click', (e) => {
       const el = e.target.closest?.('a, button');
       if (!el) return;
-      if (el.matches('.sw-launcher')) FP.collect('support_opened');
       if (el.matches('#tabRegister') || (el.matches('[data-cta], .hero .btn-primary, .sc-sticky-cta a, .sc-sticky-cta button') && document.getElementById('lpRegisterForm'))) FP.once('signup_started', { location: el.id === 'tabRegister' ? 'tab' : 'cta' });
     });
     // Game screen on a phone in landscape (once per visit).

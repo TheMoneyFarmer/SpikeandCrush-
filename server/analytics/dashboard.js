@@ -30,12 +30,23 @@ function prepare(data, ctx) {
   const okIds = new Set(players.map((p) => p.id));
   const results = data.results.filter((r) => okIds.has(r.player_id) && (!filters.mode || r.mode === filters.mode) && (!filters.device || (r.device_class || 'unknown') === filters.device));
   const trades = data.trades.filter((t) => okIds.has(t.player_id));
+  // A visit's source and campaign come from its landing page (only that page
+  // carries the tags); a server event inherits its player's first touch.
+  const sessionSrc = new Map();
+  for (const e of [...data.events].sort((a, b) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at))) {
+    if (e.source === 'client' && e.session_id && !sessionSrc.has(e.session_id)) sessionSrc.set(e.session_id, { source: e.utm_source || e.referrer || 'direct', campaign: e.utm_campaign || 'none' });
+  }
+  const attr = (e) => {
+    if (e.source === 'client') return sessionSrc.get(e.session_id) || { source: e.utm_source || e.referrer || 'direct', campaign: e.utm_campaign || 'none' };
+    const p = e.user_id && playersById.get(e.user_id);
+    return p ? { source: p.first_source || 'unknown', campaign: p.first_campaign || 'none' } : { source: e.utm_source || 'unknown', campaign: e.utm_campaign || 'none' };
+  };
   const eventOk = (e) => (includeInternal || !e.is_internal)
     && (!filters.device || (e.device_class || 'unknown') === filters.device)
     && (!filters.mode || !e.mode || e.mode === filters.mode)
     && (!filters.country || (e.coarse_country || 'unknown') === filters.country)
-    && (!filters.source || !e.source || e.source === 'server' || (e.utm_source || e.referrer || 'direct') === filters.source)
-    && (!filters.campaign || (e.utm_campaign || 'none') === filters.campaign)
+    && (!filters.source || attr(e).source === filters.source)
+    && (!filters.campaign || attr(e).campaign === filters.campaign)
     && (!filters.page || e.page === filters.page);
   const events = data.events.filter(eventOk);
   const activity = [...results, ...trades];
@@ -95,11 +106,17 @@ function funnels(d, ctx) {
     if (def.endReason(r.end_reason) === 'finished' && (!firstFinish.has(r.player_id) || t < firstFinish.get(r.player_id))) firstFinish.set(r.player_id, t);
   }
   const created = new Map(cohort.map((p) => [p.id, Date.parse(p.created_at)]));
+  // A player counts at a step once they reached it or any later step: logging
+  // in needs a verified email, playing needs a login. So the funnel never rises.
+  const reached = (id) => (firstFinish.has(id) ? 4 : firstMatch.has(id) ? 3 : loginAt.has(id) ? 2 : verifiedAt.has(id) ? 1 : 0);
+  const atLeast = (k) => cohort.filter((p) => reached(p.id) >= k).length;
   const steps = [
     ['Visited', visitors.size], ['Sign-up started', started.size], ['Sign-up submitted', cohort.length],
-    ['Email verified', verifiedAt.size], ['First login', loginAt.size], ['First match started', firstMatch.size], ['First match finished', firstFinish.size],
+    ['Email verified', atLeast(1)], ['First login', atLeast(2)], ['First match started', atLeast(3)], ['First match finished', atLeast(4)],
   ];
-  const rows = steps.map(([name, n], i) => [name, n, i ? `${pct(n, steps[i - 1][1])}%` : '100%', i ? `${Math.max(0, Math.round((100 - pct(n, steps[i - 1][1])) * 10) / 10)}%` : '-']);
+  // Visits and sign-up starts are visitors (cookieless); sign-up onwards are players.
+  // Where a step is larger than the one before (players who skipped the form), it shows 100%.
+  const rows = steps.map(([name, n], i) => { const r = i ? Math.min(100, pct(n, steps[i - 1][1])) : 100; return [name, n, `${r}%`, i ? `${Math.round((100 - r) * 10) / 10}%` : '-']; });
   const gap = (a, b) => median([...b.entries()].filter(([id]) => a.has(id)).map(([id, t]) => t - a.get(id)));
   const never = cohort.filter((p) => !firstMatch.has(p.id));
   const bySource = new Map();

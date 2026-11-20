@@ -810,6 +810,7 @@ html.tw-sw-hover #cr,html.tw-sw-hover #cp,html.tw-sw-hover [data-custom-cursor]{
   function openPanel(conversationId) {
     if (state.open && !conversationId) return;
     state.open = true;
+    try { if (window.SCAnalytics && SCAnalytics.collect) SCAnalytics.collect('support_opened'); } catch (e) { /* tracking never blocks support */ }
     lastFocus = document.activeElement;
     panel.classList.add('sw-open');
     panel.setAttribute('aria-hidden', 'false');

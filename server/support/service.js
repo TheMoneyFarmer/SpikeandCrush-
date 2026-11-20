@@ -263,7 +263,10 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
 
     const pii = safety.maskPII(text);
     const userMsg = await store.addMessage({ conversationId: conv.id, senderType: 'user', senderId: owner.playerId || null, body: pii.text, attachments: cleanAttachments, meta: pii.masked ? { pii_masked: true } : {} });
-    conv = await store.updateConversation(conv.id, { last_user_message_at: new Date().toISOString() });
+    // Analytics topic from the player's first words (server/support/topics.js),
+    // set before any shortcut (a "talk to a human" request still gets a topic).
+    const topicPatch = conv.topic ? {} : { topic: require('./topics').classify(text) };
+    conv = await store.updateConversation(conv.id, { last_user_message_at: new Date().toISOString(), ...topicPatch });
     emitMessage(userMsg);
     if (pii.masked) await say(conv, 'system', 'For your safety we hid what looked like card, bank or ID numbers. Please do not share them here; we never need them.');
 
@@ -328,11 +331,6 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
 
     // Gap logging: weak retrieval and the model said it's unsure.
     if (result.meta.retrieval_weak && UNSURE_RE.test(replyText)) kb.logGap(text, conv.id).catch((e) => console.warn('[support] gap log failed:', e.message));
-
-    // Analytics topic from the player's first words (server/support/topics.js).
-    if (!conv.topic) {
-      try { const u = await store.updateConversation(conv.id, { topic: require('./topics').classify(text) }); if (u && u.id) conv = u; } catch (e) { /* best effort */ }
-    }
 
     // Escalation the model asked for (applied after its reply so the thread reads in order).
     if (ctx.pendingEscalation) {

@@ -2087,6 +2087,7 @@ async function sendLobbyInvites(inviter, match, targetIds) {
       if (targetNowSockets) for (const sid of targetNowSockets) io.to(sid).emit('lobby:invite_expired', { inviteId });
     }, INVITE_TTL_MS);
     pendingInvites.set(inviteId, invite);
+    atrack('invite_sent', { userId: inviter.id, mode: match.mode, matchId: match.dbMatchId || match.id, props: { kind: 'lobby' } });
 
     for (const sid of targetSockets) {
       io.to(sid).emit('lobby:invite_received', { ...invite, timer: undefined });
@@ -2453,6 +2454,7 @@ app.post('/api/discover/invite', requireDb, authenticate, async (req, res) => {
       const made = await matchmaking.createPrivateWar(gameEngine, { id: me.id, username: me.username, country: me.country, war_rating: me.war_rating, tier: tierForRating(me.war_rating), ...(await loadCardLoadout(me)) });
       if (!made.success) return res.status(400).json(made);
       room = gameEngine.getMatch(made.matchId);
+      atrack('private_room_created', { req, userId: me.id, mode: 'private', matchId: room?.dbMatchId || made.matchId });
     }
     const { sentTo, skipped } = await sendLobbyInvites(room.players[me.id], room, [targetId]);
     res.json({ matchId: room.id, sent: sentTo.length === 1, reason: skipped[0] ? skipped[0].reason : null });
@@ -4584,7 +4586,6 @@ io.on('connection', (socket) => {
       if (!inviter) return ack?.({ success: false, error: 'Not in this lobby' });
 
       const { sentTo, skipped } = await sendLobbyInvites(inviter, match, targetIds);
-      for (let i = 0; i < (Array.isArray(sentTo) ? sentTo.length : Number(sentTo) || 0); i++) atrack('invite_sent', { userId: session.playerId, mode: match.mode, matchId: match.dbMatchId || match.id, props: { kind: 'lobby' } });
       ack?.({ success: true, sentTo, skipped });
     } catch (e) {
       console.error('[lobby:invite]', e);
