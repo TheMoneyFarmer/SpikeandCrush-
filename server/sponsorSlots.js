@@ -35,7 +35,7 @@ const SLOT_NAMES = Object.keys(SLOTS);
 const BOT_UA = /bot|crawl|spider|slurp|facebookexternalhit|embedly|quora link preview|whatsapp|telegrambot|discordbot|preview|curl|wget|python-requests|headless/i;
 const CACHE_MS = 30000;
 const FLUSH_MS = 5000;
-const DEDUPE_MS = 60000; // one impression per viewer per placement per minute
+const DEDUPE_MS = 30 * 60 * 1000; // one impression per viewer per placement per visit (30 min idle = new visit)
 const MAX_IMPRESSIONS_PER_MIN = 60; // per viewer, beyond this they're ignored
 
 function isHttpsUrl(u) {
@@ -250,10 +250,11 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
     pending.set(key, cur);
   }
 
+  // The real visitor (originLock.visitorIp, not req.ip, which on Railway is the
+  // shared proxy address), hashed with a salt that rotates daily: never stored raw.
   function viewerKey(viewerId, req) {
     if (viewerId) return `u:${viewerId}`;
-    const ip = req.ip || req.socket?.remoteAddress || '';
-    return `ip:${crypto.createHmac('sha256', hmacKey).update(ip).digest('hex').slice(0, 16)}`;
+    return `v:${require('./analytics/context').visitorDayHash(req)}`;
   }
 
   function isBot(req) {

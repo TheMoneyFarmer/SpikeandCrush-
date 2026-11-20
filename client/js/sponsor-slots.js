@@ -12,7 +12,11 @@
   window.TW = window.TW || {};
   const cache = new Map(); // "slot:target" -> payload list
   const seenQueue = new Set();
-  const counted = new Set();
+  // Once per visit (browser session) per placement, not once per page view.
+  const counted = {
+    has(id) { try { return sessionStorage.getItem(`sc_seen_${id}`) === '1'; } catch (e) { return false; } },
+    add(id) { try { sessionStorage.setItem(`sc_seen_${id}`, '1'); } catch (e) { /* private mode: page-view dedupe only */ } },
+  };
   let flushTimer = null;
 
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -108,7 +112,7 @@
   }
   function queueSeen(el) {
     for (const id of String(el.dataset.placements || '').split(',').filter(Boolean)) {
-      if (counted.has(id)) continue; // once per page view; the server also dedupes per minute
+      if (counted.has(id)) continue; // once per visit; the server also dedupes per viewer for 30 minutes
       counted.add(id);
       seenQueue.add(id);
     }

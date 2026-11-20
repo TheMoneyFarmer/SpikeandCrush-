@@ -141,6 +141,8 @@ function router() {
           coins: player.coins, coinsEarnedTotal: player.coins_earned_total, coinsSpentTotal: player.coins_spent_total,
           isBanned: player.is_banned, bannedUntil: player.banned_until, banReason: player.ban_reason,
           flagged: player.flagged, adminNotes: player.admin_notes,
+          isInternal: Boolean(player.is_internal || player.is_persona),
+          firstTouch: { source: player.first_source || null, medium: player.first_medium || null, campaign: player.first_campaign || null, referrer: player.first_referrer || null, partner: player.first_partner || null, landing: player.first_landing || null },
           totpEnabled: player.totp_enabled,
         },
         presence: presenceRes.data || null,
@@ -232,6 +234,21 @@ function router() {
       await supabase.from('players').update({ flagged: !!flagged }).eq('id', id);
       await supabase.from('player_moderation_actions').insert({ player_id: id, admin_username: req.admin.username, action_type: flagged ? 'flagged' : 'unflagged', reason });
       res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Internal traffic (admin, test, staff accounts): excluded from every analytics
+  // number unless the dashboard's "include internal traffic" toggle is on.
+  r.post('/:id/internal', async (req, res) => {
+    const { id } = req.params;
+    const internal = req.body?.internal === true;
+    try {
+      const { error } = await supabase.from('players').update({ is_internal: internal }).eq('id', id);
+      if (error) throw error;
+      await supabase.from('player_moderation_actions').insert({ player_id: id, admin_username: req.admin.username, action_type: internal ? 'marked_internal' : 'unmarked_internal', reason: 'Analytics: internal traffic flag' });
+      res.json({ success: true, internal });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

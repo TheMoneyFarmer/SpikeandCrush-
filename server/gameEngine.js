@@ -3797,6 +3797,14 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     pushFeed(match, `${player.username} left the match`, { type: 'system' });
     emitMatchStateToAll(match);
 
+    // The last human is gone (a forfeited Solo match, or everyone left a bot
+    // match): end it now with the normal end-of-match path (positions closed,
+    // loops stopped, result written once) instead of letting computer players
+    // keep trading and writing rows to an empty room.
+    if (!Object.values(match.players).some((p) => !p.isAI) && (match.status === 'active' || match.status === 'countdown')) {
+      endMatch(match).catch((e) => console.error('[gameEngine] ending an empty match failed:', e.message));
+    }
+
     return { success: true, finalRank, ratingChange, newRating, pnl: finalPnl };
   }
 

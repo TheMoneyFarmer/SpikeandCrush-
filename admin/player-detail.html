@@ -158,6 +158,7 @@
                 <button class="btn" id="actMessage">Send Direct Message</button>
                 <button class="btn" id="actWarn">Issue Warning</button>
                 <button class="btn" id="actFlag">${p.flagged ? 'Unflag' : 'Flag'} Player</button>
+                <button class="btn" id="actInternal" title="Internal accounts (admin, test, staff) are left out of every analytics number">${p.isInternal ? 'Count in analytics' : 'Mark as internal'}</button>
                 ${p.isBanned
                   ? `<button class="btn" id="actUnban">Unban</button>`
                   : `<button class="btn btn-danger" id="actTempBan">Temporary Ban</button><button class="btn btn-danger" id="actPermBan">Permanent Ban</button>`
@@ -213,6 +214,11 @@
         if (!reason) return;
         await Admin.api(`/players/${playerId}/warn`, { method: 'POST', body: { reason } });
         Admin.toast('Warning issued', 'success'); reload();
+      });
+      on('actInternal', async () => {
+        const internal = document.getElementById('actInternal').textContent.startsWith('Mark');
+        await Admin.api(`/players/${playerId}/internal`, { method: 'POST', body: { internal } });
+        Admin.toast(internal ? 'Marked internal: left out of analytics' : 'Counted in analytics again', 'success'); reload();
       });
       on('actFlag', async () => {
         const flagged = !document.getElementById('actFlag').textContent.startsWith('Unflag');
