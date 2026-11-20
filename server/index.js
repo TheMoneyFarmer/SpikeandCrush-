@@ -1259,10 +1259,10 @@ app.post('/api/auth/oauth-callback', authLimiter, requireDb, async (req, res) =>
     }
 
     const player = await db.createPlayer({ username, email, supabaseUserId: user.id });
+    await recordTermsAcceptance(player, req.body?.termsAccepted);
     await firstTouch.save(db, player.id, req.body?.firstTouch);
     atrack('signup_submitted', { req, userId: player.id, ...firstTouch.eventFields(req.body?.firstTouch), props: { method: 'google' } });
     atrack('email_verified', { req, userId: player.id });
-    await recordTermsAcceptance(player, req.body?.termsAccepted);
     await attachInvite(req, res, player);
     const session = await db.createSession({ playerId: player.id, userAgent: req.headers['user-agent'], ip: clientIp(req) });
     await db.recordLoginEvent({ playerId: player.id, ip: clientIp(req), userAgent: req.headers['user-agent'] });

@@ -18,6 +18,8 @@
     add(id) { try { sessionStorage.setItem(`sc_seen_${id}`, '1'); } catch (e) { /* private mode: page-view dedupe only */ } },
   };
   let flushTimer = null;
+  // /go/ links carry the page that showed them (?p=/path), for click attribution.
+  const withPage = (href) => (/^\/go\//.test(String(href || '')) ? `${href}${String(href).includes('?') ? '&' : '?'}p=${encodeURIComponent(location.pathname)}` : href);
 
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const keyOf = (el) => `${el.dataset.slot}:${el.dataset.target || ''}`;
@@ -61,8 +63,8 @@
   function html(p, el) {
     // Featured partner listings link to our own listing page (same tab); sponsors go out through /go/.
     const link = (inner, cls = '') => (p.internal
-      ? `<a class="spx-link ${cls}" href="${esc(p.href)}" data-placement="${esc(p.placementId)}" title="${esc(p.label)}">${inner}</a>`
-      : `<a class="spx-link ${cls}" href="${esc(p.href)}" target="_blank" rel="noopener sponsored" data-placement="${esc(p.placementId)}">${inner}</a>`);
+      ? `<a class="spx-link ${cls}" href="${esc(withPage(p.href))}" data-placement="${esc(p.placementId)}" title="${esc(p.label)}">${inner}</a>`
+      : `<a class="spx-link ${cls}" href="${esc(withPage(p.href))}" target="_blank" rel="noopener sponsored" data-placement="${esc(p.placementId)}">${inner}</a>`);
     switch (p.slot) {
       case 'match_header_chip':
         return link(`<span class="spx-label">${esc(p.label)}</span>${logo(p, 'spx-logo')}`, 'spx-chip');
@@ -122,7 +124,7 @@
     clearTimeout(flushTimer);
     flushTimer = null;
     if (!seenQueue.size) return;
-    const body = JSON.stringify({ ids: [...seenQueue].slice(0, 20) });
+    const body = JSON.stringify({ ids: [...seenQueue].slice(0, 20), page: location.pathname });
     seenQueue.clear();
     const headers = { 'Content-Type': 'application/json' };
     const token = window.TW && TW.getToken ? TW.getToken() : null;

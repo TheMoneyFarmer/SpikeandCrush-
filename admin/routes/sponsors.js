@@ -778,21 +778,22 @@ function router() {
       const ids = sponsors.map((s) => s.id);
       const from = req.query.from && !Number.isNaN(Date.parse(req.query.from)) ? new Date(req.query.from) : null;
       const to = req.query.to && !Number.isNaN(Date.parse(req.query.to)) ? new Date(req.query.to) : null;
-      let clicksQ = supabase.from('sponsor_clicks').select('sponsor_id, created_at').in('sponsor_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
+      // Clicks come from the per-placement daily totals (the old per-click table is gone).
+      let clicksQ = supabase.from('sponsor_stats_daily').select('day, clicks, outbound_clicks, p:sponsor_placements!inner(sponsor_id)').in('p.sponsor_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
       let imprQ = supabase.from('sponsor_impressions_daily').select('sponsor_id, day, count').in('sponsor_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
       if (from) {
-        clicksQ = clicksQ.gte('created_at', from.toISOString());
+        clicksQ = clicksQ.gte('day', from.toISOString().slice(0, 10));
         imprQ = imprQ.gte('day', from.toISOString().slice(0, 10));
       }
       if (to) {
-        clicksQ = clicksQ.lte('created_at', to.toISOString());
+        clicksQ = clicksQ.lte('day', to.toISOString().slice(0, 10));
         imprQ = imprQ.lte('day', to.toISOString().slice(0, 10));
       }
       const [{ data: clicks, error: e1 }, { data: impr, error: e2 }] = await Promise.all([clicksQ.limit(100000), imprQ.limit(100000)]);
       if (e1) throw e1;
       if (e2) throw e2;
       const clickCount = {};
-      (clicks || []).forEach((c) => { clickCount[c.sponsor_id] = (clickCount[c.sponsor_id] || 0) + 1; });
+      (clicks || []).forEach((c) => { const sid = c.p && c.p.sponsor_id; if (sid) clickCount[sid] = (clickCount[sid] || 0) + (c.clicks || 0) + (c.outbound_clicks || 0); });
       const imprCount = {};
       (impr || []).forEach((i) => { imprCount[i.sponsor_id] = (imprCount[i.sponsor_id] || 0) + i.count; });
       // Lifecycle per placement (from the dates; the hourly job stores the same
@@ -971,7 +972,7 @@ function router() {
     since.setUTCHours(0, 0, 0, 0);
     const [{ data: impr, error: e1 }, { data: clicks, error: e2 }] = await Promise.all([
       supabase.from('sponsor_impressions_daily').select('day, placement, count').eq('sponsor_id', id).gte('day', since.toISOString().slice(0, 10)),
-      supabase.from('sponsor_clicks').select('created_at, placement').eq('sponsor_id', id).gte('created_at', since.toISOString()).limit(100000),
+      supabase.from('sponsor_stats_daily').select('day, clicks, outbound_clicks, p:sponsor_placements!inner(sponsor_id)').eq('p.sponsor_id', id).gte('day', since.toISOString().slice(0, 10)).limit(100000),
     ]);
     if (e1) throw e1;
     if (e2) throw e2;
@@ -982,8 +983,7 @@ function router() {
     }
     (impr || []).forEach((row) => { if (byDay[row.day]) byDay[row.day].impressions += row.count; });
     (clicks || []).forEach((row) => {
-      const d = row.created_at.slice(0, 10);
-      if (byDay[d]) byDay[d].clicks += 1;
+      if (byDay[row.day]) byDay[row.day].clicks += (row.clicks || 0) + (row.outbound_clicks || 0);
     });
     return Object.values(byDay).map((row) => ({ ...row, ctr: row.impressions ? Math.round((row.clicks / row.impressions) * 10000) / 100 : 0 }));
   }
@@ -1005,6 +1005,48 @@ function router() {
       res.set('Content-Type', 'text/csv; charset=utf-8');
       res.set('Content-Disposition', `attachment; filename="sponsor-${req.params.id}-30d.csv"`);
       res.send(['day,impressions,clicks,ctr_pct', ...rows.map((r2) => `${r2.day},${r2.impressions},${r2.clicks},${r2.ctr}`)].join('\n'));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Full aggregate report for a sponsor and a date range: by day, page, device
+  // and placement; JSON, CSV or PDF. Counts only (server/analytics/sponsorReport.js).
+  r.get('/:id/report-full', async (req, res) => {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Sponsor not found' });
+    try {
+      const def = require('../../server/analytics/definitions');
+      const rep = require('../../server/analytics/sponsorReport');
+      const tz = def.tzKey(req.query.tz);
+      const today = def.dayOf(Date.now(), tz);
+      const toDay = /^\d{4}-\d{2}-\d{2}$/.test(req.query.to || '') ? req.query.to : today;
+      const fromDay = /^\d{4}-\d{2}-\d{2}$/.test(req.query.from || '') ? req.query.from : def.addDays(toDay, -29);
+      if (def.daysBetween(fromDay, toDay) < 0 || def.daysBetween(fromDay, toDay) > 400) return res.status(400).json({ error: 'Choose a range of up to 400 days' });
+      const { data: sponsor } = await supabase.from('sponsors').select('id, name').eq('id', req.params.id).maybeSingle();
+      if (!sponsor) return res.status(404).json({ error: 'Sponsor not found' });
+      const { data: placements } = await supabase.from('sponsor_placements').select('id, slot').eq('sponsor_id', sponsor.id);
+      const ids = (placements || []).map((p) => p.id);
+      const [fromMs, toMs] = def.rangeMs(fromDay, toDay, tz);
+      const events = [];
+      if (ids.length) {
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await supabase.from('analytics_events').select('id, occurred_at, event_name, placement_id, page, device_class, user_id, visitor_day_hash, is_internal, properties').in('event_name', ['placement_impression', 'placement_click', 'partner_link_click']).in('placement_id', ids).gte('occurred_at', new Date(fromMs).toISOString()).lt('occurred_at', new Date(toMs).toISOString()).range(from, from + 999);
+          if (error) throw error;
+          events.push(...(data || []));
+          if (!data || data.length < 1000) break;
+        }
+      }
+      const report = rep.build({ sponsor, placements: placements || [], events, fromDay, toDay, tz });
+      const name = `sponsor-report-${String(sponsor.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${fromDay}-${toDay}`;
+      if (req.query.format === 'csv') {
+        res.set('Content-Type', 'text/csv; charset=utf-8').set('Content-Disposition', `attachment; filename="${name}.csv"`);
+        return res.send(rep.toCsv(report));
+      }
+      if (req.query.format === 'pdf') {
+        res.set('Content-Type', 'application/pdf').set('Content-Disposition', `attachment; filename="${name}.pdf"`);
+        return res.send(rep.toPdf(report));
+      }
+      res.json(report);
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

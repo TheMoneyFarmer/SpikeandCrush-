@@ -283,7 +283,14 @@ function createListingsRouter({ db, authenticate, optionalViewerId, sendEmail, c
       const { data: sec } = await sb().from('competition_listing_secrets').select('*').eq('competition_id', row.id).maybeSingle();
       const url = secrets.outboundUrl(sec, { utm: { utm_source: 'spikeandcrush', utm_medium: 'competition_listing', utm_campaign: row.slug } });
       if (!url) return res.redirect(302, `/competitions/listing/${row.slug}?note=not-configured`);
-      if (!BOT_UA.test(String(req.get('user-agent') || ''))) sb().rpc('listing_outbound_bump', { p_id: row.id }).then(() => {}, () => {});
+      // One row per click (page, device, daily visitor hash), not a running counter.
+      if (!BOT_UA.test(String(req.get('user-agent') || ''))) {
+        try {
+          let page = typeof req.query.p === 'string' && req.query.p.startsWith('/') ? req.query.p : null;
+          if (!page) { try { page = new URL(String(req.get('referer') || '')).pathname; } catch (e) { page = null; } }
+          require('./analytics/events').analytics().track('partner_link_click', { req, partnerId: row.slug, page, props: { link: 'listing' } });
+        } catch (e) { /* best effort */ }
+      }
       res.redirect(302, url);
     } catch (e) {
       res.redirect(302, '/competitions');

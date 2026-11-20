@@ -284,15 +284,8 @@ function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets,
       if (!sponsor || !isHttpUrl(sponsor.link_url)) return res.status(404).send('Sponsor not found');
       const placement = PLACEMENTS.includes(req.query.placement || req.body?.placement) ? req.query.placement || req.body.placement : null;
       const target = req.query.target || req.body?.target;
-      await db
-        .recordSponsorClick({
-          sponsorId: sponsor.id,
-          placement,
-          targetId: target ? String(target).slice(0, 64) : null,
-          userId: await optionalViewerId(req),
-          ipHash: ipHash(req),
-        })
-        .catch((e) => console.warn('[sponsor click]', e.message));
+      // Logged to the first-party event table (no player id or address in it).
+      try { require('./analytics/events').analytics().track('placement_click', { req, partnerId: sponsor.id, page: placement ? `/legacy/${placement}` : null, props: { slot: target ? String(target).slice(0, 40) : null } }); } catch (e) { /* best effort */ }
       res.redirect(302, new URL(sponsor.link_url).toString());
     } catch (e) {
       console.error('[sponsor click]', e);

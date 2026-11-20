@@ -2136,15 +2136,6 @@ async function getLiveSponsor(id) {
   return sponsorIsLive(data) ? data : null;
 }
 
-async function recordSponsorClick({ sponsorId, placement, targetId, userId, ipHash }) {
-  assertConfigured();
-  const { error } = await supabase
-    .from('sponsor_clicks')
-    // Sponsor data never names a player (userId is accepted for old callers and ignored).
-    .insert({ sponsor_id: sponsorId, placement, target_id: targetId, user_id: null, ip_hash: ipHash });
-  if (error) throw error;
-}
-
 async function bumpSponsorImpression({ sponsorId, placement, day, count = 1 }) {
   assertConfigured();
   const { error } = await supabase.rpc('sponsor_impression_bump', { p_sponsor: sponsorId, p_placement: placement, p_day: day, p_n: count });
@@ -2866,7 +2857,6 @@ module.exports = {
   dubaiDayStart,
   listActiveSponsors,
   getLiveSponsor,
-  recordSponsorClick,
   bumpSponsorImpression,
   countRecentSponsorLeads,
   createSponsorLead,

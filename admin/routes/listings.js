@@ -131,6 +131,22 @@ function router() {
       const { data, error } = await q;
       if (error) throw error;
       const counts = await waitCounts();
+      // Partner-link clicks from the per-click log (analytics_events), total and
+      // unique visitors; the old running counter is only a fallback before the log.
+      const clicks = {};
+      try {
+        const { data: ev } = await supabase.from('analytics_events').select('partner_id, visitor_day_hash, user_id, occurred_at').eq('event_name', 'partner_link_click').eq('is_internal', false).in('partner_id', data.map((l) => l.slug).filter(Boolean)).limit(100000);
+        for (const e of ev || []) {
+          const c = (clicks[e.partner_id] ||= { total: 0, uniq: new Set() });
+          c.total += 1;
+          c.uniq.add(`${(e.occurred_at || '').slice(0, 10)}|${e.user_id || e.visitor_day_hash}`);
+        }
+      } catch (e) { /* table not there yet */ }
+      for (const l of data) {
+        const c = clicks[l.slug];
+        l.outbound_clicks_unique = c ? c.uniq.size : 0;
+        if (c) l.outbound_clicks = c.total;
+      }
       const listings = data.map((l) => {
         const sec = Array.isArray(l.secret) ? l.secret[0] : l.secret;
         const masked = (enc) => (enc ? secrets.mask(secrets.decrypt(enc) || '••••') : '');

@@ -91,7 +91,7 @@
         <td>${l.prize_kind === 'money' ? `${esc(l.prize_currency)} ${Number(l.prize_pool).toLocaleString()}` : esc(l.prize_text || '')}</td>
         <td class="muted">${Admin.formatDate(l.listed_at)}</td>
         <td>${l.waitlist}</td>
-        <td>${l.outbound_clicks}</td>
+        <td>${l.outbound_clicks}${l.outbound_clicks_unique ? ` <span class="text-secondary" style="font-size:11px">(${l.outbound_clicks_unique} unique)</span>` : ''}</td>
         <td>${l.outbound.set ? 'Set' : '<span class="muted">Not set</span>'}</td>
       </tr>`).join('') || '<tr><td colspan="10" class="muted">No listings</td></tr>';
       document.querySelectorAll('.ls-row').forEach((tr) => tr.addEventListener('click', () => edit(data.listings.find((x) => x.id === tr.dataset.id))));

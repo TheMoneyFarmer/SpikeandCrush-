@@ -58,8 +58,18 @@ function createCompRewards({ client, sendEmail, siteUrl = () => process.env.SITE
   const sb = () => client();
   const site = () => String(siteUrl()).replace(/\/$/, '');
 
+  // Winner pipeline steps for the Affiliate dashboard (no player data: a step name only).
+  const STEP = { recorded: 'recorded', approved: 'approved', claim_email_sent: 'emailed', claimed_with_consent: 'claimed', link_clicked: 'link_clicked', prize_request_sent: 'prize_requested', prize_request_prepared: 'prize_requested', expired: 'expired', ineligible_country: 'ineligible' };
   async function event(winnerId, actor, kind, detail = {}) {
     await sb().from('comp_winner_events').insert({ winner_id: winnerId, actor, kind, detail });
+    const step = kind === 'status_changed' ? detail.to : STEP[kind];
+    if (step) {
+      try {
+        const A = require('./analytics/events').analytics();
+        A.track('winner_step', { props: { step: String(step) } });
+        if (kind === 'link_clicked') A.track('partner_link_click', { props: { link: 'claim' } });
+      } catch (e) { /* best effort */ }
+    }
   }
 
   // ---- 1. winners at settlement ------------------------------------------------

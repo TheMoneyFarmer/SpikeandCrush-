@@ -283,6 +283,10 @@ async function requireAdmin(req, res, next) {
     next();
   } catch (e) {
     res.clearCookie('admin_token');
+    // A signed-in player (a Supabase token, not an admin one) is known but not
+    // allowed: 403. Anything else is not signed in: 401.
+    const claims = jwt.decode(token) || {};
+    if (/supabase/i.test(String(claims.iss || '')) || claims.role === 'authenticated') return res.status(403).json({ error: 'Admins only' });
     return res.status(401).json({ error: 'Session expired or invalid' });
   }
 }

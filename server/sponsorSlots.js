@@ -262,7 +262,7 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
   }
 
   // Returns how many impressions were counted.
-  function countImpressions(ids, viewer, now = Date.now()) {
+  function countImpressions(ids, viewer, now = Date.now(), onCounted = null) {
     const minute = Math.floor(now / 60000);
     const pm = perViewerMinute.get(viewer);
     const used = pm && pm.minute === minute ? pm.n : 0;
@@ -278,6 +278,7 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
       const uk = crypto.createHmac('sha256', hmacKey).update(`${day}|${viewer}|${id}`).digest('hex');
       if (!uniqueKeys.has(uk)) { uniqueKeys.add(uk); bump(id, 'unique'); }
       counted += 1;
+      if (onCounted) onCounted(id);
     }
     perViewerMinute.set(viewer, { minute, n: used + counted });
     return counted;
@@ -322,6 +323,19 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
     return u.toString();
   }
 
+  // Slot name of a placement, from the resolve cache (analytics only).
+  function slotOf(id) {
+    for (const [slot, entry] of placementCache) if ((entry.rows || []).some((r) => r.id === id)) return slot;
+    return null;
+  }
+  // The page that showed a placement: ?p= (added by client/js/sponsor-slots.js) or the referring path.
+  function pageOf(req) {
+    const p = typeof req.query?.p === 'string' ? req.query.p : (typeof req.body?.page === 'string' ? req.body.page : null);
+    if (p && p.startsWith('/')) return p.slice(0, 120);
+    try { return new URL(String(req.get('referer') || '')).pathname.slice(0, 120); } catch (e) { return null; }
+  }
+  const A = () => require('./analytics/events').analytics();
+
   // ---- routes ---------------------------------------------------------------------------
   function router() {
     const r = express.Router();
@@ -348,7 +362,10 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
       if (isBot(req)) return res.json({ counted: 0 });
       const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).filter((x) => /^[0-9a-f-]{36}$/i.test(String(x))).slice(0, 20);
       const viewerId = await optionalViewerId(req).catch(() => null);
-      res.json({ counted: countImpressions([...new Set(ids)], viewerKey(viewerId, req)) });
+      const page = pageOf(req);
+      res.json({ counted: countImpressions([...new Set(ids)], viewerKey(viewerId, req), Date.now(), (id) => {
+        try { A().track('placement_impression', { req, userId: viewerId, placementId: id, page, props: { slot: slotOf(id) } }); } catch (e) { /* best effort */ }
+      }) });
     });
 
     // Every sponsor click: count, then redirect with UTM tags. No player data in the URL.
@@ -357,7 +374,15 @@ function createSponsorSlots({ db, logoHosts = [], secret, optionalViewerId, site
       const row = await db.getPlacementWithSponsor(req.params.id).catch(() => null);
       const url = row && live(row, Date.now()) ? outboundUrl(row) : null;
       if (!url) return res.redirect(302, '/');
-      if (!isBot(req)) bump(row.id, String(row.targets || '').startsWith('partner:') ? 'outbound' : 'clicks');
+      const partner = String(row.targets || '').startsWith('partner:');
+      if (!isBot(req)) {
+        bump(row.id, partner ? 'outbound' : 'clicks');
+        // One row per click: placement, page, device, daily visitor hash (unique vs total).
+        try {
+          const viewerId = await optionalViewerId(req).catch(() => null);
+          A().track(partner ? 'partner_link_click' : 'placement_click', { req, userId: viewerId, placementId: row.id, partnerId: row.sponsor && row.sponsor.id, page: pageOf(req), props: partner ? { link: 'placement' } : { slot: row.slot } });
+        } catch (e) { /* best effort */ }
+      }
       res.set('Referrer-Policy', 'no-referrer');
       res.redirect(302, url);
     });

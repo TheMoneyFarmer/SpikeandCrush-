@@ -199,4 +199,4 @@ async function verifyStatementHash(sb, sha256) {
   return { genuine: verifySignature(data.sha256, data.signature), statementId: data.id, accountNumber: Number(data.account_number), issuedAt: data.created_at, generatedBy: data.generated_by };
 }
 
-module.exports = { renderStatement, signStatement, verifySignature, issueStatement, verifyStatementHash, pdfText };
+module.exports = { renderStatement, signStatement, verifySignature, issueStatement, verifyStatementHash, pdfText, createPage, buildPdf, PDF_COLORS: { GOLD, INK, PANEL, MUTED, SPIKE, CRUSH }, PDF_SIZE: { W, H, M } };
