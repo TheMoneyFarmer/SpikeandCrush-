@@ -201,7 +201,7 @@
   // days; "Reject" deletes it. Batched, sent every few seconds or on leaving,
   // never blocks the page, never sent from inside the match loop.
   const FP = (() => {
-    const IDLE_MS = 30 * 60 * 1000;
+    let IDLE_MS = 30 * 60 * 1000; // replaced by the server's setting at boot
     const q = [];
     let timer = null;
     const ss = {
@@ -261,7 +261,7 @@
     }
     const once = (name, props) => { const k = `sc_fp_${name}`; if (ss.get(k)) return; ss.set(k, '1'); collect(name, props); };
     addEventListener('pagehide', () => flush(true));
-    return { collect, once, flush, firstTouch, sessionId };
+    return { collect, once, flush, firstTouch, sessionId, setIdleMinutes: (m) => { if (m > 0) IDLE_MS = m * 60 * 1000; } };
   })();
 
   function wireFirstParty() {
@@ -298,6 +298,7 @@
     }
     fillCompany(cfg);
     termsNotice(cfg);
+    FP.setIdleMinutes(Number(cfg.analyticsSessionIdleMinutes) || 30);
     provider = cfg.analyticsProvider || 'none';
     analyticsId = cfg.analyticsId || null;
     document.querySelectorAll('[data-cookie-settings]').forEach((el) => {

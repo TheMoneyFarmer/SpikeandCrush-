@@ -134,14 +134,14 @@ test('Turnstile: off without keys, requires a token when on, survives Cloudflare
   }
 });
 
-test('retention only touches replays, read notifications and old curves, and 0 turns it off', async () => {
+test('retention only touches replays, read notifications, old curves and old analytics/tech events, and 0 turns it off', async () => {
   const deletes = [];
   const db = {
     deleteOlderThan: async (table, column, before, opts) => { deletes.push({ table, column, opts }); return 1; },
     pruneEndedCompSnapshots: async () => 2,
   };
-  assert.deepStrictEqual(await runRetention(db, NOW), { replays: 1, notifications: 1, snapshots: 2 });
-  assert.deepStrictEqual(deletes.map((d) => d.table), ['replays', 'notifications']);
+  assert.deepStrictEqual(await runRetention(db, NOW), { replays: 1, notifications: 1, snapshots: 2, tech_events: 1, analytics_events: 1 });
+  assert.deepStrictEqual(deletes.map((d) => d.table), ['replays', 'notifications', 'tech_events', 'analytics_events']);
   assert.strictEqual(deletes[0].opts.idColumn, 'match_id');
   const filtered = []; deletes[1].opts.extra({ eq: (k, v) => filtered.push([k, v]) });
   assert.deepStrictEqual(filtered, [['read', true]]);

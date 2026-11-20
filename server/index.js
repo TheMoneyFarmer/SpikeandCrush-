@@ -3985,6 +3985,7 @@ app.get('/api/config/public', (req, res) => {
     turnstileSiteKey: turnstile.isOn() ? turnstile.siteKey() : null,
     analyticsProvider: ['plausible', 'ga4'].includes(process.env.ANALYTICS_PROVIDER) && process.env.ANALYTICS_ID ? process.env.ANALYTICS_PROVIDER : 'none',
     analyticsId: process.env.ANALYTICS_ID || null,
+    analyticsSessionIdleMinutes: Math.min(240, Math.max(5, Number(process.env.ANALYTICS_SESSION_IDLE_MINUTES) || 30)),
     termsVersion: TERMS_VERSION,
     legalReviewed: process.env.LEGAL_REVIEWED === 'true',
     company: {
@@ -4717,6 +4718,18 @@ server.listen(PORT, () => {
   // Live prices for live-data competitions (server/liveMarket.js). Only a
   // deployed server writes the health heartbeat other processes trust.
   require('./liveFeed').start(require('./envCheck').alertsEnabled() ? db : null);
+  // Tech health history (tech_events): once a minute while matches are live,
+  // the worst price-step lateness and the event-loop p99 from engineHealth.
+  if (db.isConfigured) {
+    setInterval(() => {
+      try {
+        const h = require('./engineHealth').snapshot();
+        if (!h.activeMatches) return;
+        analyticsEvents.analytics().tech('tick_lag', { valueMs: h.stepLateMaxMs, props: { p95: h.stepLateP95Ms, matches: h.activeMatches, state: h.state } });
+        analyticsEvents.analytics().tech('loop_lag', { valueMs: h.eventLoopP99Ms, props: { max: h.eventLoopMaxMs, heapMb: h.heapMb } });
+      } catch (e) { /* best effort */ }
+    }, 60000).unref();
+  }
   // Weekly leaderboard coins (Monday, last week's top 3 per tier). Deployed
   // servers only, so a local copy never pays real players; keys stop repeats.
   if (db.isConfigured && require('./envCheck').alertsEnabled()) {

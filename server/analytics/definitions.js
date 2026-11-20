@@ -147,9 +147,38 @@ function retention(players, days, { tz = 'dubai', today, by = 'week', includeInt
   return rows;
 }
 
+// SESSIONS (visits): client events grouped by the browser's visit id; a gap
+// longer than the idle timeout (default 30 minutes, ANALYTICS_SESSION_IDLE_MINUTES)
+// starts a new session. Length = last event - first event (a one-page visit is 0 s).
+function sessions(events, { idleMs = 30 * 60 * 1000, tz = 'dubai' } = {}) {
+  const by = new Map();
+  for (const e of events) {
+    if (!e.session_id || e.source !== 'client') continue;
+    if (!by.has(e.session_id)) by.set(e.session_id, []);
+    by.get(e.session_id).push(e);
+  }
+  const out = [];
+  for (const list of by.values()) {
+    list.sort((a, b) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at));
+    let cur = null;
+    for (const e of list) {
+      const t = Date.parse(e.occurred_at);
+      if (!cur || t - cur.endMs > idleMs) {
+        cur = { session_id: e.session_id, startMs: t, endMs: t, pages: 0, device: e.device_class || 'unknown', user_id: e.user_id || null, visitor: e.anonymous_id || e.visitor_day_hash || null, is_internal: Boolean(e.is_internal), landing: e.page || null, source: e.utm_source || e.referrer || 'direct' };
+        out.push(cur);
+      }
+      cur.endMs = t;
+      if (e.event_name === 'page_view') cur.pages++;
+      if (e.user_id) cur.user_id = e.user_id;
+      if (e.is_internal) cur.is_internal = true;
+    }
+  }
+  return out.map((x) => ({ ...x, start: new Date(x.startMs).toISOString(), day: dayOf(x.startMs, tz), lengthSec: Math.round((x.endMs - x.startMs) / 1000) }));
+}
+
 const END_REASON = { completed: 'finished', loss_limit: 'finished', left: 'forfeited', disconnect: 'disconnected', timeout: 'timed_out' };
 function endReason(stored) {
   return END_REASON[stored] || 'unknown';
 }
 
-module.exports = { DAY_MS, TZ_OFFSET_MS, tzKey, dayOf, rangeMs, daysBetween, addDays, dayList, isInternalPlayer, countable, activeDays, activeCounts, activeSeries, activeInPeriod, retention, endReason, END_REASON };
+module.exports = { sessions, DAY_MS, TZ_OFFSET_MS, tzKey, dayOf, rangeMs, daysBetween, addDays, dayList, isInternalPlayer, countable, activeDays, activeCounts, activeSeries, activeInPeriod, retention, endReason, END_REASON };
