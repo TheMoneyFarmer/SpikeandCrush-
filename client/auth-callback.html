@@ -120,7 +120,7 @@
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ name: session.user?.user_metadata?.full_name || session.user?.user_metadata?.name, termsAccepted }),
+          body: JSON.stringify({ name: session.user?.user_metadata?.full_name || session.user?.user_metadata?.name, termsAccepted, firstTouch: (function(){try{return JSON.parse(localStorage.getItem('sc_ft')||sessionStorage.getItem('sc_ft')||'null')}catch(e){return null}})() }),
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {

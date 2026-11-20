@@ -701,6 +701,13 @@ const loginAccountGlobalLimiter = rateLimit({
 const supportChatLimiter = rateLimit({ ...limiterDefaults, windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many messages - please wait a few minutes.' } });
 const supportTicketLimiter = rateLimit({ ...limiterDefaults, windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many tickets - please wait before opening another.' } });
 const clickLimiter = rateLimit({ ...limiterDefaults, windowMs: 15 * 60 * 1000, max: 30 });
+// First-party analytics (server/analytics): the cookieless collector has its
+// own rate limit, so it sits before the general API limiter.
+const analyticsEvents = require('./analytics/events');
+const firstTouch = require('./analytics/attribution');
+const atrack = (name, f) => { if (db.isConfigured) analyticsEvents.analytics().track(name, f); };
+const analyticsCollector = require('./analytics/collector').createCollector({ optionalViewerId: (req) => optionalViewerId(req) });
+app.use(analyticsCollector.router);
 app.use('/api', apiLimiter);
 
 // Internal-only bridge for the separate admin panel (port 3003) - secret +
@@ -841,6 +848,8 @@ app.post('/api/auth/register', authLimiter, requireDb, async (req, res) => {
     let player;
     try {
       player = await db.createPlayer({ username, email, supabaseUserId: created.user.id });
+      await firstTouch.save(db, player.id, req.body?.firstTouch);
+      atrack('signup_submitted', { req, userId: player.id, ...firstTouch.eventFields(req.body?.firstTouch), props: { method: 'email' } });
     } catch (e) {
       // Roll back the auth user so a DB failure doesn't leave an orphaned,
       // permanently-unusable (email now "taken") Supabase account behind.
@@ -959,6 +968,7 @@ app.post('/api/auth/login', authLimiter, loginAccountLimiter, loginAccountGlobal
 
     const session = await db.createSession({ playerId: player.id, userAgent: req.headers['user-agent'], ip: clientIp(req) });
     await db.recordLoginEvent({ playerId: player.id, ip: clientIp(req), userAgent: req.headers['user-agent'] });
+    atrack('login', { req, userId: player.id, props: { method: 'password' } });
     res.json({
       token: signIn.session.access_token,
       refresh_token: signIn.session.refresh_token,
@@ -1064,6 +1074,7 @@ app.post('/api/auth/reset-password', authLimiter, requireDb, (req, res) => {
     return res.status(429).json({ error: 'Too many reset requests. Please wait an hour and try again.' });
   }
   res.json({ message: RESET_REPLY });
+  atrack('password_reset_requested', { req });
   setImmediate(() => sendResetLink(email, publicSiteUrl(req)).catch((e) => console.warn('[reset-password] send failed:', e.message)));
 });
 
@@ -1107,6 +1118,7 @@ app.post('/api/auth/complete-reset', authLimiter, requireDb, authenticate, async
     if (error) return res.status(400).json({ error: 'Could not set that password. Please try another one.' });
     await endOtherSessions(req.tokenPlayer, token, { passwordChanged: true });
     sendPasswordChangedEmail(req.tokenPlayer);
+    atrack('password_reset_completed', { req, userId: req.tokenPlayer.id });
     res.json({ success: true });
   } catch (e) {
     console.error('[complete-reset]', e.message);
@@ -1180,6 +1192,7 @@ app.post('/api/auth/verify-email', authLimiter, requireDb, async (req, res) => {
     if (updateErr) throw updateErr;
     const player = await db.getPlayerBySupabaseUserId(user.id);
     if (player) sendWelcomeEmail(player);
+    if (player) atrack('email_verified', { req, userId: player.id });
     res.json({ verified: true });
   } catch (e) {
     console.error('[verify-email]', e);
@@ -1224,7 +1237,10 @@ app.post('/api/auth/oauth-callback', authLimiter, requireDb, async (req, res) =>
     if (error || !user) return res.status(401).json({ error: 'Invalid or expired token' });
 
     const existing = await db.getPlayerBySupabaseUserId(user.id);
-    if (existing) return res.json({ player: await withEquippedCosmetics(existing) });
+    if (existing) {
+      atrack('login', { req, userId: existing.id, props: { method: 'google' } });
+      return res.json({ player: await withEquippedCosmetics(existing) });
+    }
     // Google has already verified its users. An email sign-up made straight
     // against Supabase with the public key must not get a player this way,
     // because that would skip verification.
@@ -1243,6 +1259,9 @@ app.post('/api/auth/oauth-callback', authLimiter, requireDb, async (req, res) =>
     }
 
     const player = await db.createPlayer({ username, email, supabaseUserId: user.id });
+    await firstTouch.save(db, player.id, req.body?.firstTouch);
+    atrack('signup_submitted', { req, userId: player.id, ...firstTouch.eventFields(req.body?.firstTouch), props: { method: 'google' } });
+    atrack('email_verified', { req, userId: player.id });
     await recordTermsAcceptance(player, req.body?.termsAccepted);
     await attachInvite(req, res, player);
     const session = await db.createSession({ playerId: player.id, userAgent: req.headers['user-agent'], ip: clientIp(req) });
@@ -1485,6 +1504,7 @@ app.post('/api/match/create', deployDrain.blockNewMatches, opsMonitor.blockNewMa
       // Lets a match lost to a crash be refunded. A miss here only affects that refund.
       if (dbMatchId) db.linkEntryToMatch(entry.key, dbMatchId).catch((e) => console.warn('[match/create] entry link failed:', e.message));
     }
+    if (mode === 'private' && result.success && !result.resumed) atrack('private_room_created', { req, userId: player.id, mode: 'private', matchId: gameEngine.getMatch(result.matchId)?.dbMatchId || result.matchId });
     res.json(result);
   } catch (e) {
     console.error('[match/create]', e);
@@ -1502,6 +1522,8 @@ app.post('/api/match/join', requireDb, authenticate, async (req, res) => {
     const playerInfo = { id: player.id, username: player.username, war_rating: player.war_rating, tier: player.tier, ...(await loadCardLoadout(player)) };
     const result = matchmaking.joinByRoomCode(gameEngine, roomCode, playerInfo);
     if (!result.success) return res.status(400).json(result);
+    const joinedMatch = gameEngine.getMatch(result.matchId);
+    if (joinedMatch && joinedMatch.mode === 'private' && joinedMatch.hostId !== player.id) atrack('private_room_joined', { req, userId: player.id, mode: 'private', matchId: joinedMatch.dbMatchId || joinedMatch.id });
     res.json(result);
   } catch (e) {
     console.error('[match/join]', e);
@@ -2178,6 +2200,7 @@ app.get('/api/friends/requests', requireDb, authenticate, async (req, res) => {
 app.post('/api/friends/request', requireDb, authenticate, async (req, res) => {
   try {
     const row = await createFriendRequest(req.tokenPlayer.id, req.body?.targetId);
+    atrack('invite_sent', { req, userId: req.tokenPlayer.id, props: { kind: 'friend' } });
     res.json({ success: true, requestId: row.id });
   } catch (e) {
     if (e.friendly) return res.status(e.status).json({ error: e.message });
@@ -2451,6 +2474,7 @@ app.post('/api/discover/join', requireDb, authenticate, async (req, res) => {
     if (Object.keys(match.players).some((id) => blocks.has(id))) return res.status(400).json({ error: 'That room is no longer open' });
     const result = await joinLobbyWithEntryFee(match, req.tokenPlayer.id);
     if (!result.success) return res.status(400).json({ error: result.error });
+    atrack('discover_join', { req, userId: req.tokenPlayer.id, mode: match.mode, matchId: match.dbMatchId || match.id });
     res.json({ success: true, matchId: match.id });
   } catch (e) {
     console.error('[discover join]', e);
@@ -2605,6 +2629,7 @@ app.post('/api/friends/:requestId/accept', requireDb, authenticate, async (req, 
     if (requesterSockets) {
       for (const sid of requesterSockets) io.to(sid).emit('friend:accepted', { playerId: accepter.id, username: accepter.username });
     }
+    atrack('invite_accepted', { req, userId: req.tokenPlayer.id, props: { kind: 'friend' } });
     res.json({ success: true });
   } catch (e) {
     console.error('[friend accept]', e);
@@ -3155,6 +3180,7 @@ app.post('/api/competitions/:id/enter', requireDb, requireCompetitionId, authent
   try {
     const result = await compEngine.enter(req.params.id, req.tokenPlayer.id);
     if (!result.alreadyEntered) {
+      db.getCompetitionById?.(req.params.id).then((c) => atrack('competition_entered', { req, userId: req.tokenPlayer.id, props: { template: (c && (c.template_key || c.frequency)) || 'other' } })).catch(() => {});
       // count the entry for whichever sponsor presents this competition (a count, no player id)
       db.getCompetitionById?.(req.params.id).then((c) => c && sponsorSlots.recordEntry(`competition:${c.template_key || c.frequency || c.id}`)).catch(() => {});
     }
@@ -4363,6 +4389,7 @@ io.on('connection', (socket) => {
 
   socket.on('player:join', ({ matchId } = {}, ack) => {
     const result = gameEngine.bindSocket(socket, matchId);
+    if (result && result.success && socket.data.player) gameEngine.setPlayerDevice(matchId, socket.data.player.id, require('./analytics/context').deviceClass(socket.handshake.headers['user-agent']));
     if (typeof ack === 'function') ack(result);
   });
 
@@ -4492,6 +4519,7 @@ io.on('connection', (socket) => {
   socket.on('friend:request', async ({ targetId } = {}, ack) => {
     try {
       const row = await createFriendRequest(socket.data.player.id, targetId);
+      atrack('invite_sent', { userId: socket.data.player.id, props: { kind: 'friend' } });
       ack?.({ success: true, requestId: row.id });
     } catch (e) {
       if (e.friendly) return ack?.({ success: false, error: e.message });
@@ -4514,6 +4542,7 @@ io.on('connection', (socket) => {
       if (requesterSockets) {
         for (const sid of requesterSockets) io.to(sid).emit('friend:accepted', { playerId: accepterId, username: accepter.username });
       }
+      atrack('invite_accepted', { userId: accepterId, props: { kind: 'friend' } });
       ack?.({ success: true });
     } catch (e) {
       console.error('[friend:accept]', e);
@@ -4554,6 +4583,7 @@ io.on('connection', (socket) => {
       if (!inviter) return ack?.({ success: false, error: 'Not in this lobby' });
 
       const { sentTo, skipped } = await sendLobbyInvites(inviter, match, targetIds);
+      for (let i = 0; i < (Array.isArray(sentTo) ? sentTo.length : Number(sentTo) || 0); i++) atrack('invite_sent', { userId: session.playerId, mode: match.mode, matchId: match.dbMatchId || match.id, props: { kind: 'lobby' } });
       ack?.({ success: true, sentTo, skipped });
     } catch (e) {
       console.error('[lobby:invite]', e);
@@ -4576,6 +4606,7 @@ io.on('connection', (socket) => {
       if (!joined.success) return ack?.({ success: false, error: joined.error });
       const { player } = joined;
       gameEngine.pushSystemFeed(match.id, `${player.username} joined via invite`);
+      atrack('invite_accepted', { userId: player.id, mode: match.mode, matchId: match.dbMatchId || match.id, props: { kind: 'lobby' } });
 
       const inviterSockets = playerSockets.get(invite.fromPlayerId);
       if (inviterSockets) {
@@ -4629,6 +4660,9 @@ io.on('connection', (socket) => {
     const gap = Number(gapMs);
     if (!pid || typeof matchId !== 'string' || matchId.length > 64 || !(gap > 3000) || gap > 3600000) return;
     require('./engineHealth').recordClientGap(pid, matchId, gap);
+    const gm = gameEngine.getMatch(matchId);
+    atrack('client_freeze', { userId: pid, mode: gm?.mode || null, matchId: gm?.dbMatchId || matchId, props: { gap_ms: Math.round(gap) } });
+    if (db.isConfigured) analyticsEvents.analytics().tech('client_freeze', { matchId: gm?.dbMatchId || matchId, mode: gm?.mode || null, playerId: pid, valueMs: gap });
   });
 
   socket.on('presence:heartbeat', ({ visible } = {}) => {

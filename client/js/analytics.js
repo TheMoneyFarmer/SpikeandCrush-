@@ -193,7 +193,101 @@
     document.body.appendChild(box);
   }
 
-  window.SCAnalytics = { track, trackOnce, openCookieSettings: () => openBanner(true) };
+  // ---- first-party, cookieless collector (/api/a/collect) ------------------------
+  // Runs for everyone, before and without consent: the server counts a visitor
+  // per day from a hash that rotates daily. The visit id lives in session
+  // storage (gone when the tab closes, new after 30 idle minutes). Only after
+  // "Accept" is a first-party id kept in local storage to link visits across
+  // days; "Reject" deletes it. Batched, sent every few seconds or on leaving,
+  // never blocks the page, never sent from inside the match loop.
+  const FP = (() => {
+    const IDLE_MS = 30 * 60 * 1000;
+    const q = [];
+    let timer = null;
+    const ss = {
+      get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+      set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* private mode */ } },
+    };
+    const rand = () => { const a = new Uint8Array(12); (window.crypto || window.msCrypto).getRandomValues(a); return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join(''); };
+    function sessionId() {
+      const last = Number(ss.get('sc_sid_at')) || 0;
+      let id = ss.get('sc_sid');
+      if (!id || Date.now() - last > IDLE_MS) { id = rand(); ss.set('sc_sid', id); }
+      ss.set('sc_sid_at', String(Date.now()));
+      return id;
+    }
+    function anonId() {
+      if (consent() !== 'accepted') { try { localStorage.removeItem('sc_aid'); localStorage.removeItem('sc_ft'); } catch (e) { /* ignore */ } return null; }
+      let id = store.get('sc_aid');
+      if (!id) { id = rand(); store.set('sc_aid', id); }
+      return id;
+    }
+    const external = () => (document.referrer && !document.referrer.startsWith(location.origin) ? document.referrer.slice(0, 300) : null);
+    function utm() {
+      const p = new URLSearchParams(location.search);
+      const g = (k) => (p.get(k) || '').slice(0, 60) || null;
+      return { source: g('utm_source'), medium: g('utm_medium'), campaign: g('utm_campaign'), partner: g('partner') || g('sc_partner') };
+    }
+    // Where this visitor first came from: the first page of the visit (or, with
+    // consent, of their first visit ever). Sent with the sign-up form.
+    function firstTouch() {
+      let ft = null;
+      try { ft = JSON.parse(store.get('sc_ft') || ss.get('sc_ft') || 'null'); } catch (e) { ft = null; }
+      if (!ft) {
+        const u = utm();
+        ft = { source: u.source, medium: u.medium, campaign: u.campaign, partner: u.partner, referrer: external(), landing: location.pathname.slice(0, 120) };
+        ss.set('sc_ft', JSON.stringify(ft));
+      }
+      if (consent() === 'accepted' && !store.get('sc_ft')) store.set('sc_ft', JSON.stringify(ft));
+      return ft;
+    }
+    function flush(leaving) {
+      clearTimeout(timer);
+      timer = null;
+      if (!q.length) return;
+      const body = JSON.stringify({ session_id: sessionId(), anon_id: anonId(), consent: consent() === 'accepted', referrer: external(), utm: utm(), events: q.splice(0, 20) });
+      const token = window.TW && TW.getToken ? TW.getToken() : null;
+      // keepalive fetch survives leaving the page; sendBeacon only if fetch is unavailable
+      try {
+        fetch('/api/a/collect', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: `Bearer ${token}` } : {}), body, keepalive: true }).catch(() => {});
+      } catch (e) {
+        if (navigator.sendBeacon) navigator.sendBeacon('/api/a/collect', new Blob([body], { type: 'application/json' }));
+      }
+    }
+    function collect(name, props) {
+      q.push({ name, props: props || {}, page: location.pathname });
+      if (q.length >= 20) flush(false);
+      else if (!timer) timer = setTimeout(() => flush(false), 3000);
+    }
+    const once = (name, props) => { const k = `sc_fp_${name}`; if (ss.get(k)) return; ss.set(k, '1'); collect(name, props); };
+    addEventListener('pagehide', () => flush(true));
+    return { collect, once, flush, firstTouch, sessionId };
+  })();
+
+  function wireFirstParty() {
+    FP.firstTouch();
+    FP.collect('page_view');
+    const comp = location.pathname.match(/^\/competitions\/(daily|weekend)[a-z-]*/);
+    if (comp) FP.once('competition_viewed', { template: comp[1] });
+    if (/[?&]register=1/.test(location.search)) FP.once('signup_started', { location: 'link' });
+    FP.flush(false); // on-load events go now (keepalive), so a quick click away never loses them
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest?.('a, button');
+      if (!el) return;
+      if (el.matches('.sw-launcher')) FP.collect('support_opened');
+      if (el.matches('#tabRegister') || (el.matches('[data-cta], .hero .btn-primary, .sc-sticky-cta a, .sc-sticky-cta button') && document.getElementById('lpRegisterForm'))) FP.once('signup_started', { location: el.id === 'tabRegister' ? 'tab' : 'cta' });
+    });
+    // Game screen on a phone in landscape (once per visit).
+    if (/^\/game/.test(location.pathname) && window.matchMedia) {
+      const mq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+      const check = () => { if (mq.matches) FP.once('orientation_landscape', { installed: Boolean(window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) }); };
+      check();
+      mq.addEventListener?.('change', check);
+    }
+  }
+
+  window.SCAnalytics = { track, trackOnce, openCookieSettings: () => openBanner(true), collect: (n, p) => FP.collect(n, p), firstTouch: () => FP.firstTouch() };
+  try { wireFirstParty(); } catch (e) { /* tracking must never break a page */ }
 
   async function boot() {
     let cfg = {};

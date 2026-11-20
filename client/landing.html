@@ -1193,7 +1193,7 @@ async function handleLpRegister(e) {
   btn.disabled = true; btn.textContent = 'Creating account…';
   try {
     const turnstileToken = await lpTurnstileToken();
-    const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password, turnstileToken, termsAccepted: true } });
+    const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password, turnstileToken, termsAccepted: true, firstTouch: window.SCAnalytics ? SCAnalytics.firstTouch() : (function(){try{return JSON.parse(localStorage.getItem('sc_ft')||sessionStorage.getItem('sc_ft')||'null')}catch(e){return null}})() } });
     lpTurnstileReset();
     if (data.needsVerification) {
       location.href = '/thanks/signup';

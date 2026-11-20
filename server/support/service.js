@@ -214,6 +214,7 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
       priority,
       meta: { ...(conv.meta || {}), pending_escalation: null, escalation_source: source, sla_notified: false },
     });
+    try { require('../analytics/events').analytics().track('support_escalated', { userId: conv.user_id || null, props: { topic: (topic && topic.topic) || conv.topic || 'other' } }); } catch (e) { /* best effort */ }
     await say(conv, 'system', 'Connecting you to a human agent');
     const hours = await hoursNote();
     await say(conv, 'ai', hours ? `${HANDOFF_TEXT}\n\n${hours}` : HANDOFF_TEXT, { kind: 'handoff' });
@@ -327,6 +328,11 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
 
     // Gap logging: weak retrieval and the model said it's unsure.
     if (result.meta.retrieval_weak && UNSURE_RE.test(replyText)) kb.logGap(text, conv.id).catch((e) => console.warn('[support] gap log failed:', e.message));
+
+    // Analytics topic from the player's first words (server/support/topics.js).
+    if (!conv.topic) {
+      try { const u = await store.updateConversation(conv.id, { topic: require('./topics').classify(text) }); if (u && u.id) conv = u; } catch (e) { /* best effort */ }
+    }
 
     // Escalation the model asked for (applied after its reply so the thread reads in order).
     if (ctx.pendingEscalation) {

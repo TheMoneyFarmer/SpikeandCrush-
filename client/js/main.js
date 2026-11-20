@@ -569,7 +569,7 @@ window.TW = window.TW || {};
       const email = document.getElementById('registerEmail').value.trim();
       const password = document.getElementById('registerPassword').value;
       try {
-        const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password } });
+        const data = await TW.api('/api/auth/register', { method: 'POST', body: { username, email, password, firstTouch: window.SCAnalytics ? SCAnalytics.firstTouch() : (function(){try{return JSON.parse(localStorage.getItem('sc_ft')||sessionStorage.getItem('sc_ft')||'null')}catch(e){return null}})() } });
         if (data.needsVerification) {
           TW.showVerifyPrompt(errEl, { email: data.email });
           document.getElementById('registerPassword').value = '';

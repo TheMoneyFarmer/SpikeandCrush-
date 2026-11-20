@@ -48,6 +48,9 @@
   function send(kind) {
     try {
       fetch('/api/pwa/event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, platform: platform() }), keepalive: true }).catch(() => {});
+      // the same moment in the first-party event log (server/analytics/catalogue.js)
+      const fp = { prompt_shown: 'a2hs_shown', install_click: 'a2hs_accepted', prompt_dismissed: 'a2hs_dismissed', prompt_never: 'a2hs_dismissed', installed: 'app_installed' }[kind];
+      if (fp && window.SCAnalytics && SCAnalytics.collect) SCAnalytics.collect(fp, { platform: platform() });
     } catch (e) { /* counting is best effort */ }
   }
 

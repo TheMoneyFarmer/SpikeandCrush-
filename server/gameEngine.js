@@ -402,6 +402,10 @@ function isFull(match) {
 
 function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, isPlayerOnSite) {
   let onFlatAlert = null; // set by index.js: throttled email when a match goes flat
+  // First-party analytics (server/analytics/events.js): human actions only,
+  // batched, never per price tick. AI players never produce events.
+  const A = () => require('./analytics/events').analytics();
+  const track = (name, f) => { if (db.isConfigured) A().track(name, f); };
   let earnSvc = null;
   const earn = () => (earnSvc ||= require('./earn').createEarn({ db, notify: (...a) => notifyPlayer?.(...a) }));
   const matches = new Map();
@@ -1346,6 +1350,10 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (!match) return;
     for (const p of Object.values(match.players)) {
       if (!p.isAI) notifyPlayer?.(p.id, 'match_starting', `Your ${match.config.label || match.mode} match is starting!`);
+      if (!p.isAI) {
+        track('match_started', { userId: p.id, mode: match.mode, matchId: match.dbMatchId || match.id, deviceClass: p.deviceClass || null, props: { ranked: Boolean(match.config.ranked) } });
+        if (db.isConfigured && match.dbMatchId && p.deviceClass) db.updateMatchPlayer(match.dbMatchId, p.id, { device_class: p.deviceClass }).catch(() => {});
+      }
     }
     let remaining = match.config.countdownSeconds;
     if (remaining <= 0) {
@@ -1458,6 +1466,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (match.cardLog.length > 2000) match.cardLog.shift();
     // The same entry, kept: attacker, target, card and amounts.
     logEvent(match, 'card', entry.attacker || null, entry);
+    const by = entry.attacker && match.players[entry.attacker];
+    if (by && !by.isAI && !entry.phase) track('card_played', { userId: by.id, mode: match.mode, matchId: match.dbMatchId || match.id, props: { card: entry.card || null } }); // a play, not a later payout
   }
 
   function emitCardsUpdate(match, player, extra = {}) {
@@ -1731,6 +1741,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       meaningful: isMeaningful(symbol, position.lots, marginRules.mid(price)),
       sinceSpikeMs: match.lastSpikeAlertAt ? nowMs - match.lastSpikeAlertAt : null,
     });
+    if (!player.isAI) {
+      const cat = instruments.getInstrument(symbol)?.category || null;
+      track('trade_opened', { userId: player.id, mode: match.mode, matchId: match.dbMatchId || match.id, deviceClass: player.deviceClass || null, props: { symbol_class: cat } });
+      const since = match.lastSpikeAlertAt ? nowMs - match.lastSpikeAlertAt : null;
+      if (since !== null && since >= 0 && since <= 15000) track('spike_reacted', { userId: player.id, mode: match.mode, matchId: match.dbMatchId || match.id, props: { reaction_ms: since } });
+    }
 
     if (db.isConfigured && match.dbMatchId) {
       setTradePromise(position, db.recordTrade({
@@ -2923,6 +2939,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
             // Separate, best-effort: why the match ended (support answers).
             // Never allowed to block results or prize coins below.
             db.updateMatchPlayer(match.dbMatchId, r.playerId, { end_reason: p && p.eliminated ? 'loss_limit' : 'completed' }).catch(() => {});
+            if (p && !p.isAI) track('match_ended', { userId: r.playerId, mode: match.mode, matchId: match.dbMatchId || match.id, deviceClass: p.deviceClass || null, props: { end_reason: p.eliminated ? 'loss_limit' : 'completed', rank: r.rank, trades: p.tradesMade || 0, cards: p.cardsPlayed || 0 } });
             // Admin records: closing figures and the equity curve (best-effort).
             if (db.hasRecordsSchema() && p) {
               const curve = downsample((match.pnlSnapshots[p.id] || []).map((s) => ({ t: s.second, equity: Math.round((STARTING_CAPITAL + s.pnl) * 100) / 100 })), 300);
@@ -3375,6 +3392,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     entry.announceTimer = setTimeout(() => {
       entry.announced = true;
       logEvent(match, 'disconnect', playerId, { graceSeconds: (RECONNECT_GRACE_MS - DISCONNECT_NOTICE_DELAY_MS) / 1000 }, null, player.offlineSince);
+      track('client_disconnect', { userId: playerId, mode: match.mode, matchId: match.dbMatchId || match.id });
+      if (db.isConfigured) A().tech('disconnect', { matchId: match.dbMatchId || match.id, mode: match.mode, playerId });
       const graceSeconds = (RECONNECT_GRACE_MS - DISCONNECT_NOTICE_DELAY_MS) / 1000;
       pushFeed(match, `${player.username} lost connection - ${graceSeconds}s to reconnect`, { type: 'system' });
       emitToAll(match, 'match:player_disconnected', { playerId, username: player.username, graceSeconds });
@@ -3408,6 +3427,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         const offlineMs = Date.now() - pl.offlineSince;
         pl.offlineMs = (pl.offlineMs || 0) + offlineMs;
         logEvent(m, 'reconnect', playerId, { offlineSeconds: Math.round(offlineMs / 1000) });
+        track('client_reconnect', { userId: playerId, mode: m.mode, matchId: m.dbMatchId || m.id });
+        if (db.isConfigured) A().tech('reconnect', { matchId: m.dbMatchId || m.id, mode: m.mode, playerId, valueMs: offlineMs });
       }
       pl.offlineSince = null;
     }
@@ -3487,6 +3508,12 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
   // Forfeit from the live match card. The player may have no socket bound to
   // the match at all, so this is keyed off their account instead of a session.
+  // The joining socket's device class (analytics: device on match start/results).
+  function setPlayerDevice(matchId, playerId, deviceClass) {
+    const p = matches.get(matchId)?.players[playerId];
+    if (p && !p.isAI && deviceClass) p.deviceClass = deviceClass;
+  }
+
   async function forfeitLiveMatch(playerId, matchId) {
     const match = liveMatchesFor(playerId).find((m) => m.id === matchId);
     if (!match) return { success: false, error: 'That match has already ended' };
@@ -3783,6 +3810,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
             rating_change: ratingChange,
           });
           db.updateMatchPlayer(match.dbMatchId, playerId, { end_reason: endReason }).catch(() => {});
+          track('match_ended', { userId: playerId, mode: match.mode, matchId: match.dbMatchId || match.id, deviceClass: player.deviceClass || null, props: { end_reason: endReason, rank: finalRank, trades: player.tradesMade || 0, cards: player.cardsPlayed || 0 } });
         }
       } catch (e) {
         console.warn('[gameEngine] leaveMatch persistence failed:', e.message);
@@ -3888,6 +3916,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     noteSiteDisconnected,
     getLiveMatchStatus,
     forfeitLiveMatch,
+    setPlayerDevice,
     isInLiveMatch,
     // ---- admin panel bridge ----
     listActiveMatches,
