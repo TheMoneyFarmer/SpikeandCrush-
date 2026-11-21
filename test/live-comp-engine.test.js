@@ -41,7 +41,8 @@ const engine = createCompEngine({ io: { of: () => ({}), to: () => ({ emit() {} }
 
 test('a live competition trades at the live price; a replay one keeps replay prices', async () => {
   await engine.openTrade('live', 'pa', { symbol: 'BTCUSD', side: 'BUY', lots: 0.01 });
-  assert.strictEqual(inserted.at(-1).entry_price, 64007.5, 'live ask = 64000 + half the 15 spread');
+  const btcSpread = require('../server/instruments').INSTRUMENTS.BTCUSD.spread;
+  assert.strictEqual(inserted.at(-1).entry_price, 64000 + btcSpread / 2, 'live ask = 64000 + half the BTCUSD spread');
   await engine.openTrade('replay', 'pa', { symbol: 'BTCUSD', side: 'BUY', lots: 0.01 });
   assert.strictEqual(inserted.at(-1).entry_price, 9015, 'replay competition untouched by the live feed');
 });

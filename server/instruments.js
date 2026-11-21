@@ -8,6 +8,8 @@ const gameFeel = require('./config/gameFeel');
 // Price steps per data second (Action Engine delivery; 1 = the old engine).
 const deliverySteps = () => Math.max(1, Math.min(10, Math.floor(Number((gameFeel.get().market || {}).deliveryHz) || 1)));
 
+// spread: the median ask - bid of the price source itself (Dukascopy tick
+// data, London and New York mornings, 2026-11-11..18; scripts/measure-spreads.js).
 // dataFile is a substring match against the actual filenames in
 // data/historical/ (which carry long date-stamped names) - see csvLoader.findFile.
 // dukascopy is the instrument id scripts/fetch-market-data.js downloads into
@@ -20,71 +22,71 @@ const INSTRUMENTS = {
   // ---- forex ----------------------------------------------------------------
   EURUSD: {
     name: 'EUR/USD', category: 'forex', nickname: ['fiber', 'euro', 'eurusd'],
-    pipSize: 0.0001, pipValue: 10, spread: 0.00015, contractSize: 100000,
+    pipSize: 0.0001, pipValue: 10, spread: 0.00003, contractSize: 100000,
     minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 1.08, volatility: 0.0002, dukascopy: 'eurusd',
   },
   GBPUSD: {
     name: 'GBP/USD', category: 'forex', nickname: ['cable', 'pound', 'sterling'],
-    pipSize: 0.0001, pipValue: 10, spread: 0.00020, contractSize: 100000,
+    pipSize: 0.0001, pipValue: 10, spread: 0.00005, contractSize: 100000,
     minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 1.27, volatility: 0.00025, dukascopy: 'gbpusd',
   },
   USDJPY: {
     name: 'USD/JPY', category: 'forex', nickname: ['yen', 'dollar yen', 'usdjpy'],
-    pipSize: 0.01, pipValue: 9.1, spread: 0.015, contractSize: 100000,
+    pipSize: 0.01, pipValue: 9.1, spread: 0.004, contractSize: 100000,
     minLot: 0.01, maxLot: 100, decimals: 3, dataFile: null, basePrice: 149.5, volatility: 0.03, dukascopy: 'usdjpy',
   },
   USDCHF: {
     name: 'USD/CHF', category: 'forex', nickname: ['swissy', 'swiss franc'],
-    pipSize: 0.0001, pipValue: 10.9, spread: 0.00020, contractSize: 100000,
+    pipSize: 0.0001, pipValue: 10.9, spread: 0.00008, contractSize: 100000,
     minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 0.88, volatility: 0.00022, dukascopy: 'usdchf',
   },
   AUDUSD: {
     name: 'AUD/USD', category: 'forex', nickname: ['aussie', 'australian'],
-    pipSize: 0.0001, pipValue: 10, spread: 0.00018, contractSize: 100000,
+    pipSize: 0.0001, pipValue: 10, spread: 0.00008, contractSize: 100000,
     minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 0.66, volatility: 0.00022, dukascopy: 'audusd',
   },
   USDCAD: {
     name: 'USD/CAD', category: 'forex', nickname: ['loonie', 'canadian'],
-    pipSize: 0.0001, pipValue: 7.4, spread: 0.00022, contractSize: 100000,
+    pipSize: 0.0001, pipValue: 7.4, spread: 0.00011, contractSize: 100000,
     minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 1.36, volatility: 0.00022, dukascopy: 'usdcad',
   },
   NZDUSD: {
     name: 'NZD/USD', category: 'forex', nickname: ['kiwi', 'new zealand'],
-    pipSize: 0.0001, pipValue: 10, spread: 0.00025, contractSize: 100000,
+    pipSize: 0.0001, pipValue: 10, spread: 0.00009, contractSize: 100000,
     minLot: 0.01, maxLot: 100, decimals: 5, dataFile: null, basePrice: 0.61, volatility: 0.00025, dukascopy: 'nzdusd',
   },
 
   // ---- metals -----------------------------------------------------------------
   XAUUSD: {
     name: 'Gold', category: 'metals', nickname: ['gold', 'xauusd', 'yellow metal'],
-    pipSize: 0.01, pipValue: 1, spread: 0.35, contractSize: 100,
+    pipSize: 0.01, pipValue: 1, spread: 0.51, contractSize: 100,
     minLot: 0.01, maxLot: 50, decimals: 2, dataFile: null, basePrice: 1950.0, volatility: 0.5, dukascopy: 'xauusd',
   },
   XAGUSD: {
     name: 'Silver', category: 'metals', nickname: ['silver', 'xagusd'],
-    pipSize: 0.001, pipValue: 5, spread: 0.03, contractSize: 5000,
+    pipSize: 0.001, pipValue: 5, spread: 0.033, contractSize: 5000,
     minLot: 0.01, maxLot: 50, decimals: 3, dataFile: null, basePrice: 23.5, volatility: 0.05, dukascopy: 'xagusd',
   },
 
   // ---- indices ------------------------------------------------------------
   NAS100: {
     name: 'NASDAQ 100', category: 'indices', nickname: ['nasdaq', 'nas', 'tech index', 'hundred'],
-    pipSize: 0.1, pipValue: 1, spread: 1.5, contractSize: 1,
+    pipSize: 0.1, pipValue: 1, spread: 1, contractSize: 1,
     minLot: 0.1, maxLot: 100, decimals: 2, dataFile: 'USATECH.IDX', basePrice: 14037, volatility: 8, dukascopy: 'usatechidxusd',
   },
   US30: {
     name: 'Dow Jones', category: 'indices', nickname: ['dow', 'dow jones', 'usa30', 'thirty'],
-    pipSize: 0.1, pipValue: 1, spread: 2.0, contractSize: 1,
+    pipSize: 0.1, pipValue: 1, spread: 1.53, contractSize: 1,
     minLot: 0.1, maxLot: 100, decimals: 2, dataFile: 'USA30.IDX', basePrice: 24731, volatility: 10, dukascopy: 'usa30idxusd',
   },
   UK100: {
     name: 'FTSE 100', category: 'indices', nickname: ['ftse', 'footsie', 'uk100'],
-    pipSize: 0.1, pipValue: 1.27, spread: 2.0, contractSize: 1,
+    pipSize: 0.1, pipValue: 1.27, spread: 1, contractSize: 1,
     minLot: 0.1, maxLot: 100, decimals: 1, dataFile: null, basePrice: 7650, volatility: 8, dukascopy: 'gbridxgbp',
   },
   GER40: {
     name: 'DAX 40', category: 'indices', nickname: ['dax', 'german index', 'ger40'],
-    pipSize: 0.1, pipValue: 1, spread: 1.5, contractSize: 1,
+    pipSize: 0.1, pipValue: 1, spread: 1.1, contractSize: 1,
     minLot: 0.1, maxLot: 100, decimals: 1, dataFile: null, basePrice: 16800, volatility: 15, dukascopy: 'deuidxeur',
   },
 
@@ -103,12 +105,12 @@ const INSTRUMENTS = {
   // ---- crypto ---------------------------------------------------------------
   BTCUSD: {
     name: 'Bitcoin', category: 'crypto', nickname: ['bitcoin', 'btc'],
-    pipSize: 0.01, pipValue: 0.01, spread: 15.0, contractSize: 1,
+    pipSize: 0.01, pipValue: 0.01, spread: 50, contractSize: 1,
     minLot: 0.01, maxLot: 10, decimals: 1, dataFile: 'BTC-USD', basePrice: 9795, volatility: 15, dukascopy: 'btcusd',
   },
   ETHUSD: {
     name: 'Ethereum', category: 'crypto', nickname: ['ethereum', 'eth'],
-    pipSize: 0.01, pipValue: 0.01, spread: 1.0, contractSize: 1,
+    pipSize: 0.01, pipValue: 0.01, spread: 4, contractSize: 1,
     minLot: 0.01, maxLot: 50, decimals: 2, dataFile: 'ETH-USD', basePrice: 186.7, volatility: 0.3, dukascopy: 'ethusd',
   },
   // USTUSD's CSV is present but empty (0 data rows) - csvLoader falls back to
@@ -122,7 +124,7 @@ const INSTRUMENTS = {
   // ---- stocks -------------------------------------------------------------
   AAPL: {
     name: 'Apple Inc', category: 'stocks', nickname: ['apple', 'aapl'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.14, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: 'AAPL.US-USD', basePrice: 351.17, volatility: 0.5, dukascopy: 'aaplususd',
   },
   // ---- Bell Rush (stocks only) and The Pit (futures only) --------------------
@@ -133,57 +135,57 @@ const INSTRUMENTS = {
   // tick as pipSize (pipValue = dollars per tick). P&L = move x size x contractSize.
   MSFT: {
     name: 'Microsoft', category: 'stocks', nickname: ['msft'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.32, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'msftususd', simulated: true,
   },
   NVDA: {
     name: 'NVIDIA', category: 'stocks', nickname: ['nvda'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.06, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'nvdaususd', simulated: true,
   },
   TSLA: {
     name: 'Tesla', category: 'stocks', nickname: ['tsla'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.4, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'tslaususd', simulated: true,
   },
   AMZN: {
     name: 'Amazon', category: 'stocks', nickname: ['amzn'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.11, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'amznususd', simulated: true,
   },
   META: {
     name: 'Meta Platforms', category: 'stocks', nickname: ['meta'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.65, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'fbususd', simulated: true,
   },
   GOOGL: {
     name: 'Alphabet', category: 'stocks', nickname: ['googl'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.16, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'googlususd', simulated: true,
   },
   AMD: {
     name: 'AMD', category: 'stocks', nickname: ['amd'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.7, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'amdususd', simulated: true,
   },
   NFLX: {
     name: 'Netflix', category: 'stocks', nickname: ['nflx'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.03, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'nflxususd', simulated: true,
   },
   JPM: {
     name: 'JPMorgan Chase', category: 'stocks', nickname: ['jpm'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.26, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'jpmususd', simulated: true,
   },
   BA: {
     name: 'Boeing', category: 'stocks', nickname: ['ba'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.2, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'baususd', simulated: true,
   },
   PLTR: {
     name: 'Palantir', category: 'stocks', nickname: ['pltr'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.21, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'pltrususd', simulated: true,
   },
   SPY: {
@@ -193,47 +195,47 @@ const INSTRUMENTS = {
   },
   QQQ: {
     name: 'Nasdaq 100 ETF', category: 'stocks', nickname: ['qqq'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.06, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'qqqususd', simulated: true,
   },
   INTC: {
     name: 'Intel', category: 'stocks', nickname: ['intc'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.04, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'intcususd', simulated: true,
   },
   UBER: {
     name: 'Uber', category: 'stocks', nickname: ['uber'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.06, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'uberususd', simulated: true,
   },
   AVGO: {
     name: 'Broadcom', category: 'stocks', nickname: ['avgo'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.4, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'avgoususd', simulated: true,
   },
   ORCL: {
     name: 'Oracle', category: 'stocks', nickname: ['orcl'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.25, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'orclususd', simulated: true,
   },
   CRM: {
     name: 'Salesforce', category: 'stocks', nickname: ['crm'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.3, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'crmususd', simulated: true,
   },
   PYPL: {
     name: 'PayPal', category: 'stocks', nickname: ['pypl'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.06, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'pyplususd', simulated: true,
   },
   XOM: {
     name: 'Exxon Mobil', category: 'stocks', nickname: ['xom'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.13, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xomususd', simulated: true,
   },
   CVX: {
     name: 'Chevron', category: 'stocks', nickname: ['cvx'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.13, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'cvxususd', simulated: true,
   },
   WMT: {
@@ -243,56 +245,56 @@ const INSTRUMENTS = {
   },
   COST: {
     name: 'Costco', category: 'stocks', nickname: ['cost'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 1.41, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'costususd', simulated: true,
   },
   V: {
     name: 'Visa', category: 'stocks', nickname: ['v'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.25, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'vususd', simulated: true,
   },
   MA: {
     name: 'Mastercard', category: 'stocks', nickname: ['ma'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.89, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'maususd', simulated: true,
   },
   BABA: {
     name: 'Alibaba', category: 'stocks', nickname: ['baba'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.1, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'babaususd', simulated: true,
   },
   MU: {
     name: 'Micron', category: 'stocks', nickname: ['mu'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.87, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'muususd', simulated: true,
   },
   SNOW: {
     name: 'Snowflake', category: 'stocks', nickname: ['snow'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 1.01, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'snowususd', simulated: true,
   },
   // CME Micro E-mini S&P 500: $5 x index, tick 0.25 = $1.25
   'MES': {
     name: 'Micro E-mini S&P 500 (simulated futures)', category: 'futures', nickname: ['mes', 'es'],
-    pipSize: 0.25, pipValue: 1.25, spread: 0.5, contractSize: 5, unit: 'contract', lotStep: 1,
+    pipSize: 0.25, pipValue: 1.25, spread: 0.51, contractSize: 5, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'usa500idxusd', simulated: true,
   },
   // CME Micro E-mini Nasdaq-100: $2 x index, tick 0.25 = $0.50
   'MNQ': {
     name: 'Micro E-mini Nasdaq-100 (simulated futures)', category: 'futures', nickname: ['mnq', 'nq'],
-    pipSize: 0.25, pipValue: 0.5, spread: 1.5, contractSize: 2, unit: 'contract', lotStep: 1,
+    pipSize: 0.25, pipValue: 0.5, spread: 1, contractSize: 2, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'usatechidxusd', simulated: true,
   },
   // CBOT Micro E-mini Dow: $0.50 x index, tick 1 = $0.50
   'MYM': {
     name: 'Micro E-mini Dow (simulated futures)', category: 'futures', nickname: ['mym', 'ym'],
-    pipSize: 1, pipValue: 0.5, spread: 2.0, contractSize: 0.5, unit: 'contract', lotStep: 1,
+    pipSize: 1, pipValue: 0.5, spread: 1.53, contractSize: 0.5, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'usa30idxusd', simulated: true,
   },
   // CME Micro E-mini Russell 2000: $5 x index, tick 0.10 = $0.50
   'M2K': {
     name: 'Micro E-mini Russell 2000 (simulated futures)', category: 'futures', nickname: ['m2k', 'rty'],
-    pipSize: 0.1, pipValue: 0.5, spread: 0.5, contractSize: 5, unit: 'contract', lotStep: 1,
+    pipSize: 0.1, pipValue: 0.5, spread: 0.26, contractSize: 5, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'ussc2000idxusd', simulated: true,
   },
   // NYMEX Micro WTI: 100 barrels, tick $0.01 = $1
@@ -310,97 +312,97 @@ const INSTRUMENTS = {
   // NYMEX Henry Hub: 10,000 MMBtu, tick $0.001 = $10
   'NG': {
     name: 'Natural Gas (simulated futures)', category: 'futures', nickname: ['ng'],
-    pipSize: 0.001, pipValue: 10, spread: 0.008, contractSize: 10000, unit: 'contract', lotStep: 1,
+    pipSize: 0.001, pipValue: 10, spread: 0.005, contractSize: 10000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'gascmdusd', simulated: true,
   },
   // COMEX Micro Gold: 10 troy oz, tick $0.10 = $1
   'MGC': {
     name: 'Micro Gold (simulated futures)', category: 'futures', nickname: ['mgc', 'gc'],
-    pipSize: 0.1, pipValue: 1, spread: 0.35, contractSize: 10, unit: 'contract', lotStep: 1,
+    pipSize: 0.1, pipValue: 1, spread: 0.51, contractSize: 10, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xauusd', simulated: true,
   },
   // COMEX Micro Silver: 1,000 troy oz, tick $0.005 = $5
   'SIL': {
     name: 'Micro Silver (simulated futures)', category: 'futures', nickname: ['sil', 'si'],
-    pipSize: 0.005, pipValue: 5, spread: 0.03, contractSize: 1000, unit: 'contract', lotStep: 1,
+    pipSize: 0.005, pipValue: 5, spread: 0.033, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xagusd', simulated: true,
   },
   // COMEX Micro Copper: 2,500 lb, tick $0.0005 = $1.25
   'MHG': {
     name: 'Micro Copper (simulated futures)', category: 'futures', nickname: ['mhg', 'hg'],
-    pipSize: 0.0005, pipValue: 1.25, spread: 0.004, contractSize: 2500, unit: 'contract', lotStep: 1,
+    pipSize: 0.0005, pipValue: 1.25, spread: 0.0036, contractSize: 2500, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 4, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'coppercmdusd', simulated: true,
   },
   // NYMEX Platinum: 50 troy oz, tick $0.10 = $5
   'PL': {
     name: 'Platinum (simulated futures)', category: 'futures', nickname: ['pl'],
-    pipSize: 0.1, pipValue: 5, spread: 1.0, contractSize: 50, unit: 'contract', lotStep: 1,
+    pipSize: 0.1, pipValue: 5, spread: 2.66, contractSize: 50, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xptcmdusd', simulated: true,
   },
   // NYMEX Palladium: 100 troy oz, tick $0.50 = $50
   'PA': {
     name: 'Palladium (simulated futures)', category: 'futures', nickname: ['pa'],
-    pipSize: 0.5, pipValue: 50, spread: 2.0, contractSize: 100, unit: 'contract', lotStep: 1,
+    pipSize: 0.5, pipValue: 50, spread: 2.2, contractSize: 100, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xpdcmdusd', simulated: true,
   },
   // CBOT 30-Year T-Bond: $1,000 per point, tick 1/32 = $31.25
   'ZB': {
     name: 'US Treasury Bond (simulated futures)', category: 'futures', nickname: ['zb'],
-    pipSize: 0.03125, pipValue: 31.25, spread: 0.03, contractSize: 1000, unit: 'contract', lotStep: 1,
+    pipSize: 0.03125, pipValue: 31.25, spread: 0.048, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'ustbondtrusd', simulated: true,
   },
   // ICE US Dollar Index: $1,000 x index, tick 0.005 = $5
   'DX': {
     name: 'US Dollar Index (simulated futures)', category: 'futures', nickname: ['dx'],
-    pipSize: 0.005, pipValue: 5, spread: 0.03, contractSize: 1000, unit: 'contract', lotStep: 1,
+    pipSize: 0.005, pipValue: 5, spread: 0.039, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'dollaridxusd', simulated: true,
   },
   // CFE VIX: $1,000 x index, tick 0.05 = $50
   'VX': {
     name: 'Volatility Index (simulated futures)', category: 'futures', nickname: ['vx'],
-    pipSize: 0.05, pipValue: 50, spread: 0.1, contractSize: 1000, unit: 'contract', lotStep: 1,
+    pipSize: 0.05, pipValue: 50, spread: 0.21, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'volidxusd', simulated: true,
   },
   // CME Micro EUR/USD: 12,500 EUR, tick 0.0001 = $1.25
   'M6E': {
     name: 'Micro EUR/USD (simulated futures)', category: 'futures', nickname: ['m6e', '6e'],
-    pipSize: 0.0001, pipValue: 1.25, spread: 0.0002, contractSize: 12500, unit: 'contract', lotStep: 1,
+    pipSize: 0.0001, pipValue: 1.25, spread: 0.00003, contractSize: 12500, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 5, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'eurusd', simulated: true,
   },
   // CBOT Soybeans: 5,000 bushels, price in cents, tick 1/4 cent = $12.50
   'ZS': {
     name: 'Soybeans (simulated futures)', category: 'futures', nickname: ['zs'],
-    pipSize: 0.25, pipValue: 12.5, spread: 1.0, contractSize: 50, unit: 'contract', lotStep: 1,
+    pipSize: 0.25, pipValue: 12.5, spread: 1.73, contractSize: 50, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'soybeancmdusx', simulated: true,
   },
   // ICE White Sugar (London No. 5, the data this feed carries, priced in $/tonne): 50 tonnes, tick $0.10 = $5
   'SB': {
     name: 'White Sugar (simulated futures)', category: 'futures', nickname: ['sb'],
-    pipSize: 0.1, pipValue: 5, spread: 0.03, contractSize: 50, unit: 'contract', lotStep: 1,
+    pipSize: 0.1, pipValue: 5, spread: 0.77, contractSize: 50, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'sugarcmdusd', simulated: true,
   },
   // ICE Coffee C: 37,500 lb, price in cents, tick 0.05 cent = $18.75
   'KC': {
     name: 'Coffee (simulated futures)', category: 'futures', nickname: ['kc'],
-    pipSize: 0.05, pipValue: 18.75, spread: 0.3, contractSize: 375, unit: 'contract', lotStep: 1,
+    pipSize: 0.05, pipValue: 18.75, spread: 0.39, contractSize: 375, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'coffeecmdusx', simulated: true,
   },
   // ICE Cocoa: 10 tonnes, tick $1 = $10
   'CC': {
     name: 'Cocoa (simulated futures)', category: 'futures', nickname: ['cc'],
-    pipSize: 1, pipValue: 10, spread: 5, contractSize: 10, unit: 'contract', lotStep: 1,
+    pipSize: 1, pipValue: 10, spread: 9, contractSize: 10, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 0, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'cocoacmdusd', simulated: true,
   },
   // ICE Cotton No. 2: 50,000 lb, price in cents, tick 0.01 cent = $5
   'CT': {
     name: 'Cotton (simulated futures)', category: 'futures', nickname: ['ct'],
-    pipSize: 0.01, pipValue: 5, spread: 0.05, contractSize: 500, unit: 'contract', lotStep: 1,
+    pipSize: 0.01, pipValue: 5, spread: 0.2, contractSize: 500, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'cottoncmdusx', simulated: true,
   },
   // ICE FCOJ-A: 15,000 lb, price in cents, tick 0.05 cent = $7.50
   'OJ': {
     name: 'Orange Juice (simulated futures)', category: 'futures', nickname: ['oj'],
-    pipSize: 0.05, pipValue: 7.5, spread: 0.3, contractSize: 150, unit: 'contract', lotStep: 1,
+    pipSize: 0.05, pipValue: 7.5, spread: 0.63, contractSize: 150, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'ojuicecmdusx', simulated: true,
   },
 };

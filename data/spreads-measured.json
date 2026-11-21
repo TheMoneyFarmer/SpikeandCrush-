@@ -1,0 +1,361 @@
+{
+ "measuredFrom": [
+  "2026-11-11",
+  "2026-11-12",
+  "2026-11-13",
+  "2026-11-17",
+  "2026-11-18"
+ ],
+ "windowsUtc": [
+  [
+   "08:00",
+   "08:20"
+  ],
+  [
+   "15:00",
+   "15:20"
+  ]
+ ],
+ "spreads": {
+  "EURUSD": {
+   "source": "eurusd",
+   "ticks": 20975,
+   "median": 0.00002999999999997449
+  },
+  "GBPUSD": {
+   "source": "gbpusd",
+   "ticks": 19675,
+   "median": 0.000050000000000105516
+  },
+  "USDJPY": {
+   "source": "usdjpy",
+   "ticks": 28960,
+   "median": 0.003999999999990678
+  },
+  "USDCHF": {
+   "source": "usdchf",
+   "ticks": 21471,
+   "median": 0.00008000000000008001
+  },
+  "AUDUSD": {
+   "source": "audusd",
+   "ticks": 25100,
+   "median": 0.00007999999999996898
+  },
+  "USDCAD": {
+   "source": "usdcad",
+   "ticks": 25179,
+   "median": 0.0001100000000000545
+  },
+  "NZDUSD": {
+   "source": "nzdusd",
+   "ticks": 18737,
+   "median": 0.0000900000000000345
+  },
+  "XAUUSD": {
+   "source": "xauusd",
+   "ticks": 104812,
+   "median": 0.5109999999999673
+  },
+  "XAGUSD": {
+   "source": "xagusd",
+   "ticks": 45361,
+   "median": 0.03300000000000125
+  },
+  "NAS100": {
+   "source": "usatechidxusd",
+   "ticks": 103130,
+   "median": 1.003999999997177
+  },
+  "US30": {
+   "source": "usa30idxusd",
+   "ticks": 49024,
+   "median": 1.5339999999996508
+  },
+  "UK100": {
+   "source": "gbridxgbp",
+   "ticks": 22823,
+   "median": 1
+  },
+  "GER40": {
+   "source": "deuidxeur",
+   "ticks": 41440,
+   "median": 1.1460000000006403
+  },
+  "BRENT": {
+   "source": "brentcmdusd",
+   "ticks": 24901,
+   "median": 0.04999999999999716
+  },
+  "USOIL": {
+   "source": "lightcmdusd",
+   "ticks": 29122,
+   "median": 0.04999999999999716
+  },
+  "BTCUSD": {
+   "source": "btcusd",
+   "ticks": 33437,
+   "median": 50
+  },
+  "ETHUSD": {
+   "source": "ethusd",
+   "ticks": 20909,
+   "median": 4
+  },
+  "AAPL": {
+   "source": "aaplususd",
+   "ticks": 15897,
+   "median": 0.1379999999999768
+  },
+  "MSFT": {
+   "source": "msftususd",
+   "ticks": 16511,
+   "median": 0.3160000000000309
+  },
+  "NVDA": {
+   "source": "nvdaususd",
+   "ticks": 52520,
+   "median": 0.056000000000011596
+  },
+  "TSLA": {
+   "source": "tslaususd",
+   "ticks": 13999,
+   "median": 0.396000000000015
+  },
+  "AMZN": {
+   "source": "amznususd",
+   "ticks": 19655,
+   "median": 0.10599999999999454
+  },
+  "META": {
+   "source": "fbususd",
+   "ticks": 6831,
+   "median": 0.6480000000000246
+  },
+  "GOOGL": {
+   "source": "googlususd",
+   "ticks": 22549,
+   "median": 0.15799999999995862
+  },
+  "AMD": {
+   "source": "amdususd",
+   "ticks": 22523,
+   "median": 0.6960000000000264
+  },
+  "NFLX": {
+   "source": "nflxususd",
+   "ticks": 10965,
+   "median": 0.028000000000005798
+  },
+  "JPM": {
+   "source": "jpmususd",
+   "ticks": 4577,
+   "median": 0.25799999999998136
+  },
+  "BA": {
+   "source": "baususd",
+   "ticks": 3081,
+   "median": 0.19599999999999795
+  },
+  "PLTR": {
+   "source": "pltrususd",
+   "ticks": 7161,
+   "median": 0.21399999999999864
+  },
+  "SPY": {
+   "source": "spyususd",
+   "ticks": 61069,
+   "median": 0.04600000000004911
+  },
+  "QQQ": {
+   "source": "qqqususd",
+   "ticks": 75740,
+   "median": 0.05600000000004002
+  },
+  "INTC": {
+   "source": "intcususd",
+   "ticks": 45853,
+   "median": 0.036000000000001364
+  },
+  "UBER": {
+   "source": "uberususd",
+   "ticks": 7410,
+   "median": 0.057999999999992724
+  },
+  "AVGO": {
+   "source": "avgoususd",
+   "ticks": 14832,
+   "median": 0.396000000000015
+  },
+  "ORCL": {
+   "source": "orclususd",
+   "ticks": 8298,
+   "median": 0.2459999999999951
+  },
+  "CRM": {
+   "source": "crmususd",
+   "ticks": 3718,
+   "median": 0.2980000000000018
+  },
+  "PYPL": {
+   "source": "pyplususd",
+   "ticks": 5296,
+   "median": 0.05600000000000449
+  },
+  "XOM": {
+   "source": "xomususd",
+   "ticks": 8163,
+   "median": 0.1279999999999859
+  },
+  "CVX": {
+   "source": "cvxususd",
+   "ticks": 6947,
+   "median": 0.12800000000001432
+  },
+  "WMT": {
+   "source": "wmtususd",
+   "ticks": 11036,
+   "median": 0.04800000000001603
+  },
+  "COST": {
+   "source": "costususd",
+   "ticks": 3576,
+   "median": 1.405999999999949
+  },
+  "V": {
+   "source": "vususd",
+   "ticks": 5115,
+   "median": 0.2459999999999809
+  },
+  "MA": {
+   "source": "maususd",
+   "ticks": 2419,
+   "median": 0.886000000000081
+  },
+  "BABA": {
+   "source": "babaususd",
+   "ticks": 6464,
+   "median": 0.09600000000000364
+  },
+  "MU": {
+   "source": "muususd",
+   "ticks": 18607,
+   "median": 0.8660000000000991
+  },
+  "SNOW": {
+   "source": "snowususd",
+   "ticks": 2891,
+   "median": 1.0059999999999718
+  },
+  "MES": {
+   "source": "usa500idxusd",
+   "ticks": 46396,
+   "median": 0.51299999999992
+  },
+  "MNQ": {
+   "source": "usatechidxusd",
+   "ticks": 103130,
+   "median": 1.003999999997177
+  },
+  "MYM": {
+   "source": "usa30idxusd",
+   "ticks": 49024,
+   "median": 1.5339999999996508
+  },
+  "M2K": {
+   "source": "ussc2000idxusd",
+   "ticks": 30118,
+   "median": 0.26299999999991996
+  },
+  "MCL": {
+   "source": "lightcmdusd",
+   "ticks": 29122,
+   "median": 0.04999999999999716
+  },
+  "BZ": {
+   "source": "brentcmdusd",
+   "ticks": 24901,
+   "median": 0.04999999999999716
+  },
+  "NG": {
+   "source": "gascmdusd",
+   "ticks": 3321,
+   "median": 0.0045999999999999375
+  },
+  "MGC": {
+   "source": "xauusd",
+   "ticks": 104812,
+   "median": 0.5109999999999673
+  },
+  "SIL": {
+   "source": "xagusd",
+   "ticks": 45361,
+   "median": 0.03300000000000125
+  },
+  "MHG": {
+   "source": "coppercmdusd",
+   "ticks": 10820,
+   "median": 0.0035999999999996035
+  },
+  "PL": {
+   "source": "xptcmdusd",
+   "ticks": 17190,
+   "median": 2.6620000000000346
+  },
+  "PA": {
+   "source": "xpdcmdusd",
+   "ticks": 3547,
+   "median": 2.201999999999998
+  },
+  "ZB": {
+   "source": "ustbondtrusd",
+   "ticks": 1107,
+   "median": 0.04800000000000182
+  },
+  "DX": {
+   "source": "dollaridxusd",
+   "ticks": 2952,
+   "median": 0.03900000000000148
+  },
+  "VX": {
+   "source": "volidxusd",
+   "ticks": 2765,
+   "median": 0.21000000000000085
+  },
+  "M6E": {
+   "source": "eurusd",
+   "ticks": 20975,
+   "median": 0.00002999999999997449
+  },
+  "ZS": {
+   "source": "soybeancmdusx",
+   "ticks": 1491,
+   "median": 1.7259999999998854
+  },
+  "SB": {
+   "source": "sugarcmdusd",
+   "ticks": 995,
+   "median": 0.7699999999999818
+  },
+  "KC": {
+   "source": "coffeecmdusx",
+   "ticks": 1675,
+   "median": 0.3879999999999768
+  },
+  "CC": {
+   "source": "cocoacmdusd",
+   "ticks": 1549,
+   "median": 8.747999999999593
+  },
+  "CT": {
+   "source": "cottoncmdusx",
+   "ticks": 1545,
+   "median": 0.19599999999999795
+  },
+  "OJ": {
+   "source": "ojuicecmdusx",
+   "ticks": 393,
+   "median": 0.6349999999999909
+  }
+ }
+}

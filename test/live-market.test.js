@@ -71,7 +71,8 @@ test('live data source: wall-clock time, spread applied, stale quotes block new 
   assert.strictEqual(F.dataTimeFor({ starts_at: '2020-01-01' }, (T0 + 5) * 1000), T0 + 5);
   assert.strictEqual(F.timeShiftFor({}), 0);
   const q = F.getPriceAt('BTCUSD', T0 + 5);
-  assert.deepStrictEqual(q, { mid: 64000, bid: 63992.5, ask: 64007.5, marketClosed: false });
+  const half = require('../server/instruments').INSTRUMENTS.BTCUSD.spread / 2;
+  assert.deepStrictEqual(q, { mid: 64000, bid: 64000 - half, ask: 64000 + half, marketClosed: false });
   assert.strictEqual(F.getPriceAt('BTCUSD', T0 + 120).marketClosed, true, 'no trade for 2 minutes: closing only');
   m._setOpen(false);
   assert.strictEqual(F.getPriceAt('BTCUSD', T0 + 5).marketClosed, true, 'feed down: closing only');
