@@ -587,7 +587,9 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   function buildMatchStatePayloadFor(match, viewerId) {
     return {
       matchId: match.id,
-      roomCode: match.roomCode,
+      // A private room's code lets anyone join it, so only its own players get it
+      // (spectators and the public match route get null).
+      roomCode: match.mode === 'private' && !(viewerId && match.players[viewerId]) ? null : match.roomCode,
       mode: match.mode,
       modeLabel: match.config.label || (match.mode === 'private' ? 'Private War' : match.mode),
       status: match.status,

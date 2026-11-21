@@ -46,6 +46,7 @@ const toursConfig = require('./config/tours');
 const tournament = require('./tournament');
 const presence = require('./presence');
 const friendsHub = require('./friendsHub');
+const { publicProfilePlayer } = require('./publicProfile');
 const { INVITE_REWARD_COINS, INVITE_MAX_PAID } = require('./referralRules');
 
 const PORT = process.env.PORT || 3000;
@@ -1563,7 +1564,8 @@ app.get('/api/player/by-username/:username', requireDb, async (req, res) => {
       db.getPlayerTradeStats(player.id),
     ]);
     const settings = player.settings || {};
-    if (settings.showProfile === false) {
+    const isSelf = (await optionalViewerId(req)) === player.id;
+    if (!isSelf && settings.showProfile === false) {
       return res.status(403).json({ error: 'This player has made their profile private' });
     }
 
@@ -1589,7 +1591,8 @@ app.get('/api/player/by-username/:username', requireDb, async (req, res) => {
     const enrichedHistory = await enrichMatchHistoryWithOpponents(history, player.id);
 
     res.json({
-      player: sanitizePlayer(player),
+      // Never the full record to anyone else: it holds the email address, login id, ban and 2FA state.
+      player: isSelf ? sanitizePlayer(player) : publicProfilePlayer(player),
       winRate:
         player.total_matches > 0
           ? Math.round(((player.wins + (player.draws || 0) * 0.5) / player.total_matches) * 1000) / 10
@@ -1841,6 +1844,10 @@ app.get('/api/player/:id', requireDb, async (req, res) => {
   try {
     const player = await db.getPlayerById(req.params.id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
+    const isSelf = (await optionalViewerId(req)) === player.id;
+    if (!isSelf && (player.settings || {}).showProfile === false) {
+      return res.status(403).json({ error: 'This player has made their profile private' });
+    }
     const [history, bestMatchPnl, tradeStats] = await Promise.all([
       db.getPlayerMatchHistory(req.params.id, 10),
       db.getBestMatchPnl(req.params.id),
@@ -1872,7 +1879,8 @@ app.get('/api/player/:id', requireDb, async (req, res) => {
     const enrichedHistory = await enrichMatchHistoryWithOpponents(history, req.params.id);
 
     res.json({
-      player: sanitizePlayer(player),
+      // Never the full record to anyone else: it holds the email address, login id, ban and 2FA state.
+      player: isSelf ? sanitizePlayer(player) : publicProfilePlayer(player),
       winRate:
         player.total_matches > 0
           ? Math.round(((player.wins + (player.draws || 0) * 0.5) / player.total_matches) * 1000) / 10
