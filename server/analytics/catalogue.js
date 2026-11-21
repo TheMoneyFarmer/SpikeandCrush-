@@ -46,6 +46,7 @@ const EVENTS = {
   client_disconnect: { client: false, props: [], purpose: 'A player in a live match lost the connection.' },
   client_reconnect: { client: false, props: [], purpose: 'A player came back into a live match.' },
   client_freeze: { client: false, props: ['gap_ms'], purpose: 'A player reported missing more than 3 seconds of prices.' },
+  probe: { client: false, props: ['visitor', 'path', 'blocked'], purpose: 'A bot asked for a secret or admin path (/.env, /.git, /wp-admin, *.php). Visitor is a hashed address, never the IP.' },
 };
 
 const CLIENT_EVENTS = new Set(Object.entries(EVENTS).filter(([, e]) => e.client).map(([k]) => k));

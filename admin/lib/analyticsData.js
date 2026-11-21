@@ -41,7 +41,7 @@ async function events(fromIso, toIso, names = null) {
 }
 
 async function techEvents(fromIso, toIso) {
-  return all(() => supabase.from('tech_events').select('at, kind, match_id, mode, value_ms').gte('at', fromIso).lt('at', toIso));
+  return all(() => supabase.from('tech_events').select('at, kind, match_id, mode, value_ms, properties').gte('at', fromIso).lt('at', toIso));
 }
 
 // The old, login-based numbers (what admin showed before), for the before/after report.

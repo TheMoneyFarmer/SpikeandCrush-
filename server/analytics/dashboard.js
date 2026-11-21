@@ -321,9 +321,10 @@ function tech(d, ctx) {
   const byMode = new Map();
   for (const x of t) { const m = x.mode || 'n/a'; const r = byMode.get(m) || { disconnect: 0, reconnect: 0, client_freeze: 0 }; if (x.kind in r) r[x.kind]++; byMode.set(m, r); }
   return {
-    tiles: [tile('Disconnects', t.filter((x) => x.kind === 'disconnect').length), tile('Reconnects', t.filter((x) => x.kind === 'reconnect').length), tile('Freezes', freezes, state(freezes, 5, 20)), tile('Worst tick lag', `${tickMax} ms`, state(tickMax, 150, 250)), tile('Worst event-loop p99', `${loopMax} ms`, state(loopMax, 50, 100))],
+    tiles: [tile('Bot probes', t.filter((x) => x.kind === 'probe').length), tile('Probers blocked', new Set(t.filter((x) => x.kind === 'probe' && x.properties && x.properties.blocked).map((x) => x.properties.visitor)).size), tile('Disconnects', t.filter((x) => x.kind === 'disconnect').length), tile('Reconnects', t.filter((x) => x.kind === 'reconnect').length), tile('Freezes', freezes, state(freezes, 5, 20)), tile('Worst tick lag', `${tickMax} ms`, state(tickMax, 150, 250)), tile('Worst event-loop p99', `${loopMax} ms`, state(loopMax, 50, 100))],
     series: [
       { title: 'Connection problems per day', x: d.dayList, lines: kinds.map((k) => ({ name: k === 'client_freeze' ? 'Freezes' : k[0].toUpperCase() + k.slice(1) + 's', values: perDay(k) })) },
+      { title: 'Bot probes per day (/.env, /.git, /wp-admin, *.php and similar)', x: d.dayList, lines: [{ name: 'Probes', values: perDay('probe') }] },
       { title: 'Worst lag per day (ms)', x: d.dayList, lines: [{ name: 'Tick lag', values: perDay('tick_lag', 'max') }, { name: 'Event loop p99', values: perDay('loop_lag', 'max') }] },
     ],
     tables: [table('By mode', ['Mode', 'Disconnects', 'Reconnects', 'Freezes'], [...byMode.entries()].map(([m, r]) => [m, r.disconnect, r.reconnect, r.client_freeze]))],

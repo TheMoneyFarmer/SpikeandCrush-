@@ -55,6 +55,7 @@ io.engine.use(originLock());
 
 app.disable('x-powered-by');
 app.use(originLock());
+app.use(require('../server/probeGuard').createProbeGuard({ visitorIp }).middleware);
 startRangeRefresh();
 app.use(securityHeaders({ admin: true }));
 // Nothing on the admin panel belongs in a search engine.

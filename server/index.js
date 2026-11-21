@@ -122,6 +122,14 @@ app.disable('x-powered-by');
 const { originLock, startRangeRefresh, visitorIp } = require('./originLock');
 app.use(originLock());
 startRangeRefresh();
+// Bot paths (/.env, /.git, /wp-admin, *.php, *.sql): fast 404, counted in Tech health, repeat probers blocked.
+const probeGuard = require('./probeGuard').createProbeGuard({
+  visitorIp,
+  onProbe: (ipHash, probePath, blocked) => {
+    if (db.isConfigured) analyticsEvents.analytics().tech('probe', { props: { visitor: ipHash, path: probePath, blocked } });
+  },
+});
+app.use(probeGuard.middleware);
 // Security headers on every response, including static files.
 app.use(securityHeaders());
 
