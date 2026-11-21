@@ -21,13 +21,13 @@ test('both profile routes use the public shape for anyone but the owner', () => 
   assert.ok(!/player: sanitizePlayer\(player\),\n\s+winRate/.test(src), 'no profile route sends the full record unconditionally');
 });
 
-test("a private room's code goes only to its own players", () => {
+test("a private room's code goes only to its own players", async () => {
   const { createGameEngine } = require('../server/gameEngine');
   const io = { to: () => ({ emit() {} }), emit() {}, sockets: { sockets: new Map() } };
   const engine = createGameEngine(io, () => {}, () => {}, () => {}, () => true);
-  const made = engine.createMatch ? engine.createMatch('private') : null;
-  if (!made) return; // engine API differs; the attack test covers it end to end
-  const match = engine.getMatch(made.matchId || made.id || made);
+  const made = await engine.createMatch('private');
+  const match = typeof made === 'string' ? engine.getMatch(made) : engine.getMatch(made.id || made.matchId) || made;
+  assert.ok(match && match.roomCode, 'a private match has a room code');
   assert.strictEqual(engine.buildMatchStatePayloadFor(match, null).roomCode, null);
   assert.strictEqual(engine.buildMatchStatePayloadFor(match, 'stranger').roomCode, null);
 });
