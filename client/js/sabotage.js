@@ -410,7 +410,7 @@ TW.Sabotage = (function () {
         return `<button type="button" class="fs-row${why ? ' blocked' : ''}${r.id === preselect ? ' preselected' : ''}" data-id="${r.id}" ${why ? 'aria-disabled="true"' : ''}>
           <span class="fs-rank">#${r.rank}</span>
           <span class="fs-name">${r.crown ? `<span class="fs-crown">${icon('crown', 13)}</span>` : ''}${TW.escapeHtml(r.username)}<span class="fs-tier">${TW.escapeHtml(r.tier || '')}${r.level ? ` · L${r.level}` : ''}</span></span>
-          <span class="fs-eq ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(r.equity ?? 10000 + r.pnl)}</span>
+          <span class="fs-eq ${r.pnl >= 0 ? 'text-buy' : 'text-sell'}">${TW.formatMoney(r.equity ?? (TW.matchCapital ? TW.matchCapital() : 10000) + r.pnl)}</span>
           <span class="fs-tags">${(r.status || []).map((s) => `<span class="fs-tag tag-${s}">${statusLabel(s)}</span>`).join('')}${why ? `<span class="fs-why">${why}</span>` : ''}</span>
         </button>`;
       }).join('') : '<div class="fs-empty">No players match</div>';

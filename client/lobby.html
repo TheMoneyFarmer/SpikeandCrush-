@@ -79,7 +79,7 @@
       <div class="vs-meta"><span id="matchModeValue">-</span><span aria-hidden="true">·</span><span id="matchDurationValue">-</span><span aria-hidden="true">·</span><span id="matchInstrumentsValue">-</span><span aria-hidden="true">·</span><span>Entry <span id="matchEntryValue">-</span></span></div>
       <h1 class="vs-title" id="vsTitle">Waiting for rivals</h1>
       <div class="vs-timer" id="lobbyFillTimer"></div>
-      <div class="vs-rules">$10,000 to start · Leverage 100:1 · No lot limit · Max 10 positions · Margin call 100% · Stop out 50%</div>
+      <div class="vs-rules"><span id="vsCapital">$10,000</span> to start · Leverage 100:1 · No lot limit · Max 10 positions · Margin call 100% · Stop out 50%</div>
       <div class="vs-mode-rules" id="vsModeRules" data-tour="room-rules" hidden></div>
     </header>
 
@@ -208,7 +208,7 @@
       if (st) {
         const r = st.rules || {};
         const items = [
-          ['Starting capital', '$10,000'],
+          ['Starting capital', '$' + Number(st.startingCapital || 10000).toLocaleString('en-US')],
           ['Duration', `${Math.round((st.durationSeconds || 0) / 60)} minutes`],
           ['Leverage', `${r.leverage || 100}:1, no lot limit`],
           ['Open positions', `Up to ${r.maxPositions || 10}`],
@@ -285,6 +285,7 @@
     function handleState(state) {
       currentState = state;
       document.getElementById('roomCodeValue').textContent = state.roomCode;
+      if (state.startingCapital) document.getElementById('vsCapital').textContent = '$' + Number(state.startingCapital).toLocaleString('en-US');
       document.getElementById('matchModeValue').textContent = state.modeLabel || (state.mode === 'quick' ? 'Quick War' : 'Private War');
       // Rank-split lobby tier badge (ranked public lobbies, only when the split is on).
       const modeEl = document.getElementById('matchModeValue');

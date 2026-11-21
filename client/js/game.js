@@ -72,6 +72,9 @@ window.TW = window.TW || {};
   // events, not on every trade) - otherwise the panel goes stale between
   // those broadcasts even though the server already applied the trade.
   let myAccount = { balance: 10000, positions: [] };
+  // This match's starting capital ($10,000; The Pit $25,000) from match:state.
+  const startCap = () => (lastState && lastState.startingCapital) || 10000;
+  TW.matchCapital = startCap;
 
   TW.Chart.init('chartCanvas');
   window.reinitializeCharts = () => TW.Chart.refreshTheme();
@@ -233,7 +236,7 @@ window.TW = window.TW || {};
         <h2 class="rules-title">Match Rules</h2>
         ${modeInfo && modeInfo.banner ? `<p class="rules-mode-banner">${TW.escapeHtml(modeInfo.banner)}</p>` : ''}
         <div class="rules-grid">
-          <div class="rule-item"><div class="rule-label">Starting Capital</div><div class="rule-value">$10,000</div></div>
+          <div class="rule-item"><div class="rule-label">Starting Capital</div><div class="rule-value">${TW.formatMoney(startCap()).replace(/\.00$/, '')}</div></div>
           <div class="rule-item"><div class="rule-label">Duration</div><div class="rule-value">${formatClock(state.durationSeconds)} Minutes</div></div>
           <div class="rule-item"><div class="rule-label">Leverage</div><div class="rule-value">${rules.leverage}:1, no lot limit</div></div>
           <div class="rule-item"><div class="rule-label">Max Open Positions</div><div class="rule-value">${rules.maxPositions} Positions</div></div>
@@ -294,7 +297,7 @@ window.TW = window.TW || {};
 
   function renderTopbar() {
     const equity = computeEquity();
-    const pnl = equity - 10000;
+    const pnl = equity - startCap();
     const pnlEl = document.getElementById('topbarPnl');
     pnlEl.textContent = TW.formatMoney(pnl);
     pnlEl.classList.remove('pnl-update');
@@ -1167,7 +1170,7 @@ window.TW = window.TW || {};
     const instrumentsLabel = (lastState?.instruments || []).join(' / '); // the share card uses this
     const metaLabel = [lastState?.modeLabel, durationLabel, ...(lastState?.instruments || [])].filter(Boolean).join(' · ');
     const money = (n) => `${n >= 0 ? '+' : '-'}${TW.formatMoney(Math.abs(n))}`;
-    const pct = (n) => { const v = (n / 10000) * 100; return `${v >= 0 ? '+' : ''}${v.toFixed(Math.abs(v) < 1 ? 2 : 1)}%`; };
+    const pct = (n) => { const v = (n / startCap()) * 100; return `${v >= 0 ? '+' : ''}${v.toFixed(Math.abs(v) < 1 ? 2 : 1)}%`; };
     const esc = TW.escapeHtml;
     const ic = (name, size = 16) => (TW.icon ? TW.icon(name, { size }) : '');
     const initials = (name) => esc(String(name || '?').slice(0, 2).toUpperCase());
@@ -1230,7 +1233,7 @@ window.TW = window.TW || {};
         ${me ? `<div class="ea-you" data-tour="result-you">
           <div class="ea-lbl">Your P&amp;L</div>
           <div class="ea-big mono ${me.pnl >= 0 ? 'text-buy' : 'text-sell'}">${money(me.pnl)}</div>
-          <div class="ea-lbl">${pct(me.pnl)} on $10,000${solo ? '' : ` · #${me.rank} of ${playerCount}`}</div>
+          <div class="ea-lbl">${pct(me.pnl)} on ${TW.formatMoney(startCap()).replace(/\.00$/, '')}${solo ? '' : ` · #${me.rank} of ${playerCount}`}</div>
         </div>` : ''}
       </header>
       <main class="ea-main">
@@ -1369,7 +1372,7 @@ window.TW = window.TW || {};
         ctx.fillStyle = won ? '#f5b83d' : '#ffffff';
         ctx.font = `700 ${sq ? 76 : 60}px Inter, sans-serif`;
         ctx.fillText(won ? 'VICTORY' : `#${me.rank} FINISH`, pad, y);
-        const pct = (me.pnl / 10000) * 100;
+        const pct = (me.pnl / startCap()) * 100;
         y += sq ? 140 : 100;
         ctx.fillStyle = pct >= 0 ? '#19c38a' : '#e5484d';
         ctx.font = `700 ${sq ? 120 : 88}px Inter, sans-serif`;
@@ -1422,7 +1425,7 @@ window.TW = window.TW || {};
     }
 
     async function openShareModal() {
-      const pnlPct = me ? ((me.pnl / 10000) * 100).toFixed(1) : '0';
+      const pnlPct = me ? ((me.pnl / startCap()) * 100).toFixed(1) : '0';
       // Per-mode line (js/modes.js), e.g. "I survived 3 cuts in Elimination".
       const modeLine = me && TW.Modes ? TW.Modes.shareLine(me) : '';
       const shareText = modeLine
@@ -1622,6 +1625,12 @@ window.TW = window.TW || {};
       }
     }
     TW.Units.set(state.instrumentSpecs);
+    // Before the first trade the account is the mode's starting capital.
+    if (!myAccount.positions.length && myAccount.balance === 10000 && state.startingCapital) {
+      myAccount.balance = state.startingCapital;
+      renderAccountSummary();
+      renderTopbar();
+    }
     setupInstrumentTabs(state.instruments);
     applySizeUnit();
     // Bell Rush / The Pit: an honest label beside the instruments.

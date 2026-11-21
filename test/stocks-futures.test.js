@@ -54,16 +54,18 @@ test('Bell Rush draws about 8 stocks and The Pit about 6 futures, all with busy 
 test('P&L on a stock and a futures contract matches a hand calculation (real contract specs)', () => {
   // NVDA: BUY 10 shares at 120.00, price 121.50 -> 1.50 x 10 shares = 15.00
   assert.strictEqual(Number(instruments.calculatePnL('BUY', 10, 120.0, 121.5, 'NVDA').toFixed(2)), 15.0);
-  // CL (NYMEX WTI, 1,000 barrels): SELL 1 contract at 78.40, price 77.90 -> 0.50 x 1,000 = 500.00
-  assert.strictEqual(Number(instruments.calculatePnL('SELL', 1, 78.4, 77.9, 'CL').toFixed(2)), 500.0);
-  // ES (CME E-mini S&P 500, $50 a point): BUY 1 at 5000.00, price 4990.00 -> -10 x 50 = -500.00
-  assert.strictEqual(Number(instruments.calculatePnL('BUY', 1, 5000.0, 4990.0, 'ES').toFixed(2)), -500.0);
-  // NQ ($20 a point): one 0.25 tick on 2 contracts = $10
-  assert.strictEqual(Number(instruments.calculatePnL('BUY', 2, 20000.0, 20000.25, 'NQ').toFixed(2)), 10.0);
+  // MCL (NYMEX Micro WTI, 100 barrels): SELL 1 contract at 78.40, price 77.90 -> 0.50 x 100 = 50.00
+  assert.strictEqual(Number(instruments.calculatePnL('SELL', 1, 78.4, 77.9, 'MCL').toFixed(2)), 50.0);
+  // MES (CME Micro E-mini S&P 500, $5 a point): BUY 1 at 5000.00, price 4990.00 -> -10 x 5 = -50.00
+  assert.strictEqual(Number(instruments.calculatePnL('BUY', 1, 5000.0, 4990.0, 'MES').toFixed(2)), -50.0);
+  // MNQ ($2 a point): one 0.25 tick on 10 contracts = $5
+  assert.strictEqual(Number(instruments.calculatePnL('BUY', 10, 20000.0, 20000.25, 'MNQ').toFixed(2)), 5.0);
+  // ZB stays a full-size contract (no micro exists): 1/32 = $31.25
+  assert.strictEqual(Number(instruments.calculatePnL('BUY', 1, 110.0, 110.03125, 'ZB').toFixed(2)), 31.25);
 });
 
-test('futures carry the real exchange tick and tick value', () => {
-  const spec = { ES: [50, 0.25, 12.5], NQ: [20, 0.25, 5], YM: [5, 1, 5], RTY: [50, 0.1, 5], CL: [1000, 0.01, 10], GC: [100, 0.1, 10], SI: [5000, 0.005, 25], HG: [25000, 0.0005, 12.5], ZB: [1000, 0.03125, 31.25], '6E': [125000, 0.00005, 6.25], ZS: [50, 0.25, 12.5], KC: [375, 0.05, 18.75] };
+test('futures carry the real exchange tick and tick value (micros where the exchange lists one)', () => {
+  const spec = { MES: [5, 0.25, 1.25], MNQ: [2, 0.25, 0.5], MYM: [0.5, 1, 0.5], M2K: [5, 0.1, 0.5], MCL: [100, 0.01, 1], MGC: [10, 0.1, 1], SIL: [1000, 0.005, 5], MHG: [2500, 0.0005, 1.25], M6E: [12500, 0.0001, 1.25], ZB: [1000, 0.03125, 31.25], ZS: [50, 0.25, 12.5], KC: [375, 0.05, 18.75] };
   for (const [sym, [cs, tick, tv]] of Object.entries(spec)) {
     const c = instruments.INSTRUMENTS[sym];
     assert.strictEqual(c.contractSize, cs, `${sym} multiplier`);
@@ -77,15 +79,15 @@ test('futures trade in whole contracts, stocks in whole shares, forex in 0.01 lo
     if (c.category === 'futures') assert.deepStrictEqual([c.unit, c.lotStep, c.minLot], ['contract', 1, 1], sym);
     if (c.category === 'stocks') assert.deepStrictEqual([c.unit, c.lotStep, c.minLot], ['share', 1, 1], sym);
   }
-  assert.strictEqual(instruments.sizeError('ES', 1), null);
-  assert.match(instruments.sizeError('ES', 0.5), /at least 1 contract/);
-  assert.match(instruments.sizeError('ES', 1.5), /whole contracts/);
+  assert.strictEqual(instruments.sizeError('MES', 1), null);
+  assert.match(instruments.sizeError('MES', 0.5), /at least 1 contract/);
+  assert.match(instruments.sizeError('MES', 1.5), /whole contracts/);
   assert.match(instruments.sizeError('NVDA', 2.5), /whole shares/);
   assert.strictEqual(instruments.sizeError('EURUSD', 0.01), null);
   assert.match(instruments.sizeError('EURUSD', 0.001), /0.01 lots/);
-  assert.strictEqual(instruments.floorToStep('ES', 2.9), 2);
+  assert.strictEqual(instruments.floorToStep('MES', 2.9), 2);
   assert.strictEqual(instruments.floorToStep('EURUSD', 2.999), 2.99);
-  assert.strictEqual(instruments.unitWord('ES', 1), 'contract');
+  assert.strictEqual(instruments.unitWord('MES', 1), 'contract');
   assert.strictEqual(instruments.unitWord('NVDA', 3), 'shares');
 });
 
@@ -117,6 +119,31 @@ test('The Pit: whole contracts open, fractions are refused, bots size in contrac
   assert.ok(match.instruments.every((s) => instruments.sizeRules(s).unit === 'contract'));
 });
 
+test('old full-size tickers still resolve for old trade rows', () => {
+  for (const [old, micro] of [['ES', 'MES'], ['NQ', 'MNQ'], ['CL', 'MCL'], ['GC', 'MGC'], ['6E', 'M6E']]) {
+    assert.ok(!instruments.INSTRUMENTS[old], `${old} is no longer offered`);
+    assert.strictEqual(instruments.getInstrument(old), instruments.INSTRUMENTS[micro]);
+  }
+});
+
+test('The Pit plays on a $25,000 account; every other mode keeps $10,000', async () => {
+  const { createGameEngine } = require('../server/gameEngine');
+  const room = { emit() {} };
+  const engine = createGameEngine({ to: () => room, emit() {} }, () => {}, () => {}, () => {}, () => true);
+  const pit = await engine.createMatch('futures');
+  engine.joinMatch(pit, { id: 'cap1', username: 'Cap', war_rating: 1000 });
+  assert.strictEqual(pit.players.cap1.balance, 25000);
+  assert.strictEqual(pit.players.cap1.startingCapital, 25000);
+  const quick = await engine.createMatch('quick');
+  engine.joinMatch(quick, { id: 'cap2', username: 'Cap2', war_rating: 1000 });
+  assert.strictEqual(quick.players.cap2.balance, 10000);
+  // P&L on the board is measured from the seat's own starting capital.
+  pit.status = 'active';
+  pit.startedAt = Date.now() - 5000;
+  const status = engine.getLiveMatchStatus('cap1');
+  assert.strictEqual(status.pnl, 0);
+});
+
 test('hidden dates, price scale and mirror apply to the new instruments too', () => {
   const id = 'sf-shape';
   instruments.assignMatchWindow(id, 'NVDA', 'seed-sf', 10, {});
@@ -126,8 +153,8 @@ test('hidden dates, price scale and mirror apply to the new instruments too', ()
   // Across seeds both flips appear and every scale is within 0.8..1.2.
   const shapes = [];
   for (let i = 0; i < 30; i++) {
-    instruments.assignMatchWindow(`sf-${i}`, 'CL', `seed-${i}`, 15, {});
-    shapes.push(instruments.getMarketInfo(`sf-${i}`).CL.shape);
+    instruments.assignMatchWindow(`sf-${i}`, 'MCL', `seed-${i}`, 15, {});
+    shapes.push(instruments.getMarketInfo(`sf-${i}`).MCL.shape);
     instruments.releaseMatchWindows(`sf-${i}`);
   }
   assert.ok(shapes.some((x) => x.flip) && shapes.some((x) => !x.flip), 'both directions');

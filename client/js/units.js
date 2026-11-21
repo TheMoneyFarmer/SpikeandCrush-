@@ -12,7 +12,7 @@ window.TW = window.TW || {};
   const specs = {};
   const listeners = [];
   const WORDS = { lot: ['lot', 'lots'], share: ['share', 'shares'], contract: ['contract', 'contracts'] };
-  const CHIPS = { lot: [0.1, 0.5, 1, 2, 5], share: [1, 10, 25, 50, 100], contract: [1, 2, 3, 5, 10] };
+  const CHIPS = { lot: [0.1, 0.5, 1, 2, 5], share: [1, 10, 25, 50, 100], contract: [1, 2, 5, 10, 20] };
   const DEFAULT_SIZE = { lot: 1, share: 10, contract: 1 };
   // Stop/target distances: pips in forex and CFDs, ticks in futures, cents in stocks.
   const DIST = { lot: { word: 'Pips', short: 'p' }, share: { word: 'Cents', short: '¢' }, contract: { word: 'Ticks', short: 't' } };

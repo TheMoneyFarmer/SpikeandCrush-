@@ -450,7 +450,7 @@
     const me = rows.find((r) => r.id === you);
     $('plCrown').innerHTML = lead ? `<div class="pl-crownhead">${svg('crown', 16)}<b>Crown</b></div>
       <div class="pl-crownname">${esc(lead.username)}${lead.id === you ? ' (you)' : ''}</div>
-      <div class="pl-crownsub">${me && lead.id !== you ? `You are ${money((lead.equity ?? 10000 + lead.pnl) - (me.equity ?? 10000 + me.pnl))} behind. Overtake to earn a card.` : lead.id === you ? 'Hold it to the bell.' : ''}</div>` : '';
+      <div class="pl-crownsub">${me && lead.id !== you ? `You are ${money((lead.equity ?? (TW.matchCapital ? TW.matchCapital() : 10000) + lead.pnl) - (me.equity ?? (TW.matchCapital ? TW.matchCapital() : 10000) + me.pnl))} behind. Overtake to earn a card.` : lead.id === you ? 'Hold it to the bell.' : ''}</div>` : '';
     const ms = TW.Fire && TW.Fire.getMissions ? TW.Fire.getMissions() : [];
     $('plMissions').innerHTML = `<b class="pl-mhead">Missions</b>${ms.length ? ms.map((m) => {
       const pct = m.target ? Math.min(100, Math.round(((m.progress || 0) / m.target) * 100)) : m.done ? 100 : 0;
@@ -485,7 +485,7 @@
     } else if (d.type === 'leaderboard') {
       const me = (d.rows || []).find((r) => r.id === TW.Game.state().you);
       if (me) {
-        const eq = me.equity ?? 10000 + me.pnl;
+        const eq = me.equity ?? (TW.matchCapital ? TW.matchCapital() : 10000) + me.pnl;
         session.peak = session.peak === null ? eq : Math.max(session.peak, eq);
         session.maxDd = Math.max(session.maxDd, session.peak - eq);
       }

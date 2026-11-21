@@ -52,6 +52,9 @@ const DISCONNECT_NOTICE_DELAY_MS = 5000; // a page change drops the socket brief
 // The core trading rules, shared with long-form competitions (compEngine.js)
 // so both play by the same numbers.
 const GAME_RULES = { STARTING_CAPITAL, MAX_POSITIONS, ...marginRules.MARGIN_RULES };
+// A seat's starting capital: STARTING_CAPITAL unless the mode sets its own
+// (The Pit: $25,000, modeIdentity futures.startingCapital).
+const capitalOf = (p) => (p && p.startingCapital) || STARTING_CAPITAL;
 const ALLOWED_CHAT_MESSAGES = ['GL HF', "Let's go", 'May the best trader win', 'Ready to war'];
 
 // Private War stays free to join for invited friends - MATCH_MODES.private's
@@ -246,7 +249,7 @@ function computeMatchResults(players, mode, config) {
   // other mode: P&L only (no player has eliminatedRound).
   const roundOf = (p) => p.eliminatedRound || Infinity;
   const ranked = players
-    .map((p) => ({ player: p, pnl: Math.round((p.balance - STARTING_CAPITAL) * 100) / 100 }))
+    .map((p) => ({ player: p, pnl: Math.round((p.balance - capitalOf(p)) * 100) / 100 }))
     .sort((a, b) => (roundOf(a.player) !== roundOf(b.player) ? roundOf(b.player) - roundOf(a.player) : b.pnl - a.pnl));
 
   const avgOpponentRatingFor = (playerId) => {
@@ -590,6 +593,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       status: match.status,
       instruments: match.instruments,
       instrumentSpecs: instruments.clientSpecs(match.instruments),
+      startingCapital: match.config.startingCapital || STARTING_CAPITAL,
       durationSeconds: match.config.durationSeconds,
       lobbyDeadline: match.status === 'waiting' ? match.lobbyDeadline : null,
       maxPlayers: match.config.maxPlayers,
@@ -777,7 +781,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       m = marginStats(match, player, elapsedSeconds, nowMs);
     }
     if (closed) {
-      pushFeed(match, `${player.username} was stopped out - ${closed} position${closed === 1 ? '' : 's'} closed`, { type: 'margin_warning', timestamp: elapsedSeconds, playerId: player.id, pnl: Math.round(m.equity - STARTING_CAPITAL) });
+      pushFeed(match, `${player.username} was stopped out - ${closed} position${closed === 1 ? '' : 's'} closed`, { type: 'margin_warning', timestamp: elapsedSeconds, playerId: player.id, pnl: Math.round(m.equity - capitalOf(player)) });
       emitToPlayer(match, player.id, 'margin:warning', { level: 'stop_out', closed, equity: Math.round(m.equity) });
     }
     if (m.level !== null && m.level <= marginRules.MARGIN_CALL_LEVEL) {
@@ -840,7 +844,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     const match = {
       id: matchId,
       mode,
-      config: { ...modeConfig, ...opts.configOverrides },
+      config: { ...modeConfig, startingCapital: rules.startingCapital || STARTING_CAPITAL, ...opts.configOverrides },
       roomCode,
       status: 'waiting',
       instruments: matchInstruments,
@@ -966,6 +970,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // hand size (gameFeel cards.handSize).
     const handSize = gameFeel.get().cards.handSize;
     const dealt = Math.min(handSize, (modeConfig.cardsPerPlayer || 0) + (modeConfig.cardsPerPlayer ? progression.startingBonusCards(tier) : 0));
+    const capital = modeConfig.startingCapital || STARTING_CAPITAL;
     const state = {
       id: info.id,
       username: info.username,
@@ -978,7 +983,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       aiState: isAI ? createAIState(personality, matchInstruments) : null,
       ready: isAI,
       socketId,
-      balance: STARTING_CAPITAL,
+      balance: capital,
+      startingCapital: capital,
       positions: [],
       cards: sabotage.dealCards(dealt, info.deck, unlocked),
       cardsPlayed: 0,
@@ -988,10 +994,10 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       eliminated: false,
       softLocked: false,
       riskWindowIndex: 0,
-      riskWindowStartEquity: STARTING_CAPITAL,
+      riskWindowStartEquity: capital,
       bestTrade: 0,
       worstTrade: 0,
-      equityHistory: isAI ? null : [{ t: 0, equity: STARTING_CAPITAL }],
+      equityHistory: isAI ? null : [{ t: 0, equity: capital }],
     };
     return cardRules.initPlayer(state, { unlockedCards: unlocked });
   }
@@ -1027,7 +1033,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     if (rules.steadyHandBadge) {
       for (const p of Object.values(match.players)) {
         const eq = computeEquity(match, p, elapsedSeconds, nowMs);
-        p.peakEquity = Math.max(p.peakEquity || STARTING_CAPITAL, eq);
+        p.peakEquity = Math.max(p.peakEquity || capitalOf(p), eq);
         p.maxDrawdown = Math.max(p.maxDrawdown || 0, p.peakEquity - eq);
       }
     }
@@ -1063,8 +1069,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
 
   function standingsNow(match, elapsedSeconds, nowMs) {
     return Object.values(match.players)
-      .map((p) => ({ id: p.id, username: p.username, equity: computeEquity(match, p, elapsedSeconds, nowMs), pnl: 0, spectator: Boolean(p.spectator) }))
-      .map((r) => ({ ...r, pnl: Math.round((r.equity - STARTING_CAPITAL) * 100) / 100 }))
+      .map((p) => ({ id: p.id, username: p.username, equity: computeEquity(match, p, elapsedSeconds, nowMs), pnl: 0, spectator: Boolean(p.spectator), capital: capitalOf(p) }))
+      .map(({ capital, ...r }) => ({ ...r, pnl: Math.round((r.equity - capital) * 100) / 100 }))
       .sort((a, b) => b.equity - a.equity);
   }
 
@@ -1458,8 +1464,8 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
   }
 
   // Missions only count trades of real size (anti-farm).
-  function isMeaningful(symbol, lots, midPrice) {
-    return marginRules.positionMargin(symbol, lots, midPrice) >= STARTING_CAPITAL * cardRules.MEANINGFUL_MARGIN_SHARE;
+  function isMeaningful(symbol, lots, midPrice, capital = STARTING_CAPITAL) {
+    return marginRules.positionMargin(symbol, lots, midPrice) >= capital * cardRules.MEANINGFUL_MARGIN_SHARE;
   }
 
   function logCard(match, entry, elapsedSeconds) {
@@ -1584,7 +1590,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       bestStreak: p.bestStreak,
       missionsCompleted: p.missionsCompleted || 0,
       pnl: r.pnl,
-      startingCapital: STARTING_CAPITAL,
+      startingCapital: capitalOf(p),
       // Self-play: a Private War alone, or a ghost challenge (no live opponent).
       selfPlay: Boolean(match.config.challenge) || (Object.values(match.players).filter((x) => !x.isAI).length === 1 && match.mode === 'private'),
     });
@@ -1741,7 +1747,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     player.lastOpenAt = nowMs;
     missionProgress(match, player, {
       type: 'open',
-      meaningful: isMeaningful(symbol, position.lots, marginRules.mid(price)),
+      meaningful: isMeaningful(symbol, position.lots, marginRules.mid(price), capitalOf(player)),
       sinceSpikeMs: match.lastSpikeAlertAt ? nowMs - match.lastSpikeAlertAt : null,
     });
     if (!player.isAI) {
@@ -1821,7 +1827,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     // played it (capped, and never below the damage floor).
     const tax = player.effects.profit_tax;
     if (pnl > 0 && tax && nowMs < tax.until && match.players[tax.by]) {
-      const floor = STARTING_CAPITAL * gameFeel.get().cards.floorPctOfCapital;
+      const floor = capitalOf(player) * gameFeel.get().cards.floorPctOfCapital;
       const room = Math.max(0, computeEquity(match, player, elapsedSeconds, nowMs) - floor);
       const amount = Math.min(Math.round(pnl * tax.share * 100) / 100, tax.cap, Math.floor(room * 100) / 100);
       if (amount > 0) {
@@ -1836,7 +1842,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     }
 
     // Streak, earned cards, Heat and missions (server/cards.js).
-    const earned = cardRules.onTradeClosed(match, player, { position, pnl, reason, nowMs, startingCapital: STARTING_CAPITAL });
+    const earned = cardRules.onTradeClosed(match, player, { position, pnl, reason, nowMs, startingCapital: capitalOf(player) });
     if (earned.qualifying || earned.reset || earned.granted.length || earned.heat) emitCardsUpdate(match, player, { earned });
     if (earned.qualifying && player.firstWinSeconds === undefined) player.firstWinSeconds = elapsedSeconds;
     missionProgress(match, player, {
@@ -1846,7 +1852,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       qualifying: earned.qualifying,
       reason,
       heldMs: nowMs - position.openedAt,
-      meaningful: isMeaningful(position.symbol, position.lots, marginRules.mid(price)),
+      meaningful: isMeaningful(position.symbol, position.lots, marginRules.mid(price), capitalOf(player)),
       streak: player.streak,
     });
 
@@ -2038,7 +2044,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       targetId: opts.targetId,
       symbol: opts.symbol,
       targetEquity: targetEquityBefore,
-      startingCapital: STARTING_CAPITAL,
+      startingCapital: capitalOf(caster),
       maxPositions: MAX_POSITIONS,
       rand: match.rand,
     }, nowMs);
@@ -2335,13 +2341,24 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     aggressive: [0.5, 1.0, 1.5, 2.0, 2.0, 3.0],
     patient: [0.1, 0.25, 0.5, 0.5, 0.5, 1.0],
   };
-  // Stocks: about 25 shares per lot-sized idea; futures: 1 to 3 contracts.
-  function lotSizeForStyle(style, symbol) {
+  // Stocks: about 25 shares per lot-sized idea. Futures: as many contracts as
+  // tie up about 4% of the account in margin per "lot" of the persona's taste
+  // (a few micros, or 1 full-size contract), so bots size like the players.
+  function lotSizeForStyle(style, symbol, match) {
     const pool = LOT_POOL[style];
     const lots = pool ? pool[Math.floor(Math.random() * pool.length)] : Math.round((0.1 + Math.random() * 2.9) * 10) / 10; // chaos: fully random
     const { unit } = instruments.sizeRules(symbol);
     if (unit === 'share') return Math.max(1, Math.round(lots * 25));
-    if (unit === 'contract') return Math.max(1, Math.min(3, Math.round(lots)));
+    if (unit === 'contract') {
+      let perContract = 0;
+      try {
+        const px = instruments.getCurrentPrice(match.id, symbol, getElapsedSeconds(match, Date.now()));
+        perContract = marginRules.positionMargin(symbol, 1, px.mid);
+      } catch { /* no price yet */ }
+      const capital = (match && match.config && match.config.startingCapital) || STARTING_CAPITAL;
+      const n = perContract > 0 ? Math.round((lots * capital * 0.04) / perContract) : Math.round(lots);
+      return Math.max(1, Math.min(20, n));
+    }
     return lots;
   }
 
@@ -2389,7 +2406,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           } else {
             st.entered = true;
             for (const symbol of match.instruments) {
-              openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('aggressive', symbol), ...slTpForStyle('aggressive') });
+              openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('aggressive', symbol, match), ...slTpForStyle('aggressive') });
             }
             st.lastActionAt = elapsedSeconds;
           }
@@ -2399,7 +2416,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           closeTrade(match.id, player.id, pos.id);
           if (player.positions.length < MAX_POSITIONS) {
             const symbol = match.instruments[Math.floor(Math.random() * match.instruments.length)];
-            openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('aggressive', symbol), ...slTpForStyle('aggressive') });
+            openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('aggressive', symbol, match), ...slTpForStyle('aggressive') });
           }
           st.lastActionAt = elapsedSeconds;
           st.reopenIntervalSec = rand(20, 40);
@@ -2428,7 +2445,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
             st.entryTime = elapsedSeconds + rand(5, 15);
           } else {
             st.entered = true;
-            openTrade(match.id, player.id, { symbol: st.instrument, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('patient', st.instrument), ...slTpForStyle('patient') });
+            openTrade(match.id, player.id, { symbol: st.instrument, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('patient', st.instrument, match), ...slTpForStyle('patient') });
           }
         }
         st.cardTimes.forEach((t, i) => {
@@ -2443,7 +2460,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       default: {
         if (elapsedSeconds >= st.nextEntryAt && player.positions.length < MAX_POSITIONS) {
           const symbol = match.instruments[Math.floor(Math.random() * match.instruments.length)];
-          openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('chaos', symbol), ...slTpForStyle('chaos') });
+          openTrade(match.id, player.id, { symbol, direction: Math.random() < 0.5 ? 'BUY' : 'SELL', lots: lotSizeForStyle('chaos', symbol, match), ...slTpForStyle('chaos') });
           st.nextEntryAt = elapsedSeconds + rand(10, 60);
         }
         if (Math.random() < 0.03 && player.positions.length > 0) {
@@ -2489,7 +2506,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
     }
 
     if (!player.softLocked) {
-      const windowLossPct = (player.riskWindowStartEquity - equity) / STARTING_CAPITAL;
+      const windowLossPct = (player.riskWindowStartEquity - equity) / capitalOf(player);
       if (windowLossPct >= SOFT_LOSS_PCT) {
         player.softLocked = true;
         logEvent(match, 'loss_limit', player.id, { equity: Math.round(equity * 100) / 100 }, null, nowMs);
@@ -2497,7 +2514,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           type: 'margin_warning',
           timestamp: elapsedSeconds,
           playerId: player.id,
-          pnl: Math.round(equity - STARTING_CAPITAL),
+          pnl: Math.round(equity - capitalOf(player)),
         });
         emitToPlayer(match, player.id, 'margin:warning', { level: 'soft_locked', equity: Math.round(equity) });
       }
@@ -2640,7 +2657,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       // Grand: once the last scheduled event has landed, the "survive the
       // events" mission checks who is still above their starting equity.
       if (ev.event === 'spike:result' && ev.payload.kind === 'event' && match.spikePlan.filter((x) => x.kind === 'event').every((x) => x.resolved)) {
-        for (const p of Object.values(match.players)) missionProgress(match, p, { type: 'events_done', aboveStart: computeEquity(match, p, elapsedSeconds, nowMs) > STARTING_CAPITAL });
+        for (const p of Object.values(match.players)) missionProgress(match, p, { type: 'events_done', aboveStart: computeEquity(match, p, elapsedSeconds, nowMs) > capitalOf(p) });
       }
     }
     modeTick(match, elapsedSeconds, nowMs);
@@ -2650,7 +2667,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         if (p.isAI || !p.missions || !p.missions.some((m) => m.id === 'hold_60' && !m.done)) continue;
         for (const pos of p.positions) {
           const px = instruments.getCurrentPrice(match.id, pos.symbol, elapsedSeconds);
-          missionProgress(match, p, { type: 'tick', heldMs: nowMs - pos.openedAt, meaningful: isMeaningful(pos.symbol, pos.lots, px.mid) });
+          missionProgress(match, p, { type: 'tick', heldMs: nowMs - pos.openedAt, meaningful: isMeaningful(pos.symbol, pos.lots, px.mid, capitalOf(p)) });
         }
       }
     }
@@ -2662,7 +2679,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       const list = match.pnlSnapshots[p.id] || (match.pnlSnapshots[p.id] = []);
       if (list.length === 0 || list[list.length - 1].second !== elapsedSeconds) {
         const equity = computeEquity(match, p, elapsedSeconds, nowMs);
-        list.push({ second: elapsedSeconds, pnl: Math.round((equity - STARTING_CAPITAL) * 100) / 100 });
+        list.push({ second: elapsedSeconds, pnl: Math.round((equity - capitalOf(p)) * 100) / 100 });
       }
     }
 
@@ -2681,7 +2698,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
         return {
           id: p.id,
           username: p.username,
-          pnl: Math.round((equity - STARTING_CAPITAL) * 100) / 100,
+          pnl: Math.round((equity - capitalOf(p)) * 100) / 100,
           equity: Math.round(equity * 100) / 100,
           tradesMade: p.tradesMade,
           eliminated: p.eliminated,
@@ -2950,10 +2967,10 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
             if (p && !p.isAI) track('match_ended', { userId: r.playerId, mode: match.mode, matchId: match.dbMatchId || match.id, deviceClass: p.deviceClass || null, props: { end_reason: p.eliminated ? 'loss_limit' : 'completed', rank: r.rank, trades: p.tradesMade || 0, cards: p.cardsPlayed || 0 } });
             // Admin records: closing figures and the equity curve (best-effort).
             if (db.hasRecordsSchema() && p) {
-              const curve = downsample((match.pnlSnapshots[p.id] || []).map((s) => ({ t: s.second, equity: Math.round((STARTING_CAPITAL + s.pnl) * 100) / 100 })), 300);
+              const curve = downsample((match.pnlSnapshots[p.id] || []).map((s) => ({ t: s.second, equity: Math.round((capitalOf(p) + s.pnl) * 100) / 100 })), 300);
               const summary = {
                 ...closing[p.id],
-                startingCapital: STARTING_CAPITAL,
+                startingCapital: capitalOf(p),
                 finalBalance: Math.round(p.balance * 100) / 100,
                 cardsReceived: p.cardsEarned || 0,
                 cardsPlayed: p.cardsPlayed || 0,
@@ -3505,7 +3522,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       modeLabel: match.config.label || (match.mode === 'private' ? 'Private War' : match.mode),
       status: match.status,
       remainingSeconds: match.status === 'active' ? Math.max(0, match.config.durationSeconds - elapsedSeconds) : null,
-      pnl: round2(equity - STARTING_CAPITAL),
+      pnl: round2(equity - capitalOf(player)),
       equity: round2(equity),
       rank,
       playerCount: Object.keys(match.players).length,
@@ -3598,7 +3615,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
           online: p.isAI ? true : Boolean(p.socketId) || Boolean(isPlayerOnSite?.(p.id)),
           eliminated: Boolean(p.eliminated || p.spectator),
           forfeited: Boolean(p.forfeited),
-          pnl: Math.round((p.balance - STARTING_CAPITAL) * 100) / 100,
+          pnl: Math.round((p.balance - capitalOf(p)) * 100) / 100,
         })),
       });
     }
@@ -3792,7 +3809,7 @@ function createGameEngine(io, notifyPlayer, updatePresence, notifyFriendsOfWin, 
       ratingChange = baseRatingForPosition(totalPlayers, totalPlayers); // the real "finished last" constant (-25)
       newRating = Math.max(0, oldRating + ratingChange);
     }
-    const finalPnl = Math.round((player.balance - STARTING_CAPITAL) * 100) / 100;
+    const finalPnl = Math.round((player.balance - capitalOf(player)) * 100) / 100;
 
     if (db.isConfigured) {
       try {

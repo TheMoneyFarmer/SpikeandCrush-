@@ -346,7 +346,7 @@
   },
   {
    "rank": 38,
-   "sym": "CL",
+   "sym": "MCL",
    "cls": "futures",
    "score": 6.9811,
    "kept": true,
@@ -426,7 +426,7 @@
   },
   {
    "rank": 46,
-   "sym": "SI",
+   "sym": "SIL",
    "cls": "futures",
    "score": 5.2113,
    "kept": true,
@@ -436,7 +436,7 @@
   },
   {
    "rank": 47,
-   "sym": "NQ",
+   "sym": "MNQ",
    "cls": "futures",
    "score": 5.2017,
    "kept": true,
@@ -466,7 +466,7 @@
   },
   {
    "rank": 50,
-   "sym": "GC",
+   "sym": "MGC",
    "cls": "futures",
    "score": 4.1009,
    "kept": true,
@@ -506,7 +506,7 @@
   },
   {
    "rank": 54,
-   "sym": "RTY",
+   "sym": "M2K",
    "cls": "futures",
    "score": 2.9002,
    "kept": true,
@@ -516,7 +516,7 @@
   },
   {
    "rank": 55,
-   "sym": "ES",
+   "sym": "MES",
    "cls": "futures",
    "score": 2.8826,
    "kept": true,
@@ -526,7 +526,7 @@
   },
   {
    "rank": 56,
-   "sym": "YM",
+   "sym": "MYM",
    "cls": "futures",
    "score": 2.6202,
    "kept": true,
@@ -546,7 +546,7 @@
   },
   {
    "rank": 58,
-   "sym": "HG",
+   "sym": "MHG",
    "cls": "futures",
    "score": 1.5393,
    "kept": true,
@@ -596,7 +596,7 @@
   },
   {
    "rank": 63,
-   "sym": "6E",
+   "sym": "M6E",
    "cls": "futures",
    "score": 0.2676,
    "kept": true,
@@ -6060,8 +6060,8 @@
    },
    "pool": "modes"
   },
-  "CL": {
-   "file": "CL.playlist.json",
+  "MCL": {
+   "file": "MCL.playlist.json",
    "class": "futures",
    "score": 6.9811,
    "medRange": 0.0799999999999983,
@@ -7144,8 +7144,8 @@
    },
    "pool": "modes"
   },
-  "SI": {
-   "file": "SI.playlist.json",
+  "SIL": {
+   "file": "SIL.playlist.json",
    "class": "futures",
    "score": 5.2113,
    "medRange": 0.03999999999999915,
@@ -7415,8 +7415,8 @@
    },
    "pool": "modes"
   },
-  "NQ": {
-   "file": "NQ.playlist.json",
+  "MNQ": {
+   "file": "MNQ.playlist.json",
    "class": "futures",
    "score": 5.2017,
    "medRange": 14.554000000000087,
@@ -7832,8 +7832,8 @@
    },
    "pool": "modes"
   },
-  "GC": {
-   "file": "GC.playlist.json",
+  "MGC": {
+   "file": "MGC.playlist.json",
    "class": "futures",
    "score": 4.1009,
    "medRange": 1.643000000000029,
@@ -8540,8 +8540,8 @@
    },
    "pool": "modes"
   },
-  "RTY": {
-   "file": "RTY.playlist.json",
+  "M2K": {
+   "file": "M2K.playlist.json",
    "class": "futures",
    "score": 2.9002,
    "medRange": 0.9049999999997453,
@@ -8763,8 +8763,8 @@
    },
    "pool": "modes"
   },
-  "ES": {
-   "file": "ES.playlist.json",
+  "MES": {
+   "file": "MES.playlist.json",
    "class": "futures",
    "score": 2.8826,
    "medRange": 2.144999999999527,
@@ -8986,8 +8986,8 @@
    },
    "pool": "modes"
   },
-  "YM": {
-   "file": "YM.playlist.json",
+  "MYM": {
+   "file": "MYM.playlist.json",
    "class": "futures",
    "score": 2.6202,
    "medRange": 13.59599999999773,
@@ -9368,8 +9368,8 @@
    },
    "pool": "modes"
   },
-  "HG": {
-   "file": "HG.playlist.json",
+  "MHG": {
+   "file": "MHG.playlist.json",
    "class": "futures",
    "score": 1.5393,
    "medRange": 0.0027999999999996916,
@@ -10287,8 +10287,8 @@
    },
    "pool": "modes"
   },
-  "6E": {
-   "file": "6E.playlist.json",
+  "M6E": {
+   "file": "M6E.playlist.json",
    "class": "futures",
    "score": 0.2676,
    "medRange": 0.0001100000000000545,

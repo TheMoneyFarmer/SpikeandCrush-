@@ -41,7 +41,7 @@ TW.Leaderboard = (function () {
         <td>${TW.renderUsername(row)}${badge}<span class="pl-tags">${tags}</span></td>
         <td class="${pnlClass} mono">${TW.formatMoney(row.pnl)}</td>
         <td>${row.tradesMade}</td>
-        <td class="pl-eqcell mono">${TW.formatMoney(row.equity ?? 10000 + row.pnl)}</td>
+        <td class="pl-eqcell mono">${TW.formatMoney(row.equity ?? (TW.matchCapital ? TW.matchCapital() : 10000) + row.pnl)}</td>
       `;
       tbody.appendChild(tr);
     });

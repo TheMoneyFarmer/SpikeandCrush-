@@ -271,34 +271,34 @@ const INSTRUMENTS = {
     pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 1, unit: 'share', lotStep: 1,
     minLot: 1, maxLot: 1000, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'snowususd', simulated: true,
   },
-  // CME E-mini S&P 500: $50 x index, tick 0.25 = $12.50
-  'ES': {
-    name: 'E-mini S&P 500 (simulated futures)', category: 'futures', nickname: ['es'],
-    pipSize: 0.25, pipValue: 12.5, spread: 0.5, contractSize: 50, unit: 'contract', lotStep: 1,
+  // CME Micro E-mini S&P 500: $5 x index, tick 0.25 = $1.25
+  'MES': {
+    name: 'Micro E-mini S&P 500 (simulated futures)', category: 'futures', nickname: ['mes', 'es'],
+    pipSize: 0.25, pipValue: 1.25, spread: 0.5, contractSize: 5, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'usa500idxusd', simulated: true,
   },
-  // CME E-mini Nasdaq-100: $20 x index, tick 0.25 = $5
-  'NQ': {
-    name: 'E-mini Nasdaq 100 (simulated futures)', category: 'futures', nickname: ['nq'],
-    pipSize: 0.25, pipValue: 5, spread: 1.5, contractSize: 20, unit: 'contract', lotStep: 1,
+  // CME Micro E-mini Nasdaq-100: $2 x index, tick 0.25 = $0.50
+  'MNQ': {
+    name: 'Micro E-mini Nasdaq-100 (simulated futures)', category: 'futures', nickname: ['mnq', 'nq'],
+    pipSize: 0.25, pipValue: 0.5, spread: 1.5, contractSize: 2, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'usatechidxusd', simulated: true,
   },
-  // CBOT E-mini Dow: $5 x index, tick 1 = $5
-  'YM': {
-    name: 'E-mini Dow (simulated futures)', category: 'futures', nickname: ['ym'],
-    pipSize: 1, pipValue: 5, spread: 2.0, contractSize: 5, unit: 'contract', lotStep: 1,
+  // CBOT Micro E-mini Dow: $0.50 x index, tick 1 = $0.50
+  'MYM': {
+    name: 'Micro E-mini Dow (simulated futures)', category: 'futures', nickname: ['mym', 'ym'],
+    pipSize: 1, pipValue: 0.5, spread: 2.0, contractSize: 0.5, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'usa30idxusd', simulated: true,
   },
-  // CME E-mini Russell 2000: $50 x index, tick 0.10 = $5
-  'RTY': {
-    name: 'E-mini Russell 2000 (simulated futures)', category: 'futures', nickname: ['rty'],
-    pipSize: 0.1, pipValue: 5, spread: 0.5, contractSize: 50, unit: 'contract', lotStep: 1,
+  // CME Micro E-mini Russell 2000: $5 x index, tick 0.10 = $0.50
+  'M2K': {
+    name: 'Micro E-mini Russell 2000 (simulated futures)', category: 'futures', nickname: ['m2k', 'rty'],
+    pipSize: 0.1, pipValue: 0.5, spread: 0.5, contractSize: 5, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'ussc2000idxusd', simulated: true,
   },
-  // NYMEX WTI: 1,000 barrels, tick $0.01 = $10
-  'CL': {
-    name: 'Crude Oil (simulated futures)', category: 'futures', nickname: ['cl'],
-    pipSize: 0.01, pipValue: 10, spread: 0.05, contractSize: 1000, unit: 'contract', lotStep: 1,
+  // NYMEX Micro WTI: 100 barrels, tick $0.01 = $1
+  'MCL': {
+    name: 'Micro WTI Crude Oil (simulated futures)', category: 'futures', nickname: ['mcl', 'cl'],
+    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 100, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'lightcmdusd', simulated: true,
   },
   // ICE Brent: 1,000 barrels, tick $0.01 = $10
@@ -313,22 +313,22 @@ const INSTRUMENTS = {
     pipSize: 0.001, pipValue: 10, spread: 0.008, contractSize: 10000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'gascmdusd', simulated: true,
   },
-  // COMEX Gold: 100 troy oz, tick $0.10 = $10
-  'GC': {
-    name: 'Gold (simulated futures)', category: 'futures', nickname: ['gc'],
-    pipSize: 0.1, pipValue: 10, spread: 0.35, contractSize: 100, unit: 'contract', lotStep: 1,
+  // COMEX Micro Gold: 10 troy oz, tick $0.10 = $1
+  'MGC': {
+    name: 'Micro Gold (simulated futures)', category: 'futures', nickname: ['mgc', 'gc'],
+    pipSize: 0.1, pipValue: 1, spread: 0.35, contractSize: 10, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xauusd', simulated: true,
   },
-  // COMEX Silver: 5,000 troy oz, tick $0.005 = $25
-  'SI': {
-    name: 'Silver (simulated futures)', category: 'futures', nickname: ['si'],
-    pipSize: 0.005, pipValue: 25, spread: 0.03, contractSize: 5000, unit: 'contract', lotStep: 1,
+  // COMEX Micro Silver: 1,000 troy oz, tick $0.005 = $5
+  'SIL': {
+    name: 'Micro Silver (simulated futures)', category: 'futures', nickname: ['sil', 'si'],
+    pipSize: 0.005, pipValue: 5, spread: 0.03, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xagusd', simulated: true,
   },
-  // COMEX Copper: 25,000 lb, tick $0.0005 = $12.50
-  'HG': {
-    name: 'Copper (simulated futures)', category: 'futures', nickname: ['hg'],
-    pipSize: 0.0005, pipValue: 12.5, spread: 0.004, contractSize: 25000, unit: 'contract', lotStep: 1,
+  // COMEX Micro Copper: 2,500 lb, tick $0.0005 = $1.25
+  'MHG': {
+    name: 'Micro Copper (simulated futures)', category: 'futures', nickname: ['mhg', 'hg'],
+    pipSize: 0.0005, pipValue: 1.25, spread: 0.004, contractSize: 2500, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 4, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'coppercmdusd', simulated: true,
   },
   // NYMEX Platinum: 50 troy oz, tick $0.10 = $5
@@ -361,10 +361,10 @@ const INSTRUMENTS = {
     pipSize: 0.05, pipValue: 50, spread: 0.1, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'volidxusd', simulated: true,
   },
-  // CME Euro FX: 125,000 EUR, tick 0.00005 = $6.25
-  '6E': {
-    name: 'Euro FX (simulated futures)', category: 'futures', nickname: ['6e'],
-    pipSize: 5e-05, pipValue: 6.25, spread: 0.0002, contractSize: 125000, unit: 'contract', lotStep: 1,
+  // CME Micro EUR/USD: 12,500 EUR, tick 0.0001 = $1.25
+  'M6E': {
+    name: 'Micro EUR/USD (simulated futures)', category: 'futures', nickname: ['m6e', '6e'],
+    pipSize: 0.0001, pipValue: 1.25, spread: 0.0002, contractSize: 12500, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 5, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'eurusd', simulated: true,
   },
   // CBOT Soybeans: 5,000 bushels, price in cents, tick 1/4 cent = $12.50
@@ -426,8 +426,12 @@ const LIVE_INSTRUMENTS = {
   BCHUSD: crypto_('Bitcoin Cash', ['bitcoin cash', 'bch'], 2, 0.3, 0.01, 500),
 };
 
+// The Pit moved to CME/COMEX micro contracts on 2026-11-21. Old trade rows
+// still carry the full-size tickers, so those names keep resolving.
+const RENAMED = { ES: 'MES', NQ: 'MNQ', YM: 'MYM', RTY: 'M2K', CL: 'MCL', GC: 'MGC', SI: 'SIL', HG: 'MHG', '6E': 'M6E' };
+
 function getInstrument(symbol) {
-  return INSTRUMENTS[symbol] || LIVE_INSTRUMENTS[symbol] || null;
+  return INSTRUMENTS[symbol] || LIVE_INSTRUMENTS[symbol] || INSTRUMENTS[RENAMED[symbol]] || null;
 }
 
 function listInstruments() {

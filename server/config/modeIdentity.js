@@ -170,7 +170,9 @@ const DEFAULTS = {
     resultHighlights: ['bestStreak', 'heat'],
     preStartBanner: 'Bell Rush: 10 minutes, stocks only, 5 cards, highest equity wins.',
   },
-  // Futures only. Historical replay of futures prices (simulated CFD maths).
+  // Futures only. Historical replay of futures prices, traded as CME/COMEX
+  // micro contracts where one exists (real multipliers and ticks), on a
+  // $25,000 account (owner decision 2026-11-21).
   futures: {
     displayName: 'The Pit',
     icon: 'pit',
@@ -179,13 +181,14 @@ const DEFAULTS = {
     bestFor: 'Big swings and heavy contracts',
     winCondition: 'Highest equity wins',
     winShort: 'Highest equity wins',
-    special: 'Futures only (simulated, historical replay): about 6 contracts a match',
+    special: 'Futures only (simulated, historical replay): about 6 contracts a match, micro contracts, $25,000 account',
     instrumentClasses: ['futures'],
+    startingCapital: 25000,
     instrumentPool: 'all',
     spikeAlerts: { enabled: true, minGapSeconds: 60 },
     missions: ['hold_60', 'two_wins', 'play_card', 'spike_entry', 'streak_3', 'tp_hit'],
     resultHighlights: ['bestStreak', 'heat'],
-    preStartBanner: 'The Pit: 15 minutes, futures only, 5 cards, highest equity wins.',
+    preStartBanner: 'The Pit: 15 minutes, futures only, $25,000 account, 5 cards, highest equity wins.',
   },
 };
 
@@ -281,6 +284,7 @@ function rulesFor(mode, host = null) {
       instrumentPool: flavor.instrumentPool,
       instrumentPoolSize: flavor.instrumentPoolSize,
       instrumentClasses: flavor.instrumentClasses,
+      startingCapital: flavor.startingCapital,
       resultHighlights: host.eliminationCuts ? ['roundsSurvived', 'bestStreak'] : flavor.resultHighlights,
       host,
     };
@@ -312,6 +316,7 @@ function rulesFor(mode, host = null) {
     instrumentPool: id.instrumentPool || 'all',
     instrumentPoolSize: id.instrumentPoolSize || null,
     instrumentClasses: id.instrumentClasses || ['forex', 'metals', 'indices', 'commodities', 'crypto'],
+    startingCapital: id.startingCapital || null,
     accent: id.accent || null,
     events: id.events || { minutes: [] },
     checkpointMinute: id.checkpointMinute ?? null,
@@ -327,7 +332,7 @@ function publicCatalog() {
   return Object.keys(DEFAULTS)
     .map((key) => {
       const id = identity(key);
-      return { key, enabled: id.enabled !== false, displayName: id.displayName, icon: id.icon, identity: id.identity, bestFor: id.bestFor, winCondition: id.winCondition, winShort: id.winShort, special: id.special, cardSlots: id.cards && id.cards.enabled === false ? 0 : (id.cards && id.cards.handSize) || 4, sabotage: !(id.cards && id.cards.sabotage === false), startingHand: (id.cards && id.cards.startingHand && id.cards.startingHand.count) || (id.cards && id.cards.enabled === false ? 0 : (id.cards && (id.cards.startCount || id.cards.handSize)) || 5), cutsEveryMinutes: id.elimination && id.elimination.enabled !== false ? id.elimination.everyMinutes : null, events: id.events ? id.events.minutes : null, hostOptions: id.hostOptions || null, banner: id.preStartBanner, accent: id.accent || null, instrumentClasses: id.instrumentClasses || null, simulated: (id.instrumentClasses || []).some((c) => c === 'stocks' || c === 'futures') };
+      return { key, enabled: id.enabled !== false, displayName: id.displayName, icon: id.icon, identity: id.identity, bestFor: id.bestFor, winCondition: id.winCondition, winShort: id.winShort, special: id.special, cardSlots: id.cards && id.cards.enabled === false ? 0 : (id.cards && id.cards.handSize) || 4, sabotage: !(id.cards && id.cards.sabotage === false), startingHand: (id.cards && id.cards.startingHand && id.cards.startingHand.count) || (id.cards && id.cards.enabled === false ? 0 : (id.cards && (id.cards.startCount || id.cards.handSize)) || 5), cutsEveryMinutes: id.elimination && id.elimination.enabled !== false ? id.elimination.everyMinutes : null, events: id.events ? id.events.minutes : null, hostOptions: id.hostOptions || null, banner: id.preStartBanner, accent: id.accent || null, instrumentClasses: id.instrumentClasses || null, startingCapital: id.startingCapital || 10000, simulated: (id.instrumentClasses || []).some((c) => c === 'stocks' || c === 'futures') };
     });
 }
 
