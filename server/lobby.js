@@ -398,12 +398,14 @@ function createLobbyRouter({ db, gameEngine, instrumentsRegistry, playerSockets,
           <p>${esc(lead.message).replace(/\n/g, '<br>')}</p>`,
         text: `${lead.company} (${TYPE_LABEL[lead.company_type]}) - ${lead.contact_name} <${lead.email}>\nWebsite: ${lead.website || 'not given'}\nWants to list: ${WANT_LABEL[lead.wants]}\nTier interest: ${lead.tier_interest}\n\n${lead.message}`,
       }).catch((e) => console.warn('[partner lead email]', e.message));
+      // Goes to an address the visitor typed, so it repeats nothing they typed:
+      // the form can't be used to send someone else our email with their text in it.
       sendEmail({
         to: lead.email,
         idempotencyKey: `partner-lead-confirm:${saved.id}`,
         subject: 'We have your request',
-        html: `<p>Hi ${esc(lead.contact_name)},</p><p>Thanks for your interest in partnering with Spike &amp; Crush. We have your request for ${esc(lead.company)} and will reply within two working days.</p><p>If you need us sooner, reply to this email.</p>`,
-        text: `Hi ${lead.contact_name},\n\nThanks for your interest in partnering with Spike & Crush. We have your request for ${lead.company} and will reply within two working days.\n\nIf you need us sooner, reply to this email.`,
+        html: '<p>Hi,</p><p>Thanks for your interest in partnering with Spike &amp; Crush. We have your request and will reply by email.</p><p>Spike &amp; Crush<br>hello@spikeandcrush.com</p><p style="font-size:12px;color:#888">If you did not send this request, you can ignore this email. We never ask for your password or for any payment by email.</p>',
+        text: 'Hi,\n\nThanks for your interest in partnering with Spike & Crush. We have your request and will reply by email.\n\nSpike & Crush\nhello@spikeandcrush.com\n\nIf you did not send this request, you can ignore this email. We never ask for your password or for any payment by email.',
       }).catch((e) => console.warn('[partner lead confirm]', e.message));
       res.json({ success: true, id: saved.id });
     } catch (e) {

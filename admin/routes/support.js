@@ -127,6 +127,38 @@ function router() {
     res.json({ conversations: await decorate(await q(query)) });
   }));
 
+  // AI support budget: today's usage (saved by the game server), the off
+  // switch and the daily token cap. The game server applies a change within 30 s.
+  const DEFAULT_CAP = Number(process.env.SUPPORT_DAILY_TOKEN_CAP) || 4000000;
+  async function aiSetting(key) {
+    const { data } = await supabase.from('app_settings').select('value').eq('key', key).maybeSingle();
+    return data ? data.value : null;
+  }
+  r.get('/ai-budget', h(async (req, res) => {
+    if (!canSeeAnalytics(req)) return res.status(403).json({ error: 'Not allowed' });
+    const [cfg, usage] = await Promise.all([aiSetting('support.ai'), aiSetting('support.ai.usage')]);
+    const day = new Date().toISOString().slice(0, 10);
+    const cap = Number(cfg && cfg.dailyTokenCap) > 0 ? Number(cfg.dailyTokenCap) : DEFAULT_CAP;
+    res.json({
+      enabled: !(cfg && cfg.enabled === false),
+      dailyTokenCap: cap,
+      day,
+      tokensToday: usage && usage.day === day ? Number(usage.tokens) || 0 : 0,
+      canEdit: canEditKb(req),
+    });
+  }));
+  r.put('/ai-budget', h(async (req, res) => {
+    if (!canEditKb(req)) return res.status(403).json({ error: 'Your role cannot change the AI budget' });
+    const enabled = req.body && req.body.enabled !== false;
+    const cap = Math.round(Number(req.body && req.body.dailyTokenCap));
+    if (!Number.isFinite(cap) || cap < 10000 || cap > 100000000) return res.status(400).json({ error: 'Daily token cap must be between 10,000 and 100,000,000' });
+    const value = { enabled, dailyTokenCap: cap };
+    const { error } = await supabase.from('app_settings').upsert({ key: 'support.ai', value, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    await logAdminAction({ adminUsername: req.admin.email || req.admin.username, actionType: 'support_ai_budget', targetType: 'app_settings', targetId: 'support.ai', details: value, ip: clientIp(req) });
+    res.json({ success: true, ...value });
+  }));
+
   r.get('/counts', h(async (req, res) => {
     const admin = await me(req);
     const count = async (b) => {

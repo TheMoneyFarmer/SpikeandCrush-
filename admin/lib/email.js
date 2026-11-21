@@ -9,12 +9,23 @@
 // still goes out either way.
 // idempotencyKey: Resend drops a repeat with the same key (24h), so a double
 // click or a retry can never send the same email twice.
-async function sendEmail({ to, subject, html, text, idempotencyKey }) {
+const { createEmailGuard } = require('./emailGuard');
+
+const guard = createEmailGuard();
+
+// isAlert: our own alert emails, which always go out (and are what the daily
+// cap alert itself is sent as).
+async function sendEmail({ to, subject, html, text, idempotencyKey, isAlert = false }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL || 'Spike & Crush <hello@spikeandcrush.com>';
   if (!apiKey) {
-    console.warn('[email] RESEND_API_KEY not set - skipping email to', to, '(subject:', subject + ')');
+    console.warn('[email] RESEND_API_KEY not set - skipping email (subject:', subject + ')');
     return { skipped: true };
+  }
+  const allowed = guard.check(to, { isAlert });
+  if (!allowed.ok) {
+    console.warn('[email] not sent:', allowed.reason, '(subject:', subject + ')');
+    return { skipped: true, reason: allowed.reason };
   }
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -32,6 +43,17 @@ async function sendEmail({ to, subject, html, text, idempotencyKey }) {
       console.error('[email] Resend responded', res.status, JSON.stringify(json));
       return { skipped: false, error: json };
     }
+    const level = isAlert ? null : guard.record(to);
+    if (level) {
+      const st = guard.stats();
+      sendEmail({
+        to: process.env.ALERT_EMAIL || 'hello@spikeandcrush.com',
+        isAlert: true,
+        idempotencyKey: `email-daily-cap:${st.day}:${level}`,
+        subject: `Email sending at ${level}% of today's cap`,
+        text: `This server has sent ${st.sentToday} of ${st.dailyCap} emails today.${level >= 100 ? ' No more go out until midnight UTC, except alerts.' : ''} Raise EMAIL_DAILY_CAP on Railway if this is real traffic.`,
+      }).catch(() => {});
+    }
     return { skipped: false, id: json.id };
   } catch (e) {
     console.error('[email] send failed:', e.message);
@@ -47,4 +69,4 @@ function renderTemplate(text, data = {}) {
   return String(text || '').replace(/\{\{(\w+)\}\}/g, (m, key) => (key in data ? data[key] : m));
 }
 
-module.exports = { sendEmail, renderTemplate };
+module.exports = { sendEmail, renderTemplate, emailStats: () => guard.stats() };

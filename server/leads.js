@@ -135,7 +135,8 @@ function createLeadsService({ client, sendEmail, adminBaseUrl = process.env.ADMI
   async function replyToSender(id, lead) {
     const s = await settings();
     const when = s.reply_time && String(s.reply_time).trim() ? ` We usually reply ${String(s.reply_time).trim()}.` : '';
-    const name = lead.name ? lead.name.split(' ')[0] : 'there';
+    // Goes to an address the visitor typed, so it repeats nothing they typed.
+    const name = 'there';
     try {
       await sendEmail({
         to: lead.email,

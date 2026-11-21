@@ -24,6 +24,17 @@
           <span class="sup-spacer"></span>
           <a class="btn btn-outline" id="aExport" hidden>Export CSV</a>
         </div>
+        <div class="panel" id="aiBudget" style="margin-bottom:16px">
+          <h3 style="margin-top:0">AI assistant budget (today, UTC)</h3>
+          <p class="text-secondary" id="aiUsage" style="margin:0 0 10px">Loading</p>
+          <form id="aiBudgetForm" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end" novalidate>
+            <label style="display:flex;gap:8px;align-items:center;min-height:40px"><input type="checkbox" id="aiEnabled" /> AI answers on</label>
+            <div class="field" style="margin:0"><label for="aiCap">Daily token cap</label><input id="aiCap" type="number" min="10000" step="10000" style="width:180px" /></div>
+            <button class="btn btn-primary" type="submit" id="aiSave">Save</button>
+            <span class="text-secondary" id="aiNote" role="status" style="font-size:12px"></span>
+          </form>
+          <p class="text-secondary" style="font-size:12px;margin:10px 0 0">Over the cap, or with AI answers off, every message goes to a person and the player is told support is busy. You get an email at 50%, 80% and 100%. Changes apply within 30 seconds.</p>
+        </div>
         <div id="aBody"><div class="sup-empty">Loading</div></div>
       </div>
     </main>
@@ -42,6 +53,31 @@
     const fmt = (v, unit = '') => (v === null || v === undefined ? '—' : `${v}${unit}`);
     const mins = (m) => (m === null || m === undefined ? '—' : m < 120 ? `${m} min` : `${Math.round(m / 60)} h`);
     let range = null;
+    (async function aiBudget() {
+      const usage = document.getElementById('aiUsage');
+      const note = document.getElementById('aiNote');
+      const show = (d) => {
+        const pct = d.dailyTokenCap ? Math.round((d.tokensToday / d.dailyTokenCap) * 100) : 0;
+        usage.textContent = `${d.tokensToday.toLocaleString()} of ${d.dailyTokenCap.toLocaleString()} tokens used (${pct}%). AI answers are ${d.enabled ? 'on' : 'off'}.`;
+        document.getElementById('aiEnabled').checked = d.enabled;
+        document.getElementById('aiCap').value = d.dailyTokenCap;
+      };
+      try {
+        const d = await Admin.api('/support/ai-budget');
+        show(d);
+        if (!d.canEdit) { document.querySelectorAll('#aiBudgetForm input, #aiBudgetForm button').forEach((x) => { x.disabled = true; }); note.textContent = 'Your role can view this but not change it.'; }
+        document.getElementById('aiBudgetForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          note.textContent = 'Saving…';
+          try {
+            const r = await Admin.api('/support/ai-budget', { method: 'PUT', body: { enabled: document.getElementById('aiEnabled').checked, dailyTokenCap: Number(document.getElementById('aiCap').value) } });
+            show({ ...d, ...r });
+            note.textContent = 'Saved. Applies within 30 seconds.';
+          } catch (err) { note.textContent = err.message; }
+        });
+      } catch (e) { usage.textContent = e.message; }
+    })();
+
     async function load() {
       try {
         if (!range) range = await Admin.DateRange.mount($('aRange'), { defaultPreset: '30d', onChange: () => load() });

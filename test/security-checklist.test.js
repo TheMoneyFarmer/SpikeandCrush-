@@ -113,7 +113,7 @@ test('support chat budget: per-account hourly limit, daily token cap, day rollov
 
 test('support chat: the budget is checked before every AI call', () => {
   const src = read('server/support/service.js');
-  const check = src.indexOf('budget.check(ownerKey)');
+  const check = src.indexOf('budget.check(ownerKey');
   const call = src.indexOf('await agent.reply(');
   assert.ok(check > 0 && call > check, 'budget.check comes before agent.reply');
   assert.ok(src.includes('budget.record(ownerKey'), 'usage is recorded');

@@ -10,7 +10,7 @@ const { createKb } = require('./kb');
 const { createToolRunner } = require('./tools');
 const { createAgent, SupportAiUnavailable } = require('./agent');
 const { createUploads } = require('./uploads');
-const { createSupportBudget } = require('./budget');
+const { createSupportBudget, limitMessage } = require('./budget');
 const safety = require('./safety');
 const emails = require('./emails');
 const { NO_CASH } = require('./knowledge/articles');
@@ -29,7 +29,33 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
   const store = createStore(supabase);
   const kb = createKb(supabase);
   const uploads = createUploads(supabase);
-  const budget = createSupportBudget();
+  // Today's AI usage and the admin's switch and cap live in app_settings, so a
+  // restart doesn't reset the count and admin changes apply within 30 seconds.
+  const appSetting = async (key) => (await supabase.from('app_settings').select('value').eq('key', key).maybeSingle()).data?.value;
+  const budget = createSupportBudget({
+    store: {
+      loadSettings: async () => (await appSetting('support.ai')) || {},
+      loadUsage: async () => (await appSetting('support.ai.usage')) || null,
+      saveUsage: async (usage) => {
+        await supabase.from('app_settings').upsert({ key: 'support.ai.usage', value: usage, updated_at: new Date().toISOString() });
+      },
+      alert: async (level, stats) => {
+        const { sendEmail } = require('../../admin/lib/email');
+        const used = stats.tokensToday.toLocaleString('en-US');
+        const cap = stats.dailyTokenCap.toLocaleString('en-US');
+        await sendEmail({
+          to: process.env.ALERT_EMAIL || 'hello@spikeandcrush.com',
+          idempotencyKey: `support-ai-budget:${stats.day}:${level}`,
+          isAlert: true,
+          subject: `Support chat AI at ${level}% of today's budget`,
+          text: `The AI support chat has used ${used} of ${cap} tokens today (${level}%).${level >= 100 ? ' New messages now go to a person until midnight UTC.' : ''}\n\nChange the cap or switch the AI off in admin: Support analytics.`,
+        });
+      },
+    },
+  });
+  budget.refresh();
+  const budgetTimer = setInterval(() => budget.refresh(), 30 * 1000);
+  if (budgetTimer.unref) budgetTimer.unref();
   const room = (id) => `conv:${id}`;
 
   let service; // forward ref for tool callbacks
@@ -300,16 +326,16 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
     const ctx = { playerId: owner.playerId || null, guestHash: owner.guestHash || null, conversationId: conv.id, conversationStatus: conv.status, kbArticleIds: [], pendingEscalation: null, hasGuestEmail: Boolean(conv.guest_email) };
     // Spend guard: over the hourly per-account or daily cap, a human takes it.
     const ownerKey = owner.playerId ? `p:${owner.playerId}` : `g:${owner.guestHash || 'unknown'}`;
-    const allowed = budget.check(ownerKey);
+    const allowed = budget.check(ownerKey, conv.id);
     if (!allowed.ok) {
-      await say(conv, 'ai', 'You have sent a lot of messages. A human agent will reply here.', { kind: 'budget', reason: allowed.reason });
-      await escalate(conv.id, { reason: allowed.reason === 'daily_spend' ? 'AI daily limit reached' : 'AI hourly limit reached for this player', summary: text.slice(0, 200), source: 'ai_budget' });
+      await say(conv, 'ai', limitMessage(allowed.reason), { kind: 'budget', reason: allowed.reason });
+      await escalate(conv.id, { reason: { daily_spend: 'AI daily limit reached', disabled: 'AI switched off in admin', conversation_long: 'Long conversation' }[allowed.reason] || 'AI hourly limit reached for this player', summary: text.slice(0, 200), source: 'ai_budget' });
       return { conversation: await store.getConversation(conv.id), userMessage: userMsg, limited: true };
     }
     let result;
     try {
       result = await agent.reply({ ctx, history, latestUserText: pii.text, onDelta });
-      budget.record(ownerKey, result && result.meta && result.meta.usage);
+      budget.record(ownerKey, result && result.meta && result.meta.usage, conv.id);
       if (!result.text) throw new SupportAiUnavailable('empty reply');
     } catch (e) {
       // Trigger 5: model/API failure after the SDK's retry. Never an empty bubble.
@@ -344,6 +370,7 @@ function createSupportService({ supabase, nsp, notifyPlayer, adminBridge, model,
   }
 
   service = {
+    aiBudget: () => budget.stats(),
     store,
     kb,
     agent,
