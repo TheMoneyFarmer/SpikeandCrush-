@@ -10,6 +10,9 @@ const deliverySteps = () => Math.max(1, Math.min(10, Math.floor(Number((gameFeel
 
 // spread: the median ask - bid of the price source itself (Dukascopy tick
 // data, London and New York mornings, 2026-11-11..18; scripts/measure-spreads.js).
+// Futures are the exception: the real exchange's top-of-book spread, 1 tick on
+// the deep contracts (equity-index micros, crude, gas, metals, euro, T-Bond)
+// and 2 ticks on the thinner ones (owner decision 2026-11-22).
 // dataFile is a substring match against the actual filenames in
 // data/historical/ (which carry long date-stamped names) - see csvLoader.findFile.
 // dukascopy is the instrument id scripts/fetch-market-data.js downloads into
@@ -276,133 +279,133 @@ const INSTRUMENTS = {
   // CME Micro E-mini S&P 500: $5 x index, tick 0.25 = $1.25
   'MES': {
     name: 'Micro E-mini S&P 500 (simulated futures)', category: 'futures', nickname: ['mes', 'es'],
-    pipSize: 0.25, pipValue: 1.25, spread: 0.51, contractSize: 5, unit: 'contract', lotStep: 1,
+    pipSize: 0.25, pipValue: 1.25, spread: 0.25, contractSize: 5, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'usa500idxusd', simulated: true,
   },
   // CME Micro E-mini Nasdaq-100: $2 x index, tick 0.25 = $0.50
   'MNQ': {
     name: 'Micro E-mini Nasdaq-100 (simulated futures)', category: 'futures', nickname: ['mnq', 'nq'],
-    pipSize: 0.25, pipValue: 0.5, spread: 1, contractSize: 2, unit: 'contract', lotStep: 1,
+    pipSize: 0.25, pipValue: 0.5, spread: 0.25, contractSize: 2, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'usatechidxusd', simulated: true,
   },
   // CBOT Micro E-mini Dow: $0.50 x index, tick 1 = $0.50
   'MYM': {
     name: 'Micro E-mini Dow (simulated futures)', category: 'futures', nickname: ['mym', 'ym'],
-    pipSize: 1, pipValue: 0.5, spread: 1.53, contractSize: 0.5, unit: 'contract', lotStep: 1,
+    pipSize: 1, pipValue: 0.5, spread: 1, contractSize: 0.5, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'usa30idxusd', simulated: true,
   },
   // CME Micro E-mini Russell 2000: $5 x index, tick 0.10 = $0.50
   'M2K': {
     name: 'Micro E-mini Russell 2000 (simulated futures)', category: 'futures', nickname: ['m2k', 'rty'],
-    pipSize: 0.1, pipValue: 0.5, spread: 0.26, contractSize: 5, unit: 'contract', lotStep: 1,
+    pipSize: 0.1, pipValue: 0.5, spread: 0.1, contractSize: 5, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'ussc2000idxusd', simulated: true,
   },
   // NYMEX Micro WTI: 100 barrels, tick $0.01 = $1
   'MCL': {
     name: 'Micro WTI Crude Oil (simulated futures)', category: 'futures', nickname: ['mcl', 'cl'],
-    pipSize: 0.01, pipValue: 1, spread: 0.05, contractSize: 100, unit: 'contract', lotStep: 1,
+    pipSize: 0.01, pipValue: 1, spread: 0.01, contractSize: 100, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'lightcmdusd', simulated: true,
   },
   // ICE Brent: 1,000 barrels, tick $0.01 = $10
   'BZ': {
     name: 'Brent Crude (simulated futures)', category: 'futures', nickname: ['bz'],
-    pipSize: 0.01, pipValue: 10, spread: 0.05, contractSize: 1000, unit: 'contract', lotStep: 1,
+    pipSize: 0.01, pipValue: 10, spread: 0.01, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'brentcmdusd', simulated: true,
   },
   // NYMEX Henry Hub: 10,000 MMBtu, tick $0.001 = $10
   'NG': {
     name: 'Natural Gas (simulated futures)', category: 'futures', nickname: ['ng'],
-    pipSize: 0.001, pipValue: 10, spread: 0.005, contractSize: 10000, unit: 'contract', lotStep: 1,
+    pipSize: 0.001, pipValue: 10, spread: 0.001, contractSize: 10000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'gascmdusd', simulated: true,
   },
   // COMEX Micro Gold: 10 troy oz, tick $0.10 = $1
   'MGC': {
     name: 'Micro Gold (simulated futures)', category: 'futures', nickname: ['mgc', 'gc'],
-    pipSize: 0.1, pipValue: 1, spread: 0.51, contractSize: 10, unit: 'contract', lotStep: 1,
+    pipSize: 0.1, pipValue: 1, spread: 0.1, contractSize: 10, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xauusd', simulated: true,
   },
   // COMEX Micro Silver: 1,000 troy oz, tick $0.005 = $5
   'SIL': {
     name: 'Micro Silver (simulated futures)', category: 'futures', nickname: ['sil', 'si'],
-    pipSize: 0.005, pipValue: 5, spread: 0.033, contractSize: 1000, unit: 'contract', lotStep: 1,
+    pipSize: 0.005, pipValue: 5, spread: 0.005, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xagusd', simulated: true,
   },
   // COMEX Micro Copper: 2,500 lb, tick $0.0005 = $1.25
   'MHG': {
     name: 'Micro Copper (simulated futures)', category: 'futures', nickname: ['mhg', 'hg'],
-    pipSize: 0.0005, pipValue: 1.25, spread: 0.0036, contractSize: 2500, unit: 'contract', lotStep: 1,
+    pipSize: 0.0005, pipValue: 1.25, spread: 0.0005, contractSize: 2500, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 4, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'coppercmdusd', simulated: true,
   },
   // NYMEX Platinum: 50 troy oz, tick $0.10 = $5
   'PL': {
     name: 'Platinum (simulated futures)', category: 'futures', nickname: ['pl'],
-    pipSize: 0.1, pipValue: 5, spread: 2.66, contractSize: 50, unit: 'contract', lotStep: 1,
+    pipSize: 0.1, pipValue: 5, spread: 0.2, contractSize: 50, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xptcmdusd', simulated: true,
   },
   // NYMEX Palladium: 100 troy oz, tick $0.50 = $50
   'PA': {
     name: 'Palladium (simulated futures)', category: 'futures', nickname: ['pa'],
-    pipSize: 0.5, pipValue: 50, spread: 2.2, contractSize: 100, unit: 'contract', lotStep: 1,
+    pipSize: 0.5, pipValue: 50, spread: 1, contractSize: 100, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'xpdcmdusd', simulated: true,
   },
   // CBOT 30-Year T-Bond: $1,000 per point, tick 1/32 = $31.25
   'ZB': {
     name: 'US Treasury Bond (simulated futures)', category: 'futures', nickname: ['zb'],
-    pipSize: 0.03125, pipValue: 31.25, spread: 0.048, contractSize: 1000, unit: 'contract', lotStep: 1,
+    pipSize: 0.03125, pipValue: 31.25, spread: 0.03125, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'ustbondtrusd', simulated: true,
   },
   // ICE US Dollar Index: $1,000 x index, tick 0.005 = $5
   'DX': {
     name: 'US Dollar Index (simulated futures)', category: 'futures', nickname: ['dx'],
-    pipSize: 0.005, pipValue: 5, spread: 0.039, contractSize: 1000, unit: 'contract', lotStep: 1,
+    pipSize: 0.005, pipValue: 5, spread: 0.01, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 3, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'dollaridxusd', simulated: true,
   },
   // CFE VIX: $1,000 x index, tick 0.05 = $50
   'VX': {
     name: 'Volatility Index (simulated futures)', category: 'futures', nickname: ['vx'],
-    pipSize: 0.05, pipValue: 50, spread: 0.21, contractSize: 1000, unit: 'contract', lotStep: 1,
+    pipSize: 0.05, pipValue: 50, spread: 0.1, contractSize: 1000, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'volidxusd', simulated: true,
   },
   // CME Micro EUR/USD: 12,500 EUR, tick 0.0001 = $1.25
   'M6E': {
     name: 'Micro EUR/USD (simulated futures)', category: 'futures', nickname: ['m6e', '6e'],
-    pipSize: 0.0001, pipValue: 1.25, spread: 0.00003, contractSize: 12500, unit: 'contract', lotStep: 1,
+    pipSize: 0.0001, pipValue: 1.25, spread: 0.0001, contractSize: 12500, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 5, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'eurusd', simulated: true,
   },
   // CBOT Soybeans: 5,000 bushels, price in cents, tick 1/4 cent = $12.50
   'ZS': {
     name: 'Soybeans (simulated futures)', category: 'futures', nickname: ['zs'],
-    pipSize: 0.25, pipValue: 12.5, spread: 1.73, contractSize: 50, unit: 'contract', lotStep: 1,
+    pipSize: 0.25, pipValue: 12.5, spread: 0.5, contractSize: 50, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'soybeancmdusx', simulated: true,
   },
   // ICE White Sugar (London No. 5, the data this feed carries, priced in $/tonne): 50 tonnes, tick $0.10 = $5
   'SB': {
     name: 'White Sugar (simulated futures)', category: 'futures', nickname: ['sb'],
-    pipSize: 0.1, pipValue: 5, spread: 0.77, contractSize: 50, unit: 'contract', lotStep: 1,
+    pipSize: 0.1, pipValue: 5, spread: 0.2, contractSize: 50, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'sugarcmdusd', simulated: true,
   },
   // ICE Coffee C: 37,500 lb, price in cents, tick 0.05 cent = $18.75
   'KC': {
     name: 'Coffee (simulated futures)', category: 'futures', nickname: ['kc'],
-    pipSize: 0.05, pipValue: 18.75, spread: 0.39, contractSize: 375, unit: 'contract', lotStep: 1,
+    pipSize: 0.05, pipValue: 18.75, spread: 0.1, contractSize: 375, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'coffeecmdusx', simulated: true,
   },
   // ICE Cocoa: 10 tonnes, tick $1 = $10
   'CC': {
     name: 'Cocoa (simulated futures)', category: 'futures', nickname: ['cc'],
-    pipSize: 1, pipValue: 10, spread: 9, contractSize: 10, unit: 'contract', lotStep: 1,
+    pipSize: 1, pipValue: 10, spread: 2, contractSize: 10, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 0, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'cocoacmdusd', simulated: true,
   },
   // ICE Cotton No. 2: 50,000 lb, price in cents, tick 0.01 cent = $5
   'CT': {
     name: 'Cotton (simulated futures)', category: 'futures', nickname: ['ct'],
-    pipSize: 0.01, pipValue: 5, spread: 0.2, contractSize: 500, unit: 'contract', lotStep: 1,
+    pipSize: 0.01, pipValue: 5, spread: 0.02, contractSize: 500, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'cottoncmdusx', simulated: true,
   },
   // ICE FCOJ-A: 15,000 lb, price in cents, tick 0.05 cent = $7.50
   'OJ': {
     name: 'Orange Juice (simulated futures)', category: 'futures', nickname: ['oj'],
-    pipSize: 0.05, pipValue: 7.5, spread: 0.63, contractSize: 150, unit: 'contract', lotStep: 1,
+    pipSize: 0.05, pipValue: 7.5, spread: 0.1, contractSize: 150, unit: 'contract', lotStep: 1,
     minLot: 1, maxLot: 50, decimals: 2, dataFile: null, basePrice: 100, volatility: 0.3, dukascopy: 'ojuicecmdusx', simulated: true,
   },
 };

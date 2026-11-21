@@ -119,6 +119,15 @@ test('The Pit: whole contracts open, fractions are refused, bots size in contrac
   assert.ok(match.instruments.every((s) => instruments.sizeRules(s).unit === 'contract'));
 });
 
+test('futures spreads are the real exchange size: 1 tick on deep contracts, 2 on thin ones', () => {
+  const one = ['MES', 'MNQ', 'MYM', 'M2K', 'MCL', 'BZ', 'NG', 'MGC', 'SIL', 'MHG', 'M6E', 'ZB'];
+  for (const [sym, c] of Object.entries(instruments.INSTRUMENTS)) {
+    if (c.category !== 'futures') continue;
+    const ticks = Math.round((c.spread / c.pipSize) * 1000) / 1000;
+    assert.strictEqual(ticks, one.includes(sym) ? 1 : 2, `${sym} spread is ${ticks} ticks`);
+  }
+});
+
 test('old full-size tickers still resolve for old trade rows', () => {
   for (const [old, micro] of [['ES', 'MES'], ['NQ', 'MNQ'], ['CL', 'MCL'], ['GC', 'MGC'], ['6E', 'M6E']]) {
     assert.ok(!instruments.INSTRUMENTS[old], `${old} is no longer offered`);
