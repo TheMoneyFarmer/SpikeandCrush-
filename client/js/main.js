@@ -102,19 +102,6 @@ window.TW = window.TW || {};
   TW.escapeHtml = (str) =>
     String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  // The server issues a one-time Discord authorize URL bound to this player
-  // (POST /api/discord/connect-url), so no token ever goes in a URL.
-  TW.connectDiscord = () => {
-    if (!TW.getToken()) {
-      TW.requireAuth();
-      return;
-    }
-    // Ask the server for a one-time Discord link (no token in the URL).
-    TW.api('/api/discord/connect-url', { method: 'POST' })
-      .then((r) => { window.location.href = r.url; })
-      .catch(() => TW.toast('Could not start Discord linking - please try again.', 'danger'));
-  };
-
   // ---- theme: one main theme in two modes - 'default' (Dark) or 'light' ------
   // Older saved values ('midnight', 'combat') are treated as Dark.
   // The <head> of every page runs a tiny inline script (before any CSS

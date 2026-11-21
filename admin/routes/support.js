@@ -171,7 +171,7 @@ function router() {
     }
     const pid = conv.user_id;
     const [p, mp, ledger, tickets, mod] = await Promise.all([
-      q(supabase.from('players').select('id, username, email, war_rating, tier, coins, is_banned, banned_until, ban_reason, flagged, created_at, discord_id, total_matches').eq('id', pid).maybeSingle()),
+      q(supabase.from('players').select('id, username, email, war_rating, tier, coins, is_banned, banned_until, ban_reason, flagged, created_at, total_matches').eq('id', pid).maybeSingle()),
       q(supabase.from('match_players').select('match_id, final_rank, final_pnl, rating_change, end_reason').eq('player_id', pid).limit(200)),
       q(supabase.from('coin_transactions').select('type, amount, balance_after, created_at').eq('player_id', pid).order('created_at', { ascending: false }).limit(20)),
       q(supabase.from('support_tickets').select('ticket_number, subject, status, updated_at').eq('player_id', pid).not('status', 'in', '(resolved,closed)').order('updated_at', { ascending: false }).limit(10)),
@@ -197,7 +197,6 @@ function router() {
         banReason: suspended ? p.ban_reason : null,
         flagged: p.flagged,
         created: p.created_at,
-        discordLinked: Boolean(p.discord_id),
         matchesPlayed: p.total_matches,
       },
       matches,

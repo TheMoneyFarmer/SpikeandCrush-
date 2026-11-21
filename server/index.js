@@ -1276,119 +1276,6 @@ app.post('/api/auth/oauth-callback', authLimiter, requireDb, async (req, res) =>
   }
 });
 
-// The bare spikeandcrush.com is a forwarder that returns 404 for any path, so
-// Discord must always send people back to the www host.
-const DISCORD_REDIRECT_URI = `${String(process.env.SITE_URL || '').replace(/\/$/, '').replace('://spikeandcrush.com', '://www.spikeandcrush.com')}/api/discord/callback`;
-// ---- discord -------------------------------------------------------------------
-//
-// /api/discord/connect is reached via a plain browser navigation
-// (window.location.href from the Connect Discord button), not a fetch() call,
-// so it can't carry an Authorization header the way the rest of the API does -
-// the token travels as a query param instead and is verified the exact same
-// way authenticate() verifies it, just for this one entry point. The real
-// authenticate() middleware is intentionally left header-only everywhere else.
-// Discord linking (audit item 27). The OAuth `state` is a random single-use
-// value held server-side for 10 minutes and bound to the player who asked for
-// it; it used to be the player's id (predictable, so anyone could link their
-// Discord to someone else's account) and the Supabase access token was passed
-// in the page URL (ending up in logs and browser history).
-const discordStates = new Map(); // state -> { playerId, expires }
-const DISCORD_STATE_TTL_MS = 10 * 60 * 1000;
-function takeDiscordState(state) {
-  const entry = state ? discordStates.get(state) : null;
-  if (entry) discordStates.delete(state);
-  for (const [k, v] of discordStates) if (v.expires < Date.now()) discordStates.delete(k);
-  return entry && entry.expires > Date.now() ? entry.playerId : null;
-}
-
-app.post('/api/discord/connect-url', requireDb, authenticate, (req, res) => {
-  const state = crypto.randomBytes(24).toString('hex');
-  discordStates.set(state, { playerId: req.tokenPlayer.id, expires: Date.now() + DISCORD_STATE_TTL_MS });
-  const params = new URLSearchParams({
-    client_id: process.env.DISCORD_CLIENT_ID,
-    redirect_uri: DISCORD_REDIRECT_URI,
-    response_type: 'code',
-    scope: 'identify guilds.join',
-    state,
-  });
-  res.json({ url: 'https://discord.com/oauth2/authorize?' + params.toString() });
-});
-
-// Old entry point (took the access token in the query string): no longer used.
-app.get('/api/discord/connect', (req, res) => res.redirect('/settings?discord=error'));
-
-app.get('/api/discord/callback', requireDb, async (req, res) => {
-  const { code, state } = req.query;
-  const playerId = takeDiscordState(state);
-  if (!code || !playerId) return res.redirect('/settings?discord=error');
-
-  try {
-    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
-      signal: AbortSignal.timeout(10000),
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: process.env.DISCORD_CLIENT_ID,
-        client_secret: process.env.DISCORD_CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: DISCORD_REDIRECT_URI,
-      }),
-    });
-    const tokenData = await tokenRes.json();
-    const accessToken = tokenData.access_token;
-    if (!accessToken) throw new Error('No access token returned: ' + JSON.stringify(tokenData));
-
-    const userRes = await fetch('https://discord.com/api/users/@me', {
-      signal: AbortSignal.timeout(10000),
-      headers: { Authorization: 'Bearer ' + accessToken },
-    });
-    const discordUser = await userRes.json();
-    if (!discordUser.id) throw new Error('No Discord user id returned: ' + JSON.stringify(discordUser));
-
-    // Adds them to the guild with the Member role pre-set. If they're
-    // already a member, Discord's API leaves existing roles untouched here,
-    // so the follow-up PUT below re-applies the role explicitly either way.
-    const joinRes = await fetch(
-      `https://discord.com/api/guilds/${process.env.DISCORD_SERVER_ID}/members/${discordUser.id}`,
-      {
-      signal: AbortSignal.timeout(10000),
-        method: 'PUT',
-        headers: {
-          Authorization: 'Bot ' + process.env.DISCORD_BOT_TOKEN,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ access_token: accessToken, roles: [process.env.DISCORD_MEMBER_ROLE_ID] }),
-      }
-    );
-    if (!joinRes.ok && joinRes.status !== 204) {
-      console.warn('[discord callback] guild join responded', joinRes.status, await joinRes.text().catch(() => ''));
-    }
-
-    const roleRes = await fetch(
-      `https://discord.com/api/guilds/${process.env.DISCORD_SERVER_ID}/members/${discordUser.id}/roles/${process.env.DISCORD_MEMBER_ROLE_ID}`,
-      {
-      signal: AbortSignal.timeout(10000), method: 'PUT', headers: { Authorization: 'Bot ' + process.env.DISCORD_BOT_TOKEN } }
-    );
-    if (!roleRes.ok && roleRes.status !== 204) {
-      console.warn('[discord callback] role assign responded', roleRes.status, await roleRes.text().catch(() => ''));
-    }
-
-    if (playerId) {
-      await db.updatePlayer(playerId, {
-        discord_id: discordUser.id,
-        discord_username: discordUser.username,
-        discord_joined: true,
-      });
-    }
-
-    res.redirect('/settings?discord=connected&username=' + encodeURIComponent(discordUser.username || ''));
-  } catch (err) {
-    console.error('[discord callback]', err.message);
-    res.redirect('/settings?discord=error');
-  }
-});
-
 // ---- match ------------------------------------------------------------------
 
 const MATCHMAKING_BY_MODE = {
@@ -3978,8 +3865,24 @@ app.get('/api/version', (req, res) => {
 // project's URL/anon key into auth.js - the anon key is safe to expose
 // client-side by design (RLS enforces access, not secrecy of this key).
 
-app.get('/api/config/public', (req, res) => {
+// Footer social links from admin, cached briefly so every page load isn't a query.
+const socialLinks = require('./socialLinks');
+let socialsCache = { at: 0, links: [] };
+async function footerSocials() {
+  if (Date.now() - socialsCache.at < 60 * 1000) return socialsCache.links;
+  try {
+    const saved = db.isConfigured ? await db.getAppSetting(socialLinks.SETTING_KEY) : null;
+    socialsCache = { at: Date.now(), links: socialLinks.publicLinks(saved) };
+  } catch (e) {
+    socialsCache = { at: Date.now(), links: socialsCache.links }; // keep the last good list
+  }
+  return socialsCache.links;
+}
+
+app.get('/api/config/public', async (req, res) => {
+  const socials = await footerSocials();
   res.json({
+    socials,
     supabaseUrl: process.env.SUPABASE_URL || null,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
     devCoinGrantsEnabled: process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0,

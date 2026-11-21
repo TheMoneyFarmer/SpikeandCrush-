@@ -23,6 +23,7 @@
           <button class="admin-tab" data-tab="copy">UI Text and Copy</button>
           <button class="admin-tab" data-tab="email">Email Templates</button>
           <button class="admin-tab" data-tab="social">Social Media Assets</button>
+          <button class="admin-tab" data-tab="links">Social links</button>
         </div>
 
         <div class="admin-tab-panel" id="tab-logo">
@@ -89,6 +90,18 @@
           </div>
         </div>
 
+        <div class="admin-tab-panel" id="tab-links">
+          <div class="panel" style="max-width:640px;">
+            <h3>Footer social links</h3>
+            <p class="text-secondary" style="font-size:13px;margin-top:0;">These icons show in the footer of every page. Leave a box empty to hide that icon. Each link must go to that platform's own site. Changes show on the site within a minute.</p>
+            <form id="socialLinksForm" novalidate>
+              <div id="socialLinksFields"></div>
+              <button class="btn btn-primary" type="submit" id="saveSocialLinksBtn">Save links</button>
+              <div id="socialLinksNote" class="text-secondary" style="font-size:12px;margin-top:8px;" role="status"></div>
+            </form>
+          </div>
+        </div>
+
         <div class="admin-tab-panel" id="tab-social">
           <div class="panel" style="max-width:640px;">
             <h3>Generate Social Media Graphic</h3>
@@ -118,6 +131,42 @@
       document.querySelectorAll('.admin-tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${tab.dataset.tab}`));
     }));
     document.querySelector(`[data-tab="${new URLSearchParams(location.search).get('tab') || 'logo'}"]`)?.click();
+
+    // ---- footer social links ----
+    (async function socialLinksTab() {
+      const fields = document.getElementById('socialLinksFields');
+      const note = document.getElementById('socialLinksNote');
+      const btn = document.getElementById('saveSocialLinksBtn');
+      let platforms = [];
+      try {
+        const d = await Admin.api('/branding/social-links');
+        platforms = d.platforms;
+        fields.innerHTML = platforms.map((p) => `
+          <div class="field">
+            <label for="sl-${p.key}">${Admin.escapeHtml(p.label)}</label>
+            <input id="sl-${p.key}" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://${Admin.escapeHtml(p.hosts[0])}/spikeandcrush" value="${Admin.escapeHtml(p.url)}" ${d.canEdit ? '' : 'disabled'} />
+          </div>`).join('');
+        if (!d.canEdit) { btn.disabled = true; note.textContent = 'Your role can view these links but not change them.'; }
+        else if (d.updatedAt) note.textContent = `Last saved ${Admin.formatDate(d.updatedAt)}`;
+      } catch (e) {
+        note.textContent = e.message;
+      }
+      document.getElementById('socialLinksForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        btn.disabled = true;
+        note.textContent = 'Saving…';
+        try {
+          const links = Object.fromEntries(platforms.map((p) => [p.key, document.getElementById(`sl-${p.key}`).value]));
+          const r = await Admin.api('/branding/social-links', { method: 'PUT', body: { links } });
+          platforms.forEach((p) => { document.getElementById(`sl-${p.key}`).value = r.links[p.key] || ''; });
+          note.textContent = 'Saved. The footer updates within a minute.';
+        } catch (err) {
+          note.textContent = err.message;
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    })();
 
     // ---- logo preview (mirrors client/css/main.css .sc-* classes inline) ----
     const SC = [

@@ -1307,12 +1307,6 @@ button,
     flex-shrink: 0;
   }
 
-  .discord-connect-section {
-    flex-direction: column !important;
-    gap: 12px !important;
-    text-align: center !important;
-  }
-
   .country-selector {
     max-width: 100% !important;
   }

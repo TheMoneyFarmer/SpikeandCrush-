@@ -289,7 +289,6 @@
             <span>Coins</span><span>${Admin.formatNumber(p.coins)}</span>
             <span>Status</span><span class="${p.status === 'suspended' ? 'text-danger' : ''}">${esc(p.status)}${p.banReason ? `: ${esc(p.banReason)}` : ''}${p.flagged ? ' · flagged' : ''}</span>
             <span>Created</span><span>${esc(Admin.formatDate(p.created))}</span>
-            <span>Discord</span><span>${p.discordLinked ? 'Linked' : 'Not linked'}</span>
             <span>Matches</span><span>${esc(p.matchesPlayed)}</span>
           </div></div>
           <div class="sup-sec"><h3>Last 10 matches</h3>${d.matches.length ? `<table class="sup-mini">${d.matches.map((m) => `<tr><td>${esc(m.mode)} · ${esc(ago(m.created_at))}</td><td>#${esc(m.final_rank ?? '-')} ${m.rating_change ? `(${m.rating_change > 0 ? '+' : ''}${esc(m.rating_change)})` : ''} ${m.end_reason ? esc(m.end_reason) : ''}</td></tr>`).join('')}</table>` : '<div class="text-secondary">None</div>'}</div>

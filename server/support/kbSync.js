@@ -59,7 +59,16 @@ async function syncToDatabase(supabase, { updatedBy = 'code-generator', writeFil
       if (upErr) throw upErr;
     }
   }
-  return { written: rows.map((r) => r.slug), skippedAdminEdited: skipped, needsReview: articles.filter((a) => a.needsReview).map((a) => a.slug) };
+  // An article taken out of the code (for example Discord linking, removed
+  // 2026-11-21) is taken out of the database too, so the assistant stops
+  // citing it. Only generated rows: anything an admin wrote or edited stays.
+  const built = new Set(articles.map((a) => a.slug));
+  const retired = (existing || []).filter((r) => r.source === 'code' && !built.has(r.slug)).map((r) => r.slug);
+  if (retired.length) {
+    const { error: delErr } = await supabase.from('support_kb_articles').delete().eq('source', 'code').in('slug', retired);
+    if (delErr) throw delErr;
+  }
+  return { written: rows.map((r) => r.slug), retired, skippedAdminEdited: skipped, needsReview: articles.filter((a) => a.needsReview).map((a) => a.slug) };
 }
 
 module.exports = { writeMarkdownFiles, syncToDatabase, KNOWLEDGE_DIR };

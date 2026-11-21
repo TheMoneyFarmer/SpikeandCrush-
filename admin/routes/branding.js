@@ -4,6 +4,8 @@ const express = require('express');
 const { supabase, isConfigured } = require('../lib/supabaseAdmin');
 const { logAdminAction, clientIp } = require('../lib/auth');
 const { sendEmail, renderTemplate } = require('../lib/email');
+const { audit } = require('../lib/audit');
+const socialLinks = require('../../server/socialLinks');
 
 // Sample values so an admin can preview a template with realistic-looking
 // {{placeholder}} substitution before it ever reaches a real player.
@@ -21,6 +23,46 @@ const CURRENT_THEME = {
 
 function router() {
   const r = express.Router();
+
+  // Footer social links (server/socialLinks.js checks each one). The site
+  // picks a change up within a minute.
+  r.get('/social-links', async (req, res) => {
+    try {
+      const { data } = isConfigured
+        ? await supabase.from('app_settings').select('value, updated_at').eq('key', socialLinks.SETTING_KEY).maybeSingle()
+        : { data: null };
+      const saved = (data && data.value) || {};
+      res.json({
+        platforms: socialLinks.PLATFORMS.map((p) => ({ key: p.key, label: p.label, hosts: p.hosts, url: typeof saved[p.key] === 'string' ? saved[p.key] : '' })),
+        updatedAt: data?.updated_at || null,
+        canEdit: ['super_admin', 'admin'].includes(req.admin?.role),
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  r.put('/social-links', async (req, res) => {
+    if (!isConfigured) return res.status(503).json({ error: 'Supabase not configured' });
+    if (!['super_admin', 'admin'].includes(req.admin?.role)) return res.status(403).json({ error: 'Your role cannot change social links' });
+    const input = (req.body && req.body.links) || {};
+    const value = {};
+    const errors = [];
+    for (const p of socialLinks.PLATFORMS) {
+      const result = socialLinks.normalizeLink(p.key, input[p.key]);
+      if (result.error) errors.push(result.error);
+      else value[p.key] = result.url;
+    }
+    if (errors.length) return res.status(400).json({ error: errors.join('. ') });
+    try {
+      const { error } = await supabase.from('app_settings').upsert({ key: socialLinks.SETTING_KEY, value, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      await audit(req, 'social_links_update', 'app_settings', socialLinks.SETTING_KEY, value);
+      res.json({ success: true, links: value });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 
   r.get('/colour-theme', async (req, res) => {
     try {

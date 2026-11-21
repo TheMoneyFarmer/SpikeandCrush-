@@ -27,7 +27,7 @@ function buildCsp({ supabaseUrl = process.env.SUPABASE_URL || '', admin = false 
     'frame-ancestors': ["'none'"],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
-    'form-action': ["'self'", ...(admin ? [] : ['https://discord.com'])],
+    'form-action': ["'self'"],
     'upgrade-insecure-requests': [],
   };
   return Object.entries(directives).map(([k, v]) => (v.length ? `${k} ${v.join(' ')}` : k)).join('; ');

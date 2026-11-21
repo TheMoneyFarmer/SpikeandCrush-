@@ -33,7 +33,7 @@ const DEFINITIONS = {
   },
   get_my_account: {
     name: 'get_my_account',
-    description: "The signed-in player's own account summary: handle, tier, ratings, level, coin balance, masked email, verification, sign-in providers, Discord link, account status and created date.",
+    description: "The signed-in player's own account summary: handle, tier, ratings, level, coin balance, masked email, verification, sign-in providers, account status and created date.",
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
   get_my_recent_matches: {
@@ -147,7 +147,7 @@ function createToolRunner(deps) {
     },
 
     async get_my_account(ctx) {
-      const p = await q(supabase.from('players').select('username, email, war_rating, grand_war_rating, solo_rating, experience_level, coins, created_at, is_banned, banned_until, ban_reason, discord_id, discord_username, supabase_user_id, total_matches').eq('id', ctx.playerId).maybeSingle());
+      const p = await q(supabase.from('players').select('username, email, war_rating, grand_war_rating, solo_rating, experience_level, coins, created_at, is_banned, banned_until, ban_reason, supabase_user_id, total_matches').eq('id', ctx.playerId).maybeSingle());
       if (!p) return { error: 'Account not found' };
       let emailVerified = null;
       let providers = [];
@@ -175,7 +175,6 @@ function createToolRunner(deps) {
         email: maskEmail(p.email),
         email_verified: emailVerified,
         sign_in_providers: providers,
-        discord_linked: Boolean(p.discord_id),
         account_status: suspended ? 'suspended' : 'active',
         suspension_reason: suspended ? p.ban_reason || 'No reason recorded' : null,
         suspended_until: suspended && p.banned_until ? p.banned_until : null,
