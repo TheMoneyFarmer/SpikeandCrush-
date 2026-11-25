@@ -101,7 +101,7 @@
       </div>
       <h4 style="margin:16px 0 6px">Prize (super admin only)</h4>
       <p class="muted" style="margin:0 0 8px">The card shows the prize figure. Tick "confirmed" only when a named partner has agreed to pay it. Until then this page shows a red warning.</p>
-      <p id="tUnconfirmed" style="margin:0 0 8px;color:#ff6b6b;font-weight:600" hidden>Unconfirmed: change before going live.</p>
+      <p id="tUnconfirmed" style="margin:0 0 8px;color:var(--danger);font-weight:600" hidden>Unconfirmed: change before going live.</p>
       <div class="config-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
         <label class="field">Prize pool<input id="tPool" type="number" min="0" step="1"></label>
         <label class="field">Top figure on featured days<input id="tTop" type="number" min="0" step="1"></label>
@@ -161,7 +161,7 @@
         <td><b>${Admin.escapeHtml(t.title)}</b><div class="muted">${Admin.escapeHtml(t.schedule_text)}</div></td>
         <td><span class="badge ${t.state === 'coming_soon' ? 'badge-info' : t.state === 'open' || t.state === 'running' ? 'badge-online' : 'badge-offline'}">${STATE_NAMES[t.state]}</span>${t.state_reason ? `<div class="muted">${Admin.escapeHtml(t.state_reason)}</div>` : ''}</td>
         <td>${t.data_source}</td>
-        <td>${Admin.escapeHtml(t.preview.amount || t.preview.label)}${t.prize_pool_confirmed ? '<div class="muted">Confirmed</div>' : '<div style="color:#ff6b6b;font-weight:600">Unconfirmed: change before going live</div>'}</td>
+        <td>${Admin.escapeHtml(t.preview.amount || t.preview.label)}${t.prize_pool_confirmed ? '<div class="muted">Confirmed</div>' : '<div style="color:var(--danger);font-weight:600">Unconfirmed: change before going live</div>'}</td>
         <td class="mono">${t.waitlist}</td>
         <td class="muted">${t.lastNotify ? `${Admin.formatDate(t.lastNotify.created_at)} (${t.lastNotify.recipients})` : 'never'}</td>
         <td style="white-space:nowrap">${d.canEdit ? `<button class="btn btn-sm" data-edit="${t.key}">Edit</button> <button class="btn btn-sm" data-notify="${t.key}" ${t.waitlist ? '' : 'disabled'}>Notify waitlist</button>` : ''}</td>
@@ -343,7 +343,7 @@
                 <td>${a.final_rank ?? i + 1}</td>
                 <td>${esc(a.player?.username || a.player_id)}</td>
                 <td>${Admin.formatMoney(a.equity)}</td>
-                <td style="color:${pnl >= 0 ? '#00c896' : '#ff4444'}">${Admin.formatMoney(pnl)}</td>
+                <td style="color:${pnl >= 0 ? 'var(--success)' : 'var(--danger)'}">${Admin.formatMoney(pnl)}</td>
                 <td>${a.trade_count}</td>
                 <td><span class="status-pill">${esc(a.status)}</span></td>
                 <td>${a.prize_coins ? Admin.formatCoins(a.prize_coins) : ''}${a.prize_paid ? ' (paid)' : ''}</td>

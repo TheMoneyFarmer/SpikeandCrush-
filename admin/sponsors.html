@@ -13,7 +13,7 @@
 <style>
   .sp-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
   .sp-toolbar .field { margin: 0; }
-  .sp-logo { width: 72px; height: 32px; object-fit: contain; background: #182746; border-radius: 6px; }
+  .sp-logo { width: 72px; height: 32px; object-fit: contain; background: #fff; box-shadow: inset 0 0 0 1px var(--border); border-radius: 6px; }
   .sp-row { cursor: pointer; }
   .sp-row.active td { background: rgba(0,168,124,0.08); }
   .sp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
@@ -51,7 +51,7 @@
 
         <div class="admin-tabs">
           <button class="admin-tab" data-tab="sponsors">Sponsors</button>
-          <button class="admin-tab" data-tab="leads">Partner requests</button>
+          <button class="admin-tab" data-tab="leads">Old partner requests</button>
           <button class="admin-tab" data-tab="lobby">Lobby Settings</button>
         </div>
 

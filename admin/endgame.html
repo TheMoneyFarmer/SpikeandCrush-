@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="css/admin-console.css" />
 <style>
   .eg-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
-  .eg-tabs button[aria-selected="true"] { border-color: #F5B83D; }
+  .eg-tabs button[aria-selected="true"] { border-color: var(--accent); }
   .eg-flag { color: #FF4D5E; font-size: 12px; }
   .eg-form { display: grid; grid-template-columns: 200px 1fr; gap: 6px 10px; align-items: center; max-width: 820px; }
   .eg-form textarea { min-height: 90px; font-family: var(--mono, monospace); font-size: 12px; }
@@ -87,6 +87,7 @@
   <script src="js/admin-api.js"></script>
   <script src="js/admin-auth.js"></script>
   <script src="js/admin-nav.js"></script>
+  <script>Admin.renderNav(); Admin.renderTopbar('Seasons and Balance');</script>
   <script src="js/endgame.js"></script>
 </body>
 </html>

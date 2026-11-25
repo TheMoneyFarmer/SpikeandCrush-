@@ -1,27 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
-  /* Mission Control (2026-11-11): the game's navy palette. css/admin-console.css
-     holds the rest of the look. */
-  color-scheme: dark;
-  --bg: #14213d;
-  --sidebar: #111c35;
-  --surface: #14213d;
-  --card: #182746;
-  --card-2: #1d2d50;
-  --border: rgba(160, 182, 222, 0.14);
-  --border-2: rgba(160, 182, 222, 0.26);
-  --text: #f2f5fa;
-  --text-secondary: rgba(200, 212, 232, 0.72);
-  --accent: #2d7ff9;
-  --accent-dark: #1d6fe6;
-  --danger: #ff4d6a;
-  --warning: #f5b83d;
-  --success: #1fd38a;
-  --info: #6cb2ff;
+  /* Coral Glass (2026-11-25): warm white ground, frosted glass panels, coral
+     accent. css/admin-console.css holds the rest of the look. Every text colour
+     here passes WCAG AA (4.5:1) on white. */
+  color-scheme: light;
+  --bg: #fbf5f2;
+  --sidebar: rgba(255, 255, 255, 0.62);
+  --surface: rgba(255, 255, 255, 0.72);
+  --card: rgba(255, 255, 255, 0.74);
+  --card-2: #ffffff;
+  --card-solid: #ffffff;
+  --border: rgba(120, 72, 58, 0.11);
+  --border-2: rgba(120, 72, 58, 0.22);
+  --text: #2b1d1a;
+  --text-secondary: #6b5b57;
+  --text-muted: #7a6a65;
+  --accent: #d1442e;          /* coral: buttons, active states (white text passes) */
+  --accent-dark: #bb3824;
+  --accent-text: #b93a26;     /* coral used as text on white */
+  --accent-bright: #ff7a5c;   /* decoration only, never under text */
+  --accent-soft: rgba(255, 122, 92, 0.14);
+  --accent-glow: rgba(255, 105, 76, 0.28);
+  --danger: #c8283f;
+  --warning: #a16207;
+  --success: #15803d;
+  --info: #2563c9;
+  --glass-blur: blur(18px) saturate(150%);
+  --shadow-1: 0 1px 2px rgba(80, 40, 30, 0.04), 0 4px 14px rgba(120, 60, 45, 0.06);
+  --shadow-2: 0 2px 4px rgba(80, 40, 30, 0.05), 0 14px 34px rgba(150, 70, 50, 0.12);
   --mono: 'JetBrains Mono', monospace;
   --font: 'Inter', sans-serif;
-  --radius: 10px;
+  --display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --radius: 14px;
+  /* Names some pages use for the same things. */
+  --panel: var(--card); --panel-2: rgba(255, 248, 245, 0.9); --tile: var(--card); --line: var(--border);
+  --muted: var(--text-muted); --gold: #a16207; --spike: var(--success); --crush: var(--danger);
 }
 
 * { box-sizing: border-box; }
@@ -111,8 +125,8 @@ a { color: inherit; }
   font-style: italic;
   letter-spacing: -0.02em;
 }
-.admin-logo .lg-s { color: #00c896; }
-.admin-logo .lg-c { color: #ff4444; }
+.admin-logo .lg-s { color: var(--success); }
+.admin-logo .lg-c { color: var(--accent); }
 
 .admin-logo-sub {
   font-size: 10px;
@@ -152,7 +166,7 @@ a { color: inherit; }
 .admin-nav-item.active {
   border-left-color: var(--accent);
   color: var(--accent);
-  background: rgba(0, 168, 124, 0.08);
+  background: rgba(255, 122, 92, 0.12);
 }
 
 .admin-nav-item .badge {
@@ -222,9 +236,9 @@ a { color: inherit; }
 }
 .btn:hover { border-color: var(--accent); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #06251d; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-dark); }
-.btn-danger { background: var(--danger); border-color: var(--danger); color: #2b0505; }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn-outline { background: transparent; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 

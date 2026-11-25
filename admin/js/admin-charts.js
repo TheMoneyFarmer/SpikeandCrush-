@@ -5,13 +5,18 @@ window.Admin = window.Admin || {};
 (function () {
   function applyDefaults() {
     if (!window.Chart) return;
-    // Mission Control navy (2026-11-11): muted ink, recessive grid.
-    Chart.defaults.color = 'rgba(200,212,232,0.72)';
-    Chart.defaults.borderColor = 'rgba(160,182,222,0.12)';
-    Chart.defaults.plugins.tooltip.backgroundColor = '#25375f';
-    Chart.defaults.plugins.tooltip.borderColor = 'rgba(160,182,222,0.26)';
+    // Coral Glass (2026-11-25): warm muted ink, recessive grid, white tooltip.
+    Chart.defaults.color = '#7a6a65';
+    Chart.defaults.borderColor = 'rgba(120,72,58,0.1)';
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(255,255,255,0.97)';
+    Chart.defaults.plugins.tooltip.borderColor = 'rgba(120,72,58,0.16)';
     Chart.defaults.plugins.tooltip.borderWidth = 1;
-    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.padding = 12;
+    Chart.defaults.plugins.tooltip.cornerRadius = 12;
+    Chart.defaults.plugins.tooltip.titleColor = '#2b1d1a';
+    Chart.defaults.plugins.tooltip.bodyColor = '#4a3a36';
+    Chart.defaults.plugins.tooltip.usePointStyle = true;
+    Chart.defaults.interaction = { mode: 'index', intersect: false };
     // Dates read flat and thin out instead of rotating into a pile.
     Chart.defaults.scale.ticks.maxRotation = 0;
     Chart.defaults.scale.ticks.autoSkipPadding = 12;
@@ -19,8 +24,8 @@ window.Admin = window.Admin || {};
     Chart.defaults.font.family = "'Inter', sans-serif";
   }
 
-  // Dataviz-validated slots on the navy surface (blue, orange, aqua, yellow, magenta, violet).
-  const PALETTE = { teal: '#3987e5', red: '#ff4d6a', gold: '#c98500', info: '#199e70', warning: '#d95926', purple: '#9085e9' };
+  // Coral Glass slots, checked for colour-blind separation on white. Old key names kept so pages need no change.
+  const PALETTE = { teal: '#e0533a', red: '#c8283f', gold: '#d9a21b', info: '#0b6e70', warning: '#4a7fe0', purple: '#b8327a', gray: '#a8a09c' };
 
   function lineChart(ctx, { labels, datasets, yLabel }) {
     return new Chart(ctx, {
@@ -34,7 +39,7 @@ window.Admin = window.Admin || {};
         plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 10 } } },
         scales: {
           x: { grid: { display: false } },
-          y: { title: { display: !!yLabel, text: yLabel }, grid: { color: 'rgba(160,182,222,0.08)' } },
+          y: { title: { display: !!yLabel, text: yLabel }, grid: { color: 'rgba(120,72,58,0.08)' } },
         },
       },
     });
@@ -50,7 +55,7 @@ window.Admin = window.Admin || {};
         plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 10 } } },
         scales: {
           x: { stacked, grid: { display: false } },
-          y: { stacked, grid: { color: 'rgba(160,182,222,0.08)' } },
+          y: { stacked, grid: { color: 'rgba(120,72,58,0.08)' } },
         },
       },
     });
@@ -65,7 +70,7 @@ window.Admin = window.Admin || {};
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { x: { grid: { color: 'rgba(160,182,222,0.08)' } }, y: { grid: { display: false } } },
+        scales: { x: { grid: { color: 'rgba(120,72,58,0.08)' } }, y: { grid: { display: false } } },
       },
     });
   }
@@ -101,7 +106,7 @@ window.Admin = window.Admin || {};
       data: {
         datasets: [{
           data: [value, Math.max(0, max - value)],
-          backgroundColor: [value / max > 0.85 ? PALETTE.red : color, 'rgba(255,255,255,0.08)'],
+          backgroundColor: [value / max > 0.85 ? PALETTE.red : color, 'rgba(120,72,58,0.08)'],
           borderWidth: 0,
         }],
       },

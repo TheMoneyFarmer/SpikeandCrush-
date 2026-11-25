@@ -13,7 +13,7 @@
 .sup-list { overflow-y: auto; flex: 1; }
 .sup-item { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--border); background: transparent; padding: 10px 12px; cursor: pointer; font: inherit; color: inherit; }
 .sup-item:hover { background: var(--surface); }
-.sup-item.active { background: rgba(0, 168, 124, 0.08); box-shadow: inset 3px 0 0 var(--accent); }
+.sup-item.active { background: rgba(255, 122, 92, 0.12); box-shadow: inset 3px 0 0 var(--accent); }
 .sup-item-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
 .sup-item-top strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sup-item-prev { font-size: 12px; color: var(--text-secondary); margin: 3px 0 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -139,7 +139,7 @@
         const pct = Math.min(100, Math.round((s.currentPlayers / s.targetPlayers) * 100));
         document.getElementById('gateProgress').innerHTML = `
           <div class="text-secondary" style="font-size:12px;margin-bottom:4px;">${s.currentPlayers} / ${s.targetPlayers} players (${pct}%)</div>
-          <div style="height:8px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--accent,#00a87c);"></div></div>
+          <div style="height:8px;border-radius:999px;background:rgba(120,72,58,0.08);overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--accent);"></div></div>
         `;
       } catch (e) { Admin.toast(e.message, 'danger'); }
     }
