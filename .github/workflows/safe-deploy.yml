@@ -14,7 +14,13 @@
 # check fails and Railway skips the deploy (re-run the workflow later).
 #
 # Needs repository secret DEPLOY_DRAIN_TOKEN (same value as the Railway env
-# var DEPLOY_DRAIN_TOKEN). Optional repository variable SITE_URL.
+# var DEPLOY_DRAIN_TOKEN). Optional repository variables:
+#   DEPLOY_ORIGIN_URL  the game service's own Railway address
+#                      (https://<name>.up.railway.app). When set, the gate talks
+#                      to the server there instead of through Cloudflare, whose
+#                      bot protection challenges GitHub's runners. /api/deploy is
+#                      exempt from the origin lock and still needs the token.
+#   SITE_URL           the public site, used when DEPLOY_ORIGIN_URL is not set.
 
 name: Safe deploy gate
 
@@ -49,7 +55,7 @@ jobs:
     steps:
       - name: Pause new matches and wait for live ones to finish
         env:
-          SITE: ${{ vars.SITE_URL || 'https://www.spikeandcrush.com' }}
+          SITE: ${{ vars.DEPLOY_ORIGIN_URL || vars.SITE_URL || 'https://www.spikeandcrush.com' }}
           TOKEN: ${{ secrets.DEPLOY_DRAIN_TOKEN }}
         run: |
           set -u
@@ -100,7 +106,7 @@ jobs:
             # "nothing running right now" would not be a safe signal.
             # Name the cause in the annotation (public, unlike the log). The
             # response never contains the token, so it is safe to describe.
-            if echo "$resp" | grep -qi 'just a moment\|cf-chl\|challenge-platform\|<html'; then why="Cloudflare answered with a challenge page instead of the game server (bot protection is blocking GitHub's runner)"
+            if echo "$resp" | grep -qi 'just a moment\|cf-chl\|challenge-platform\|<html'; then why="Cloudflare answered with a challenge page instead of the game server (bot protection is blocking GitHub's runner). Fix: set the repository variable DEPLOY_ORIGIN_URL to the game service's Railway address"
             elif echo "$resp" | grep -q '"Forbidden"'; then why="the game server rejected the token: DEPLOY_DRAIN_TOKEN on Railway and the GitHub secret are different"
             elif echo "$resp" | grep -q 'not configured'; then why="DEPLOY_DRAIN_TOKEN is not set on the Railway game service (or it was not redeployed after setting it)"
             elif [ -z "$resp" ]; then why="no answer from $SITE within 20 seconds"
