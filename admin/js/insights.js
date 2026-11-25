@@ -9,7 +9,7 @@
     ['social', 'Social and growth'], ['competitions', 'Competitions'], ['sponsors', 'Sponsors'], ['affiliate', 'Affiliate and partner links'],
     ['tech', 'Tech health'], ['support', 'Support and mobile'], ['quality', 'Data quality'],
   ];
-  const COLORS = ['#e0533a', '#0b6e70', '#d9a21b', '#4a7fe0'];
+  const COLORS = ['#0b63e5', '#e0581c', '#d9a21b', '#0e9a62'];
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const q = new URLSearchParams(location.search);
@@ -50,7 +50,7 @@
     const n = s.x.length;
     const xAt = (i) => P.l + (n <= 1 ? 0 : (i * (W - P.l - P.r)) / (n - 1));
     const yAt = (v) => H - P.b - (v / max) * (H - P.t - P.b);
-    const grid = [0, 0.5, 1].map((f) => `<line x1="${P.l}" x2="${W - P.r}" y1="${yAt(max * f)}" y2="${yAt(max * f)}" stroke="rgba(120,72,58,.12)"/><text x="${P.l - 6}" y="${yAt(max * f) + 4}" fill="#7a6a65" font-size="10" text-anchor="end">${Math.round(max * f)}</text>`).join('');
+    const grid = [0, 0.5, 1].map((f) => `<line x1="${P.l}" x2="${W - P.r}" y1="${yAt(max * f)}" y2="${yAt(max * f)}" stroke="rgba(20,33,61,.12)"/><text x="${P.l - 6}" y="${yAt(max * f) + 4}" fill="#7a6a65" font-size="10" text-anchor="end">${Math.round(max * f)}</text>`).join('');
     const ticks = [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => n && a.indexOf(v) === i).map((i) => `<text x="${xAt(i)}" y="${H - 6}" fill="#7a6a65" font-size="10" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${esc(s.x[i])}</text>`).join('');
     const paths = s.lines.map((l, k) => `<polyline fill="none" stroke="${COLORS[k % COLORS.length]}" stroke-width="2" stroke-linejoin="round" points="${l.values.map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ')}"/>`).join('');
     const label = `${s.title}: ${s.lines.map((l) => `${l.name} total ${l.values.reduce((a, v) => a + v, 0)}`).join(', ')}`;

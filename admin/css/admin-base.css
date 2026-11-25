@@ -1,41 +1,41 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
-  /* Coral Glass (2026-11-25): warm white ground, frosted glass panels, coral
-     accent. css/admin-console.css holds the rest of the look. Every text colour
+  /* Light glass in the game's own colours (2026-11-25): the light
+     palette from client/css/palette.css, frosted panels, the game blue as accent. css/admin-console.css holds the rest of the look. Every text colour
      here passes WCAG AA (4.5:1) on white. */
   color-scheme: light;
-  --bg: #fbf5f2;
+  --bg: #f3f6fb;
   --sidebar: rgba(255, 255, 255, 0.62);
   --surface: rgba(255, 255, 255, 0.72);
   --card: rgba(255, 255, 255, 0.74);
   --card-2: #ffffff;
   --card-solid: #ffffff;
-  --border: rgba(120, 72, 58, 0.11);
-  --border-2: rgba(120, 72, 58, 0.22);
-  --text: #2b1d1a;
-  --text-secondary: #6b5b57;
-  --text-muted: #7a6a65;
-  --accent: #d1442e;          /* coral: buttons, active states (white text passes) */
-  --accent-dark: #bb3824;
-  --accent-text: #b93a26;     /* coral used as text on white */
-  --accent-bright: #ff7a5c;   /* decoration only, never under text */
-  --accent-soft: rgba(255, 122, 92, 0.14);
-  --accent-glow: rgba(255, 105, 76, 0.28);
-  --danger: #c8283f;
-  --warning: #a16207;
-  --success: #15803d;
-  --info: #2563c9;
+  --border: rgba(20, 33, 61, 0.11);
+  --border-2: rgba(20, 33, 61, 0.22);
+  --text: #14213d;
+  --text-secondary: #4a5a78;
+  --text-muted: #5f6d86;
+  --accent: #0b63e5;          /* game blue: buttons, active states (white text passes) */
+  --accent-dark: #08449e;
+  --accent-text: #0b63e5;     /* blue used as text */
+  --accent-bright: #2d7ff9;   /* decoration only, never under text */
+  --accent-soft: rgba(11, 99, 229, 0.14);
+  --accent-glow: rgba(11, 99, 229, 0.28);
+  --danger: #dc2547;
+  --warning: #96600f;
+  --success: #0a7d50;
+  --info: #1552b8;
   --glass-blur: blur(18px) saturate(150%);
-  --shadow-1: 0 1px 2px rgba(80, 40, 30, 0.04), 0 4px 14px rgba(120, 60, 45, 0.06);
-  --shadow-2: 0 2px 4px rgba(80, 40, 30, 0.05), 0 14px 34px rgba(150, 70, 50, 0.12);
+  --shadow-1: 0 1px 2px rgba(20, 33, 61, 0.04), 0 4px 14px rgba(20, 33, 61, 0.06);
+  --shadow-2: 0 2px 4px rgba(20, 33, 61, 0.05), 0 14px 34px rgba(20, 33, 61, 0.12);
   --mono: 'JetBrains Mono', monospace;
   --font: 'Inter', sans-serif;
   --display: 'Plus Jakarta Sans', 'Inter', sans-serif;
   --radius: 14px;
   /* Names some pages use for the same things. */
-  --panel: var(--card); --panel-2: rgba(255, 248, 245, 0.9); --tile: var(--card); --line: var(--border);
-  --muted: var(--text-muted); --gold: #a16207; --spike: var(--success); --crush: var(--danger);
+  --panel: var(--card); --panel-2: rgba(246, 248, 252, 0.9); --tile: var(--card); --line: var(--border);
+  --muted: var(--text-muted); --gold: #96600f; --spike: var(--success); --crush: var(--danger);
 }
 
 * { box-sizing: border-box; }
@@ -126,7 +126,7 @@ a { color: inherit; }
   letter-spacing: -0.02em;
 }
 .admin-logo .lg-s { color: var(--success); }
-.admin-logo .lg-c { color: var(--accent); }
+.admin-logo .lg-c { color: var(--danger); }
 
 .admin-logo-sub {
   font-size: 10px;
@@ -166,7 +166,7 @@ a { color: inherit; }
 .admin-nav-item.active {
   border-left-color: var(--accent);
   color: var(--accent);
-  background: rgba(255, 122, 92, 0.12);
+  background: rgba(11, 99, 229, 0.12);
 }
 
 .admin-nav-item .badge {

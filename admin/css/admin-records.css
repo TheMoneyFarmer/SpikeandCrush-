@@ -16,7 +16,7 @@
 .rec-table th { text-align: left; font-weight: 600; font-size: 11px; color: var(--text-secondary); padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--card-2); position: sticky; top: 0; }
 .rec-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; vertical-align: top; }
 .rec-table tbody tr { cursor: pointer; }
-.rec-table tbody tr:hover { background: rgba(255, 122, 92, 0.06); }
+.rec-table tbody tr:hover { background: rgba(11, 99, 229, 0.06); }
 .rec-table td.num, .rec-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .rec-table td.wrap { white-space: normal; min-width: 220px; }
 .rec-table tr.nolink { cursor: default; }

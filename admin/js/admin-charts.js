@@ -5,16 +5,16 @@ window.Admin = window.Admin || {};
 (function () {
   function applyDefaults() {
     if (!window.Chart) return;
-    // Coral Glass (2026-11-25): warm muted ink, recessive grid, white tooltip.
-    Chart.defaults.color = '#7a6a65';
-    Chart.defaults.borderColor = 'rgba(120,72,58,0.1)';
+    // Light game colours (2026-11-25): navy muted ink, recessive grid, white tooltip.
+    Chart.defaults.color = '#5f6d86';
+    Chart.defaults.borderColor = 'rgba(20,33,61,0.1)';
     Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(255,255,255,0.97)';
-    Chart.defaults.plugins.tooltip.borderColor = 'rgba(120,72,58,0.16)';
+    Chart.defaults.plugins.tooltip.borderColor = 'rgba(20,33,61,0.16)';
     Chart.defaults.plugins.tooltip.borderWidth = 1;
     Chart.defaults.plugins.tooltip.padding = 12;
     Chart.defaults.plugins.tooltip.cornerRadius = 12;
-    Chart.defaults.plugins.tooltip.titleColor = '#2b1d1a';
-    Chart.defaults.plugins.tooltip.bodyColor = '#4a3a36';
+    Chart.defaults.plugins.tooltip.titleColor = '#14213d';
+    Chart.defaults.plugins.tooltip.bodyColor = '#33415c';
     Chart.defaults.plugins.tooltip.usePointStyle = true;
     Chart.defaults.interaction = { mode: 'index', intersect: false };
     // Dates read flat and thin out instead of rotating into a pile.
@@ -24,8 +24,8 @@ window.Admin = window.Admin || {};
     Chart.defaults.font.family = "'Inter', sans-serif";
   }
 
-  // Coral Glass slots, checked for colour-blind separation on white. Old key names kept so pages need no change.
-  const PALETTE = { teal: '#e0533a', red: '#c8283f', gold: '#d9a21b', info: '#0b6e70', warning: '#4a7fe0', purple: '#b8327a', gray: '#a8a09c' };
+  // Game-colour slots, checked for colour-blind separation on white. Old key names kept so pages need no change.
+  const PALETTE = { teal: '#0b63e5', red: '#c8283f', gold: '#d9a21b', info: '#e0581c', warning: '#0e9a62', purple: '#b8327a', gray: '#a3aab8' };
 
   function lineChart(ctx, { labels, datasets, yLabel }) {
     return new Chart(ctx, {
@@ -39,7 +39,7 @@ window.Admin = window.Admin || {};
         plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 10 } } },
         scales: {
           x: { grid: { display: false } },
-          y: { title: { display: !!yLabel, text: yLabel }, grid: { color: 'rgba(120,72,58,0.08)' } },
+          y: { title: { display: !!yLabel, text: yLabel }, grid: { color: 'rgba(20,33,61,0.08)' } },
         },
       },
     });
@@ -55,7 +55,7 @@ window.Admin = window.Admin || {};
         plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 10 } } },
         scales: {
           x: { stacked, grid: { display: false } },
-          y: { stacked, grid: { color: 'rgba(120,72,58,0.08)' } },
+          y: { stacked, grid: { color: 'rgba(20,33,61,0.08)' } },
         },
       },
     });
@@ -70,7 +70,7 @@ window.Admin = window.Admin || {};
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { x: { grid: { color: 'rgba(120,72,58,0.08)' } }, y: { grid: { display: false } } },
+        scales: { x: { grid: { color: 'rgba(20,33,61,0.08)' } }, y: { grid: { display: false } } },
       },
     });
   }
@@ -106,7 +106,7 @@ window.Admin = window.Admin || {};
       data: {
         datasets: [{
           data: [value, Math.max(0, max - value)],
-          backgroundColor: [value / max > 0.85 ? PALETTE.red : color, 'rgba(120,72,58,0.08)'],
+          backgroundColor: [value / max > 0.85 ? PALETTE.red : color, 'rgba(20,33,61,0.08)'],
           borderWidth: 0,
         }],
       },

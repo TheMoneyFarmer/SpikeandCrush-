@@ -38,7 +38,7 @@
     const root = document.getElementById('detail');
     const READONLY = '<span class="rec-readonly"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Read only: nothing on this page changes the match</span>';
     const KIND = { quick: 'Quick War', blitz: 'Blitz War', grand: 'Grand War', private: 'Private War', solo: 'Solo Ranked', tournament: 'Elimination', async: 'Async Daily Challenge' };
-    const COLORS = ['#e0533a', '#0b6e70', '#d9a21b', '#4a7fe0', '#b8327a', '#a8a09c', '#3d8f3a', '#8a5a2b'];
+    const COLORS = ['#0b63e5', '#e0581c', '#d9a21b', '#0e9a62', '#b8327a', '#a3aab8', '#3d8f3a', '#8a5a2b'];
 
     function flagsHtml(flags) {
       return (flags || []).map((f) => `<div class="rec-flag"><b>${esc(f.target_type)} ${esc(f.target_id)}</b> · ${esc(f.created_by)} · ${when(f.created_at)}${f.resolved_at ? ' · resolved' : ''}<div>${esc(f.note)}</div></div>`).join('') || '<p class="rec-note">No flags.</p>';
@@ -152,14 +152,14 @@
         chart = new Chart(document.getElementById('matchChart'), {
           data: {
             datasets: [
-              { type: 'line', label: sym, data: chartData.prices[sym].map(([x, y]) => ({ x, y })), borderColor: 'rgba(120,72,58,.55)', borderWidth: 1.2, pointRadius: 0, order: 3 },
-              { type: 'scatter', label: 'Opens', data: opens, pointStyle: 'triangle', rotation: opens.map((p) => (p.t.type === 'sell' ? 180 : 0)), pointRadius: 6, backgroundColor: opens.map((p) => colorOf.get(p.t.playerId) || '#7a6a65'), order: 1 },
-              { type: 'scatter', label: 'Closes', data: closes, pointStyle: 'circle', pointRadius: 4, borderColor: closes.map((p) => colorOf.get(p.t.playerId) || '#7a6a65'), backgroundColor: 'transparent', borderWidth: 2, order: 2 },
+              { type: 'line', label: sym, data: chartData.prices[sym].map(([x, y]) => ({ x, y })), borderColor: 'rgba(20,33,61,.55)', borderWidth: 1.2, pointRadius: 0, order: 3 },
+              { type: 'scatter', label: 'Opens', data: opens, pointStyle: 'triangle', rotation: opens.map((p) => (p.t.type === 'sell' ? 180 : 0)), pointRadius: 6, backgroundColor: opens.map((p) => colorOf.get(p.t.playerId) || '#5f6d86'), order: 1 },
+              { type: 'scatter', label: 'Closes', data: closes, pointStyle: 'circle', pointRadius: 4, borderColor: closes.map((p) => colorOf.get(p.t.playerId) || '#5f6d86'), backgroundColor: 'transparent', borderWidth: 2, order: 2 },
             ],
           },
           options: {
             responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
-            scales: { x: { type: 'linear', title: { display: true, text: 'seconds', color: '#7a6a65' }, ticks: { color: '#7a6a65' }, grid: { color: 'rgba(120,72,58,.08)' } }, y: { ticks: { color: '#7a6a65' }, grid: { color: 'rgba(120,72,58,.08)' } } },
+            scales: { x: { type: 'linear', title: { display: true, text: 'seconds', color: '#5f6d86' }, ticks: { color: '#5f6d86' }, grid: { color: 'rgba(20,33,61,.08)' } }, y: { ticks: { color: '#5f6d86' }, grid: { color: 'rgba(20,33,61,.08)' } } },
             plugins: {
               legend: { labels: { color: '#c8d4e8' } },
               tooltip: { callbacks: { label: (c) => (c.raw.t ? `${handles.get(c.raw.t.playerId) || 'player'} ${c.raw.open ? 'opened' : 'closed'} ${c.raw.t.type} ${c.raw.t.lots} @ ${c.raw.y}${c.raw.t.ticket ? ` #${c.raw.t.ticket}` : ''}${!c.raw.open && c.raw.t.pnl != null ? ` (${c.raw.t.pnl >= 0 ? '+' : ''}${c.raw.t.pnl})` : ''}` : `${c.raw.y}`) } },

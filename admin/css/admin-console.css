@@ -1,20 +1,20 @@
-/* Admin, Coral Glass look (2026-11-25). Loaded last on every admin page.
+/* Admin, light glass look in the game colours (2026-11-25). Loaded last on every admin page.
    Colours come from the tokens in admin-base.css. Warm white ground with two
-   soft coral glows, frosted glass panels, coral accent, quiet hover motion
+   soft blue glows, frosted glass panels, game blue accent, quiet hover motion
    (lift 2px, buttons step and press). No motion on scroll. */
 
 /* ---- ground ---- */
 html { background: var(--bg); }
 body {
   background:
-    radial-gradient(48vw 42vw at 100% -8%, rgba(255, 138, 108, 0.22), transparent 62%),
-    radial-gradient(40vw 36vw at -6% 104%, rgba(255, 186, 160, 0.26), transparent 64%),
-    linear-gradient(180deg, #fdf8f6 0%, var(--bg) 100%);
+    radial-gradient(48vw 42vw at 100% -8%, rgba(45, 127, 249, 0.22), transparent 62%),
+    radial-gradient(40vw 36vw at -6% 104%, rgba(108, 178, 255, 0.26), transparent 64%),
+    linear-gradient(180deg, #f7f9fd 0%, var(--bg) 100%);
   background-attachment: fixed;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
-::selection { background: rgba(255, 122, 92, 0.28); }
+::selection { background: rgba(11, 99, 229, 0.28); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 h1, h2, h3, .admin-topbar h1 { font-family: var(--display); letter-spacing: -0.01em; color: var(--text); }
 
@@ -28,7 +28,7 @@ h1, h2, h3, .admin-topbar h1 { font-family: var(--display); letter-spacing: -0.0
 /* ---- sidebar ---- */
 .admin-sidebar {
   width: 256px; padding: 16px 12px 18px; background: var(--sidebar);
-  border-right: 1px solid rgba(255, 255, 255, 0.7); box-shadow: 1px 0 0 var(--border), 8px 0 30px rgba(150, 70, 50, 0.05);
+  border-right: 1px solid rgba(255, 255, 255, 0.7); box-shadow: 1px 0 0 var(--border), 8px 0 30px rgba(20, 33, 61, 0.05);
 }
 .admin-sidebar-header { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; border-bottom: 0; }
 .admin-logo { display: inline-flex; align-items: center; gap: 1px; font: 800 17px/1 var(--display); font-style: normal; text-decoration: none; letter-spacing: -0.02em; }
@@ -37,8 +37,8 @@ h1, h2, h3, .admin-topbar h1 { font-family: var(--display); letter-spacing: -0.0
   background: linear-gradient(135deg, var(--accent-bright), var(--accent)); box-shadow: 0 6px 16px var(--accent-glow);
   -webkit-mask: none;
 }
-.admin-logo .lg-s { color: var(--text); }
-.admin-logo .lg-c { color: var(--accent-text); }
+.admin-logo .lg-s { color: var(--success); }
+.admin-logo .lg-c { color: var(--danger); }
 .admin-logo-sub { margin: 0; padding: 3px 8px; border-radius: 9999px; background: var(--accent-soft); color: var(--accent-text); font: 600 11px var(--font); letter-spacing: 0; text-transform: none; }
 .adm-nav-search {
   display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; margin: 0 2px 12px; border-radius: 12px;
@@ -75,7 +75,7 @@ h1, h2, h3, .admin-topbar h1 { font-family: var(--display); letter-spacing: -0.0
 .admin-nav-item[hidden] { display: none; }
 .admin-nav-item:hover { background: rgba(255, 255, 255, 0.85); color: var(--text); transform: translateX(2px); }
 .admin-nav-item.active {
-  background: linear-gradient(135deg, rgba(255, 122, 92, 0.16), rgba(255, 122, 92, 0.08)); color: var(--accent-text); font-weight: 600; border: 0;
+  background: linear-gradient(135deg, rgba(11, 99, 229, 0.16), rgba(11, 99, 229, 0.08)); color: var(--accent-text); font-weight: 600; border: 0;
 }
 .admin-nav-item.active::before { content: ''; position: absolute; left: -7px; top: 9px; bottom: 9px; width: 2px; border-radius: 2px; background: var(--accent); }
 .sup-badge-nav { margin-left: auto; }
@@ -87,7 +87,7 @@ h1, h2, h3, .admin-topbar h1 { font-family: var(--display); letter-spacing: -0.0
 /* ---- top bar ---- */
 .admin-topbar {
   position: sticky; top: 0; z-index: 50; min-height: 68px; padding: 0 28px; flex-wrap: nowrap;
-  background: rgba(253, 248, 246, 0.72); border-bottom: 1px solid rgba(255, 255, 255, 0.7); box-shadow: 0 1px 0 var(--border);
+  background: rgba(247, 249, 253, 0.72); border-bottom: 1px solid rgba(255, 255, 255, 0.7); box-shadow: 0 1px 0 var(--border);
 }
 .adm-top-left { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1; }
 .admin-topbar h1 { font-size: 21px; font-weight: 700; white-space: nowrap; margin: 0; }
@@ -144,7 +144,7 @@ a { color: inherit; }
   font: 600 13px var(--font); cursor: pointer; text-decoration: none;
   transition: transform 140ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease;
 }
-.btn:hover { border-color: rgba(209, 68, 46, 0.45); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(150, 70, 50, 0.1); }
+.btn:hover { border-color: rgba(11, 99, 229, 0.45); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(20, 33, 61, 0.1); }
 .btn:active { transform: translateY(0) scale(0.98); box-shadow: none; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-dark)); border-color: transparent; color: #fff; box-shadow: 0 6px 18px var(--accent-glow); }
@@ -162,7 +162,7 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="
 input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]):focus, select:focus, textarea:focus {
   outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft);
 }
-input::placeholder, textarea::placeholder { color: #9c8c87; }
+input::placeholder, textarea::placeholder { color: #8a96ab; }
 select option { background: #fff; color: var(--text); }
 .field label, label { color: var(--text-secondary); }
 input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--accent); }
@@ -182,30 +182,30 @@ input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color:
 /* ---- tables ---- */
 .admin-table { border-collapse: separate; border-spacing: 0; }
 .admin-table th { background: transparent; color: var(--text-secondary); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 12px; border-bottom: 1px solid var(--border); }
-.admin-table td { border-bottom: 1px solid rgba(120, 72, 58, 0.07); color: var(--text); }
+.admin-table td { border-bottom: 1px solid rgba(20, 33, 61, 0.07); color: var(--text); }
 .admin-table tbody tr:nth-child(even) { background: transparent; }
 .admin-table tbody tr td { transition: background-color 140ms ease; }
-.admin-table tbody tr:hover td { background: rgba(255, 122, 92, 0.06); }
+.admin-table tbody tr:hover td { background: rgba(11, 99, 229, 0.06); }
 .admin-table-toolbar, .admin-table-footer { border-color: var(--border); }
 
 /* ---- badges ---- */
 .badge { border-radius: 9999px; font-weight: 600; }
 .badge-online { background: rgba(21, 128, 61, 0.1); color: var(--success); }
 .badge-in-match, .badge-info { background: rgba(37, 99, 201, 0.1); color: var(--info); }
-.badge-offline { background: rgba(120, 72, 58, 0.08); color: var(--text-secondary); }
+.badge-offline { background: rgba(20, 33, 61, 0.08); color: var(--text-secondary); }
 .badge-banned, .badge-flagged { background: rgba(200, 40, 63, 0.1); color: var(--danger); }
-.badge-tier { background: rgba(120, 72, 58, 0.07); color: var(--text); }
+.badge-tier { background: rgba(20, 33, 61, 0.07); color: var(--text); }
 
 /* ---- modals and toasts ---- */
-.admin-modal-backdrop { background: rgba(60, 30, 24, 0.28); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-.admin-modal { background: rgba(255, 255, 255, 0.95); border: 0; border-radius: 22px; box-shadow: 0 30px 70px rgba(90, 40, 30, 0.22), inset 0 0 0 1px var(--border); color: var(--text); }
+.admin-modal-backdrop { background: rgba(20, 33, 61, 0.28); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.admin-modal { background: rgba(255, 255, 255, 0.95); border: 0; border-radius: 22px; box-shadow: 0 30px 70px rgba(20, 33, 61, 0.22), inset 0 0 0 1px var(--border); color: var(--text); }
 .admin-toast-item { background: rgba(255, 255, 255, 0.96); color: var(--text); border-radius: 14px; box-shadow: var(--shadow-2); }
 
 /* ---- login ---- */
 .admin-login-wrap {
   background:
-    radial-gradient(50% 45% at 80% 10%, rgba(255, 138, 108, 0.32), transparent 70%),
-    radial-gradient(45% 40% at 10% 95%, rgba(255, 186, 160, 0.36), transparent 70%),
+    radial-gradient(50% 45% at 80% 10%, rgba(45, 127, 249, 0.32), transparent 70%),
+    radial-gradient(45% 40% at 10% 95%, rgba(108, 178, 255, 0.36), transparent 70%),
     var(--bg);
 }
 .admin-login-box { background: rgba(255, 255, 255, 0.72); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 24px; box-shadow: var(--shadow-2), inset 0 0 0 1px var(--border); }
@@ -213,9 +213,9 @@ input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color:
 /* ---- phones and tablets: the sidebar slides in over a dimmed page ---- */
 @media (max-width: 900px) {
   .admin-hamburger { display: grid; place-items: center; }
-  .admin-sidebar { position: fixed; left: 0; top: 0; z-index: 80; transform: translateX(-100%); transition: transform 220ms ease; background: rgba(255, 250, 248, 0.94); box-shadow: 0 0 50px rgba(90, 40, 30, 0.2); }
+  .admin-sidebar { position: fixed; left: 0; top: 0; z-index: 80; transform: translateX(-100%); transition: transform 220ms ease; background: rgba(248, 250, 254, 0.94); box-shadow: 0 0 50px rgba(20, 33, 61, 0.2); }
   .admin-sidebar.open { transform: none; }
-  .admin-sidebar.open + .admin-main::before { content: ''; position: fixed; inset: 0; z-index: 70; background: rgba(60, 30, 24, 0.25); }
+  .admin-sidebar.open + .admin-main::before { content: ''; position: fixed; inset: 0; z-index: 70; background: rgba(20, 33, 61, 0.25); }
   .admin-topbar { padding: 0 14px; }
   .adm-clock, .adm-health span:last-child { display: none; }
   .admin-content { padding: 18px 14px 28px; }
@@ -255,7 +255,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color:
 .adm-stat b { font: 700 22px var(--display); }
 
 .admin-table-wrap { overflow: auto; max-height: calc(100vh - 260px); }
-.admin-table thead th { position: sticky; top: 0; z-index: 1; background: rgba(255, 251, 249, 0.97); }
+.admin-table thead th { position: sticky; top: 0; z-index: 1; background: rgba(250, 252, 255, 0.97); }
 .admin-table td { padding-top: 12px; padding-bottom: 12px; }
 .admin-table tbody tr { cursor: default; }
 .admin-table-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
@@ -271,14 +271,14 @@ input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color:
 /* live match wall */
 .adm-live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
 .adm-mcard { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
-.adm-mcard.active { box-shadow: var(--shadow-1), inset 0 0 0 1.5px rgba(209, 68, 46, 0.4); }
+.adm-mcard.active { box-shadow: var(--shadow-1), inset 0 0 0 1.5px rgba(11, 99, 229, 0.4); }
 .adm-mhead { display: flex; align-items: center; gap: 8px; }
-.adm-mstatus { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 9999px; background: rgba(120, 72, 58, 0.08); color: var(--text-secondary); }
+.adm-mstatus { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 9999px; background: rgba(20, 33, 61, 0.08); color: var(--text-secondary); }
 .adm-mstatus.active { background: var(--accent-soft); color: var(--accent-text); }
 .adm-mstatus.countdown { background: rgba(161, 98, 7, 0.1); color: var(--warning); }
 .adm-mclock { margin-left: auto; font-size: 15px; font-weight: 600; }
 .adm-msub { font-size: 12px; color: var(--text-secondary); }
-.adm-seats { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(120, 72, 58, 0.08); }
+.adm-seats { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(20, 33, 61, 0.08); }
 .adm-mplayers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .adm-mplayers li { display: flex; justify-content: space-between; gap: 8px; }
 .adm-mplayers em { font-style: normal; font-size: 11px; color: var(--text-secondary); }
@@ -298,4 +298,4 @@ input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color:
 pre, .log-block { border-radius: 12px; }
 
 /* records pages */
-.rec-table tbody tr:hover { background: rgba(255, 122, 92, 0.06); }
+.rec-table tbody tr:hover { background: rgba(11, 99, 229, 0.06); }

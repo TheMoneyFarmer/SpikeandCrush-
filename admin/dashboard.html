@@ -38,7 +38,7 @@
         <div class="ov-kpis" id="ovKpis" aria-live="polite"></div>
         <div class="ov-grid">
           <section class="ov-card ov-span-8" aria-labelledby="ovActiveT">
-            <div class="ov-head"><h2 id="ovActiveT">Active players</h2><span class="ov-sub" id="ovActiveSub">real players who logged in or played</span><div class="ov-legend"><span><i style="background:#e0533a"></i>Active</span><span><i style="background:#0b6e70"></i>New signups</span></div><button type="button" class="ov-tbl" data-table="active">Table</button></div>
+            <div class="ov-head"><h2 id="ovActiveT">Active players</h2><span class="ov-sub" id="ovActiveSub">real players who logged in or played</span><div class="ov-legend"><span><i style="background:#0b63e5"></i>Active</span><span><i style="background:#e0581c"></i>New signups</span></div><button type="button" class="ov-tbl" data-table="active">Table</button></div>
             <div class="ov-chart"><canvas id="chActive" aria-label="Active players and new signups over time" role="img"></canvas></div>
             <div class="ov-table" id="tblActive" hidden></div>
           </section>
@@ -47,7 +47,7 @@
             <div id="ovSales"><div class="ov-sub">Loading…</div></div>
           </section>
           <section class="ov-card ov-span-6" aria-labelledby="ovRevT">
-            <div class="ov-head"><h2 id="ovRevT">Revenue</h2><span class="ov-sub" id="ovRevSub">real-money purchases, USD</span><div class="ov-legend"><span><i style="background:#e0533a"></i>Coin packs</span><span><i style="background:#d9a21b"></i>Premium pass</span></div><button type="button" class="ov-tbl" data-table="rev">Table</button></div>
+            <div class="ov-head"><h2 id="ovRevT">Revenue</h2><span class="ov-sub" id="ovRevSub">real-money purchases, USD</span><div class="ov-legend"><span><i style="background:#0b63e5"></i>Coin packs</span><span><i style="background:#d9a21b"></i>Premium pass</span></div><button type="button" class="ov-tbl" data-table="rev">Table</button></div>
             <div class="ov-sub" id="ovRevNote">Coins are not on sale right now, so new revenue is expected to be zero.</div>
             <div class="ov-chart"><canvas id="chRevenue" aria-label="Revenue per day, coin packs and premium pass" role="img"></canvas></div>
             <div class="ov-table" id="tblRev" hidden></div>
@@ -92,11 +92,11 @@
 
     // ---- controls in the top bar: range, mode, export ----
     const MODES = [['all', 'All modes'], ['quick', 'Quick War'], ['blitz', 'Blitz War'], ['grand', 'Grand War'], ['solo', 'Solo Ranked'], ['private', 'Private War'], ['other', 'Other']];
-    // Coral Glass categorical slots, checked for colour-blind separation on white (fixed order, never cycled).
-    const C = { coral: '#e0533a', teal: '#0b6e70', amber: '#d9a21b', blue: '#4a7fe0', rose: '#b8327a', gray: '#a8a09c' };
-    const MODE_COLORS = { quick: C.coral, blitz: C.teal, grand: C.amber, solo: C.blue, private: C.rose, other: C.gray };
-    const INK = '#7a6a65', GRID = 'rgba(120,72,58,.08)', AXIS = 'rgba(120,72,58,.18)';
-    const TIP = { backgroundColor: 'rgba(255,255,255,.97)', borderColor: 'rgba(120,72,58,.16)', borderWidth: 1, padding: 12, cornerRadius: 12, titleColor: '#2b1d1a', bodyColor: '#4a3a36', titleFont: { weight: '700' }, boxPadding: 4, usePointStyle: true };
+    // Game-colour categorical slots, checked for colour-blind separation on white (fixed order, never cycled).
+    const C = { blue: '#0b63e5', orange: '#e0581c', gold: '#d9a21b', green: '#0e9a62', magenta: '#b8327a', gray: '#a3aab8' };
+    const MODE_COLORS = { quick: C.blue, blitz: C.orange, grand: C.gold, solo: C.green, private: C.magenta, other: C.gray };
+    const INK = '#5f6d86', GRID = 'rgba(20,33,61,.08)', AXIS = 'rgba(20,33,61,.18)';
+    const TIP = { backgroundColor: 'rgba(255,255,255,.97)', borderColor: 'rgba(20,33,61,.16)', borderWidth: 1, padding: 12, cornerRadius: 12, titleColor: '#14213d', bodyColor: '#33415c', titleFont: { weight: '700' }, boxPadding: 4, usePointStyle: true };
     const MODE_NAMES = { quick: 'Quick', blitz: 'Blitz', grand: 'Grand', solo: 'Solo', private: 'Private', other: 'Other' };
     let state = { mode: 'all' };
     try { const s = JSON.parse(localStorage.getItem('adm_ov') || '{}'); if (s.mode) state.mode = s.mode; } catch (e) { /* defaults */ }
@@ -190,7 +190,7 @@
       };
     }
     // crosshair on hover, like the mockup
-    const crosshair = { id: 'crosshair', afterDatasetsDraw(c) { const a = c.tooltip && c.tooltip.getActiveElements(); if (!a || !a.length) return; const x = a[0].element.x; const { top, bottom } = c.chartArea; const g = c.ctx; g.save(); g.strokeStyle = 'rgba(209,68,46,.35)'; g.setLineDash([4, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(x, top); g.lineTo(x, bottom); g.stroke(); g.restore(); } };
+    const crosshair = { id: 'crosshair', afterDatasetsDraw(c) { const a = c.tooltip && c.tooltip.getActiveElements(); if (!a || !a.length) return; const x = a[0].element.x; const { top, bottom } = c.chartArea; const g = c.ctx; g.save(); g.strokeStyle = 'rgba(11,99,229,.35)'; g.setLineDash([4, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(x, top); g.lineTo(x, bottom); g.stroke(); g.restore(); } };
 
     function draw(id, config) {
       if (charts[id]) charts[id].destroy();
@@ -201,8 +201,8 @@
       draw('chActive', {
         type: 'line',
         data: { labels, datasets: [
-          { label: 'Active', data: data.series.activePlayers, borderColor: C.coral, backgroundColor: (ctx) => { const a = ctx.chart.chartArea; if (!a) return 'rgba(224,83,58,.12)'; const g = ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom); g.addColorStop(0, 'rgba(224,83,58,.26)'); g.addColorStop(1, 'rgba(224,83,58,0)'); return g; }, fill: true, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.coral, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, tension: 0.35 },
-          { label: 'New signups', data: data.series.signups, borderColor: C.teal, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.teal, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, tension: 0.35 },
+          { label: 'Active', data: data.series.activePlayers, borderColor: C.blue, backgroundColor: (ctx) => { const a = ctx.chart.chartArea; if (!a) return 'rgba(11,99,229,.12)'; const g = ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom); g.addColorStop(0, 'rgba(11,99,229,.26)'); g.addColorStop(1, 'rgba(11,99,229,0)'); return g; }, fill: true, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, tension: 0.35 },
+          { label: 'New signups', data: data.series.signups, borderColor: C.orange, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.orange, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, tension: 0.35 },
         ] },
         options: baseOptions(),
         plugins: [crosshair],
@@ -227,8 +227,8 @@
       draw('chRevenue', {
         type: 'bar',
         data: { labels, datasets: [
-          { label: 'Coin packs', data: data.series.revenueCoins, backgroundColor: C.coral, borderColor: '#fff', borderWidth: { top: 2 }, borderSkipped: false, maxBarThickness: 28 },
-          { label: 'Premium pass', data: data.series.revenuePass, backgroundColor: C.amber, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: false, maxBarThickness: 28 },
+          { label: 'Coin packs', data: data.series.revenueCoins, backgroundColor: C.blue, borderColor: '#fff', borderWidth: { top: 2 }, borderSkipped: false, maxBarThickness: 28 },
+          { label: 'Premium pass', data: data.series.revenuePass, backgroundColor: C.gold, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: false, maxBarThickness: 28 },
         ] },
         options: baseOptions({
           plugins: { legend: { display: false }, tooltip: { ...TIP, callbacks: { label: (c) => `${c.dataset.label}: ${money(c.parsed.y)}` } } },
@@ -249,13 +249,13 @@
     }));
 
     // ---- retention heatmap (sequential: one hue, light to dark) ----
-    const RAMP = ['#fde5dd', '#f9c4b4', '#f29d85', '#e5704f', '#cc4a30', '#9f3420'];
+    const RAMP = ['#e3edfd', '#bcd3fb', '#86b0f6', '#4d8bf0', '#0b63e5', '#08449e'];
     function renderRetention() {
       const r = data.retention;
       if (!r.cohorts.length) { document.getElementById('ovRetention').innerHTML = '<div class="ov-sub">No signups in the last six weeks.</div>'; return; }
       document.getElementById('ovRetention').innerHTML = `<div class="ov-ret-grid" style="grid-template-columns:76px repeat(${r.days.length},minmax(0,1fr))">
         <span></span>${r.days.map((d) => `<span class="ov-sub ov-c">Day ${d}</span>`).join('')}
-        ${r.cohorts.map((c) => `<span class="ov-sub" title="${c.size} signups">${new Date(c.week).toLocaleDateString([], { month: 'short', day: 'numeric' })} <span class="mono">(${c.size})</span></span>${c.cells.map((v, i) => v == null ? '<span class="ov-cell empty" aria-label="not yet"></span>' : `<span class="ov-cell mono" style="background:${RAMP[Math.min(5, Math.floor(v / 17))]};color:${Math.floor(v / 17) >= 3 ? '#fff' : '#5a2a1f'}" title="Week of ${c.week}: ${v}% seen again after ${r.days[i]} days">${v}%</span>`).join('')}`).join('')}
+        ${r.cohorts.map((c) => `<span class="ov-sub" title="${c.size} signups">${new Date(c.week).toLocaleDateString([], { month: 'short', day: 'numeric' })} <span class="mono">(${c.size})</span></span>${c.cells.map((v, i) => v == null ? '<span class="ov-cell empty" aria-label="not yet"></span>' : `<span class="ov-cell mono" style="background:${RAMP[Math.min(5, Math.floor(v / 17))]};color:${Math.floor(v / 17) >= 3 ? '#fff' : '#14213d'}" title="Week of ${c.week}: ${v}% seen again after ${r.days[i]} days">${v}%</span>`).join('')}`).join('')}
       </div>`;
     }
 
@@ -266,8 +266,8 @@
       document.getElementById('ovCoins').innerHTML = `
         <div class="ov-sub">Coins held by players</div><div class="mono ov-big">${fmt(c.circulation)}</div>
         <div class="ov-sub" style="margin:12px 0 6px">This period</div>
-        ${c.flows.length ? c.flows.map((f) => `<div class="ov-flow"><div><span>${esc(f.name)}</span><span class="mono">${f.dir === 'in' ? '+' : '-'}${fmt(f.coins)}</span></div><div class="ov-track"><i style="width:${((f.coins / max) * 100).toFixed(1)}%;background:${f.dir === 'in' ? C.teal : C.coral}"></i></div></div>`).join('') : '<div class="ov-sub">No coin movement in this period.</div>'}
-        <div class="ov-legend" style="margin-top:10px"><span><i style="background:${C.teal}"></i>Coming in</span><span><i style="background:${C.coral}"></i>Going out</span></div>`;
+        ${c.flows.length ? c.flows.map((f) => `<div class="ov-flow"><div><span>${esc(f.name)}</span><span class="mono">${f.dir === 'in' ? '+' : '-'}${fmt(f.coins)}</span></div><div class="ov-track"><i style="width:${((f.coins / max) * 100).toFixed(1)}%;background:${f.dir === 'in' ? C.orange : C.blue}"></i></div></div>`).join('') : '<div class="ov-sub">No coin movement in this period.</div>'}
+        <div class="ov-legend" style="margin-top:10px"><span><i style="background:${C.orange}"></i>Coming in</span><span><i style="background:${C.blue}"></i>Going out</span></div>`;
     }
 
     // ---- revenue and sales: money in for the range, then the partner pipeline (leads) ----
@@ -284,13 +284,13 @@
       document.getElementById('ovSales').innerHTML = `
         <div class="ov-sub">Revenue in this period</div>
         <div class="ov-big">${money(total)}</div>
-        <div class="ov-split" aria-hidden="true">${total ? `<i style="flex:${coins};background:${C.coral}"></i><i style="flex:${pass};background:${C.amber}"></i>` : '<i style="flex:1;background:rgba(120,72,58,.08)"></i>'}</div>
+        <div class="ov-split" aria-hidden="true">${total ? `<i style="flex:${coins};background:${C.blue}"></i><i style="flex:${pass};background:${C.gold}"></i>` : '<i style="flex:1;background:rgba(20,33,61,.08)"></i>'}</div>
         <div class="ov-rows">
-          <div class="ov-row"><span><i class="ov-dot" style="background:${C.coral}"></i>Coin packs</span><b>${money(coins)}</b></div>
-          <div class="ov-row"><span><i class="ov-dot" style="background:${C.amber}"></i>Premium pass</span><b>${money(pass)}</b></div>
+          <div class="ov-row"><span><i class="ov-dot" style="background:${C.blue}"></i>Coin packs</span><b>${money(coins)}</b></div>
+          <div class="ov-row"><span><i class="ov-dot" style="background:${C.gold}"></i>Premium pass</span><b>${money(pass)}</b></div>
         </div>
         <div class="ov-sub" style="margin:16px 0 8px">Partner and sponsor pipeline${pipe ? ` · ${fmt(pipe.total)} leads` : ''}</div>
-        ${pipe ? STAGES.map(([k, l]) => `<div class="ov-flow"><div><span>${l}</span><span>${fmt(byStage[k])}</span></div><div class="ov-track"><i style="width:${((byStage[k] / top) * 100).toFixed(1)}%;background:${k === 'won' ? C.teal : C.coral}"></i></div></div>`).join('') : '<div class="ov-sub">Leads are not set up on this database.</div>'}
+        ${pipe ? STAGES.map(([k, l]) => `<div class="ov-flow"><div><span>${l}</span><span>${fmt(byStage[k])}</span></div><div class="ov-track"><i style="width:${((byStage[k] / top) * 100).toFixed(1)}%;background:${k === 'won' ? C.orange : C.blue}"></i></div></div>`).join('') : '<div class="ov-sub">Leads are not set up on this database.</div>'}
         ${pipe ? `<div class="ov-row ov-sub" style="margin-top:6px"><span>Lead to won</span><b>${pipe.conversionNewToWonPct}%</b></div><div class="ov-row ov-sub"><span>Average first reply</span><b>${pipe.avgHoursToFirstContact == null ? '–' : `${pipe.avgHoursToFirstContact} h`}</b></div>` : ''}`;
     }
 
@@ -322,10 +322,10 @@
         box.innerHTML = `
           <div class="ov-live-nums"><div><b>${fmt(l.online)}</b><span class="ov-sub">connected</span></div><div><b>${fmt(l.matchesRunning)}</b><span class="ov-sub">matches running</span></div><div><b>${fmt(l.lobbiesWaiting)}</b><span class="ov-sub">lobbies waiting</span></div></div>
           <div><div class="ov-sub ov-row"><span>Seats in running matches</span><span>${realPct == null ? 'none' : `real ${realPct}% · computer ${100 - realPct}%`}</span></div>
-            <div class="ov-seats">${seats ? `<i style="flex:${l.seatsReal};background:${C.coral}"></i><i style="flex:${l.seatsComputer};background:${C.gray}"></i>` : '<i style="flex:1;background:rgba(120,72,58,.08)"></i>'}</div></div>
+            <div class="ov-seats">${seats ? `<i style="flex:${l.seatsReal};background:${C.blue}"></i><i style="flex:${l.seatsComputer};background:${C.gray}"></i>` : '<i style="flex:1;background:rgba(20,33,61,.08)"></i>'}</div></div>
           <div class="ov-meters">
             <div><div class="ov-sub ov-row"><span>Server memory</span><span class="mono">${fmt(l.memoryMb)} MB</span></div></div>
-            <div><div class="ov-sub ov-row"><span>Heap in use</span><span class="mono">${l.heapPct ?? '–'}%</span></div><div class="ov-track"><i style="width:${l.heapPct || 0}%;background:${(l.heapPct || 0) > 85 ? 'var(--warning)' : C.teal}"></i></div></div>
+            <div><div class="ov-sub ov-row"><span>Heap in use</span><span class="mono">${l.heapPct ?? '–'}%</span></div><div class="ov-track"><i style="width:${l.heapPct || 0}%;background:${(l.heapPct || 0) > 85 ? 'var(--warning)' : C.orange}"></i></div></div>
             <div class="ov-sub ov-row"><span>Up for</span><span class="mono">${Math.floor((l.uptimeSeconds || 0) / 3600)}h ${Math.floor(((l.uptimeSeconds || 0) % 3600) / 60)}m</span></div>
           </div>
           <a class="btn btn-sm" href="/matches.html?tab=live" style="align-self:flex-start">Open live matches</a>`;

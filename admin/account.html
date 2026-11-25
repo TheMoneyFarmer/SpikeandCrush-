@@ -100,8 +100,8 @@
       if (curve) {
         curveChart = new Chart(document.getElementById('curve'), {
           type: 'line',
-          data: { labels: curve.map((p) => (typeof p.t === 'number' ? mt(p.t) : when(p.t))), datasets: [{ label: 'Equity', data: curve.map((p) => p.equity), borderColor: '#e0533a', backgroundColor: 'rgba(108,178,255,.12)', fill: true, pointRadius: 0, borderWidth: 1.5 }] },
-          options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#7a6a65', maxTicksLimit: 8 }, grid: { display: false } }, y: { ticks: { color: '#7a6a65' }, grid: { color: 'rgba(160,182,222,.08)' } } } },
+          data: { labels: curve.map((p) => (typeof p.t === 'number' ? mt(p.t) : when(p.t))), datasets: [{ label: 'Equity', data: curve.map((p) => p.equity), borderColor: '#0b63e5', backgroundColor: 'rgba(108,178,255,.12)', fill: true, pointRadius: 0, borderWidth: 1.5 }] },
+          options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#5f6d86', maxTicksLimit: 8 }, grid: { display: false } }, y: { ticks: { color: '#5f6d86' }, grid: { color: 'rgba(160,182,222,.08)' } } } },
         });
       } else {
         document.getElementById('curve').parentElement.innerHTML = '<div class="empty-state">No equity curve stored for this account (recorded for matches played after the records update).</div>';
