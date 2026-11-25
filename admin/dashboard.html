@@ -22,40 +22,56 @@
     <main class="admin-main">
       <div class="admin-topbar" id="adminTopbar"></div>
       <div class="admin-content ov">
+        <div class="ov-top">
+          <section class="ov-hero" aria-labelledby="ovHello">
+            <div class="ov-hero-head">
+              <div><p class="ov-hero-kicker" id="ovRangeLabel">This period</p><h2 id="ovHello">Welcome back</h2></div>
+              <a class="ov-hero-link" href="/analytics.html?tab=overview">Full analytics<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+            </div>
+            <div class="ov-hero-stats" id="ovHeroStats" aria-live="polite"></div>
+          </section>
+          <section class="ov-card ov-live-card" aria-labelledby="ovLiveT">
+            <div class="ov-head"><h2 id="ovLiveT"><span class="ov-pulse" aria-hidden="true"></span>Live now</h2><span class="ov-sub" id="ovLiveAge">updates every 5s</span></div>
+            <div class="ov-live" id="ovLive"><div class="ov-sub">Loading…</div></div>
+          </section>
+        </div>
         <div class="ov-kpis" id="ovKpis" aria-live="polite"></div>
         <div class="ov-grid">
           <section class="ov-card ov-span-8" aria-labelledby="ovActiveT">
-            <div class="ov-head"><h2 id="ovActiveT">Active players</h2><span class="ov-sub" id="ovActiveSub">real players who logged in or played</span><div class="ov-legend"><span><i style="background:#3987e5"></i>Active</span><span><i style="background:#d95926"></i>New signups</span></div><button type="button" class="ov-tbl" data-table="active">Table</button></div>
+            <div class="ov-head"><h2 id="ovActiveT">Active players</h2><span class="ov-sub" id="ovActiveSub">real players who logged in or played</span><div class="ov-legend"><span><i style="background:#e0533a"></i>Active</span><span><i style="background:#0b6e70"></i>New signups</span></div><button type="button" class="ov-tbl" data-table="active">Table</button></div>
             <div class="ov-chart"><canvas id="chActive" aria-label="Active players and new signups over time" role="img"></canvas></div>
             <div class="ov-table" id="tblActive" hidden></div>
           </section>
-          <section class="ov-card ov-span-4" aria-labelledby="ovLiveT">
-            <div class="ov-head"><h2 id="ovLiveT">Live now</h2><span class="ov-sub" id="ovLiveAge">updates every 5s</span></div>
-            <div class="ov-live" id="ovLive"><div class="ov-sub">Loading…</div></div>
+          <section class="ov-card ov-span-4" aria-labelledby="ovSalesT">
+            <div class="ov-head"><h2 id="ovSalesT">Revenue and sales</h2><a class="ov-more" href="/leads.html">Leads</a></div>
+            <div id="ovSales"><div class="ov-sub">Loading…</div></div>
           </section>
-          <section class="ov-card ov-span-5" aria-labelledby="ovModesT">
-            <div class="ov-head"><h2 id="ovModesT">Matches by mode</h2><button type="button" class="ov-tbl" data-table="modes">Table</button></div>
-            <div class="ov-legend" id="ovModeLegend"></div>
+          <section class="ov-card ov-span-6" aria-labelledby="ovRevT">
+            <div class="ov-head"><h2 id="ovRevT">Revenue</h2><span class="ov-sub" id="ovRevSub">real-money purchases, USD</span><div class="ov-legend"><span><i style="background:#e0533a"></i>Coin packs</span><span><i style="background:#d9a21b"></i>Premium pass</span></div><button type="button" class="ov-tbl" data-table="rev">Table</button></div>
+            <div class="ov-sub" id="ovRevNote">Coins are not on sale right now, so new revenue is expected to be zero.</div>
+            <div class="ov-chart"><canvas id="chRevenue" aria-label="Revenue per day, coin packs and premium pass" role="img"></canvas></div>
+            <div class="ov-table" id="tblRev" hidden></div>
+          </section>
+          <section class="ov-card ov-span-6" aria-labelledby="ovModesT">
+            <div class="ov-head"><h2 id="ovModesT">Matches by mode</h2><div class="ov-legend" id="ovModeLegend"></div><button type="button" class="ov-tbl" data-table="modes">Table</button></div>
             <div class="ov-chart"><canvas id="chModes" aria-label="Matches per day, stacked by game mode" role="img"></canvas></div>
             <div class="ov-table" id="tblModes" hidden></div>
           </section>
-          <section class="ov-card ov-span-4" aria-labelledby="ovRetT">
+          <section class="ov-card ov-span-5" aria-labelledby="ovRetT">
             <div class="ov-head"><h2 id="ovRetT">Retention by signup week</h2></div>
-            <div class="ov-sub" style="margin:-4px 0 10px">Share of each week's signups seen again after N days</div>
+            <div class="ov-sub" style="margin:-4px 0 4px">Share of each week's signups seen again after N days</div>
             <div id="ovRetention" class="ov-ret"></div>
           </section>
           <section class="ov-card ov-span-3" aria-labelledby="ovCoinsT">
             <div class="ov-head"><h2 id="ovCoinsT">Coin economy</h2></div>
             <div id="ovCoins"></div>
           </section>
-          <section class="ov-card ov-span-6" aria-labelledby="ovRevT">
-            <div class="ov-head"><h2 id="ovRevT">Revenue</h2><span class="ov-sub" id="ovRevSub">real-money purchases, USD</span><div class="ov-legend"><span><i style="background:#3987e5"></i>Coin packs</span><span><i style="background:#c98500"></i>Premium pass</span></div><button type="button" class="ov-tbl" data-table="rev">Table</button></div>
-            <div class="ov-sub" id="ovRevNote">Coins are not on sale right now, so new revenue is expected to be zero.</div>
-            <div class="ov-chart"><canvas id="chRevenue" aria-label="Revenue per day, coin packs and premium pass" role="img"></canvas></div>
-            <div class="ov-table" id="tblRev" hidden></div>
+          <section class="ov-card ov-span-4" aria-labelledby="ovTeamT">
+            <div class="ov-head"><h2 id="ovTeamT">Team</h2><a class="ov-more" href="/system.html?tab=adminusers">Manage team</a></div>
+            <div id="ovTeam"><div class="ov-sub">Loading…</div></div>
           </section>
-          <section class="ov-card ov-span-6" aria-labelledby="ovFeedT">
-            <div class="ov-head"><h2 id="ovFeedT">Recent activity</h2></div>
+          <section class="ov-card ov-span-12" aria-labelledby="ovFeedT">
+            <div class="ov-head"><h2 id="ovFeedT">Recent activity</h2><a class="ov-more" href="/system.html?tab=activitylog">Activity log</a></div>
             <div class="activity-feed" id="activityFeed"></div>
           </section>
         </div>
@@ -76,8 +92,11 @@
 
     // ---- controls in the top bar: range, mode, export ----
     const MODES = [['all', 'All modes'], ['quick', 'Quick War'], ['blitz', 'Blitz War'], ['grand', 'Grand War'], ['solo', 'Solo Ranked'], ['private', 'Private War'], ['other', 'Other']];
-    // Validated on the admin navy surface (dataviz skill, 6 slots): fixed order, never cycled.
-    const MODE_COLORS = { quick: '#3987e5', blitz: '#d95926', grand: '#199e70', solo: '#c98500', private: '#d55181', other: '#9085e9' };
+    // Coral Glass categorical slots, checked for colour-blind separation on white (fixed order, never cycled).
+    const C = { coral: '#e0533a', teal: '#0b6e70', amber: '#d9a21b', blue: '#4a7fe0', rose: '#b8327a', gray: '#a8a09c' };
+    const MODE_COLORS = { quick: C.coral, blitz: C.teal, grand: C.amber, solo: C.blue, private: C.rose, other: C.gray };
+    const INK = '#7a6a65', GRID = 'rgba(120,72,58,.08)', AXIS = 'rgba(120,72,58,.18)';
+    const TIP = { backgroundColor: 'rgba(255,255,255,.97)', borderColor: 'rgba(120,72,58,.16)', borderWidth: 1, padding: 12, cornerRadius: 12, titleColor: '#2b1d1a', bodyColor: '#4a3a36', titleFont: { weight: '700' }, boxPadding: 4, usePointStyle: true };
     const MODE_NAMES = { quick: 'Quick', blitz: 'Blitz', grand: 'Grand', solo: 'Solo', private: 'Private', other: 'Other' };
     let state = { mode: 'all' };
     try { const s = JSON.parse(localStorage.getItem('adm_ov') || '{}'); if (s.mode) state.mode = s.mode; } catch (e) { /* defaults */ }
@@ -124,7 +143,7 @@
     function spark(series) {
       if (!series || !series.length) return '';
       const max = Math.max(1, ...series);
-      return `<div class="ov-spark" aria-hidden="true">${series.map((v, i) => `<i style="height:${Math.max(2, (v / max) * 28).toFixed(1)}px;${i === series.length - 1 ? 'background:#3987e5' : ''}"></i>`).join('')}</div>`;
+      return `<div class="ov-spark" aria-hidden="true">${series.map((v, i) => `<i style="height:${Math.max(2, (v / max) * 28).toFixed(1)}px;${i === series.length - 1 ? 'background:var(--accent)' : ''}"></i>`).join('')}</div>`;
     }
     function renderKpis() {
       const k = data.kpis;
@@ -146,7 +165,15 @@
         ['Friend requests', fmt(k.friendRequests.value), delta(k.friendRequests.value, k.friendRequests.prev), '', '/players.html'],
       ];
       if (sponsorReview && sponsorReview.expired) tiles.push(['Sponsor placements expired', fmt(sponsorReview.expired), `<span class="ov-delta bad">${fmt(sponsorReview.expiring)} more ending within 10 days</span>`, '<span class="btn btn-sm" style="margin-top:6px">Review expired</span>', '/sponsors.html?view=expired']);
-      document.getElementById('ovKpis').innerHTML = tiles.map(([label, value, d, sp, href]) => `<a class="ov-kpi" href="${href}"><span class="ov-sub">${label}</span><b class="mono">${value}</b>${d}${sp}</a>`).join('');
+      const HERO = ['Active players', 'Matches played', 'Revenue', 'Waiting on you'];
+      const ICON = { 'Active players': '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/>', 'Matches played': '<path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/>', Revenue: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>', 'Waiting on you': '<path d="M21 12a8 8 0 0 1-12 7l-6 2 2-6a8 8 0 1 1 16-3z"/>' };
+      document.getElementById('ovHeroStats').innerHTML = tiles.filter((t) => HERO.includes(t[0])).map(([label, value, d, sp, href]) => `<a class="ov-hstat" href="${href}"><span class="ov-hicon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[label]}</svg></span><span class="ov-sub">${label}</span><b>${value}</b>${d}${sp}</a>`).join('');
+      const h = new Date().getHours();
+      const me = Admin.getMe && Admin.getMe();
+      const who = me && (me.name || me.username) ? String(me.name || me.username).split(/[@\s]/)[0] : '';
+      document.getElementById('ovHello').textContent = `${h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'}${who ? `, ${who.charAt(0).toUpperCase()}${who.slice(1)}` : ''}`;
+      document.getElementById('ovRangeLabel').textContent = range && range.label ? range.label() : 'This period';
+      document.getElementById('ovKpis').innerHTML = tiles.filter((t) => !HERO.includes(t[0])).map(([label, value, d, sp, href]) => `<a class="ov-kpi" href="${href}"><span class="ov-sub">${label}</span><b>${value}</b>${d}${sp}</a>`).join('');
     }
 
     // ---- charts ----
@@ -154,16 +181,16 @@
       return {
         responsive: true, maintainAspectRatio: false, animation: { duration: 250 },
         interaction: { mode: 'index', intersect: false },
-        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#25375f', borderColor: 'rgba(160,182,222,.26)', borderWidth: 1, padding: 10, titleColor: '#f2f5fa', bodyColor: '#e8eef8', boxPadding: 4, usePointStyle: true } },
+        plugins: { legend: { display: false }, tooltip: TIP },
         scales: {
-          x: { grid: { display: false }, ticks: { color: 'rgba(200,212,232,.72)', maxRotation: 0, autoSkipPadding: 12 }, border: { color: 'rgba(160,182,222,.2)' } },
-          y: { beginAtZero: true, grid: { color: 'rgba(160,182,222,.08)' }, ticks: { color: 'rgba(200,212,232,.72)', precision: 0 }, border: { display: false } },
+          x: { grid: { display: false }, ticks: { color: INK, maxRotation: 0, autoSkipPadding: 12 }, border: { color: AXIS } },
+          y: { beginAtZero: true, grid: { color: GRID }, ticks: { color: INK, precision: 0 }, border: { display: false } },
         },
         ...extra,
       };
     }
     // crosshair on hover, like the mockup
-    const crosshair = { id: 'crosshair', afterDatasetsDraw(c) { const a = c.tooltip && c.tooltip.getActiveElements(); if (!a || !a.length) return; const x = a[0].element.x; const { top, bottom } = c.chartArea; const g = c.ctx; g.save(); g.strokeStyle = 'rgba(242,245,250,.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, top); g.lineTo(x, bottom); g.stroke(); g.restore(); } };
+    const crosshair = { id: 'crosshair', afterDatasetsDraw(c) { const a = c.tooltip && c.tooltip.getActiveElements(); if (!a || !a.length) return; const x = a[0].element.x; const { top, bottom } = c.chartArea; const g = c.ctx; g.save(); g.strokeStyle = 'rgba(209,68,46,.35)'; g.setLineDash([4, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(x, top); g.lineTo(x, bottom); g.stroke(); g.restore(); } };
 
     function draw(id, config) {
       if (charts[id]) charts[id].destroy();
@@ -174,8 +201,8 @@
       draw('chActive', {
         type: 'line',
         data: { labels, datasets: [
-          { label: 'Active', data: data.series.activePlayers, borderColor: '#3987e5', backgroundColor: 'rgba(57,135,229,.12)', fill: true, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.3 },
-          { label: 'New signups', data: data.series.signups, borderColor: '#d95926', borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.3 },
+          { label: 'Active', data: data.series.activePlayers, borderColor: C.coral, backgroundColor: (ctx) => { const a = ctx.chart.chartArea; if (!a) return 'rgba(224,83,58,.12)'; const g = ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom); g.addColorStop(0, 'rgba(224,83,58,.26)'); g.addColorStop(1, 'rgba(224,83,58,0)'); return g; }, fill: true, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.coral, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, tension: 0.35 },
+          { label: 'New signups', data: data.series.signups, borderColor: C.teal, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.teal, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, tension: 0.35 },
         ] },
         options: baseOptions(),
         plugins: [crosshair],
@@ -189,8 +216,8 @@
       document.getElementById('ovModeLegend').innerHTML = keys.map((k) => `<span><i style="background:${MODE_COLORS[k]}"></i>${MODE_NAMES[k]}</span>`).join('');
       draw('chModes', {
         type: 'bar',
-        data: { labels, datasets: keys.map((k, i) => ({ label: MODE_NAMES[k], data: data.series.matchesByMode[k], backgroundColor: MODE_COLORS[k], borderColor: '#182746', borderWidth: { top: 2 }, borderRadius: i === keys.length - 1 ? { topLeft: 4, topRight: 4 } : 0, borderSkipped: false, maxBarThickness: 28 })) },
-        options: baseOptions({ scales: { x: { stacked: true, grid: { display: false }, ticks: { color: 'rgba(200,212,232,.72)', maxRotation: 0, autoSkipPadding: 10 }, border: { color: 'rgba(160,182,222,.2)' } }, y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(160,182,222,.08)' }, ticks: { color: 'rgba(200,212,232,.72)', precision: 0 }, border: { display: false } } } }),
+        data: { labels, datasets: keys.map((k, i) => ({ label: MODE_NAMES[k], data: data.series.matchesByMode[k], backgroundColor: MODE_COLORS[k], borderColor: '#fff', borderWidth: { top: 2 }, borderRadius: i === keys.length - 1 ? { topLeft: 4, topRight: 4 } : 0, borderSkipped: false, maxBarThickness: 28 })) },
+        options: baseOptions({ scales: { x: { stacked: true, grid: { display: false }, ticks: { color: INK, maxRotation: 0, autoSkipPadding: 10 }, border: { color: AXIS } }, y: { stacked: true, beginAtZero: true, grid: { color: GRID }, ticks: { color: INK, precision: 0 }, border: { display: false } } } }),
       });
       document.getElementById('tblModes').innerHTML = table(['When', ...keys.map((k) => MODE_NAMES[k])], labels.map((l, i) => [l, ...keys.map((k) => data.series.matchesByMode[k][i])]));
     }
@@ -200,12 +227,12 @@
       draw('chRevenue', {
         type: 'bar',
         data: { labels, datasets: [
-          { label: 'Coin packs', data: data.series.revenueCoins, backgroundColor: '#3987e5', borderColor: '#182746', borderWidth: { top: 2 }, borderSkipped: false, maxBarThickness: 28 },
-          { label: 'Premium pass', data: data.series.revenuePass, backgroundColor: '#c98500', borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: false, maxBarThickness: 28 },
+          { label: 'Coin packs', data: data.series.revenueCoins, backgroundColor: C.coral, borderColor: '#fff', borderWidth: { top: 2 }, borderSkipped: false, maxBarThickness: 28 },
+          { label: 'Premium pass', data: data.series.revenuePass, backgroundColor: C.amber, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: false, maxBarThickness: 28 },
         ] },
         options: baseOptions({
-          plugins: { legend: { display: false }, tooltip: { backgroundColor: '#25375f', borderColor: 'rgba(160,182,222,.26)', borderWidth: 1, padding: 10, callbacks: { label: (c) => `${c.dataset.label}: ${money(c.parsed.y)}` } } },
-          scales: { x: { stacked: true, grid: { display: false }, ticks: { color: 'rgba(200,212,232,.72)', maxRotation: 0, autoSkipPadding: 10 }, border: { color: 'rgba(160,182,222,.2)' } }, y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(160,182,222,.08)' }, ticks: { color: 'rgba(200,212,232,.72)', callback: (v) => `$${v}` }, border: { display: false } } },
+          plugins: { legend: { display: false }, tooltip: { ...TIP, callbacks: { label: (c) => `${c.dataset.label}: ${money(c.parsed.y)}` } } },
+          scales: { x: { stacked: true, grid: { display: false }, ticks: { color: INK, maxRotation: 0, autoSkipPadding: 10 }, border: { color: AXIS } }, y: { stacked: true, beginAtZero: true, grid: { color: GRID }, ticks: { color: INK, callback: (v) => `$${v}` }, border: { display: false } } },
         }),
       });
       document.getElementById('ovRevNote').hidden = data.kpis.revenue.value > 0;
@@ -222,13 +249,13 @@
     }));
 
     // ---- retention heatmap (sequential: one hue, light to dark) ----
-    const RAMP = ['#16325e', '#1b4380', '#2258a8', '#2d6fd0', '#3987e5', '#6ba7ef'];
+    const RAMP = ['#fde5dd', '#f9c4b4', '#f29d85', '#e5704f', '#cc4a30', '#9f3420'];
     function renderRetention() {
       const r = data.retention;
       if (!r.cohorts.length) { document.getElementById('ovRetention').innerHTML = '<div class="ov-sub">No signups in the last six weeks.</div>'; return; }
       document.getElementById('ovRetention').innerHTML = `<div class="ov-ret-grid" style="grid-template-columns:76px repeat(${r.days.length},minmax(0,1fr))">
         <span></span>${r.days.map((d) => `<span class="ov-sub ov-c">Day ${d}</span>`).join('')}
-        ${r.cohorts.map((c) => `<span class="ov-sub" title="${c.size} signups">${new Date(c.week).toLocaleDateString([], { month: 'short', day: 'numeric' })} <span class="mono">(${c.size})</span></span>${c.cells.map((v, i) => v == null ? '<span class="ov-cell empty" aria-label="not yet"></span>' : `<span class="ov-cell mono" style="background:${RAMP[Math.min(5, Math.floor(v / 17))]}" title="Week of ${c.week}: ${v}% seen again after ${r.days[i]} days">${v}%</span>`).join('')}`).join('')}
+        ${r.cohorts.map((c) => `<span class="ov-sub" title="${c.size} signups">${new Date(c.week).toLocaleDateString([], { month: 'short', day: 'numeric' })} <span class="mono">(${c.size})</span></span>${c.cells.map((v, i) => v == null ? '<span class="ov-cell empty" aria-label="not yet"></span>' : `<span class="ov-cell mono" style="background:${RAMP[Math.min(5, Math.floor(v / 17))]};color:${Math.floor(v / 17) >= 3 ? '#fff' : '#5a2a1f'}" title="Week of ${c.week}: ${v}% seen again after ${r.days[i]} days">${v}%</span>`).join('')}`).join('')}
       </div>`;
     }
 
@@ -239,8 +266,49 @@
       document.getElementById('ovCoins').innerHTML = `
         <div class="ov-sub">Coins held by players</div><div class="mono ov-big">${fmt(c.circulation)}</div>
         <div class="ov-sub" style="margin:12px 0 6px">This period</div>
-        ${c.flows.length ? c.flows.map((f) => `<div class="ov-flow"><div><span>${esc(f.name)}</span><span class="mono">${f.dir === 'in' ? '+' : '-'}${fmt(f.coins)}</span></div><div class="ov-track"><i style="width:${((f.coins / max) * 100).toFixed(1)}%;background:${f.dir === 'in' ? '#3987e5' : '#d95926'}"></i></div></div>`).join('') : '<div class="ov-sub">No coin movement in this period.</div>'}
-        <div class="ov-legend" style="margin-top:10px"><span><i style="background:#3987e5"></i>Coming in</span><span><i style="background:#d95926"></i>Going out</span></div>`;
+        ${c.flows.length ? c.flows.map((f) => `<div class="ov-flow"><div><span>${esc(f.name)}</span><span class="mono">${f.dir === 'in' ? '+' : '-'}${fmt(f.coins)}</span></div><div class="ov-track"><i style="width:${((f.coins / max) * 100).toFixed(1)}%;background:${f.dir === 'in' ? C.teal : C.coral}"></i></div></div>`).join('') : '<div class="ov-sub">No coin movement in this period.</div>'}
+        <div class="ov-legend" style="margin-top:10px"><span><i style="background:${C.teal}"></i>Coming in</span><span><i style="background:${C.coral}"></i>Going out</span></div>`;
+    }
+
+    // ---- revenue and sales: money in for the range, then the partner pipeline (leads) ----
+    const STAGES = [['new', 'New'], ['contacted', 'Contacted'], ['qualified', 'Qualified'], ['in_talks', 'In talks'], ['won', 'Won']];
+    async function renderSales() {
+      const money = (v) => `$${Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const sum = (a) => (a || []).reduce((x, y) => x + Number(y || 0), 0);
+      const coins = sum(data.series.revenueCoins), pass = sum(data.series.revenuePass), total = coins + pass;
+      let pipe = null;
+      try { pipe = await Admin.api('/leads/summary'); } catch (e) { /* leads table may be missing on this database */ }
+      const byStage = Object.fromEntries(STAGES.map(([k]) => [k, 0]));
+      if (pipe && pipe.table) for (const row of Object.values(pipe.table)) for (const [k] of STAGES) byStage[k] += row[k] || 0;
+      const top = Math.max(1, ...Object.values(byStage));
+      document.getElementById('ovSales').innerHTML = `
+        <div class="ov-sub">Revenue in this period</div>
+        <div class="ov-big">${money(total)}</div>
+        <div class="ov-split" aria-hidden="true">${total ? `<i style="flex:${coins};background:${C.coral}"></i><i style="flex:${pass};background:${C.amber}"></i>` : '<i style="flex:1;background:rgba(120,72,58,.08)"></i>'}</div>
+        <div class="ov-rows">
+          <div class="ov-row"><span><i class="ov-dot" style="background:${C.coral}"></i>Coin packs</span><b>${money(coins)}</b></div>
+          <div class="ov-row"><span><i class="ov-dot" style="background:${C.amber}"></i>Premium pass</span><b>${money(pass)}</b></div>
+        </div>
+        <div class="ov-sub" style="margin:16px 0 8px">Partner and sponsor pipeline${pipe ? ` · ${fmt(pipe.total)} leads` : ''}</div>
+        ${pipe ? STAGES.map(([k, l]) => `<div class="ov-flow"><div><span>${l}</span><span>${fmt(byStage[k])}</span></div><div class="ov-track"><i style="width:${((byStage[k] / top) * 100).toFixed(1)}%;background:${k === 'won' ? C.teal : C.coral}"></i></div></div>`).join('') : '<div class="ov-sub">Leads are not set up on this database.</div>'}
+        ${pipe ? `<div class="ov-row ov-sub" style="margin-top:6px"><span>Lead to won</span><b>${pipe.conversionNewToWonPct}%</b></div><div class="ov-row ov-sub"><span>Average first reply</span><b>${pipe.avgHoursToFirstContact == null ? '–' : `${pipe.avgHoursToFirstContact} h`}</b></div>` : ''}`;
+    }
+
+    // ---- team: admin accounts, their role and when they last signed in ----
+    const ROLE = { super_admin: 'Super admin', moderator: 'Moderator', support: 'Support' };
+    async function loadTeam() {
+      const box = document.getElementById('ovTeam');
+      try {
+        const [admins, log] = await Promise.all([Admin.api('/admins'), Admin.api('/admins/activity-log?limit=4').catch(() => [])]);
+        const active = admins.filter((a) => a.is_active);
+        const initials = (a) => String(a.name || a.email || '?').split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+        box.innerHTML = `
+          <div class="ov-team-sum"><b>${active.length}</b><span class="ov-sub">active of ${admins.length} accounts</span></div>
+          <ul class="ov-team">${active.slice(0, 5).map((a) => `<li><span class="ov-avatar">${esc(initials(a))}</span><span class="ov-team-who"><b>${esc(a.name || a.email)}</b><span class="ov-sub">${a.last_login ? `Last in ${esc(TW_timeAgo(a.last_login))}` : 'Never signed in'}</span></span><span class="ov-role ov-role-${esc(a.role)}">${esc(ROLE[a.role] || a.role)}${a.is_master ? ' · owner' : ''}</span></li>`).join('')}</ul>
+          ${(log || []).length ? `<div class="ov-sub" style="margin:12px 0 6px">Latest admin actions</div>${log.slice(0, 3).map((e) => `<div class="ov-row ov-sub"><span>${esc(String(e.action || '').replace(/_/g, ' ').toLowerCase())}</span><span>${esc(TW_timeAgo(e.created_at))}</span></div>`).join('')}` : ''}`;
+      } catch (e) {
+        box.innerHTML = '<div class="ov-sub">Team list is for admins with access to System.</div>';
+      }
     }
 
     // ---- live now (every 5s) ----
@@ -252,12 +320,12 @@
         const seats = l.seatsReal + l.seatsComputer;
         const realPct = seats ? Math.round((l.seatsReal / seats) * 100) : null;
         box.innerHTML = `
-          <div class="ov-live-nums"><div><b class="mono">${fmt(l.online)}</b><span class="ov-sub">connected</span></div><div><b class="mono">${fmt(l.matchesRunning)}</b><span class="ov-sub">matches running</span></div><div><b class="mono">${fmt(l.lobbiesWaiting)}</b><span class="ov-sub">lobbies waiting</span></div></div>
+          <div class="ov-live-nums"><div><b>${fmt(l.online)}</b><span class="ov-sub">connected</span></div><div><b>${fmt(l.matchesRunning)}</b><span class="ov-sub">matches running</span></div><div><b>${fmt(l.lobbiesWaiting)}</b><span class="ov-sub">lobbies waiting</span></div></div>
           <div><div class="ov-sub ov-row"><span>Seats in running matches</span><span>${realPct == null ? 'none' : `real ${realPct}% · computer ${100 - realPct}%`}</span></div>
-            <div class="ov-seats">${seats ? `<i style="flex:${l.seatsReal};background:#3987e5"></i><i style="flex:${l.seatsComputer};background:rgba(200,212,232,.35)"></i>` : '<i style="flex:1;background:rgba(255,255,255,.06)"></i>'}</div></div>
+            <div class="ov-seats">${seats ? `<i style="flex:${l.seatsReal};background:${C.coral}"></i><i style="flex:${l.seatsComputer};background:${C.gray}"></i>` : '<i style="flex:1;background:rgba(120,72,58,.08)"></i>'}</div></div>
           <div class="ov-meters">
             <div><div class="ov-sub ov-row"><span>Server memory</span><span class="mono">${fmt(l.memoryMb)} MB</span></div></div>
-            <div><div class="ov-sub ov-row"><span>Heap in use</span><span class="mono">${l.heapPct ?? '–'}%</span></div><div class="ov-track"><i style="width:${l.heapPct || 0}%;background:${(l.heapPct || 0) > 85 ? '#f5b83d' : '#3987e5'}"></i></div></div>
+            <div><div class="ov-sub ov-row"><span>Heap in use</span><span class="mono">${l.heapPct ?? '–'}%</span></div><div class="ov-track"><i style="width:${l.heapPct || 0}%;background:${(l.heapPct || 0) > 85 ? 'var(--warning)' : C.teal}"></i></div></div>
             <div class="ov-sub ov-row"><span>Up for</span><span class="mono">${Math.floor((l.uptimeSeconds || 0) / 3600)}h ${Math.floor(((l.uptimeSeconds || 0) % 3600) / 60)}m</span></div>
           </div>
           <a class="btn btn-sm" href="/matches.html?tab=live" style="align-self:flex-start">Open live matches</a>`;
@@ -281,8 +349,8 @@
         data = await Admin.api(`/dashboard/insights?${range.query()}&mode=${state.mode}`);
         sponsorReview = await Admin.api('/sponsors/lifecycle/summary').catch(() => null);
         // Each section draws on its own, so one failure can't blank the rest.
-        for (const fn of [renderKpis, renderActive, renderModes, renderRetention, renderCoins, renderRevenue]) {
-          try { fn(); } catch (err) { console.error('[overview]', fn.name, err); }
+        for (const fn of [renderKpis, renderActive, renderModes, renderRetention, renderCoins, renderRevenue, renderSales]) {
+          try { const r = fn(); if (r && r.catch) r.catch((err) => console.error('[overview]', fn.name, err)); } catch (err) { console.error('[overview]', fn.name, err); }
         }
       } catch (e) {
         Admin.toast(e.message, 'danger');
@@ -303,7 +371,7 @@
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `overview-${range ? range.fileTag() : 'range'}-${state.mode}.csv`; a.click(); URL.revokeObjectURL(a.href);
     });
 
-    load(); loadLive(); loadFeed();
+    load(); loadLive(); loadFeed(); loadTeam();
     setInterval(loadLive, 5000);
     setInterval(load, 120000);
   </script>
