@@ -8,9 +8,11 @@ window.Admin = window.Admin || {};
       { key: 'dashboard', label: 'Overview', href: '/dashboard.html' },
       { key: 'realtime', label: 'Real-time Monitor', href: '/realtime.html' },
     ]},
-    { group: 'Players', icon: 'users', items: [
+    { group: 'Users and team', icon: 'users', items: [
       { key: 'players', label: 'All Players', href: '/players.html' },
       { key: 'reports', label: 'Reports', href: '/players.html?tab=reports' },
+      { key: 'team', label: 'Team and roles', href: '/system.html?tab=adminusers' },
+      { key: 'team-log', label: 'Team activity log', href: '/system.html?tab=activitylog' },
     ]},
     { group: 'Matches', icon: 'swords', items: [
       { key: 'matches-live', label: 'Live Matches', href: '/matches.html?tab=live' },
@@ -22,7 +24,6 @@ window.Admin = window.Admin || {};
       { key: 'tournaments-active', label: 'Active Tournaments', href: '/tournaments.html?tab=active' },
       { key: 'tournaments-create', label: 'Create Tournament', href: '/tournaments.html?tab=create' },
       { key: 'tournaments-history', label: 'Tournament History', href: '/tournaments.html?tab=history' },
-      { key: 'tournaments-sponsors', label: 'Sponsors / Prizes', href: '/tournaments.html?tab=sponsors' },
       { key: 'competitions', label: 'Competitions', href: '/competitions.html' },
       { key: 'listings', label: 'Partner Listings', href: '/listings.html' },
       { key: 'winners', label: 'Competition Winners', href: '/winners.html' },
@@ -31,16 +32,15 @@ window.Admin = window.Admin || {};
     { group: 'Sponsors', icon: 'handshake', items: [
       { key: 'sponsors', label: 'Sponsors', href: '/sponsors.html' },
       { key: 'leads', label: 'Leads', href: '/leads.html' },
-      { key: 'sponsors-leads', label: 'Partner Requests (old)', href: '/sponsors.html?tab=leads' },
+      { key: 'tournaments-sponsors', label: 'Broker partners', href: '/tournaments.html?tab=sponsors' },
       { key: 'lobby-settings', label: 'Lobby Settings', href: '/sponsors.html?tab=lobby' },
     ]},
     { group: 'Economy', icon: 'coin', items: [
-      { key: 'mon-overview', label: 'Revenue Overview', href: '/monetisation.html?tab=overview' },
+      { key: 'mon-overview', label: 'Revenue and sales', href: '/monetisation.html?tab=overview' },
       { key: 'mon-transactions', label: 'Coin Transactions', href: '/monetisation.html?tab=transactions' },
       { key: 'mon-battlepass', label: 'Battle Pass', href: '/monetisation.html?tab=battlepass' },
       { key: 'mon-shop', label: 'Cosmetic Shop', href: '/monetisation.html?tab=shop' },
       { key: 'mon-withdrawals', label: 'Prize Claims (archive)', href: '/monetisation.html?tab=withdrawals' },
-      { key: 'mon-brokers', label: 'Broker Partners', href: '/monetisation.html?tab=brokers' },
       { key: 'mon-partners', label: 'Referral Partners', href: '/partners.html' },
     ]},
     { group: 'Support', icon: 'chat', items: [
@@ -50,7 +50,7 @@ window.Admin = window.Admin || {};
       { key: 'support-analytics', label: 'Support Analytics', href: '/support-analytics.html' },
     ]},
     { group: 'Analytics', icon: 'chart', items: [
-      { key: 'an-overview', label: 'Overview', href: '/analytics.html?tab=overview' },
+      { key: 'an-overview', label: 'Summary', href: '/analytics.html?tab=overview' },
       { key: 'an-funnels', label: 'Funnels', href: '/analytics.html?tab=funnels' },
       { key: 'an-retention', label: 'Retention', href: '/analytics.html?tab=retention' },
       { key: 'an-pages', label: 'Pages and sources', href: '/analytics.html?tab=pages' },
@@ -123,7 +123,10 @@ window.Admin = window.Admin || {};
   function render() {
     const mount = document.getElementById('adminSidebar');
     if (!mount) return;
-    const active = mount.dataset.active || '';
+    const here = location.pathname + location.search;
+    const items = NAV_SECTIONS.flatMap((g) => g.items);
+    const exact = items.find((i) => i.href === here) || (location.search ? null : items.find((i) => i.href === location.pathname));
+    const active = (exact && exact.key) || mount.dataset.active || '';
     const open = readOpen();
     mount.innerHTML = `
       <div class="admin-sidebar-header">
@@ -209,9 +212,14 @@ window.Admin = window.Admin || {};
     const tick = () => { clockEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
     tick();
     setInterval(tick, 15000);
-    mount.querySelector('#admHamburger').addEventListener('click', () => {
+    mount.querySelector('#admHamburger').addEventListener('click', (e) => {
+      e.stopPropagation();
       document.getElementById('adminSidebar')?.classList.toggle('open');
     });
+    // On a phone, tapping the dimmed page or pressing Escape closes the menu.
+    const closeMenu = () => document.getElementById('adminSidebar')?.classList.remove('open');
+    document.addEventListener('click', (e) => { const sb = document.getElementById('adminSidebar'); if (sb && sb.classList.contains('open') && !sb.contains(e.target)) closeMenu(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
     const btn = mount.querySelector('#admAccountBtn');
     const menu = mount.querySelector('#admAccountMenu');
     const setMenu = (on) => { menu.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };

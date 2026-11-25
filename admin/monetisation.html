@@ -26,7 +26,6 @@
           <button class="admin-tab" data-tab="battlepass">Battle Pass</button>
           <button class="admin-tab" data-tab="shop">Cosmetic Shop</button>
           <button class="admin-tab" data-tab="withdrawals">Prize Claims (archive)</button>
-          <button class="admin-tab" data-tab="brokers">Broker Partners</button>
         </div>
 
         <div class="admin-tab-panel" id="tab-overview">
@@ -213,6 +212,7 @@
       },
     };
 
+    if (new URLSearchParams(location.search).get('tab') === 'brokers') location.replace('/tournaments.html?tab=sponsors');
     activateTab(new URLSearchParams(location.search).get('tab') || 'overview');
   </script>
 </body>
